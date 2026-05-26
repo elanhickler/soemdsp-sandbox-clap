@@ -558,6 +558,16 @@ function renderSignalPlotControls() {
   const container = document.getElementById("signalPlotControls");
   container.replaceChildren();
 
+  const focusGroup = document.createElement("div");
+  focusGroup.className = "control-group";
+  focusGroup.setAttribute("aria-label", "Signal plot focus");
+  const modeGroup = document.createElement("div");
+  modeGroup.className = "control-group";
+  modeGroup.setAttribute("aria-label", "Signal plot mode");
+  const lagGroup = document.createElement("div");
+  lagGroup.className = "control-group";
+  lagGroup.setAttribute("aria-label", "Signal plot lag");
+
   const allButton = document.createElement("button");
   allButton.type = "button";
   allButton.className = "phase-button";
@@ -569,7 +579,7 @@ function renderSignalPlotControls() {
     state.signalPhaseFocusIndex = null;
     renderSignalPlot();
   });
-  container.append(allButton);
+  focusGroup.append(allButton);
 
   for (const [index, region] of (state.waveform?.regions || []).entries()) {
     const button = document.createElement("button");
@@ -583,7 +593,7 @@ function renderSignalPlotControls() {
       state.signalPhaseFocusIndex = index;
       renderSignalPlot();
     });
-    container.append(button);
+    focusGroup.append(button);
   }
 
   for (const mode of ["trace", "points"]) {
@@ -598,7 +608,7 @@ function renderSignalPlotControls() {
       state.signalPlotMode = mode;
       renderSignalPlot();
     });
-    container.append(button);
+    modeGroup.append(button);
   }
 
   for (const lagMs of [1, 2, 5, 10]) {
@@ -613,8 +623,10 @@ function renderSignalPlotControls() {
       state.signalLagMs = lagMs;
       renderSignalPlot();
     });
-    container.append(button);
+    lagGroup.append(button);
   }
+
+  container.append(focusGroup, modeGroup, lagGroup);
 }
 
 function renderWaveformPhaseControls() {

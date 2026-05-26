@@ -299,6 +299,19 @@ audio {
   margin-top: 12px;
 }
 
+.control-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+}
+
+.control-group:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
 .phase-button {
   min-height: 32px;
   padding: 0 12px;

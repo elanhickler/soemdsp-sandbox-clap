@@ -691,6 +691,7 @@ def require_waveform_seek_source_contract() -> None:
         "state.signalPhaseFocusIndex = index;",
         "state.signalLagMs = lagMs;",
         "state.signalPlotMode = mode;",
+        'className = "control-group"',
         'dataset.signalFocus = "all"',
         "dataset.signalFocus = region.name",
         "dataset.signalLagMs = String(lagMs)",
@@ -725,6 +726,7 @@ def require_waveform_seek_source_contract() -> None:
         "touch-action: none;",
         "user-select: none;",
         ".waveform.dragging",
+        ".control-group",
     ]:
         require(snippet in style_source, f"waveform drag style missing {snippet}")
     require(
