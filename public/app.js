@@ -553,6 +553,7 @@ function renderSignalPlot() {
   const meta = document.getElementById("signalPlotMeta");
   const waveform = state.waveform;
   renderSignalPlotControls();
+  renderSignalPlotSummary();
   renderSignalPlotPoint();
   if (!waveform) {
     status.textContent = "Check";
@@ -584,6 +585,22 @@ function renderSignalPlot() {
   ]);
   status.textContent = "Drawn";
   status.className = "pill good";
+}
+
+function renderSignalPlotSummary() {
+  const waveform = state.waveform;
+  const mode = document.getElementById("signalPlotModeSummary");
+  const window = document.getElementById("signalPlotWindowSummary");
+  const lag = document.getElementById("signalPlotLagSummary");
+  const drawableFrames = waveform
+    ? Math.max(0, waveform.samples.length - signalPlotLagFrames(waveform))
+    : 0;
+
+  mode.textContent = `${signalPlotFocusName(waveform)} / ${state.signalPlotMode} / x${state.signalPlotScale}`;
+  window.textContent = waveform
+    ? `window ${signalPlotWindowName(waveform, drawableFrames)}`
+    : "window full";
+  lag.textContent = `lag ${state.signalLagMs} ms`;
 }
 
 function renderSignalPlotPoint() {
@@ -1770,6 +1787,9 @@ function renderError(message, details = {}) {
   setStatus("parameterSummaryStatus", "Check", false);
   setStatus("waveformStatus", "Check", false);
   setStatus("signalPlotStatus", "Check", false);
+  setText("signalPlotModeSummary", "all / trace / x1");
+  setText("signalPlotWindowSummary", "window full");
+  setText("signalPlotLagSummary", "lag 1 ms");
   setText("signalPlotPoint", "x 0 / y 0");
   setStatus("phaseCoverageStatus", "Check", false);
   setStatus("phaseStatus", "Check", false);
