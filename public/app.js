@@ -2258,6 +2258,16 @@ function syncWaveformToAudio() {
   setPlayheadFrame(Math.round(audio.currentTime * state.waveform.sampleRate));
 }
 
+function syncWaveformToAudioEnd() {
+  const audio = document.getElementById("audioPlayer");
+  renderAudioPosition();
+  if (!state.followAudio || !state.waveform || Number.isNaN(audio.duration)) {
+    return;
+  }
+
+  setPlayheadFrame(state.waveform.frames);
+}
+
 function seekPrimaryAudioToFrame(frame, source = "waveform") {
   const waveform = state.waveform;
   if (!waveform) {
@@ -4165,7 +4175,7 @@ document
 
 document
   .getElementById("audioPlayer")
-  .addEventListener("ended", renderAudioPosition);
+  .addEventListener("ended", syncWaveformToAudioEnd);
 
 window.addEventListener("resize", () => {
   drawWaveform();
