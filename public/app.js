@@ -155,6 +155,13 @@ function buildPhaseSpans(phases, totalFrames) {
   });
 }
 
+function phaseFrameTotal(phases) {
+  return phases.reduce(
+    (total, phase) => total + Number(phase.samplesProcessed || 0),
+    0,
+  );
+}
+
 function renderKeyValue(container, rows) {
   container.replaceChildren();
   for (const [key, value, expected] of rows) {
@@ -162,7 +169,9 @@ function renderKeyValue(container, rows) {
     const dd = document.createElement("dd");
     dt.textContent = key;
     dd.textContent = value;
-    if (expected !== undefined && value !== boolText(expected)) {
+    const expectedText =
+      typeof expected === "boolean" ? boolText(expected) : String(expected);
+    if (expected !== undefined && value !== expectedText) {
       dd.className = "warn";
     }
     container.append(dt, dd);
@@ -771,12 +780,34 @@ function renderArtifactPacketStatus(results) {
   status.className = allOk ? "pill good" : "pill warn";
 }
 
+function renderPhaseCoverage(phases, wav) {
+  const status = document.getElementById("phaseCoverageStatus");
+  const totalFrames = Number(wav?.frames || 0);
+  const totalPhaseFrames = phaseFrameTotal(phases);
+  const delta = totalPhaseFrames - totalFrames;
+  const coverage = totalFrames > 0 ? totalPhaseFrames / totalFrames : 0;
+  const ok = phases.length > 0 && totalFrames > 0 && delta === 0;
+
+  setStatus("phaseCoverageStatus", ok ? "Complete" : "Check", ok);
+  renderKeyValue(document.getElementById("phaseCoverage"), [
+    ["phase count", String(phases.length)],
+    ["phase frames", String(totalPhaseFrames)],
+    ["wav frames", String(totalFrames)],
+    ["coverage", formatPercent(coverage * 100)],
+    ["delta", formatSignedNumber(delta), 0],
+  ]);
+}
+
 function renderPhases(phases, wav) {
+  const status = document.getElementById("phaseStatus");
   const list = document.getElementById("phaseList");
   list.replaceChildren();
   const sampleRate = Number(wav?.sampleRate || 0);
   const totalFrames = Number(wav?.frames || 0);
   const spans = buildPhaseSpans(phases, totalFrames);
+  const totalPhaseFrames = phaseFrameTotal(phases);
+  const ok = phases.length > 0 && totalFrames > 0 && totalPhaseFrames === totalFrames;
+  setStatus("phaseStatus", ok ? `${phases.length} OK` : "Check", ok);
 
   for (const [index, phase] of phases.entries()) {
     const span = spans[index];
@@ -851,6 +882,7 @@ function render(response) {
     ]),
   );
   renderProducerProof(manifest);
+  renderPhaseCoverage(manifest.phases || [], manifest.wav);
   renderPhases(manifest.phases || [], manifest.wav);
   renderChecklist(checklist);
   renderParameterSummary(manifest.artifactLinks || []);
@@ -863,6 +895,8 @@ function renderError(message) {
   setStatus("inspectionMode", "Unavailable", false);
   setText("frameCount", "0");
   setStatus("checklistStatus", "Check", false);
+  setStatus("phaseCoverageStatus", "Check", false);
+  setStatus("phaseStatus", "Check", false);
   setStatus("sourceStatus", "Check", false);
   setText("manifestPath", "Unavailable");
   setText("manifestBytes", "Unavailable");
