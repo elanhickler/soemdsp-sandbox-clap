@@ -334,6 +334,118 @@ function drawWaveform() {
   context.stroke();
 }
 
+function signalPlotLagFrames(waveform) {
+  return Math.max(1, Math.round(waveform.sampleRate / 1000));
+}
+
+function drawSignalPlot() {
+  const canvas = document.getElementById("signalPlotCanvas");
+  const waveform = state.waveform;
+  if (!waveform) {
+    return;
+  }
+
+  const samples = waveform.samples;
+  const lagFrames = signalPlotLagFrames(waveform);
+  const drawableFrames = Math.max(0, samples.length - lagFrames);
+  const pixelRatio = window.devicePixelRatio || 1;
+  const width = Math.max(320, Math.floor(canvas.clientWidth * pixelRatio));
+  const height = Math.max(240, Math.floor(canvas.clientHeight * pixelRatio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#111418";
+  context.fillRect(0, 0, width, height);
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const scale = Math.min(width, height) * 0.44;
+
+  context.strokeStyle = "rgba(243,241,236,0.16)";
+  context.lineWidth = Math.max(1, pixelRatio);
+  context.beginPath();
+  context.moveTo(centerX, 0);
+  context.lineTo(centerX, height);
+  context.moveTo(0, centerY);
+  context.lineTo(width, centerY);
+  context.stroke();
+
+  if (drawableFrames === 0) {
+    return;
+  }
+
+  const stride = Math.max(1, Math.floor(drawableFrames / 4200));
+  const regions = waveform.regions?.length
+    ? waveform.regions
+    : [{ startFrame: 0, endFrame: drawableFrames }];
+
+  for (const [regionIndex, region] of regions.entries()) {
+    const startFrame = Math.max(0, Math.min(drawableFrames, region.startFrame));
+    const endFrame = Math.max(startFrame, Math.min(drawableFrames, region.endFrame));
+    context.strokeStyle =
+      regionIndex % 2 === 0 ? "rgba(127,199,217,0.76)" : "rgba(226,168,109,0.72)";
+    context.lineWidth = Math.max(1, pixelRatio);
+    context.beginPath();
+    let started = false;
+
+    for (let frame = startFrame; frame < endFrame; frame += stride) {
+      const x = centerX + samples[frame] * scale;
+      const y = centerY - samples[frame + lagFrames] * scale;
+      if (!started) {
+        context.moveTo(x, y);
+        started = true;
+      } else {
+        context.lineTo(x, y);
+      }
+    }
+
+    context.stroke();
+  }
+
+  const pointFrame = Math.max(
+    0,
+    Math.min(drawableFrames - 1, state.playheadFrame),
+  );
+  context.fillStyle = "#f3f1ec";
+  context.beginPath();
+  context.arc(
+    centerX + samples[pointFrame] * scale,
+    centerY - samples[pointFrame + lagFrames] * scale,
+    Math.max(3, 3 * pixelRatio),
+    0,
+    Math.PI * 2,
+  );
+  context.fill();
+}
+
+function renderSignalPlot() {
+  const status = document.getElementById("signalPlotStatus");
+  const meta = document.getElementById("signalPlotMeta");
+  const waveform = state.waveform;
+  if (!waveform) {
+    status.textContent = "Check";
+    status.className = "pill warn";
+    meta.replaceChildren();
+    return;
+  }
+
+  const lagFrames = signalPlotLagFrames(waveform);
+  drawSignalPlot();
+  renderKeyValue(meta, [
+    ["x", "sample[n]"],
+    ["y", "sample[n + lag]"],
+    ["lag frames", String(lagFrames)],
+    ["lag time", formatSeconds(lagFrames / waveform.sampleRate)],
+    ["points", String(Math.max(0, waveform.samples.length - lagFrames))],
+  ]);
+  status.textContent = "Drawn";
+  status.className = "pill good";
+}
+
 function renderWaveformPhaseControls() {
   const container = document.getElementById("waveformPhaseControls");
   container.replaceChildren();
@@ -391,6 +503,7 @@ function setPlayheadFrame(frame) {
   state.playheadFrame = Math.min(waveform.frames, Math.max(0, frame));
   renderWaveformPosition();
   drawWaveform();
+  drawSignalPlot();
 }
 
 async function renderWaveform(path) {
@@ -413,6 +526,7 @@ async function renderWaveform(path) {
     );
     setPlayheadFrame(0);
     drawWaveform();
+    renderSignalPlot();
     renderWaveformPhaseControls();
     const wav = state.response?.manifest?.wav || {};
     const stats = state.waveform.stats;
@@ -438,6 +552,7 @@ async function renderWaveform(path) {
     state.playheadFrame = 0;
     meta.replaceChildren();
     renderWaveformPhaseControls();
+    renderSignalPlot();
     status.textContent = "Check";
     status.className = "pill warn";
     renderWaveformPosition();
@@ -1358,6 +1473,7 @@ function renderError(message, details = {}) {
   setStatus("producerStatus", "Check", false);
   setStatus("parameterSummaryStatus", "Check", false);
   setStatus("waveformStatus", "Check", false);
+  setStatus("signalPlotStatus", "Check", false);
   setStatus("phaseCoverageStatus", "Check", false);
   setStatus("phaseStatus", "Check", false);
   setStatus("artifactCoverageStatus", "Check", false);
@@ -1392,6 +1508,7 @@ function renderError(message, details = {}) {
   renderWaveformPhaseControls();
   renderWaveformPosition();
   clearElement("waveformMeta");
+  clearElement("signalPlotMeta");
   clearElement("boundaryFlags");
   clearElement("phaseCoverage");
   clearElement("phaseList");
@@ -1470,6 +1587,9 @@ document
   .getElementById("audioPlayer")
   .addEventListener("loadedmetadata", renderAudioPosition);
 
-window.addEventListener("resize", drawWaveform);
+window.addEventListener("resize", () => {
+  drawWaveform();
+  drawSignalPlot();
+});
 
 loadManifest();

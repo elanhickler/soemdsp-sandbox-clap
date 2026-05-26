@@ -96,6 +96,9 @@ REQUIRED_SHELL_IDS = {
     "sourceDetail",
     "sourceError",
     "sourceStatus",
+    "signalPlotCanvas",
+    "signalPlotMeta",
+    "signalPlotStatus",
     "waveformCanvas",
     "waveformMeta",
     "waveformPhase",
@@ -272,6 +275,12 @@ def require_shell_contract(html: str) -> None:
         "waveformCanvas",
         "canvas",
         {"width": "1120", "height": "180", "aria-label": "Primary WAV waveform"},
+    )
+    require_shell_element(
+        parser,
+        "signalPlotCanvas",
+        "canvas",
+        {"width": "720", "height": "360", "aria-label": "Primary WAV signal plot"},
     )
     require_shell_element(
         parser,
@@ -665,6 +674,10 @@ def require_waveform_seek_source_contract() -> None:
         '["peak", formatCompactNumber(stats.peak)]',
         '["rms", formatCompactNumber(stats.rms)]',
         '["dc offset", formatCompactNumber(stats.dcOffset)]',
+        "function drawSignalPlot()",
+        "function signalPlotLagFrames(waveform)",
+        '["x", "sample[n]"]',
+        '["y", "sample[n + lag]"]',
     ]:
         require(snippet in app_source, f"waveform analysis source missing {snippet}")
     for snippet in [
