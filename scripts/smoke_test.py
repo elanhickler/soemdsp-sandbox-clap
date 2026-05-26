@@ -147,6 +147,7 @@ REQUIRED_SHELL_IDS = {
     "waveformPhaseControls",
     "waveformPhaseJumpTarget",
     "waveformPhaseRange",
+    "waveformPlayButton",
     "waveformPosition",
     "waveformProbe",
     "waveformSample",
@@ -313,6 +314,12 @@ def require_shell_contract(html: str) -> None:
         "followAudioButton",
         "button",
         {"type": "button", "aria-pressed": "true"},
+    )
+    require_shell_element(
+        parser,
+        "waveformPlayButton",
+        "button",
+        {"type": "button", "aria-pressed": "false", "disabled": ""},
     )
     require_shell_element(
         parser,
@@ -1282,6 +1289,13 @@ def require_waveform_seek_source_contract() -> None:
         'playback.textContent = `playback ${stateName}`',
         "setInspectionCursorPlayback(audio)",
         "setInspectionCursorPlayback(null)",
+        "function renderWaveformPlayControl(audio = document.getElementById(\"audioPlayer\"))",
+        "button.textContent = playing ? \"Pause Audio\" : \"Play Audio\"",
+        "button.setAttribute(\"aria-pressed\", String(playing))",
+        "function togglePrimaryAudioPlayback()",
+        "await audio.play();",
+        "audio.pause();",
+        ".addEventListener(\"click\", togglePrimaryAudioPlayback)",
         "function probeSourceText()",
         'state.waveformProbeSource ? `probe ${state.waveformProbeSource}` : "probe"',
         "function setInspectionCursorView(followAudio)",
@@ -1506,6 +1520,7 @@ def require_waveform_seek_source_contract() -> None:
         '"native audio",',
         '["decoded waveform", waveformReady]',
         '["waveform seek", waveformReady && Number(manifest?.wav?.frames) > 0]',
+        '["waveform play control", Boolean(document.getElementById("waveformPlayButton"))]',
         '["waveform hover probe", waveformReady && Boolean(document.getElementById("waveformProbe"))]',
         '["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))]',
         '["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))]',

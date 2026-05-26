@@ -2179,6 +2179,37 @@ function renderAudioPosition() {
   position.textContent = `audio ${formatSeconds(Number.isFinite(time) ? time : 0)} / ${formatAudioDuration(duration)}`;
   setInspectionCursorAudio(time, duration);
   setInspectionCursorPlayback(audio);
+  renderWaveformPlayControl(audio);
+}
+
+function renderWaveformPlayControl(audio = document.getElementById("audioPlayer")) {
+  const button = document.getElementById("waveformPlayButton");
+  const ready = Boolean(audio?.getAttribute("src"));
+  const playing = ready && !audio.paused && !audio.ended;
+  button.disabled = !ready;
+  button.textContent = playing ? "Pause Audio" : "Play Audio";
+  button.setAttribute("aria-pressed", String(playing));
+  button.classList.toggle("active", playing);
+}
+
+async function togglePrimaryAudioPlayback() {
+  const audio = document.getElementById("audioPlayer");
+  if (!audio.getAttribute("src")) {
+    renderWaveformPlayControl(audio);
+    return;
+  }
+
+  try {
+    if (audio.paused || audio.ended) {
+      await audio.play();
+    } else {
+      audio.pause();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  renderAudioPosition();
 }
 
 function setFollowAudio(enabled, syncNow) {
@@ -3045,6 +3076,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
       hasArtifactKind(manifest?.artifactLinks || [], "audio") &&
         Boolean(manifest?.sandboxHandoff?.primaryAudioArtifact),
     ],
+    ["waveform play control", Boolean(document.getElementById("waveformPlayButton"))],
     ["decoded waveform", waveformReady],
     ["waveform seek", waveformReady && Number(manifest?.wav?.frames) > 0],
     ["waveform hover probe", waveformReady && Boolean(document.getElementById("waveformProbe"))],
@@ -3640,6 +3672,7 @@ function render(response) {
 
   const audio = document.getElementById("audioPlayer");
   audio.src = artifactUrl(handoff.primaryAudioArtifact);
+  renderAudioPosition();
   renderWaveform(handoff.primaryAudioArtifact);
 
   renderKeyValue(
@@ -4101,6 +4134,10 @@ document.addEventListener("pointermove", clearPhaseButtonProbeFromOutside);
 document
   .getElementById("followAudioButton")
   .addEventListener("click", toggleFollowAudio);
+
+document
+  .getElementById("waveformPlayButton")
+  .addEventListener("click", togglePrimaryAudioPlayback);
 
 document
   .getElementById("audioPlayer")
