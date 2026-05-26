@@ -3100,6 +3100,15 @@ function renderArtifactCoverage(manifest) {
   renderKeyValue(document.getElementById("artifactCoverage"), rows);
 }
 
+function renderUnavailableArtifactCoverage() {
+  renderKeyValue(document.getElementById("artifactCoverage"), [
+    ["artifact links", "unavailable", "available"],
+    ["entry point", "unavailable", "present"],
+    ["audio", "unavailable", "present"],
+    ["phase reports", "unavailable", "present"],
+  ]);
+}
+
 function renderSource(response) {
   const info = response.manifestInfo || {};
   const hasPath = Boolean(response.manifestPath);
@@ -3770,7 +3779,7 @@ function renderError(message, details = {}) {
   clearElement("phaseCoverage");
   clearElement("phaseList");
   renderUnavailableChecklist();
-  clearElement("artifactCoverage");
+  renderUnavailableArtifactCoverage();
   clearElement("artifactList");
 }
 
