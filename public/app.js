@@ -2958,6 +2958,14 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
   renderCheckRows(document.getElementById("handsOnReadiness"), rows);
 }
 
+function renderUnavailableHandsOnReadiness() {
+  renderCheckRows(document.getElementById("handsOnReadiness"), [
+    ["manifest loaded", false],
+    ["decoded waveform", false],
+    ["read-only boundary", false],
+  ]);
+}
+
 function renderProducerProof(manifest) {
   const status = document.getElementById("producerStatus");
   const setters = manifest.parameterSetters || {};
@@ -3711,7 +3719,7 @@ function renderError(message, details = {}) {
   renderAudioPosition();
 
   clearElement("producerProof");
-  clearElement("handsOnReadiness");
+  renderUnavailableHandsOnReadiness();
   clearElement("sandboxContract");
   clearElement("parameterSummary");
   clearElement("parameterTimeline");
