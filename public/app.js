@@ -1792,18 +1792,49 @@ function producerPhaseAudioMeasurement(region) {
   );
 }
 
+function measuredPhaseAudio(region) {
+  const waveform = state.waveform;
+  if (!waveform || !region) {
+    return null;
+  }
+
+  const stats = analyzeSampleRange(
+    waveform.samples,
+    region.startFrame,
+    region.endFrame,
+  );
+  return {
+    frequency: estimateZeroCrossingFrequency(
+      waveform.samples,
+      region.startFrame,
+      region.endFrame,
+      waveform.sampleRate,
+    ),
+    peak: stats.peak,
+  };
+}
+
 function renderCurrentParameters(region) {
   const frequency = document.getElementById("currentFrequency");
   const amplitude = document.getElementById("currentAmplitude");
+  const measuredFrequency = document.getElementById("currentMeasuredFrequency");
+  const measuredPeak = document.getElementById("currentMeasuredPeak");
   const status = document.getElementById("currentParameterStatus");
   const frequencyValue = activeParameterValue("frequency", region);
   const amplitudeValue = activeParameterValue("amplitude", region);
+  const measurement = measuredPhaseAudio(region);
   const ok = frequencyValue !== null && amplitudeValue !== null;
 
   frequency.textContent =
     frequencyValue === null ? "freq" : `freq ${formatCompactNumber(frequencyValue)} Hz`;
   amplitude.textContent =
     amplitudeValue === null ? "amp" : `amp ${formatCompactNumber(amplitudeValue)}`;
+  measuredFrequency.textContent =
+    measurement?.frequency === null || measurement?.frequency === undefined
+      ? "measured freq"
+      : `measured ${formatCompactNumber(measurement.frequency)} Hz`;
+  measuredPeak.textContent =
+    measurement ? `peak ${formatCompactNumber(measurement.peak)}` : "peak";
   status.textContent = ok ? `params ${region?.name || "synced"}` : "params missing";
   status.className = `pill ${ok ? "good" : "warn"}`;
 }
@@ -3102,6 +3133,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["parameter timeline preview", waveformReady && Boolean(document.querySelector(".parameter-segment"))],
     ["probe frame labels", waveformReady && typeof formatProbeFrame === "function"],
     ["follow/free view", Boolean(document.getElementById("followAudioButton"))],
+    ["current measured audio", waveformReady && Boolean(document.getElementById("currentMeasuredFrequency"))],
     [
       "phase jump controls",
       Array.isArray(manifest?.phases) &&
@@ -3994,6 +4026,8 @@ function renderError(message, details = {}) {
   setStatus("currentParameterStatus", "Check", false);
   setText("currentFrequency", "freq");
   setText("currentAmplitude", "amp");
+  setText("currentMeasuredFrequency", "measured freq");
+  setText("currentMeasuredPeak", "peak");
   setText("waveformPhaseJumpTarget", "jump idle");
   setStatus("signalPlotStatus", "Check", false);
   setText("signalPlotModeSummary", "all / trace / x1");
