@@ -458,6 +458,10 @@ function findArtifactPath(links, kind) {
   return link ? link.path : "";
 }
 
+function countArtifactKind(links, kind) {
+  return links.filter((link) => link.kind === kind && Boolean(link.path)).length;
+}
+
 function parseSummaryText(text) {
   const pairs = new Map();
   for (const line of text.split(/\r?\n/)) {
@@ -674,6 +678,30 @@ function renderProducerProof(manifest) {
   renderKeyValue(document.getElementById("producerProof"), rows);
 }
 
+function renderArtifactCoverage(links, phases) {
+  const phaseReportCount = countArtifactKind(links, "phase-report");
+  const rows = [
+    ["total links", String(links.length)],
+    ["entry point", String(countArtifactKind(links, "entry-point")), 1],
+    ["audio", String(countArtifactKind(links, "audio")), 1],
+    ["manifest", String(countArtifactKind(links, "manifest")), 1],
+    ["text summary", String(countArtifactKind(links, "text-summary")), 1],
+    ["wav report", String(countArtifactKind(links, "wav-report")), 1],
+    ["phase reports", String(phaseReportCount), phases.length],
+  ];
+  const ok =
+    links.length > 0 &&
+    countArtifactKind(links, "entry-point") >= 1 &&
+    countArtifactKind(links, "audio") >= 1 &&
+    countArtifactKind(links, "manifest") >= 1 &&
+    countArtifactKind(links, "text-summary") >= 1 &&
+    countArtifactKind(links, "wav-report") >= 1 &&
+    phaseReportCount === phases.length;
+
+  setStatus("artifactCoverageStatus", ok ? "Complete" : "Check", ok);
+  renderKeyValue(document.getElementById("artifactCoverage"), rows);
+}
+
 function renderSource(response) {
   const info = response.manifestInfo || {};
   const hasPath = Boolean(response.manifestPath);
@@ -885,6 +913,7 @@ function render(response) {
   renderPhaseCoverage(manifest.phases || [], manifest.wav);
   renderPhases(manifest.phases || [], manifest.wav);
   renderChecklist(checklist);
+  renderArtifactCoverage(manifest.artifactLinks || [], manifest.phases || []);
   renderParameterSummary(manifest.artifactLinks || []);
   renderArtifacts(manifest.artifactLinks || []);
 }
@@ -897,6 +926,7 @@ function renderError(message) {
   setStatus("checklistStatus", "Check", false);
   setStatus("phaseCoverageStatus", "Check", false);
   setStatus("phaseStatus", "Check", false);
+  setStatus("artifactCoverageStatus", "Check", false);
   setStatus("sourceStatus", "Check", false);
   setText("manifestPath", "Unavailable");
   setText("manifestBytes", "Unavailable");
