@@ -848,6 +848,7 @@ function renderSource(response) {
   setStatus("sourceStatus", ok ? "Loaded" : "Check", ok);
   setText("manifestPath", response.manifestPath || "missing");
   setText("sourceError", "none");
+  setText("sourceDetail", "none");
   setText(
     "manifestHttpStatus",
     formatHttpStatus(response.responseStatus, response.responseStatusText),
@@ -1140,6 +1141,7 @@ function renderError(message, details = {}) {
   setText("audioTitle", "Unavailable");
   setText("manifestPath", details.path || details.manifestPath || "Unavailable");
   setText("sourceError", message || details.message || "Unavailable");
+  setText("sourceDetail", details.message || "none");
   setText(
     "manifestHttpStatus",
     formatHttpStatus(details.responseStatus, details.responseStatusText),
