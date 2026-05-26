@@ -1788,13 +1788,17 @@ function renderWaveformPhaseControls() {
     button.type = "button";
     button.className = "phase-button";
     button.dataset.phaseIndex = String(index);
+    button.dataset.phaseName = region.name || "";
     button.dataset.phaseStartFrame = String(region.startFrame);
+    button.dataset.phaseEndFrame = String(region.endFrame);
     button.dataset.phaseStartTime = formatSeconds(region.startFrame / waveform.sampleRate);
+    button.dataset.phaseEndTime = formatSeconds(region.endFrame / waveform.sampleRate);
     button.setAttribute(
       "aria-label",
-      `Jump waveform to ${region.name} phase at frame ${region.startFrame}`,
+      `Jump waveform to ${region.name} phase from frame ${region.startFrame} to ${region.endFrame}`,
     );
-    button.title = `Jump to ${region.name} at ${button.dataset.phaseStartTime}`;
+    button.title =
+      `Jump to ${region.name} from ${button.dataset.phaseStartTime} to ${button.dataset.phaseEndTime}`;
     button.textContent = region.name;
     button.classList.toggle("preview", index === state.phaseJumpPreviewIndex);
     button.addEventListener("pointermove", () => probePhaseButton(index));
@@ -3345,11 +3349,17 @@ function phaseJumpButtonsLabeled(manifest) {
     const label = button.getAttribute("aria-label") || "";
     return (
       button.dataset.phaseIndex !== undefined &&
+      button.dataset.phaseName !== undefined &&
       button.dataset.phaseStartFrame !== undefined &&
+      button.dataset.phaseEndFrame !== undefined &&
       button.dataset.phaseStartTime !== undefined &&
+      button.dataset.phaseEndTime !== undefined &&
       label.startsWith("Jump waveform to ") &&
-      label.includes(" phase at frame ") &&
-      button.title.startsWith("Jump to ")
+      label.includes(" phase from frame ") &&
+      label.includes(" to ") &&
+      button.title.startsWith("Jump to ") &&
+      button.title.includes(" from ") &&
+      button.title.includes(" to ")
     );
   });
 }
