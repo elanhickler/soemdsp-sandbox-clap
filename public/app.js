@@ -2505,6 +2505,17 @@ function renderParameterSummaryCards(pairs) {
   }
 }
 
+function renderUnavailableParameterSummary() {
+  renderParameterSummaryCards(
+    new Map([
+      ["first half frequency", "unavailable"],
+      ["first half amplitude", "unavailable"],
+      ["second half frequency", "unavailable"],
+      ["second half amplitude", "unavailable"],
+    ]),
+  );
+}
+
 function parameterTimelineRows(manifest) {
   const resync = manifest?.parameterResync || {};
   return Object.entries(resync)
@@ -2706,6 +2717,35 @@ function renderParameterTimeline(manifest) {
   status.className = "pill good";
   updateParameterTimelinePlayhead(activeWaveformRegion());
   renderParameterTimelineProbe();
+}
+
+function renderUnavailableParameterTimeline() {
+  const timeline = document.getElementById("parameterTimeline");
+  timeline.replaceChildren();
+
+  const track = document.createElement("div");
+  track.className = "parameter-track";
+
+  const label = document.createElement("div");
+  label.className = "parameter-track-label";
+  label.textContent = "resync";
+
+  const rail = document.createElement("div");
+  rail.className = "parameter-track-rail";
+
+  const segment = document.createElement("div");
+  segment.className = "parameter-segment warn-row";
+
+  const phase = document.createElement("span");
+  phase.textContent = "unavailable";
+
+  const value = document.createElement("strong");
+  value.textContent = "manifest required";
+
+  segment.append(phase, value);
+  rail.append(segment);
+  track.append(label, rail);
+  timeline.append(track);
 }
 
 function parameterResyncPairs(manifest) {
@@ -3792,8 +3832,8 @@ function renderError(message, details = {}) {
   renderUnavailableProducerProof();
   renderUnavailableHandsOnReadiness();
   renderUnavailableSandboxContract();
-  clearElement("parameterSummary");
-  clearElement("parameterTimeline");
+  renderUnavailableParameterSummary();
+  renderUnavailableParameterTimeline();
   renderReportControls();
   renderActiveReport();
   renderWaveformPhaseControls();
