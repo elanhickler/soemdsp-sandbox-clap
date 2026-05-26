@@ -21,9 +21,27 @@ DEFAULT_MANIFEST = (
 class SandboxServer(BaseHTTPRequestHandler):
     manifest_path: Path = DEFAULT_MANIFEST
     artifact_root: Path = DEFAULT_SOEMDSP_ROOT
+    sending_error: bool = False
 
     def log_message(self, format: str, *args: object) -> None:
         return
+
+    def send_error(
+        self,
+        code: int,
+        message: str | None = None,
+        explain: str | None = None,
+    ) -> None:
+        self.sending_error = True
+        try:
+            super().send_error(code, message, explain)
+        finally:
+            self.sending_error = False
+
+    def end_headers(self) -> None:
+        if self.sending_error:
+            self.send_no_store_headers()
+        super().end_headers()
 
     def do_GET(self) -> None:
         self.serve_request(send_body=True)
