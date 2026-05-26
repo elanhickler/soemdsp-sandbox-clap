@@ -2999,6 +2999,16 @@ function renderProducerProof(manifest) {
   renderKeyValue(document.getElementById("producerProof"), rows);
 }
 
+function renderUnavailableProducerProof() {
+  renderKeyValue(document.getElementById("producerProof"), [
+    ["demo", "unavailable", "present"],
+    ["runtime API", "unavailable", boolText(false)],
+    ["scheduler", "unavailable", boolText(false)],
+    ["audio engine", "unavailable", boolText(false)],
+    ["phase measurements", "unavailable", boolText(true)],
+  ]);
+}
+
 function renderSandboxContract(manifest) {
   const status = document.getElementById("sandboxContractStatus");
   const list = document.getElementById("sandboxContract");
@@ -3759,7 +3769,7 @@ function renderError(message, details = {}) {
   audio.load();
   renderAudioPosition();
 
-  clearElement("producerProof");
+  renderUnavailableProducerProof();
   renderUnavailableHandsOnReadiness();
   renderUnavailableSandboxContract();
   clearElement("parameterSummary");
