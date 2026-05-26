@@ -2359,6 +2359,11 @@ def run_manifest_error_smoke(port: int) -> None:
                 response = request(f"{base_url}/api/manifest")
                 require(response.status == status, f"{error} status mismatch")
                 require_no_store(response, error)
+                require_content_type(response, "application/json", error)
+                require(
+                    response.headers.get("content-length") == str(len(response.body)),
+                    f"{error} content-length mismatch",
+                )
                 payload = json.loads(response.body.decode("utf-8"))
                 require(payload.get("ok") is False, f"{error} payload was not false")
                 require(payload.get("error") == error, f"{error} payload mismatch")
@@ -2387,6 +2392,11 @@ def run_readable_malformed_manifest_smoke(port: int) -> None:
             response = request(f"{base_url}/api/manifest")
             require(response.status == 200, "readable malformed manifest status mismatch")
             require_no_store(response, "readable malformed manifest")
+            require_content_type(response, "application/json", "readable malformed manifest")
+            require(
+                response.headers.get("content-length") == str(len(response.body)),
+                "readable malformed manifest content-length mismatch",
+            )
             payload = json.loads(response.body.decode("utf-8"))
             require(payload.get("ok") is True, "readable malformed manifest was not ok")
             require(
@@ -2396,6 +2406,16 @@ def run_readable_malformed_manifest_smoke(port: int) -> None:
             require(
                 payload.get("artifactRoot") == str(fixture_root.resolve()),
                 "readable malformed manifest artifact root mismatch",
+            )
+            manifest_info = payload.get("manifestInfo")
+            require(isinstance(manifest_info, dict), "readable malformed manifest info missing")
+            require(
+                manifest_info.get("bytes") == malformed_manifest.stat().st_size,
+                "readable malformed manifest byte count mismatch",
+            )
+            require(
+                isinstance(manifest_info.get("modifiedUtc"), str),
+                "readable malformed manifest modified time missing",
             )
             require(
                 payload.get("manifest") == {"allOk": True},
