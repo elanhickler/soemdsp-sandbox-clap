@@ -8,6 +8,7 @@ const state = {
   activeReportIndex: 0,
   signalLagMs: 1,
   signalPhaseFocusIndex: null,
+  signalPhaseFocusName: "all",
   signalPlotMode: "trace",
   signalPlotScale: 1,
   signalPlotWindow: "full",
@@ -27,9 +28,52 @@ const requiredFlags = [
 const expectedContract = "soemdsp-demo-local-sandbox-handoff";
 const expectedContractVersion = 1;
 const expectedInspectionMode = "mouse-and-ears";
+const signalPlotSettingsKey = "soemdsp-sandbox.signalPlotSettings";
 
 function artifactUrl(path) {
   return `/artifact?path=${encodeURIComponent(path)}`;
+}
+
+function loadSignalPlotSettings() {
+  try {
+    const settings = JSON.parse(
+      window.localStorage.getItem(signalPlotSettingsKey) || "{}",
+    );
+    if ([1, 2, 5, 10].includes(settings.signalLagMs)) {
+      state.signalLagMs = settings.signalLagMs;
+    }
+    if (typeof settings.signalPhaseFocusName === "string") {
+      state.signalPhaseFocusName = settings.signalPhaseFocusName;
+    }
+    if ([1, 2, 4].includes(settings.signalPlotScale)) {
+      state.signalPlotScale = settings.signalPlotScale;
+    }
+    if (["trace", "points"].includes(settings.signalPlotMode)) {
+      state.signalPlotMode = settings.signalPlotMode;
+    }
+    if (["full", "cursor"].includes(settings.signalPlotWindow)) {
+      state.signalPlotWindow = settings.signalPlotWindow;
+    }
+    if ([40, 80, 160].includes(settings.signalPlotWindowMs)) {
+      state.signalPlotWindowMs = settings.signalPlotWindowMs;
+    }
+  } catch (_error) {
+    window.localStorage.removeItem(signalPlotSettingsKey);
+  }
+}
+
+function saveSignalPlotSettings() {
+  window.localStorage.setItem(
+    signalPlotSettingsKey,
+    JSON.stringify({
+      signalLagMs: state.signalLagMs,
+      signalPhaseFocusName: state.signalPhaseFocusName,
+      signalPlotMode: state.signalPlotMode,
+      signalPlotScale: state.signalPlotScale,
+      signalPlotWindow: state.signalPlotWindow,
+      signalPlotWindowMs: state.signalPlotWindowMs,
+    }),
+  );
 }
 
 function setText(id, value) {
@@ -409,6 +453,18 @@ function signalPlotFocusName(waveform) {
   return waveform.regions?.[state.signalPhaseFocusIndex]?.name || "all";
 }
 
+function restoreSignalPlotFocusIndex() {
+  if (state.signalPhaseFocusName === "all") {
+    state.signalPhaseFocusIndex = null;
+    return;
+  }
+
+  const index = (state.waveform?.regions || []).findIndex(
+    (region) => region.name === state.signalPhaseFocusName,
+  );
+  state.signalPhaseFocusIndex = index >= 0 ? index : null;
+}
+
 function signalPlotPointCount(waveform, drawableFrames) {
   return signalPlotRegions(waveform, drawableFrames).reduce((total, region) => {
     const startFrame = Math.max(0, Math.min(drawableFrames, region.startFrame));
@@ -625,6 +681,7 @@ function renderSignalPlotPoint() {
 function renderSignalPlotControls() {
   const container = document.getElementById("signalPlotControls");
   container.replaceChildren();
+  restoreSignalPlotFocusIndex();
 
   const focusGroup = document.createElement("div");
   focusGroup.className = "control-group";
@@ -654,6 +711,8 @@ function renderSignalPlotControls() {
   allButton.classList.toggle("active", state.signalPhaseFocusIndex === null);
   allButton.addEventListener("click", () => {
     state.signalPhaseFocusIndex = null;
+    state.signalPhaseFocusName = "all";
+    saveSignalPlotSettings();
     renderSignalPlot();
   });
   focusGroup.append(allButton);
@@ -668,6 +727,8 @@ function renderSignalPlotControls() {
     button.classList.toggle("active", index === state.signalPhaseFocusIndex);
     button.addEventListener("click", () => {
       state.signalPhaseFocusIndex = index;
+      state.signalPhaseFocusName = region.name;
+      saveSignalPlotSettings();
       renderSignalPlot();
     });
     focusGroup.append(button);
@@ -683,6 +744,7 @@ function renderSignalPlotControls() {
     button.classList.toggle("active", mode === state.signalPlotMode);
     button.addEventListener("click", () => {
       state.signalPlotMode = mode;
+      saveSignalPlotSettings();
       renderSignalPlot();
     });
     modeGroup.append(button);
@@ -698,6 +760,7 @@ function renderSignalPlotControls() {
     button.classList.toggle("active", scale === state.signalPlotScale);
     button.addEventListener("click", () => {
       state.signalPlotScale = scale;
+      saveSignalPlotSettings();
       renderSignalPlot();
     });
     scaleGroup.append(button);
@@ -713,6 +776,7 @@ function renderSignalPlotControls() {
     button.classList.toggle("active", windowMode === state.signalPlotWindow);
     button.addEventListener("click", () => {
       state.signalPlotWindow = windowMode;
+      saveSignalPlotSettings();
       renderSignalPlot();
     });
     windowGroup.append(button);
@@ -728,6 +792,7 @@ function renderSignalPlotControls() {
     button.classList.toggle("active", windowMs === state.signalPlotWindowMs);
     button.addEventListener("click", () => {
       state.signalPlotWindowMs = windowMs;
+      saveSignalPlotSettings();
       renderSignalPlot();
     });
     windowSizeGroup.append(button);
@@ -743,6 +808,7 @@ function renderSignalPlotControls() {
     button.classList.toggle("active", lagMs === state.signalLagMs);
     button.addEventListener("click", () => {
       state.signalLagMs = lagMs;
+      saveSignalPlotSettings();
       renderSignalPlot();
     });
     lagGroup.append(button);
@@ -1910,4 +1976,5 @@ window.addEventListener("resize", () => {
   drawSignalPlot();
 });
 
+loadSignalPlotSettings();
 loadManifest();
