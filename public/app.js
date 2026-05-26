@@ -6,6 +6,7 @@ const state = {
   followAudio: true,
   reports: [],
   activeReportIndex: 0,
+  signalLagMs: 1,
 };
 
 const requiredFlags = [
@@ -335,7 +336,7 @@ function drawWaveform() {
 }
 
 function signalPlotLagFrames(waveform) {
-  return Math.max(1, Math.round(waveform.sampleRate / 1000));
+  return Math.max(1, Math.round((waveform.sampleRate * state.signalLagMs) / 1000));
 }
 
 function drawSignalPlot() {
@@ -426,6 +427,7 @@ function renderSignalPlot() {
   const status = document.getElementById("signalPlotStatus");
   const meta = document.getElementById("signalPlotMeta");
   const waveform = state.waveform;
+  renderSignalPlotControls();
   if (!waveform) {
     status.textContent = "Check";
     status.className = "pill warn";
@@ -438,12 +440,31 @@ function renderSignalPlot() {
   renderKeyValue(meta, [
     ["x", "sample[n]"],
     ["y", "sample[n + lag]"],
+    ["lag", `${state.signalLagMs} ms`],
     ["lag frames", String(lagFrames)],
     ["lag time", formatSeconds(lagFrames / waveform.sampleRate)],
     ["points", String(Math.max(0, waveform.samples.length - lagFrames))],
   ]);
   status.textContent = "Drawn";
   status.className = "pill good";
+}
+
+function renderSignalPlotControls() {
+  const container = document.getElementById("signalPlotControls");
+  container.replaceChildren();
+
+  for (const lagMs of [1, 2, 5, 10]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "phase-button";
+    button.textContent = `${lagMs} ms`;
+    button.classList.toggle("active", lagMs === state.signalLagMs);
+    button.addEventListener("click", () => {
+      state.signalLagMs = lagMs;
+      renderSignalPlot();
+    });
+    container.append(button);
+  }
 }
 
 function renderWaveformPhaseControls() {
@@ -1508,6 +1529,7 @@ function renderError(message, details = {}) {
   renderWaveformPhaseControls();
   renderWaveformPosition();
   clearElement("waveformMeta");
+  renderSignalPlotControls();
   clearElement("signalPlotMeta");
   clearElement("boundaryFlags");
   clearElement("phaseCoverage");

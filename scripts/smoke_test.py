@@ -97,6 +97,7 @@ REQUIRED_SHELL_IDS = {
     "sourceError",
     "sourceStatus",
     "signalPlotCanvas",
+    "signalPlotControls",
     "signalPlotMeta",
     "signalPlotStatus",
     "waveformCanvas",
@@ -675,7 +676,10 @@ def require_waveform_seek_source_contract() -> None:
         '["rms", formatCompactNumber(stats.rms)]',
         '["dc offset", formatCompactNumber(stats.dcOffset)]',
         "function drawSignalPlot()",
+        "function renderSignalPlotControls()",
         "function signalPlotLagFrames(waveform)",
+        "signalLagMs: 1",
+        "state.signalLagMs = lagMs;",
         '["x", "sample[n]"]',
         '["y", "sample[n + lag]"]',
     ]:
