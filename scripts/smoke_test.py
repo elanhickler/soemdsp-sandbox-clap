@@ -343,6 +343,18 @@ def require_shell_contract(html: str) -> None:
     )
     require_shell_element(
         parser,
+        "refreshButton",
+        "button",
+        {
+            "type": "button",
+            "aria-label": "Reload manifest",
+            "aria-busy": "false",
+            "data-loading": "false",
+            "title": "Reload manifest and artifacts",
+        },
+    )
+    require_shell_element(
+        parser,
         "audioPlayer",
         "audio",
         {"controls": "", "preload": "metadata"},
@@ -1509,6 +1521,18 @@ def require_waveform_seek_source_contract() -> None:
         "waveformProbeSource: null",
         "function setInspectionCursorSource(sourceName, mode)",
         "source.className = `pill inspection-source ${mode}`",
+        "manifestLoading: false",
+        "function renderRefreshButton(loading = state.manifestLoading)",
+        'const button = document.getElementById("refreshButton")',
+        "button.disabled = loading",
+        'button.textContent = loading ? "Loading Manifest" : "Reload Manifest"',
+        "button.setAttribute(\"aria-busy\", String(loading))",
+        "button.dataset.loading = String(loading)",
+        "button.title = loading ? \"Manifest reload in progress\" : \"Reload manifest and artifacts\"",
+        "if (state.manifestLoading) {",
+        "state.manifestLoading = true",
+        "state.manifestLoading = false",
+        ".addEventListener(\"click\", loadManifest)",
         "function formatInspectionDelta(deltaFrame, sampleRate)",
         "function setInspectionCursorDelta(deltaFrame, sampleRate)",
         "const inspectionModes = Object.freeze(",

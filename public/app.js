@@ -21,6 +21,7 @@ const state = {
   signalPlotScale: 1,
   signalPlotWindow: "full",
   signalPlotWindowMs: 80,
+  manifestLoading: false,
 };
 
 function resetSharedProbeState() {
@@ -4372,7 +4373,24 @@ function renderError(message, details = {}) {
   renderUnavailableArtifacts();
 }
 
+function renderRefreshButton(loading = state.manifestLoading) {
+  const button = document.getElementById("refreshButton");
+  const label = loading ? "Loading manifest" : "Reload manifest";
+  button.disabled = loading;
+  button.textContent = loading ? "Loading Manifest" : "Reload Manifest";
+  button.setAttribute("aria-label", label);
+  button.setAttribute("aria-busy", String(loading));
+  button.dataset.loading = String(loading);
+  button.title = loading ? "Manifest reload in progress" : "Reload manifest and artifacts";
+}
+
 async function loadManifest() {
+  if (state.manifestLoading) {
+    return;
+  }
+
+  state.manifestLoading = true;
+  renderRefreshButton();
   try {
     const response = await fetch("/api/manifest", { cache: "no-store" });
     const payload = await response.json();
@@ -4395,6 +4413,9 @@ async function loadManifest() {
     render(payload);
   } catch (error) {
     renderError(error instanceof Error ? error.message : String(error));
+  } finally {
+    state.manifestLoading = false;
+    renderRefreshButton();
   }
 }
 
