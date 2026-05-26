@@ -1277,6 +1277,21 @@ def require_primary_audio_wav(base_url: str, payload: dict[str, object]) -> None
         "unsatisfied primary audio range content-range mismatch",
     )
 
+    for label, header in [
+        ("unsupported unit", "samples=0-15"),
+        ("multi range", "bytes=0-1,4-5"),
+        ("reversed range", "bytes=15-0"),
+        ("zero suffix", "bytes=-0"),
+    ]:
+        invalid_range = request(range_url, headers={"Range": header})
+        require(invalid_range.status == 416, f"{label} primary audio range did not return 416")
+        require_no_store(invalid_range, f"{label} primary audio range")
+        require(
+            invalid_range.headers.get("content-range") == f"bytes */{expected_file_bytes}",
+            f"{label} primary audio range content-range mismatch",
+        )
+        require(invalid_range.body == b"", f"{label} primary audio range returned a body")
+
     try:
         with tempfile.TemporaryFile() as handle:
             handle.write(response.body)
