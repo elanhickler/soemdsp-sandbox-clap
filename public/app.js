@@ -3313,62 +3313,41 @@ function waveformScrubberLabeled() {
   );
 }
 
-function waveformProbeLabeled() {
-  const probe = document.getElementById("waveformProbe");
+function probePillLabeled(id) {
+  const probe = document.getElementById(id);
   return (
     Boolean(probe?.dataset.probeSource) &&
     Boolean(probe?.dataset.probeFrame) &&
     Boolean(probe?.title)
   );
+}
+
+function probePillsLabeled(ids) {
+  return ids.every((id) => probePillLabeled(id));
+}
+
+function waveformProbeLabeled() {
+  return probePillLabeled("waveformProbe");
 }
 
 function levelEnvelopeProbeLabeled() {
-  const probe = document.getElementById("levelEnvelopeProbe");
-  return (
-    Boolean(probe?.dataset.probeSource) &&
-    Boolean(probe?.dataset.probeFrame) &&
-    Boolean(probe?.title)
-  );
+  return probePillLabeled("levelEnvelopeProbe");
 }
 
 function parameterTimelineProbeLabeled() {
-  const probe = document.getElementById("parameterTimelineProbe");
-  return (
-    Boolean(probe?.dataset.probeSource) &&
-    Boolean(probe?.dataset.probeFrame) &&
-    Boolean(probe?.title)
-  );
+  return probePillLabeled("parameterTimelineProbe");
 }
 
 function phaseAudioStatsProbeLabeled() {
-  const probe = document.getElementById("phaseAudioStatsProbe");
-  return (
-    Boolean(probe?.dataset.probeSource) &&
-    Boolean(probe?.dataset.probeFrame) &&
-    Boolean(probe?.title)
-  );
+  return probePillLabeled("phaseAudioStatsProbe");
 }
 
 function phaseListProbeLabeled() {
-  const probe = document.getElementById("phaseProbe");
-  return (
-    Boolean(probe?.dataset.probeSource) &&
-    Boolean(probe?.dataset.probeFrame) &&
-    Boolean(probe?.title)
-  );
+  return probePillLabeled("phaseProbe");
 }
 
 function signalPlotProbeLabeled() {
-  const probe = document.getElementById("signalPlotProbe");
-  const source = document.getElementById("signalPlotProbeSource");
-  return (
-    Boolean(probe?.dataset.probeSource) &&
-    Boolean(probe?.dataset.probeFrame) &&
-    Boolean(probe?.title) &&
-    Boolean(source?.dataset.probeSource) &&
-    Boolean(source?.dataset.probeFrame) &&
-    Boolean(source?.title)
-  );
+  return probePillsLabeled(["signalPlotProbe", "signalPlotProbeSource"]);
 }
 
 function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform)) {
