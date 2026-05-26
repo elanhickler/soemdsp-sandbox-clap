@@ -271,6 +271,35 @@ function analyzeSampleRange(samples, startFrame, endFrame) {
   };
 }
 
+function estimateZeroCrossingFrequency(samples, startFrame, endFrame, sampleRate) {
+  const start = Math.max(0, Math.min(samples.length, startFrame));
+  const end = Math.max(start, Math.min(samples.length, endFrame));
+  if (end - start < 2 || sampleRate <= 0) {
+    return null;
+  }
+
+  const crossings = [];
+  let previous = samples[start] || 0;
+  for (let frame = start + 1; frame < end; frame += 1) {
+    const current = samples[frame] || 0;
+    if (previous < 0 && current >= 0) {
+      const span = current - previous;
+      const offset = span === 0 ? 0 : -previous / span;
+      crossings.push(frame - 1 + offset);
+    }
+    previous = current;
+  }
+
+  if (crossings.length < 2) {
+    return null;
+  }
+
+  const first = crossings[0];
+  const last = crossings[crossings.length - 1];
+  const seconds = (last - first) / sampleRate;
+  return seconds > 0 ? (crossings.length - 1) / seconds : null;
+}
+
 function buildLevelEnvelope(waveform) {
   const windowFrames = Math.max(1, Math.round(waveform.sampleRate * 0.01));
   const windows = [];
@@ -609,6 +638,12 @@ function renderPhaseAudioStats() {
     );
     const frequencyValue = activeParameterValue("frequency", region);
     const amplitudeValue = activeParameterValue("amplitude", region);
+    const measuredFrequency = estimateZeroCrossingFrequency(
+      waveform.samples,
+      region.startFrame,
+      region.endFrame,
+      waveform.sampleRate,
+    );
     const item = document.createElement("div");
     item.className = "phase-stat";
     item.dataset.phaseName = region.name;
@@ -618,10 +653,19 @@ function renderPhaseAudioStats() {
 
     const body = document.createElement("dl");
     body.className = "kv compact";
+    const frequencyDelta =
+      measuredFrequency === null || frequencyValue === null
+        ? "missing"
+        : formatSignedNumber(measuredFrequency - frequencyValue);
+    const peakDelta =
+      amplitudeValue === null ? "missing" : formatSignedNumber(stats.peak - amplitudeValue);
     renderKeyValue(body, [
       ["target freq", frequencyValue === null ? "missing" : `${formatCompactNumber(frequencyValue)} Hz`],
+      ["measured freq", measuredFrequency === null ? "missing" : `${formatCompactNumber(measuredFrequency)} Hz`],
+      ["freq delta", frequencyDelta],
       ["target amp", amplitudeValue === null ? "missing" : formatCompactNumber(amplitudeValue)],
       ["peak", formatCompactNumber(stats.peak)],
+      ["peak delta", peakDelta],
       ["rms", formatCompactNumber(stats.rms)],
       ["min", formatCompactNumber(stats.min)],
       ["max", formatCompactNumber(stats.max)],
