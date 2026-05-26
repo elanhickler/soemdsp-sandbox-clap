@@ -1478,6 +1478,8 @@ function renderWaveformPhaseControls() {
     button.textContent = region.name;
     button.addEventListener("pointermove", () => probePhaseButton(index));
     button.addEventListener("pointerleave", clearPhaseButtonProbe);
+    button.addEventListener("focus", () => probePhaseButton(index));
+    button.addEventListener("blur", clearPhaseButtonProbe);
     button.addEventListener("click", () => {
       seekPrimaryAudioToFrame(region.startFrame);
     });

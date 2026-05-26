@@ -1453,6 +1453,8 @@ def require_waveform_seek_source_contract() -> None:
         '.addEventListener("pointerleave", clearWaveformProbe)',
         '.addEventListener("pointerup", endWaveformDrag)',
         '.addEventListener("pointermove", () => probePhaseButton(index))',
+        '.addEventListener("focus", () => probePhaseButton(index))',
+        '.addEventListener("blur", clearPhaseButtonProbe)',
     ]:
         require(snippet in app_source, f"waveform drag source missing {snippet}")
     for snippet in [
