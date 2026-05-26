@@ -2883,6 +2883,14 @@ function renderChecklist(result) {
   renderCheckRows(list, result.checks);
 }
 
+function renderUnavailableChecklist() {
+  renderCheckRows(document.getElementById("checklist"), [
+    ["manifest loaded", false],
+    ["sandbox handoff", false],
+    ["artifact links", false],
+  ]);
+}
+
 function renderCheckRows(container, rows) {
   container.replaceChildren();
   for (const [label, ok] of rows) {
@@ -3737,7 +3745,7 @@ function renderError(message, details = {}) {
   clearElement("boundaryFlags");
   clearElement("phaseCoverage");
   clearElement("phaseList");
-  clearElement("checklist");
+  renderUnavailableChecklist();
   clearElement("artifactCoverage");
   clearElement("artifactList");
 }
