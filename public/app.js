@@ -2913,6 +2913,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))],
     ["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))],
     ["parameter timeline preview", waveformReady && Boolean(document.querySelector(".parameter-segment"))],
+    ["probe frame labels", waveformReady && typeof formatProbeFrame === "function"],
     ["follow/free view", Boolean(document.getElementById("followAudioButton"))],
     [
       "phase jump controls",

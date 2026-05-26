@@ -1460,6 +1460,7 @@ def require_waveform_seek_source_contract() -> None:
         '["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))]',
         '["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))]',
         '["parameter timeline preview", waveformReady && Boolean(document.querySelector(".parameter-segment"))]',
+        '["probe frame labels", waveformReady && typeof formatProbeFrame === "function"]',
         '["follow/free view", Boolean(document.getElementById("followAudioButton"))]',
         '["phase list probe", waveformReady && Boolean(document.getElementById("phaseProbe"))]',
         '["phase jump preview", waveformReady && Boolean(document.querySelector("#waveformPhaseControls button"))]',
