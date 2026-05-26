@@ -8,6 +8,7 @@ const state = {
   reports: [],
   activeReportIndex: 0,
   signalLagMs: 1,
+  signalPlotProbe: null,
   signalPhaseFocusIndex: null,
   signalPhaseFocusName: "all",
   signalPlotMode: "trace",
@@ -950,6 +951,47 @@ function drawSignalPlot() {
   context.fill();
 }
 
+function signalPlotProbeAtClientPoint(clientX, clientY) {
+  const canvas = document.getElementById("signalPlotCanvas");
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  const scale = Math.min(width, height) * 0.44 * state.signalPlotScale;
+  const x = (clientX - rect.left - width / 2) / scale;
+  const y = -(clientY - rect.top - height / 2) / scale;
+
+  return {
+    x: Math.max(-1, Math.min(1, x)),
+    y: Math.max(-1, Math.min(1, y)),
+  };
+}
+
+function renderSignalPlotProbe() {
+  const probe = document.getElementById("signalPlotProbe");
+  if (!state.waveform || !state.signalPlotProbe) {
+    probe.textContent = "probe";
+    return;
+  }
+
+  probe.textContent = `probe x ${formatCompactNumber(
+    state.signalPlotProbe.x,
+  )} / y ${formatCompactNumber(state.signalPlotProbe.y)}`;
+}
+
+function probeSignalPlot(event) {
+  if (!state.waveform) {
+    return;
+  }
+
+  state.signalPlotProbe = signalPlotProbeAtClientPoint(event.clientX, event.clientY);
+  renderSignalPlotProbe();
+}
+
+function clearSignalPlotProbe() {
+  state.signalPlotProbe = null;
+  renderSignalPlotProbe();
+}
+
 function renderSignalPlot() {
   const status = document.getElementById("signalPlotStatus");
   const meta = document.getElementById("signalPlotMeta");
@@ -957,6 +999,7 @@ function renderSignalPlot() {
   renderSignalPlotControls();
   renderSignalPlotSummary();
   renderSignalPlotPoint();
+  renderSignalPlotProbe();
   if (!waveform) {
     status.textContent = "Check";
     status.className = "pill warn";
@@ -1305,6 +1348,7 @@ async function renderWaveform(path) {
 
     state.waveform = parsePcm16Wav(await response.arrayBuffer());
     state.waveformProbeFrame = null;
+    state.signalPlotProbe = null;
     state.waveform.stats = analyzeWaveform(state.waveform.samples);
     state.waveform.envelope = buildLevelEnvelope(state.waveform);
     state.waveform.regions = buildPhaseRegions(
@@ -1340,6 +1384,7 @@ async function renderWaveform(path) {
   } catch (error) {
     state.waveform = null;
     state.waveformProbeFrame = null;
+    state.signalPlotProbe = null;
     state.playheadFrame = 0;
     meta.replaceChildren();
     renderWaveformPhaseControls();
@@ -2065,6 +2110,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["phase parameter readout", parameterResyncContractIssue(manifest) === ""],
     ["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0],
     ["signal inspection", waveformReady && Boolean(document.getElementById("signalPlotCanvas"))],
+    ["signal plot probe", waveformReady && Boolean(document.getElementById("signalPlotProbe"))],
     ["read-only boundary", validateConsumerChecklist(manifest).accepted],
   ];
   const ok = rows.every(([_label, rowOk]) => rowOk);
@@ -2680,6 +2726,7 @@ function renderError(message, details = {}) {
   state.waveform = null;
   state.playheadFrame = 0;
   state.waveformProbeFrame = null;
+  state.signalPlotProbe = null;
   state.reports = [];
   state.activeReportIndex = 0;
 
@@ -2706,6 +2753,7 @@ function renderError(message, details = {}) {
   setText("signalPlotWindowSummary", "window full");
   setText("signalPlotLagSummary", "lag 1 ms");
   setText("signalPlotPoint", "x 0 / y 0");
+  setText("signalPlotProbe", "probe");
   setStatus("phaseCoverageStatus", "Check", false);
   setStatus("phaseAudioStatsStatus", "Check", false);
   setStatus("phaseStatus", "Check", false);
@@ -2747,6 +2795,7 @@ function renderError(message, details = {}) {
   clearElement("levelEnvelopeMeta");
   clearElement("phaseAudioStats");
   renderSignalPlotControls();
+  clearSignalPlotProbe();
   clearElement("signalPlotMeta");
   clearElement("boundaryFlags");
   clearElement("phaseCoverage");
@@ -2813,6 +2862,14 @@ document
 document
   .getElementById("waveformScrubber")
   .addEventListener("input", scrubWaveform);
+
+document
+  .getElementById("signalPlotCanvas")
+  .addEventListener("pointermove", probeSignalPlot);
+
+document
+  .getElementById("signalPlotCanvas")
+  .addEventListener("pointerleave", clearSignalPlotProbe);
 
 document
   .getElementById("followAudioButton")
