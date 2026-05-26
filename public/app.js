@@ -9,6 +9,7 @@ const state = {
   signalLagMs: 1,
   signalPhaseFocusIndex: null,
   signalPlotMode: "trace",
+  signalPlotWindow: "full",
 };
 
 const requiredFlags = [
@@ -341,16 +342,58 @@ function signalPlotLagFrames(waveform) {
   return Math.max(1, Math.round((waveform.sampleRate * state.signalLagMs) / 1000));
 }
 
+function signalPlotWindowFrameRange(waveform, drawableFrames) {
+  if (state.signalPlotWindow === "full") {
+    return {
+      endFrame: drawableFrames,
+      startFrame: 0,
+    };
+  }
+
+  const windowFrames = Math.max(1, Math.round(waveform.sampleRate * 0.08));
+  const startFrame = Math.max(
+    0,
+    Math.min(drawableFrames, state.playheadFrame - Math.floor(windowFrames / 2)),
+  );
+  const endFrame = Math.max(
+    startFrame,
+    Math.min(drawableFrames, startFrame + windowFrames),
+  );
+
+  return {
+    endFrame,
+    startFrame,
+  };
+}
+
+function signalPlotWindowName(waveform, drawableFrames) {
+  if (state.signalPlotWindow === "full") {
+    return "full";
+  }
+
+  const range = signalPlotWindowFrameRange(waveform, drawableFrames);
+  return `${formatSeconds(range.startFrame / waveform.sampleRate)}-${formatSeconds(
+    range.endFrame / waveform.sampleRate,
+  )}`;
+}
+
 function signalPlotRegions(waveform, drawableFrames) {
   const regions = waveform.regions?.length
     ? waveform.regions
     : [{ name: "all", startFrame: 0, endFrame: drawableFrames }];
-  if (state.signalPhaseFocusIndex === null) {
-    return regions;
-  }
+  const focusedRegions =
+    state.signalPhaseFocusIndex === null
+      ? regions
+      : [regions[state.signalPhaseFocusIndex]].filter(Boolean);
+  const windowRange = signalPlotWindowFrameRange(waveform, drawableFrames);
 
-  const focused = regions[state.signalPhaseFocusIndex];
-  return focused ? [focused] : regions;
+  return focusedRegions
+    .map((region) => ({
+      ...region,
+      endFrame: Math.min(region.endFrame, windowRange.endFrame),
+      startFrame: Math.max(region.startFrame, windowRange.startFrame),
+    }))
+    .filter((region) => region.endFrame > region.startFrame);
 }
 
 function signalPlotFocusName(waveform) {
@@ -520,6 +563,7 @@ function renderSignalPlot() {
   renderKeyValue(meta, [
     ["focus", signalPlotFocusName(waveform)],
     ["mode", state.signalPlotMode],
+    ["window", signalPlotWindowName(waveform, drawableFrames)],
     ["x", "sample[n]"],
     ["y", "sample[n + lag]"],
     ["lag", `${state.signalLagMs} ms`],
@@ -564,6 +608,9 @@ function renderSignalPlotControls() {
   const modeGroup = document.createElement("div");
   modeGroup.className = "control-group";
   modeGroup.setAttribute("aria-label", "Signal plot mode");
+  const windowGroup = document.createElement("div");
+  windowGroup.className = "control-group";
+  windowGroup.setAttribute("aria-label", "Signal plot window");
   const lagGroup = document.createElement("div");
   lagGroup.className = "control-group";
   lagGroup.setAttribute("aria-label", "Signal plot lag");
@@ -611,6 +658,21 @@ function renderSignalPlotControls() {
     modeGroup.append(button);
   }
 
+  for (const windowMode of ["full", "cursor"]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "phase-button";
+    button.dataset.signalWindow = windowMode;
+    button.setAttribute("aria-label", `Signal plot window ${windowMode}`);
+    button.textContent = windowMode;
+    button.classList.toggle("active", windowMode === state.signalPlotWindow);
+    button.addEventListener("click", () => {
+      state.signalPlotWindow = windowMode;
+      renderSignalPlot();
+    });
+    windowGroup.append(button);
+  }
+
   for (const lagMs of [1, 2, 5, 10]) {
     const button = document.createElement("button");
     button.type = "button";
@@ -626,7 +688,7 @@ function renderSignalPlotControls() {
     lagGroup.append(button);
   }
 
-  container.append(focusGroup, modeGroup, lagGroup);
+  container.append(focusGroup, modeGroup, windowGroup, lagGroup);
 }
 
 function renderWaveformPhaseControls() {
