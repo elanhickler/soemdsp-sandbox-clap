@@ -700,11 +700,23 @@ function updatePhaseAudioStatsActive(region) {
   }
 }
 
+function updatePhaseProbeTargets() {
+  const region =
+    state.waveform && state.waveformProbeFrame !== null
+      ? waveformRegionAtFrame(clampFrame(state.waveformProbeFrame, state.waveform))
+      : null;
+
+  for (const item of document.querySelectorAll(".phase, .phase-stat")) {
+    item.classList.toggle("preview", item.dataset.phaseName === region?.name);
+  }
+}
+
 function renderPhaseAudioStatsProbe() {
   const probe = document.getElementById("phaseAudioStatsProbe");
   const waveform = state.waveform;
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
+    updatePhaseProbeTargets();
     return;
   }
 
@@ -713,6 +725,7 @@ function renderPhaseAudioStatsProbe() {
   probe.textContent = region
     ? `probe ${region.name} / ${formatSeconds(frame / waveform.sampleRate)}`
     : "probe";
+  updatePhaseProbeTargets();
 }
 
 function probePhaseAudioStats(event) {
@@ -2945,6 +2958,7 @@ function renderPhaseProbe() {
   const waveform = state.waveform;
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
+    updatePhaseProbeTargets();
     return;
   }
 
@@ -2953,6 +2967,7 @@ function renderPhaseProbe() {
   probe.textContent = region
     ? `probe ${region.name} / ${formatSeconds(frame / waveform.sampleRate)}`
     : "probe";
+  updatePhaseProbeTargets();
 }
 
 function probePhaseList(event) {
@@ -3021,6 +3036,7 @@ function renderPhases(phases, wav) {
         : "unavailable";
     const item = document.createElement("div");
     item.className = "phase";
+    item.dataset.phaseName = phase.name || "";
     item.dataset.startFrame = String(span.startFrame);
     item.dataset.endFrame = String(span.endFrame);
     item.addEventListener("pointermove", probePhaseList);

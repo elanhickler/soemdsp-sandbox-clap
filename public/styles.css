@@ -465,6 +465,12 @@ dd.warn {
   border-radius: 6px;
 }
 
+.phase.preview,
+.phase-stat.preview {
+  border-color: rgba(255, 211, 119, 0.62);
+  background: rgba(255, 211, 119, 0.1);
+}
+
 .phase-stat-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
