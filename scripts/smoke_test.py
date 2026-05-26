@@ -1415,6 +1415,7 @@ def require_waveform_seek_source_contract() -> None:
         'item.classList.toggle("preview", item.dataset.phaseName === region?.name)',
         "function renderPhaseAudioStatsProbe()",
         '${probeSourceText()} ${region.name} / ${formatSeconds(',
+        "${probeSourceText()} ${formatSeconds(frame / waveform.sampleRate)} / frame ${frame} / ${",
         "function probePhaseAudioStats(event)",
         "function clearPhaseAudioStatsProbe()",
         "item.dataset.startFrame = String(region.startFrame)",

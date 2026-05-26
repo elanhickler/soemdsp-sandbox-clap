@@ -2578,7 +2578,7 @@ function renderParameterTimelineProbe() {
   const region = waveformRegionAtFrame(frame);
   const frequency = activeParameterValue("frequency", region);
   const amplitude = activeParameterValue("amplitude", region);
-  probe.textContent = `${probeSourceText()} ${formatSeconds(frame / waveform.sampleRate)} / ${
+  probe.textContent = `${probeSourceText()} ${formatSeconds(frame / waveform.sampleRate)} / frame ${frame} / ${
     region?.name || "phase"
   } / freq ${frequency === null ? "missing" : `${formatCompactNumber(frequency)} Hz`} / amp ${
     amplitude === null ? "missing" : formatCompactNumber(amplitude)
