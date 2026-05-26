@@ -2098,6 +2098,9 @@ function renderWaveformProbe() {
   const waveform = state.waveform;
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
+    probe.dataset.probeSource = "none";
+    probe.dataset.probeFrame = "none";
+    probe.title = "Waveform probe idle";
     renderInspectionCursor();
     renderParameterTimelineProbe();
     renderPhaseAudioStatsProbe();
@@ -2109,11 +2112,17 @@ function renderWaveformProbe() {
   const sampleFrame = Math.max(0, Math.min(waveform.samples.length - 1, frame));
   const sampleValue = waveform.samples[sampleFrame] || 0;
   const region = waveformRegionAtFrame(frame);
+  const source = state.waveformProbeSource || "probe";
   probe.textContent = `${probeSourceText()} ${formatSeconds(
     frame / waveform.sampleRate,
   )} / frame ${frame} / ${formatCompactNumber(sampleValue)} / ${
     region?.name || "phase"
   }`;
+  probe.dataset.probeSource = source;
+  probe.dataset.probeFrame = String(frame);
+  probe.title = `Waveform probe ${source} / ${formatSeconds(
+    frame / waveform.sampleRate,
+  )} / frame ${frame} / ${region?.name || "phase"}`;
   renderInspectionCursor();
   renderParameterTimelineProbe();
   renderPhaseAudioStatsProbe();
@@ -3247,6 +3256,15 @@ function waveformScrubberLabeled() {
   );
 }
 
+function waveformProbeLabeled() {
+  const probe = document.getElementById("waveformProbe");
+  return (
+    Boolean(probe?.dataset.probeSource) &&
+    Boolean(probe?.dataset.probeFrame) &&
+    Boolean(probe?.title)
+  );
+}
+
 function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform)) {
   const rows = [
     [
@@ -3260,6 +3278,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["waveform seek", waveformReady && Number(manifest?.wav?.frames) > 0],
     ["waveform scrubber labels", waveformReady && waveformScrubberLabeled()],
     ["waveform hover probe", waveformReady && Boolean(document.getElementById("waveformProbe"))],
+    ["waveform probe labels", waveformReady && waveformProbeLabeled()],
     ["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))],
     ["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))],
     ["parameter timeline preview", waveformReady && Boolean(document.querySelector(".parameter-segment"))],

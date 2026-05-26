@@ -334,6 +334,16 @@ def require_shell_contract(html: str) -> None:
     )
     require_shell_element(
         parser,
+        "waveformProbe",
+        "span",
+        {
+            "data-probe-source": "none",
+            "data-probe-frame": "none",
+            "title": "Waveform probe idle",
+        },
+    )
+    require_shell_element(
+        parser,
         "signalPlotCanvas",
         "canvas",
         {"width": "720", "height": "360", "aria-label": "Primary WAV signal plot"},
@@ -1308,6 +1318,12 @@ def require_waveform_seek_source_contract() -> None:
         "formatAudioDuration(waveform.frames / waveform.sampleRate)",
         "sample.textContent = \"frame 0 / unknown / sample 0\"",
         "sample.textContent = `frame ${state.playheadFrame} / ${waveform.frames} / sample ${formatCompactNumber(",
+        "probe.dataset.probeSource = \"none\"",
+        "probe.dataset.probeFrame = \"none\"",
+        "probe.title = \"Waveform probe idle\"",
+        "probe.dataset.probeSource = source",
+        "probe.dataset.probeFrame = String(frame)",
+        "probe.title = `Waveform probe ${source}",
         "function updateWaveformScrubberLabel(scrubber, waveform, activeRegion)",
         "scrubber.setAttribute(\"aria-valuetext\"",
         "scrubber.dataset.followMode = followText",
@@ -1567,6 +1583,7 @@ def require_waveform_seek_source_contract() -> None:
         "function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform))",
         "function phaseJumpButtonsLabeled(manifest)",
         "function waveformScrubberLabeled()",
+        "function waveformProbeLabeled()",
         'label.startsWith("Jump waveform to ")',
         'label.includes(" phase at frame ")',
         'button.title.startsWith("Jump to ")',
@@ -1578,6 +1595,7 @@ def require_waveform_seek_source_contract() -> None:
         '["waveform control labels", waveformControlsLabeled()]',
         '["waveform scrubber labels", waveformReady && waveformScrubberLabeled()]',
         '["waveform hover probe", waveformReady && Boolean(document.getElementById("waveformProbe"))]',
+        '["waveform probe labels", waveformReady && waveformProbeLabeled()]',
         '["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))]',
         '["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))]',
         '["parameter timeline preview", waveformReady && Boolean(document.querySelector(".parameter-segment"))]',
