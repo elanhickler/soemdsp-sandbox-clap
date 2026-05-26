@@ -23,6 +23,22 @@ const state = {
   signalPlotWindowMs: 80,
 };
 
+function resetSharedProbeState() {
+  state.waveformProbeFrame = null;
+  state.waveformProbeSource = null;
+  state.signalPlotProbe = null;
+}
+
+function resetWaveformTransientState() {
+  state.waveformPointerActive = false;
+  state.scrubberPointerActive = false;
+  resetSharedProbeState();
+  state.phaseJumpPreviewIndex = null;
+  state.lastSeekSource = null;
+  state.lastSeekFrame = null;
+  state.lastSeekFollowAudio = null;
+}
+
 const requiredFlags = [
   ["callerOwnsProcessingOrder", true],
   ["callerOwnsDspObjects", true],
@@ -929,9 +945,7 @@ function clearPhaseAudioStatsProbe() {
     return;
   }
 
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.signalPlotProbe = null;
+  resetSharedProbeState();
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
   renderPhaseAudioStatsProbe();
@@ -1453,9 +1467,7 @@ function probeSignalPlot(event) {
 }
 
 function clearSignalPlotProbe() {
-  state.signalPlotProbe = null;
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
+  resetSharedProbeState();
   drawSignalPlot();
   renderSignalPlotProbe();
   drawWaveform();
@@ -1768,9 +1780,7 @@ function setSharedProbeFrame(frame, source = "probe") {
 }
 
 function clearSharedProbeFrame() {
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.signalPlotProbe = null;
+  resetSharedProbeState();
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
   renderPhaseProbe();
@@ -2003,15 +2013,7 @@ async function renderWaveform(path) {
     }
 
     state.waveform = parsePcm16Wav(await response.arrayBuffer());
-    state.waveformPointerActive = false;
-    state.scrubberPointerActive = false;
-    state.waveformProbeFrame = null;
-    state.waveformProbeSource = null;
-    state.phaseJumpPreviewIndex = null;
-    state.lastSeekSource = null;
-    state.lastSeekFrame = null;
-    state.lastSeekFollowAudio = null;
-    state.signalPlotProbe = null;
+    resetWaveformTransientState();
     state.waveform.stats = analyzeWaveform(state.waveform.samples);
     state.waveform.envelope = buildLevelEnvelope(state.waveform);
     state.waveform.regions = buildPhaseRegions(
@@ -2046,15 +2048,7 @@ async function renderWaveform(path) {
     renderFollowAudioControl();
   } catch (error) {
     state.waveform = null;
-    state.waveformPointerActive = false;
-    state.scrubberPointerActive = false;
-    state.waveformProbeFrame = null;
-    state.waveformProbeSource = null;
-    state.phaseJumpPreviewIndex = null;
-    state.lastSeekSource = null;
-    state.lastSeekFrame = null;
-    state.lastSeekFollowAudio = null;
-    state.signalPlotProbe = null;
+    resetWaveformTransientState();
     state.playheadFrame = 0;
     renderUnavailableWaveformMeta();
     renderWaveformPhaseControls();
@@ -2568,9 +2562,7 @@ function clearWaveformProbe() {
     return;
   }
 
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.signalPlotProbe = null;
+  resetSharedProbeState();
   renderWaveformProbe();
   drawSignalPlot();
   renderSignalPlotProbe();
@@ -2583,9 +2575,7 @@ function clearLevelEnvelopeProbe() {
     return;
   }
 
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.signalPlotProbe = null;
+  resetSharedProbeState();
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
   drawWaveform();
@@ -2973,9 +2963,7 @@ function clearParameterTimelineProbe() {
     return;
   }
 
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.signalPlotProbe = null;
+  resetSharedProbeState();
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
   renderParameterTimelineProbe();
@@ -3870,9 +3858,7 @@ function clearPhaseListProbe() {
     return;
   }
 
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.signalPlotProbe = null;
+  resetSharedProbeState();
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
   renderPhaseProbe();
@@ -4249,15 +4235,7 @@ function renderError(message, details = {}) {
   state.response = null;
   state.waveform = null;
   state.playheadFrame = 0;
-  state.waveformPointerActive = false;
-  state.scrubberPointerActive = false;
-  state.waveformProbeFrame = null;
-  state.waveformProbeSource = null;
-  state.phaseJumpPreviewIndex = null;
-  state.lastSeekSource = null;
-  state.lastSeekFrame = null;
-  state.lastSeekFollowAudio = null;
-  state.signalPlotProbe = null;
+  resetWaveformTransientState();
   state.reports = [];
   state.activeReportIndex = 0;
 
