@@ -1529,6 +1529,7 @@ function renderWaveformPosition() {
     updateParameterTimelinePlayhead(null);
     updatePhaseAudioStatsActive(null);
     updateActivePhaseButtons(null);
+    renderInspectionCursor();
     return;
   }
 
@@ -1559,6 +1560,7 @@ function renderWaveformProbe() {
   const waveform = state.waveform;
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
+    renderInspectionCursor();
     return;
   }
 
@@ -1571,6 +1573,60 @@ function renderWaveformProbe() {
   )} / frame ${frame} / ${formatCompactNumber(sampleValue)} / ${
     region?.name || "phase"
   }`;
+  renderInspectionCursor();
+}
+
+function renderInspectionCursor() {
+  const status = document.getElementById("inspectionCursorStatus");
+  const cursor = document.getElementById("inspectionCursor");
+  const waveform = state.waveform;
+  if (!waveform) {
+    setStatus("inspectionCursorStatus", "Check", false);
+    renderKeyValue(cursor, [
+      ["transport frame", "0"],
+      ["transport time", "0.000s"],
+      ["transport phase", "phase"],
+      ["hover frame", "none"],
+      ["hover signal", "none"],
+    ]);
+    return;
+  }
+
+  const transportFrame = clampFrame(state.playheadFrame, waveform);
+  const transportSample =
+    waveform.samples[Math.max(0, Math.min(waveform.samples.length - 1, transportFrame))] || 0;
+  const transportRegion = waveformRegionAtFrame(transportFrame);
+  const hoverFrame =
+    state.waveformProbeFrame ??
+    state.signalPlotProbe?.nearest?.frame ??
+    null;
+  const hoverRegion = hoverFrame !== null ? waveformRegionAtFrame(hoverFrame) : null;
+  const hoverSample =
+    hoverFrame !== null
+      ? waveform.samples[Math.max(0, Math.min(waveform.samples.length - 1, hoverFrame))] || 0
+      : null;
+  const hoverSignal = hoverFrame !== null ? signalPlotProbeAtFrame(hoverFrame) : null;
+
+  setStatus("inspectionCursorStatus", hoverFrame === null ? "Transport" : "Hover", true);
+  renderKeyValue(cursor, [
+    ["transport frame", String(transportFrame)],
+    ["transport time", formatSeconds(transportFrame / waveform.sampleRate)],
+    ["transport phase", transportRegion?.name || "phase"],
+    ["transport sample", formatCompactNumber(transportSample)],
+    ["hover frame", hoverFrame === null ? "none" : String(hoverFrame)],
+    [
+      "hover time",
+      hoverFrame === null ? "none" : formatSeconds(hoverFrame / waveform.sampleRate),
+    ],
+    ["hover phase", hoverRegion?.name || "none"],
+    ["hover sample", hoverSample === null ? "none" : formatCompactNumber(hoverSample)],
+    [
+      "hover signal",
+      hoverSignal
+        ? `x ${formatCompactNumber(hoverSignal.x)} / y ${formatCompactNumber(hoverSignal.y)}`
+        : "none",
+    ],
+  ]);
 }
 
 function renderAudioPosition() {
@@ -2230,6 +2286,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["signal plot source probe", waveformReady && Boolean(document.getElementById("signalPlotProbeSource"))],
     ["waveform-to-signal probe", waveformReady && Boolean(signalPlotProbeAtFrame(0))],
     ["signal-to-waveform probe", waveformReady && Boolean(document.getElementById("waveformProbe"))],
+    ["inspection cursor", waveformReady && Boolean(document.getElementById("inspectionCursor"))],
     ["read-only boundary", validateConsumerChecklist(manifest).accepted],
   ];
   const ok = rows.every(([_label, rowOk]) => rowOk);
