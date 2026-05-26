@@ -761,6 +761,25 @@ function renderParameterSummaryCards(pairs) {
   }
 }
 
+function parameterResyncPairs(manifest) {
+  const resync = manifest?.parameterResync || {};
+  const frequency = resync.frequency || {};
+  const amplitude = resync.amplitude || {};
+  const pairs = new Map([
+    ["first half frequency", manifestValueText(frequency.first)],
+    ["first half amplitude", manifestValueText(amplitude.first)],
+    ["second half frequency", manifestValueText(frequency.second)],
+    ["second half amplitude", manifestValueText(amplitude.second)],
+  ]);
+
+  return [...pairs.values()].every(Boolean) ? pairs : null;
+}
+
+function manifestValueText(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? formatCompactNumber(number) : "";
+}
+
 function parseSummaryNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -837,8 +856,16 @@ function formatTimestamp(value) {
   return date.toLocaleString();
 }
 
-async function renderParameterSummary(links) {
+async function renderParameterSummary(manifest, links) {
   const status = document.getElementById("parameterSummaryStatus");
+  const manifestPairs = parameterResyncPairs(manifest);
+  if (manifestPairs) {
+    renderParameterSummaryCards(manifestPairs);
+    status.textContent = "Manifest";
+    status.className = "pill good";
+    return;
+  }
+
   const path = findArtifactPath(links, "text-summary");
   status.textContent = "Loading";
   status.className = "pill";
@@ -1220,7 +1247,7 @@ function render(response) {
   renderPhases(manifest.phases || [], manifest.wav);
   renderChecklist(checklist);
   renderArtifactCoverage(manifest.artifactLinks || [], manifest.phases || []);
-  renderParameterSummary(manifest.artifactLinks || []);
+  renderParameterSummary(manifest, manifest.artifactLinks || []);
   renderReports(manifest.artifactLinks || []);
   renderArtifacts(manifest.artifactLinks || []);
 }

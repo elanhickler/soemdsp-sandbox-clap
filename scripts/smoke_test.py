@@ -468,6 +468,26 @@ def require_parameter_summary(base_url: str, payload: dict[str, object]) -> None
     manifest = payload.get("manifest")
     require(isinstance(manifest, dict), "manifest object missing")
 
+    resync = manifest.get("parameterResync")
+    require(isinstance(resync, dict), "parameter resync missing")
+    frequency = resync.get("frequency")
+    amplitude = resync.get("amplitude")
+    require(isinstance(frequency, dict), "frequency resync missing")
+    require(isinstance(amplitude, dict), "amplitude resync missing")
+    require(frequency.get("changed") is True, "frequency resync changed flag missing")
+    require(amplitude.get("changed") is True, "amplitude resync changed flag missing")
+
+    first_frequency = float(frequency.get("first", 0))
+    second_frequency = float(frequency.get("second", 0))
+    first_amplitude = float(amplitude.get("first", 0))
+    second_amplitude = float(amplitude.get("second", 0))
+    require(first_frequency > 0, "manifest first frequency was not positive")
+    require(second_frequency > 0, "manifest second frequency was not positive")
+    require(first_amplitude > 0, "manifest first amplitude was not positive")
+    require(second_amplitude > 0, "manifest second amplitude was not positive")
+    require(second_frequency > first_frequency, "manifest frequency did not resync upward")
+    require(second_amplitude > first_amplitude, "manifest amplitude did not resync upward")
+
     links = manifest.get("artifactLinks")
     require(isinstance(links, list), "artifact links missing")
     summary_links = [
@@ -489,12 +509,22 @@ def require_parameter_summary(base_url: str, payload: dict[str, object]) -> None
         number = float(pairs[key])
         require(number > 0, f"text summary {key} was not positive")
 
-    first_frequency = float(pairs["first half frequency"])
-    second_frequency = float(pairs["second half frequency"])
-    first_amplitude = float(pairs["first half amplitude"])
-    second_amplitude = float(pairs["second half amplitude"])
-    require(second_frequency > first_frequency, "frequency did not resync upward")
-    require(second_amplitude > first_amplitude, "amplitude did not resync upward")
+    require(
+        float(pairs["first half frequency"]) == first_frequency,
+        "text summary first frequency did not match manifest",
+    )
+    require(
+        float(pairs["second half frequency"]) == second_frequency,
+        "text summary second frequency did not match manifest",
+    )
+    require(
+        float(pairs["first half amplitude"]) == first_amplitude,
+        "text summary first amplitude did not match manifest",
+    )
+    require(
+        float(pairs["second half amplitude"]) == second_amplitude,
+        "text summary second amplitude did not match manifest",
+    )
 
 
 def require_primary_audio_wav(base_url: str, payload: dict[str, object]) -> None:
