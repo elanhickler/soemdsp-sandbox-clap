@@ -507,6 +507,22 @@ function drawWaveform() {
   context.moveTo(playheadX, 0);
   context.lineTo(playheadX, height);
   context.stroke();
+
+  if (state.waveformProbeFrame !== null) {
+    const probeRatio =
+      waveform.frames > 0 ? clampFrame(state.waveformProbeFrame, waveform) / waveform.frames : 0;
+    const probeX = Math.max(0, Math.min(width, probeRatio * width));
+    context.strokeStyle = "#f6c96d";
+    context.lineWidth = Math.max(2, 2 * pixelRatio);
+    context.beginPath();
+    context.moveTo(probeX, 0);
+    context.lineTo(probeX, height);
+    context.stroke();
+    context.fillStyle = "#f6c96d";
+    context.beginPath();
+    context.arc(probeX, center, Math.max(4, 4 * pixelRatio), 0, Math.PI * 2);
+    context.fill();
+  }
 }
 
 function drawLevelEnvelope() {
@@ -1070,14 +1086,20 @@ function probeSignalPlot(event) {
   }
 
   state.signalPlotProbe = signalPlotProbeAtClientPoint(event.clientX, event.clientY);
+  state.waveformProbeFrame = state.signalPlotProbe.nearest?.frame ?? null;
   drawSignalPlot();
   renderSignalPlotProbe();
+  drawWaveform();
+  renderWaveformProbe();
 }
 
 function clearSignalPlotProbe() {
   state.signalPlotProbe = null;
+  state.waveformProbeFrame = null;
   drawSignalPlot();
   renderSignalPlotProbe();
+  drawWaveform();
+  renderWaveformProbe();
 }
 
 function renderSignalPlot() {
@@ -2207,6 +2229,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["signal plot probe", waveformReady && Boolean(document.getElementById("signalPlotProbe"))],
     ["signal plot source probe", waveformReady && Boolean(document.getElementById("signalPlotProbeSource"))],
     ["waveform-to-signal probe", waveformReady && Boolean(signalPlotProbeAtFrame(0))],
+    ["signal-to-waveform probe", waveformReady && Boolean(document.getElementById("waveformProbe"))],
     ["read-only boundary", validateConsumerChecklist(manifest).accepted],
   ];
   const ok = rows.every(([_label, rowOk]) => rowOk);
