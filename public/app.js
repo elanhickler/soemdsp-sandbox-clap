@@ -3378,6 +3378,23 @@ function reportControlsLabeled() {
   );
 }
 
+function artifactRowsLabeled() {
+  const rows = [...document.querySelectorAll("#artifactList .artifact-row")];
+  return (
+    rows.length > 0 &&
+    rows.every((row) => {
+      const label = row.getAttribute("aria-label") || "";
+      return (
+        row.dataset.artifactKind !== undefined &&
+        row.dataset.artifactPath !== undefined &&
+        row.dataset.artifactLabel !== undefined &&
+        label.toLowerCase().includes("artifact") &&
+        row.title === label
+      );
+    })
+  );
+}
+
 function probePillLabeled(id) {
   const probe = document.getElementById(id);
   return (
@@ -3425,6 +3442,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["waveform play control", Boolean(document.getElementById("waveformPlayButton"))],
     ["waveform control labels", waveformControlsLabeled()],
     ["report control labels", reportControlsLabeled()],
+    ["artifact row labels", artifactRowsLabeled()],
     ["decoded waveform", waveformReady],
     ["waveform seek", waveformReady && Number(manifest?.wav?.frames) > 0],
     ["waveform scrubber labels", waveformReady && waveformScrubberLabeled()],
@@ -3707,11 +3725,21 @@ function renderArtifacts(links) {
   const checks = [];
   for (const link of links) {
     const row = document.createElement(link.path ? "a" : "div");
+    const rowLabel = `${link.path ? "Open" : "Missing"} ${link.kind || "artifact"} artifact: ${
+      link.label || link.path || "unknown"
+    }`;
     row.className = "artifact-row";
+    row.dataset.artifactKind = link.kind || "";
+    row.dataset.artifactPath = link.path || "";
+    row.dataset.artifactLabel = link.label || "";
+    row.setAttribute("aria-label", rowLabel);
+    row.title = rowLabel;
     if (link.path) {
       row.href = artifactUrl(link.path);
       row.target = "_blank";
       row.rel = "noreferrer";
+    } else {
+      row.setAttribute("role", "group");
     }
 
     const label = document.createElement("span");
@@ -3760,6 +3788,12 @@ function renderUnavailableArtifacts() {
 
   const row = document.createElement("div");
   row.className = "artifact-row warn-row";
+  row.dataset.artifactKind = "unavailable";
+  row.dataset.artifactPath = "";
+  row.dataset.artifactLabel = "Artifact packet";
+  row.setAttribute("aria-label", "Missing artifact packet (unavailable)");
+  row.setAttribute("role", "group");
+  row.title = "Missing artifact packet (unavailable)";
 
   const label = document.createElement("span");
   label.textContent = "Artifact packet";
