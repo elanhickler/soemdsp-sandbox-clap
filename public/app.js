@@ -3327,6 +3327,15 @@ function phaseAudioStatsProbeLabeled() {
   );
 }
 
+function phaseListProbeLabeled() {
+  const probe = document.getElementById("phaseProbe");
+  return (
+    Boolean(probe?.dataset.probeSource) &&
+    Boolean(probe?.dataset.probeFrame) &&
+    Boolean(probe?.title)
+  );
+}
+
 function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform)) {
   const rows = [
     [
@@ -3359,6 +3368,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["phase jump labels", waveformReady && phaseJumpButtonsLabeled(manifest)],
     ["phase jump target", waveformReady && Boolean(document.getElementById("waveformPhaseJumpTarget"))],
     ["phase list probe", waveformReady && Boolean(document.getElementById("phaseProbe"))],
+    ["phase list probe labels", waveformReady && phaseListProbeLabeled()],
     ["phase preview target", waveformReady && Boolean(document.querySelector(".phase"))],
     ["phase parameter readout", parameterResyncContractIssue(manifest) === ""],
     ["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0],
@@ -3778,15 +3788,24 @@ function renderPhaseProbe() {
   const waveform = state.waveform;
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
+    probe.dataset.probeSource = "none";
+    probe.dataset.probeFrame = "none";
+    probe.title = "Phase list probe idle";
     updatePhaseProbeTargets();
     return;
   }
 
   const frame = clampFrame(state.waveformProbeFrame, waveform);
   const region = waveformRegionAtFrame(frame);
+  const source = state.waveformProbeSource || "probe";
   probe.textContent = region
     ? `${probeSourceText()} ${formatProbeFrame(frame, waveform, region)}`
     : "probe";
+  probe.dataset.probeSource = source;
+  probe.dataset.probeFrame = String(frame);
+  probe.title = region
+    ? `Phase list probe ${source} / ${formatProbeFrame(frame, waveform, region)}`
+    : `Phase list probe ${source} / ${formatProbeFrame(frame, waveform, region)} / no phase`;
   updatePhaseProbeTargets();
 }
 

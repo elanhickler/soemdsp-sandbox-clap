@@ -364,6 +364,16 @@ def require_shell_contract(html: str) -> None:
     )
     require_shell_element(
         parser,
+        "phaseProbe",
+        "span",
+        {
+            "data-probe-source": "none",
+            "data-probe-frame": "none",
+            "title": "Phase list probe idle",
+        },
+    )
+    require_shell_element(
+        parser,
         "signalPlotCanvas",
         "canvas",
         {"width": "720", "height": "360", "aria-label": "Primary WAV signal plot"},
@@ -1362,6 +1372,8 @@ def require_waveform_seek_source_contract() -> None:
         "probe.title = \"Phase audio stats probe idle\"",
         "probe.title = region",
         "Phase audio stats probe ${source}",
+        "probe.title = \"Phase list probe idle\"",
+        "Phase list probe ${source}",
         "function updateWaveformScrubberLabel(scrubber, waveform, activeRegion)",
         "scrubber.setAttribute(\"aria-valuetext\"",
         "scrubber.dataset.followMode = followText",
@@ -1625,6 +1637,7 @@ def require_waveform_seek_source_contract() -> None:
         "function levelEnvelopeProbeLabeled()",
         "function parameterTimelineProbeLabeled()",
         "function phaseAudioStatsProbeLabeled()",
+        "function phaseListProbeLabeled()",
         'label.startsWith("Jump waveform to ")',
         'label.includes(" phase at frame ")',
         'button.title.startsWith("Jump to ")',
@@ -1646,6 +1659,7 @@ def require_waveform_seek_source_contract() -> None:
         '["follow/free view", Boolean(document.getElementById("followAudioButton"))]',
         '["current measured audio", waveformReady && Boolean(document.getElementById("currentMeasuredStatus"))]',
         '["phase list probe", waveformReady && Boolean(document.getElementById("phaseProbe"))]',
+        '["phase list probe labels", waveformReady && phaseListProbeLabeled()]',
         '["phase jump preview", waveformReady && Boolean(document.querySelector("#waveformPhaseControls button"))]',
         '["phase jump labels", waveformReady && phaseJumpButtonsLabeled(manifest)]',
         '["phase jump target", waveformReady && Boolean(document.getElementById("waveformPhaseJumpTarget"))]',
