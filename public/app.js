@@ -832,6 +832,7 @@ function renderSource(response) {
   setText("artifactRoot", response.artifactRoot || "missing");
   setText("manifestBytes", hasBytes ? formatBytes(bytes) : "missing");
   setText("manifestModified", modified);
+  setText("manifestLoadedAt", formatTimestamp(new Date().toISOString()));
 }
 
 function renderArtifacts(links) {
@@ -1084,6 +1085,7 @@ function renderError(message) {
   setText("manifestPath", "Unavailable");
   setText("manifestBytes", "Unavailable");
   setText("manifestModified", "Unavailable");
+  setText("manifestLoadedAt", "Unavailable");
   setText("artifactRoot", "Unavailable");
 
   const audio = document.getElementById("audioPlayer");
