@@ -2186,8 +2186,9 @@ function renderWaveformPlayControl(audio = document.getElementById("audioPlayer"
   const button = document.getElementById("waveformPlayButton");
   const ready = Boolean(audio?.getAttribute("src"));
   const playing = ready && !audio.paused && !audio.ended;
+  const ended = ready && audio.ended;
   button.disabled = !ready;
-  button.textContent = playing ? "Pause Audio" : "Play Audio";
+  button.textContent = playing ? "Pause Audio" : ended ? "Replay Audio" : "Play Audio";
   button.setAttribute("aria-pressed", String(playing));
   button.classList.toggle("active", playing);
 }
@@ -2201,6 +2202,9 @@ async function togglePrimaryAudioPlayback() {
 
   try {
     if (audio.paused || audio.ended) {
+      if (audio.ended) {
+        audio.currentTime = 0;
+      }
       await audio.play();
     } else {
       audio.pause();
