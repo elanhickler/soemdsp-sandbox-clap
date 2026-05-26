@@ -1590,6 +1590,7 @@ function renderWaveformPosition() {
     updatePhaseAudioStatsActive(null);
     updateActivePhaseButtons(null);
     renderInspectionCursor();
+    renderParameterTimelineProbe();
     return;
   }
 
@@ -1621,6 +1622,7 @@ function renderWaveformProbe() {
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
     renderInspectionCursor();
+    renderParameterTimelineProbe();
     return;
   }
 
@@ -1634,6 +1636,7 @@ function renderWaveformProbe() {
     region?.name || "phase"
   }`;
   renderInspectionCursor();
+  renderParameterTimelineProbe();
 }
 
 function renderInspectionCursor() {
@@ -2130,6 +2133,94 @@ function updateParameterTimelinePlayhead(region) {
   marker.style.left = `${railLeft + ratio * railWidth}px`;
 }
 
+function updateParameterTimelineProbeMarker() {
+  const timeline = document.getElementById("parameterTimeline");
+  const marker = document.getElementById("parameterTimelineProbeMarker");
+  const waveform = state.waveform;
+  if (!marker) {
+    return;
+  }
+
+  if (!waveform || waveform.frames <= 0 || state.waveformProbeFrame === null) {
+    marker.hidden = true;
+    return;
+  }
+
+  const labelWidth = timeline.querySelector(".parameter-track-label")?.offsetWidth || 0;
+  const trackGap = 12;
+  const timelinePadding = 12;
+  const railLeft = timelinePadding + labelWidth + trackGap;
+  const railWidth = Math.max(1, timeline.clientWidth - railLeft - timelinePadding);
+  const ratio = Math.max(
+    0,
+    Math.min(1, clampFrame(state.waveformProbeFrame, waveform) / waveform.frames),
+  );
+  marker.hidden = false;
+  marker.style.left = `${railLeft + ratio * railWidth}px`;
+}
+
+function renderParameterTimelineProbe() {
+  const probe = document.getElementById("parameterTimelineProbe");
+  const waveform = state.waveform;
+  if (!waveform || state.waveformProbeFrame === null) {
+    probe.textContent = "probe";
+    updateParameterTimelineProbeMarker();
+    return;
+  }
+
+  const frame = clampFrame(state.waveformProbeFrame, waveform);
+  const region = waveformRegionAtFrame(frame);
+  const frequency = activeParameterValue("frequency", region);
+  const amplitude = activeParameterValue("amplitude", region);
+  probe.textContent = `probe ${formatSeconds(frame / waveform.sampleRate)} / ${
+    region?.name || "phase"
+  } / freq ${frequency === null ? "missing" : `${formatCompactNumber(frequency)} Hz`} / amp ${
+    amplitude === null ? "missing" : formatCompactNumber(amplitude)
+  }`;
+  updateParameterTimelineProbeMarker();
+}
+
+function probeParameterTimelineSegment(event) {
+  const waveform = state.waveform;
+  if (!waveform) {
+    return;
+  }
+
+  const startFrame = Number(event.currentTarget.dataset.startFrame);
+  const endFrame = Number(event.currentTarget.dataset.endFrame);
+  if (!Number.isFinite(startFrame) || !Number.isFinite(endFrame) || endFrame <= startFrame) {
+    return;
+  }
+
+  const rect = event.currentTarget.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+  state.waveformProbeFrame = clampFrame(Math.round(startFrame + (endFrame - startFrame) * ratio), waveform);
+  state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
+  renderWaveformProbe();
+  renderLevelEnvelopeProbe();
+  renderParameterTimelineProbe();
+  drawWaveform();
+  drawLevelEnvelope();
+  drawSignalPlot();
+  renderSignalPlotProbe();
+}
+
+function clearParameterTimelineProbe() {
+  if (state.waveformPointerActive) {
+    return;
+  }
+
+  state.waveformProbeFrame = null;
+  state.signalPlotProbe = null;
+  renderWaveformProbe();
+  renderLevelEnvelopeProbe();
+  renderParameterTimelineProbe();
+  drawWaveform();
+  drawLevelEnvelope();
+  drawSignalPlot();
+  renderSignalPlotProbe();
+}
+
 function renderParameterTimeline(manifest) {
   const timeline = document.getElementById("parameterTimeline");
   const status = document.getElementById("parameterTimelineStatus");
@@ -2137,6 +2228,7 @@ function renderParameterTimeline(manifest) {
 
   const phases = manifest?.phases || [];
   const totalFrames = Number(manifest?.wav?.frames || 0);
+  const spans = buildPhaseSpans(phases, totalFrames);
   const rows = parameterTimelineRows(manifest);
   if (!phases.length || totalFrames <= 0 || !rows.length) {
     status.textContent = "Check";
@@ -2156,12 +2248,17 @@ function renderParameterTimeline(manifest) {
     const rail = document.createElement("div");
     rail.className = "parameter-track-rail";
 
-    for (const phase of phases) {
+    for (const [index, phase] of phases.entries()) {
       const frames = Number(phase.samplesProcessed || 0);
+      const span = spans[index] || { startFrame: 0, endFrame: frames };
       const segment = document.createElement("div");
       segment.className = "parameter-segment";
       segment.dataset.phaseName = phase.name || "";
+      segment.dataset.startFrame = String(span.startFrame);
+      segment.dataset.endFrame = String(span.endFrame);
       segment.style.flexBasis = `${Math.max(1, (frames / totalFrames) * 100)}%`;
+      segment.addEventListener("pointermove", probeParameterTimelineSegment);
+      segment.addEventListener("pointerleave", clearParameterTimelineProbe);
 
       const phaseLabel = document.createElement("span");
       phaseLabel.textContent = phase.name || "phase";
@@ -2181,9 +2278,15 @@ function renderParameterTimeline(manifest) {
   marker.id = "parameterTimelinePlayhead";
   marker.className = "parameter-timeline-marker";
   timeline.append(marker);
+  const probeMarker = document.createElement("div");
+  probeMarker.id = "parameterTimelineProbeMarker";
+  probeMarker.className = "parameter-timeline-marker probe";
+  probeMarker.hidden = true;
+  timeline.append(probeMarker);
   status.textContent = `${rows.length} params`;
   status.className = "pill good";
   updateParameterTimelinePlayhead(activeWaveformRegion());
+  renderParameterTimelineProbe();
 }
 
 function parameterResyncPairs(manifest) {
@@ -2389,6 +2492,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["waveform seek", waveformReady && Number(manifest?.wav?.frames) > 0],
     ["waveform hover probe", waveformReady && Boolean(document.getElementById("waveformProbe"))],
     ["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))],
+    ["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))],
     ["follow/free view", Boolean(document.getElementById("followAudioButton"))],
     [
       "phase jump controls",
@@ -3034,6 +3138,7 @@ function renderError(message, details = {}) {
   setStatus("parameterSummaryStatus", "Check", false);
   setStatus("parameterTimelineStatus", "Check", false);
   setText("parameterTimelinePhase", "phase");
+  setText("parameterTimelineProbe", "probe");
   setStatus("waveformStatus", "Check", false);
   setStatus("levelEnvelopeStatus", "Check", false);
   setText("levelEnvelopePeak", "peak 0");

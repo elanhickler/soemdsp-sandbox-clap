@@ -340,6 +340,11 @@ audio {
   box-shadow: 0 0 0 1px rgba(17, 20, 24, 0.72);
 }
 
+.parameter-timeline-marker.probe {
+  background: #f6c96d;
+  box-shadow: 0 0 0 1px rgba(17, 20, 24, 0.72), 0 0 12px rgba(246, 201, 109, 0.25);
+}
+
 .report-controls {
   display: flex;
   flex-wrap: wrap;
