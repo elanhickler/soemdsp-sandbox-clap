@@ -2133,11 +2133,28 @@ def fetch_valid_manifest_payload(base_url: str) -> dict[str, object]:
     manifest_response = request(f"{base_url}/api/manifest")
     require(manifest_response.status == 200, "manifest endpoint did not return 200")
     require_no_store(manifest_response, "manifest endpoint")
+    require_content_type(manifest_response, "application/json", "manifest endpoint")
+    require(
+        manifest_response.headers.get("content-length") == str(len(manifest_response.body)),
+        "manifest endpoint content-length mismatch",
+    )
     payload = json.loads(manifest_response.body.decode("utf-8"))
     require(isinstance(payload, dict), "manifest response payload was not object")
     require(payload.get("ok") is True, "manifest payload was not ok")
-    require(payload.get("manifestPath"), "manifest path missing")
-    require(payload.get("artifactRoot"), "artifact root missing")
+    manifest_path = payload.get("manifestPath")
+    artifact_root = payload.get("artifactRoot")
+    require(isinstance(manifest_path, str) and manifest_path, "manifest path missing")
+    require(isinstance(artifact_root, str) and artifact_root, "artifact root missing")
+    manifest_file = Path(manifest_path).resolve()
+    require(manifest_file.is_file(), "manifest path does not point to a file")
+    require(Path(artifact_root).resolve() == manifest_file.parent, "artifact root mismatch")
+    manifest_info = payload.get("manifestInfo")
+    require(isinstance(manifest_info, dict), "manifest info missing")
+    require(
+        manifest_info.get("bytes") == manifest_file.stat().st_size,
+        "manifest info byte count mismatch",
+    )
+    require(isinstance(manifest_info.get("modifiedUtc"), str), "manifest info modified time missing")
     return payload
 
 
