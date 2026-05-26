@@ -229,6 +229,16 @@ audio {
   color: var(--accent-2);
 }
 
+.pill.inspection-target.none {
+  color: var(--muted);
+}
+
+.pill.inspection-target.active {
+  border-color: rgba(127, 199, 217, 0.48);
+  background: rgba(127, 199, 217, 0.1);
+  color: var(--accent);
+}
+
 .waveform {
   display: block;
   width: 100%;
