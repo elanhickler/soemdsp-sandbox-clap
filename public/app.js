@@ -485,7 +485,9 @@ function parseSummaryText(text) {
 
 function reportLinks(links) {
   return links.filter((link) =>
-    ["text-summary", "wav-report", "phase-report"].includes(link.kind),
+    ["manifest", "text-summary", "wav-report", "phase-report"].includes(
+      link.kind,
+    ),
   );
 }
 
@@ -549,12 +551,13 @@ async function renderReports(links) {
           throw new Error(`Report fetch failed: ${response.status}`);
         }
 
+        const text = await response.text();
         return {
           kind: link.kind,
           label: link.label || link.kind,
           ok: true,
           path: link.path,
-          text: await response.text(),
+          text: link.kind === "manifest" ? formatJsonDocument(text) : text,
         };
       } catch (error) {
         return {
@@ -578,6 +581,14 @@ async function renderReports(links) {
   status.className = ok ? "pill good" : "pill warn";
   renderReportControls();
   renderActiveReport();
+}
+
+function formatJsonDocument(text) {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch (_error) {
+    return text;
+  }
 }
 
 function renderParameterSummaryCards(pairs) {
