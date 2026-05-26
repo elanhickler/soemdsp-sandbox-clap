@@ -698,6 +698,62 @@ function updatePhaseAudioStatsActive(region) {
   }
 }
 
+function renderPhaseAudioStatsProbe() {
+  const probe = document.getElementById("phaseAudioStatsProbe");
+  const waveform = state.waveform;
+  if (!waveform || state.waveformProbeFrame === null) {
+    probe.textContent = "probe";
+    return;
+  }
+
+  const frame = clampFrame(state.waveformProbeFrame, waveform);
+  const region = waveformRegionAtFrame(frame);
+  probe.textContent = region
+    ? `probe ${region.name} / ${formatSeconds(frame / waveform.sampleRate)}`
+    : "probe";
+}
+
+function probePhaseAudioStats(event) {
+  const waveform = state.waveform;
+  if (!waveform) {
+    return;
+  }
+
+  const startFrame = Number(event.currentTarget.dataset.startFrame);
+  const endFrame = Number(event.currentTarget.dataset.endFrame);
+  if (!Number.isFinite(startFrame) || !Number.isFinite(endFrame) || endFrame <= startFrame) {
+    return;
+  }
+
+  state.waveformProbeFrame = clampFrame(Math.round(startFrame + (endFrame - startFrame) / 2), waveform);
+  state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
+  renderWaveformProbe();
+  renderLevelEnvelopeProbe();
+  renderPhaseAudioStatsProbe();
+  renderParameterTimelineProbe();
+  drawWaveform();
+  drawLevelEnvelope();
+  drawSignalPlot();
+  renderSignalPlotProbe();
+}
+
+function clearPhaseAudioStatsProbe() {
+  if (state.waveformPointerActive) {
+    return;
+  }
+
+  state.waveformProbeFrame = null;
+  state.signalPlotProbe = null;
+  renderWaveformProbe();
+  renderLevelEnvelopeProbe();
+  renderPhaseAudioStatsProbe();
+  renderParameterTimelineProbe();
+  drawWaveform();
+  drawLevelEnvelope();
+  drawSignalPlot();
+  renderSignalPlotProbe();
+}
+
 function renderPhaseAudioStats() {
   const status = document.getElementById("phaseAudioStatsStatus");
   const list = document.getElementById("phaseAudioStats");
@@ -706,6 +762,7 @@ function renderPhaseAudioStats() {
   const waveform = state.waveform;
   const regions = waveform?.regions || [];
   if (!waveform || !regions.length) {
+    renderPhaseAudioStatsProbe();
     status.textContent = "Check";
     status.className = "pill warn";
     return;
@@ -753,6 +810,10 @@ function renderPhaseAudioStats() {
     const item = document.createElement("div");
     item.className = producerOk ? "phase-stat" : "phase-stat warn-row";
     item.dataset.phaseName = region.name;
+    item.dataset.startFrame = String(region.startFrame);
+    item.dataset.endFrame = String(region.endFrame);
+    item.addEventListener("pointermove", probePhaseAudioStats);
+    item.addEventListener("pointerleave", clearPhaseAudioStatsProbe);
 
     const name = document.createElement("h3");
     name.textContent = region.name;
@@ -801,6 +862,7 @@ function renderPhaseAudioStats() {
   status.textContent = allOk ? "Verified" : "Check";
   status.className = `pill ${allOk ? "good" : "warn"}`;
   updatePhaseAudioStatsActive(activeWaveformRegion());
+  renderPhaseAudioStatsProbe();
 }
 
 function signalPlotLagFrames(waveform) {
@@ -1591,6 +1653,7 @@ function renderWaveformPosition() {
     updateActivePhaseButtons(null);
     renderInspectionCursor();
     renderParameterTimelineProbe();
+    renderPhaseAudioStatsProbe();
     return;
   }
 
@@ -1623,6 +1686,7 @@ function renderWaveformProbe() {
     probe.textContent = "probe";
     renderInspectionCursor();
     renderParameterTimelineProbe();
+    renderPhaseAudioStatsProbe();
     return;
   }
 
@@ -1637,6 +1701,7 @@ function renderWaveformProbe() {
   }`;
   renderInspectionCursor();
   renderParameterTimelineProbe();
+  renderPhaseAudioStatsProbe();
 }
 
 function renderInspectionCursor() {
@@ -2502,6 +2567,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ],
     ["phase parameter readout", parameterResyncContractIssue(manifest) === ""],
     ["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0],
+    ["phase audio stats probe", waveformReady && Boolean(document.getElementById("phaseAudioStatsProbe"))],
     ["signal inspection", waveformReady && Boolean(document.getElementById("signalPlotCanvas"))],
     ["signal plot probe", waveformReady && Boolean(document.getElementById("signalPlotProbe"))],
     ["signal plot source probe", waveformReady && Boolean(document.getElementById("signalPlotProbeSource"))],
@@ -3156,6 +3222,7 @@ function renderError(message, details = {}) {
   setText("signalPlotProbeSource", "near frame");
   setStatus("phaseCoverageStatus", "Check", false);
   setStatus("phaseAudioStatsStatus", "Check", false);
+  setText("phaseAudioStatsProbe", "probe");
   setStatus("phaseStatus", "Check", false);
   setStatus("artifactCoverageStatus", "Check", false);
   setStatus("reportStatus", "Check", false);
