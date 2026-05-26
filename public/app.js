@@ -136,9 +136,13 @@ function setInspectionCursorDelta(deltaFrame, sampleRate) {
   delta.className = `pill inspection-delta ${deltaFrame === null ? "none" : "hover"}`;
 }
 
-function setInspectionCursorAudio(time) {
+function formatAudioDuration(duration) {
+  return Number.isFinite(duration) && duration > 0 ? formatSeconds(duration) : "unknown";
+}
+
+function setInspectionCursorAudio(time, duration) {
   const audio = document.getElementById("inspectionCursorAudio");
-  audio.textContent = `audio ${formatSeconds(Number.isFinite(time) ? time : 0)}`;
+  audio.textContent = `audio ${formatSeconds(Number.isFinite(time) ? time : 0)} / ${formatAudioDuration(duration)}`;
 }
 
 function setInspectionCursorPlayback(audio) {
@@ -2020,8 +2024,9 @@ function renderAudioPosition() {
   const audio = document.getElementById("audioPlayer");
   const position = document.getElementById("audioPosition");
   const time = Number(audio.currentTime);
+  const duration = Number(audio.duration);
   position.textContent = `audio ${formatSeconds(Number.isFinite(time) ? time : 0)}`;
-  setInspectionCursorAudio(time);
+  setInspectionCursorAudio(time, duration);
   setInspectionCursorPlayback(audio);
 }
 
@@ -3554,7 +3559,7 @@ function renderError(message, details = {}) {
   setStatus("handsOnReadinessStatus", "Check", false);
   setInspectionCursorSource("none", "none");
   setInspectionCursorDelta(null, 1);
-  setInspectionCursorAudio(0);
+  setInspectionCursorAudio(0, Number.NaN);
   setInspectionCursorPlayback(null);
   setInspectionCursorPreview(false);
   setInspectionCursorSeek(null);
