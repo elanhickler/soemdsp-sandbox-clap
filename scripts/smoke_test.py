@@ -11,6 +11,8 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+from wave import Error as WaveError
+from wave import open as open_wave
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -218,6 +220,45 @@ def require_report_documents(base_url: str, payload: dict[str, object]) -> None:
             json.loads(text)
 
 
+def require_primary_audio_wav(base_url: str, payload: dict[str, object]) -> None:
+    manifest = payload.get("manifest")
+    require(isinstance(manifest, dict), "manifest object missing")
+
+    handoff = manifest.get("sandboxHandoff")
+    require(isinstance(handoff, dict), "sandbox handoff missing")
+    audio_path = handoff.get("primaryAudioArtifact")
+    require(isinstance(audio_path, str) and audio_path, "primary audio artifact missing")
+
+    wav = manifest.get("wav")
+    require(isinstance(wav, dict), "wav metadata missing")
+    expected_frames = int(wav.get("frames", 0))
+    expected_sample_rate = int(wav.get("sampleRate", 0))
+    expected_file_bytes = int(wav.get("fileBytes", 0))
+    require(expected_frames > 0, "wav frame count missing")
+    require(expected_sample_rate > 0, "wav sample rate missing")
+    require(expected_file_bytes > 0, "wav file byte count missing")
+
+    response = request(f"{base_url}/artifact?path={urllib.parse.quote(audio_path)}")
+    require(response.status == 200, "primary audio WAV did not return 200")
+    require_no_store(response, "primary audio WAV")
+    require(len(response.body) == expected_file_bytes, "WAV file byte count mismatch")
+
+    try:
+        with tempfile.TemporaryFile() as handle:
+            handle.write(response.body)
+            handle.seek(0)
+            with open_wave(handle, "rb") as wave_file:
+                require(wave_file.getnframes() == expected_frames, "WAV frame mismatch")
+                require(
+                    wave_file.getframerate() == expected_sample_rate,
+                    "WAV sample rate mismatch",
+                )
+                require(wave_file.getnchannels() > 0, "WAV channel count missing")
+                require(wave_file.getsampwidth() == 2, "WAV sample width mismatch")
+    except WaveError as error:
+        raise AssertionError(f"primary audio WAV parse failed: {error}") from error
+
+
 def wait_for_server(base_url: str) -> None:
     deadline = time.monotonic() + 5
     last_status = ""
@@ -289,6 +330,7 @@ def run_valid_manifest_smoke(port: int, manifest: Path) -> None:
         require_phase_contract(payload)
         require_artifact_reachability(base_url, payload)
         require_report_documents(base_url, payload)
+        require_primary_audio_wav(base_url, payload)
 
         handoff = payload["manifest"].get("sandboxHandoff", {})
         audio_path = handoff.get("primaryAudioArtifact")
