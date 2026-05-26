@@ -8,6 +8,7 @@ const state = {
   phaseJumpPreviewIndex: null,
   lastSeekSource: null,
   lastSeekFrame: null,
+  lastSeekFollowAudio: null,
   followAudio: true,
   reports: [],
   activeReportIndex: 0,
@@ -1866,6 +1867,7 @@ async function renderWaveform(path) {
     state.phaseJumpPreviewIndex = null;
     state.lastSeekSource = null;
     state.lastSeekFrame = null;
+    state.lastSeekFollowAudio = null;
     state.signalPlotProbe = null;
     state.waveform.stats = analyzeWaveform(state.waveform.samples);
     state.waveform.envelope = buildLevelEnvelope(state.waveform);
@@ -1906,6 +1908,7 @@ async function renderWaveform(path) {
     state.phaseJumpPreviewIndex = null;
     state.lastSeekSource = null;
     state.lastSeekFrame = null;
+    state.lastSeekFollowAudio = null;
     state.signalPlotProbe = null;
     state.playheadFrame = 0;
     renderUnavailableWaveformMeta();
@@ -2031,6 +2034,7 @@ function renderInspectionCursor() {
       ["transport time", "0.000s"],
       ["transport phase", "phase"],
       ["last seek source", "none"],
+      ["last seek mode", "none"],
       ["last seek frame", "none"],
       ["last seek time", "none"],
       ["last seek phase", "none"],
@@ -2101,6 +2105,14 @@ function renderInspectionCursor() {
     ["transport phase", transportRegion?.name || "phase"],
     ["transport sample", formatCompactNumber(transportSample)],
     ["last seek source", state.lastSeekSource || "none"],
+    [
+      "last seek mode",
+      state.lastSeekFollowAudio === null
+        ? "none"
+        : state.lastSeekFollowAudio
+          ? "follow audio"
+          : "free view",
+    ],
     ["last seek frame", lastSeekFrame === null ? "none" : String(lastSeekFrame)],
     [
       "last seek time",
@@ -2210,6 +2222,7 @@ function seekPrimaryAudioToFrame(frame, source = "waveform") {
   const targetFrame = clampFrame(frame, waveform);
   state.lastSeekSource = source;
   state.lastSeekFrame = targetFrame;
+  state.lastSeekFollowAudio = state.followAudio;
   if (state.followAudio) {
     const audio = document.getElementById("audioPlayer");
     const targetTime = targetFrame / waveform.sampleRate;
@@ -3871,6 +3884,7 @@ function renderError(message, details = {}) {
   state.phaseJumpPreviewIndex = null;
   state.lastSeekSource = null;
   state.lastSeekFrame = null;
+  state.lastSeekFollowAudio = null;
   state.signalPlotProbe = null;
   state.reports = [];
   state.activeReportIndex = 0;

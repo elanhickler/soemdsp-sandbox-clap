@@ -1318,6 +1318,10 @@ def require_waveform_seek_source_contract() -> None:
         "const lastSeekFrame =",
         "state.lastSeekFrame === null ? null : clampFrame(state.lastSeekFrame, waveform)",
         '["last seek source", state.lastSeekSource || "none"]',
+        '"last seek mode"',
+        "state.lastSeekFollowAudio === null",
+        '"follow audio"',
+        '"free view"',
         '["last seek frame", lastSeekFrame === null ? "none" : String(lastSeekFrame)]',
         '"last seek time"',
         '["last seek phase", lastSeekRegion?.name || "none"]',
@@ -1332,7 +1336,9 @@ def require_waveform_seek_source_contract() -> None:
         "lastSeekHoverDeltaFrame === 0",
         "formatInspectionDelta(lastSeekHoverDeltaFrame, waveform.sampleRate)",
         "state.lastSeekFrame = targetFrame",
+        "state.lastSeekFollowAudio = state.followAudio",
         "state.lastSeekFrame = null",
+        "state.lastSeekFollowAudio = null",
         'seekPrimaryAudioToFrame(region.startFrame, "phase jump")',
         'seekPrimaryAudioToFrame(waveformFrameAtClientX(clientX), "waveform")',
         'seekPrimaryAudioToFrame(Math.round(ratio * waveform.frames), "scrubber")',
@@ -1777,6 +1783,10 @@ def require_follow_free_seek_contract() -> None:
     require(
         "setPlayheadFrame(targetFrame);" in seek_function,
         "waveform seek no longer updates local inspection playhead",
+    )
+    require(
+        "state.lastSeekFollowAudio = state.followAudio;" in seek_function,
+        "waveform seek no longer records follow/free mode at seek time",
     )
     require(
         seek_function.index("audio.currentTime = targetTime;") <
