@@ -3164,6 +3164,26 @@ function renderCheckRows(container, rows) {
   }
 }
 
+function phaseJumpButtonsLabeled(manifest) {
+  const phases = Array.isArray(manifest?.phases) ? manifest.phases : [];
+  const buttons = [...document.querySelectorAll("#waveformPhaseControls button")];
+  if (!phases.length || buttons.length !== phases.length) {
+    return false;
+  }
+
+  return buttons.every((button) => {
+    const label = button.getAttribute("aria-label") || "";
+    return (
+      button.dataset.phaseIndex !== undefined &&
+      button.dataset.phaseStartFrame !== undefined &&
+      button.dataset.phaseStartTime !== undefined &&
+      label.startsWith("Jump waveform to ") &&
+      label.includes(" phase at frame ") &&
+      button.title.startsWith("Jump to ")
+    );
+  });
+}
+
 function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform)) {
   const rows = [
     [
@@ -3188,6 +3208,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
         phaseReportCoverageIssue(manifest) === "",
     ],
     ["phase jump preview", waveformReady && Boolean(document.querySelector("#waveformPhaseControls button"))],
+    ["phase jump labels", waveformReady && phaseJumpButtonsLabeled(manifest)],
     ["phase jump target", waveformReady && Boolean(document.getElementById("waveformPhaseJumpTarget"))],
     ["phase list probe", waveformReady && Boolean(document.getElementById("phaseProbe"))],
     ["phase preview target", waveformReady && Boolean(document.querySelector(".phase"))],
