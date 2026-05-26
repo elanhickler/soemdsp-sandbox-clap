@@ -280,9 +280,12 @@ function formatSeconds(seconds) {
 }
 
 function probeSourceText() {
-  return state.waveformProbeSource
-    ? `${inspectionModes.probe} ${state.waveformProbeSource}`
-    : inspectionModes.probe;
+  const source = currentProbeSource();
+  return source === inspectionModes.probe ? inspectionModes.probe : `${inspectionModes.probe} ${source}`;
+}
+
+function currentProbeSource() {
+  return state.waveformProbeSource || inspectionModes.probe;
 }
 
 function formatProbeFrame(frame, waveform, region = waveformRegionAtFrameFor(waveform, frame)) {
@@ -812,7 +815,7 @@ function resetProbePill(id, text, title) {
   }
 
   probe.textContent = text;
-  setProbePillMetadata(probe, "none", null, title);
+  setProbePillMetadata(probe, inspectionModes.none, null, title);
 }
 
 function renderLevelEnvelopeProbe() {
@@ -826,7 +829,7 @@ function renderLevelEnvelopeProbe() {
   const frame = clampFrame(state.waveformProbeFrame, waveform);
   const entry = levelEnvelopeWindowAtFrame(frame);
   const region = waveformRegionAtFrame(frame);
-  const source = state.waveformProbeSource || "probe";
+  const source = currentProbeSource();
   probe.textContent = entry
     ? `${probeSourceText()} ${formatProbeFrame(frame, waveform, region)} / peak ${formatCompactNumber(
         entry.peak,
@@ -916,7 +919,7 @@ function renderPhaseAudioStatsProbe() {
 
   const frame = clampFrame(state.waveformProbeFrame, waveform);
   const region = waveformRegionAtFrame(frame);
-  const source = state.waveformProbeSource || "probe";
+  const source = currentProbeSource();
   probe.textContent = region
     ? `${probeSourceText()} ${formatProbeFrame(frame, waveform, region)}`
     : "probe";
@@ -1780,7 +1783,7 @@ function renderWaveformPhaseControls() {
   }
 }
 
-function setSharedProbeFrame(frame, source = "probe") {
+function setSharedProbeFrame(frame, source = inspectionModes.probe) {
   const waveform = state.waveform;
   if (!waveform) {
     return;
@@ -2185,7 +2188,7 @@ function renderWaveformProbe() {
   const sampleFrame = Math.max(0, Math.min(waveform.samples.length - 1, frame));
   const sampleValue = waveform.samples[sampleFrame] || 0;
   const region = waveformRegionAtFrame(frame);
-  const source = state.waveformProbeSource || "probe";
+  const source = currentProbeSource();
   probe.textContent = `${probeSourceText()} ${formatSeconds(
     frame / waveform.sampleRate,
   )} / frame ${frame} / ${formatCompactNumber(sampleValue)} / ${
@@ -2939,7 +2942,7 @@ function renderParameterTimelineProbe() {
   const region = waveformRegionAtFrame(frame);
   const frequency = activeParameterValue("frequency", region);
   const amplitude = activeParameterValue("amplitude", region);
-  const source = state.waveformProbeSource || "probe";
+  const source = currentProbeSource();
   const frequencyText = frequency === null ? "missing" : `${formatCompactNumber(frequency)} Hz`;
   const amplitudeText = amplitude === null ? "missing" : formatCompactNumber(amplitude);
   probe.textContent = `${probeSourceText()} ${formatProbeFrame(frame, waveform, region)} / freq ${
@@ -3839,7 +3842,7 @@ function renderPhaseProbe() {
 
   const frame = clampFrame(state.waveformProbeFrame, waveform);
   const region = waveformRegionAtFrame(frame);
-  const source = state.waveformProbeSource || "probe";
+  const source = currentProbeSource();
   probe.textContent = region
     ? `${probeSourceText()} ${formatProbeFrame(frame, waveform, region)}`
     : "probe";
