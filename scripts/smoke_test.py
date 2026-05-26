@@ -440,9 +440,15 @@ def require_primary_audio_wav(base_url: str, payload: dict[str, object]) -> None
     require(isinstance(wav, dict), "wav metadata missing")
     expected_frames = int(wav.get("frames", 0))
     expected_sample_rate = int(wav.get("sampleRate", 0))
+    expected_channels = int(wav.get("channels", 0))
+    expected_bit_depth = int(wav.get("bitDepth", 0))
+    expected_data_bytes = int(wav.get("dataBytes", 0))
     expected_file_bytes = int(wav.get("fileBytes", 0))
     require(expected_frames > 0, "wav frame count missing")
     require(expected_sample_rate > 0, "wav sample rate missing")
+    require(expected_channels > 0, "wav channel count missing")
+    require(expected_bit_depth > 0, "wav bit depth missing")
+    require(expected_data_bytes > 0, "wav data byte count missing")
     require(expected_file_bytes > 0, "wav file byte count missing")
 
     response = request(f"{base_url}/artifact?path={urllib.parse.quote(audio_path)}")
@@ -460,8 +466,19 @@ def require_primary_audio_wav(base_url: str, payload: dict[str, object]) -> None
                     wave_file.getframerate() == expected_sample_rate,
                     "WAV sample rate mismatch",
                 )
-                require(wave_file.getnchannels() > 0, "WAV channel count missing")
-                require(wave_file.getsampwidth() == 2, "WAV sample width mismatch")
+                require(
+                    wave_file.getnchannels() == expected_channels,
+                    "WAV channel count mismatch",
+                )
+                require(
+                    wave_file.getsampwidth() * 8 == expected_bit_depth,
+                    "WAV bit depth mismatch",
+                )
+                require(
+                    expected_frames * expected_channels * wave_file.getsampwidth()
+                    == expected_data_bytes,
+                    "WAV data byte count mismatch",
+                )
     except WaveError as error:
         raise AssertionError(f"primary audio WAV parse failed: {error}") from error
 
