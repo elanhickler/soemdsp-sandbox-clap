@@ -188,6 +188,33 @@ audio {
   cursor: crosshair;
 }
 
+.parameter-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.summary-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+
+.summary-card strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--good);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 1.1rem;
+}
+
+.summary-card strong.warn {
+  color: var(--warn);
+}
+
 .waveform-scrubber {
   display: block;
   width: 100%;
@@ -336,6 +363,7 @@ code {
   .grid,
   .phase-list,
   .checklist,
+  .parameter-summary,
   .artifact-row {
     grid-template-columns: 1fr;
   }

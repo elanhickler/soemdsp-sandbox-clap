@@ -356,6 +356,90 @@ function hasArtifactKind(links, kind) {
   return links.some((link) => link.kind === kind && Boolean(link.path));
 }
 
+function findArtifactPath(links, kind) {
+  const link = links.find((item) => item.kind === kind && Boolean(item.path));
+  return link ? link.path : "";
+}
+
+function parseSummaryText(text) {
+  const pairs = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    const separator = line.indexOf(":");
+    if (separator < 0) {
+      continue;
+    }
+
+    const key = line.slice(0, separator).trim();
+    const value = line.slice(separator + 1).trim();
+    if (key) {
+      pairs.set(key, value);
+    }
+  }
+
+  return pairs;
+}
+
+function renderParameterSummaryCards(pairs) {
+  const container = document.getElementById("parameterSummary");
+  container.replaceChildren();
+
+  const values = [
+    ["First Frequency", pairs.get("first half frequency")],
+    ["First Amplitude", pairs.get("first half amplitude")],
+    ["Second Frequency", pairs.get("second half frequency")],
+    ["Second Amplitude", pairs.get("second half amplitude")],
+  ];
+
+  for (const [label, value] of values) {
+    const item = document.createElement("div");
+    item.className = "summary-card";
+
+    const title = document.createElement("span");
+    title.className = "label";
+    title.textContent = label;
+
+    const body = document.createElement("strong");
+    body.textContent = value || "missing";
+    if (!value) {
+      body.className = "warn";
+    }
+
+    item.append(title, body);
+    container.append(item);
+  }
+}
+
+async function renderParameterSummary(links) {
+  const status = document.getElementById("parameterSummaryStatus");
+  const path = findArtifactPath(links, "text-summary");
+  status.textContent = "Loading";
+  status.className = "pill";
+
+  if (!path) {
+    status.textContent = "Check";
+    status.className = "pill warn";
+    renderParameterSummaryCards(new Map());
+    return;
+  }
+
+  try {
+    const response = await fetch(artifactUrl(path), { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Summary fetch failed: ${response.status}`);
+    }
+
+    const pairs = parseSummaryText(await response.text());
+    renderParameterSummaryCards(pairs);
+    status.textContent = "Loaded";
+    status.className = "pill good";
+  } catch (error) {
+    status.textContent = "Check";
+    status.className = "pill warn";
+    renderParameterSummaryCards(new Map());
+    console.error(error);
+  }
+}
+
 function validateConsumerChecklist(manifest) {
   const handoff = manifest.sandboxHandoff || {};
   const links = manifest.artifactLinks || [];
@@ -492,6 +576,7 @@ function render(response) {
   );
   renderPhases(manifest.phases || []);
   renderChecklist(checklist);
+  renderParameterSummary(manifest.artifactLinks || []);
   renderArtifacts(manifest.artifactLinks || []);
 }
 
