@@ -681,6 +681,7 @@ def require_waveform_seek_source_contract() -> None:
         "function signalPlotRegions(waveform, drawableFrames)",
         "function signalPlotFocusName(waveform)",
         "function signalPlotPointCount(waveform, drawableFrames)",
+        "function signalPlotFocusStats(waveform, drawableFrames)",
         "function renderSignalPlotPoint()",
         "function signalPlotLagFrames(waveform)",
         "signalLagMs: 1",
@@ -696,6 +697,8 @@ def require_waveform_seek_source_contract() -> None:
         "x ${formatCompactNumber(x)} / y ${formatCompactNumber(y)}",
         '["x", "sample[n]"]',
         '["y", "sample[n + lag]"]',
+        '["focus peak", formatCompactNumber(focusStats.peak)]',
+        '["focus rms", formatCompactNumber(focusStats.rms)]',
     ]:
         require(snippet in app_source, f"waveform analysis source missing {snippet}")
     for snippet in [

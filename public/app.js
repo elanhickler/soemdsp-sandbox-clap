@@ -368,6 +368,42 @@ function signalPlotPointCount(waveform, drawableFrames) {
   }, 0);
 }
 
+function signalPlotFocusStats(waveform, drawableFrames) {
+  const regions = signalPlotRegions(waveform, drawableFrames);
+  let max = -Infinity;
+  let min = Infinity;
+  let squareSum = 0;
+  let count = 0;
+
+  for (const region of regions) {
+    const startFrame = Math.max(0, Math.min(drawableFrames, region.startFrame));
+    const endFrame = Math.max(startFrame, Math.min(drawableFrames, region.endFrame));
+    for (let frame = startFrame; frame < endFrame; frame += 1) {
+      const sample = waveform.samples[frame] || 0;
+      max = Math.max(max, sample);
+      min = Math.min(min, sample);
+      squareSum += sample * sample;
+      count += 1;
+    }
+  }
+
+  if (count === 0) {
+    return {
+      max: 0,
+      min: 0,
+      peak: 0,
+      rms: 0,
+    };
+  }
+
+  return {
+    max,
+    min,
+    peak: Math.max(Math.abs(min), Math.abs(max)),
+    rms: Math.sqrt(squareSum / count),
+  };
+}
+
 function drawSignalPlot() {
   const canvas = document.getElementById("signalPlotCanvas");
   const waveform = state.waveform;
@@ -465,6 +501,7 @@ function renderSignalPlot() {
 
   const lagFrames = signalPlotLagFrames(waveform);
   const drawableFrames = Math.max(0, waveform.samples.length - lagFrames);
+  const focusStats = signalPlotFocusStats(waveform, drawableFrames);
   drawSignalPlot();
   renderKeyValue(meta, [
     ["focus", signalPlotFocusName(waveform)],
@@ -474,6 +511,10 @@ function renderSignalPlot() {
     ["lag frames", String(lagFrames)],
     ["lag time", formatSeconds(lagFrames / waveform.sampleRate)],
     ["points", String(signalPlotPointCount(waveform, drawableFrames))],
+    ["focus peak", formatCompactNumber(focusStats.peak)],
+    ["focus rms", formatCompactNumber(focusStats.rms)],
+    ["focus min", formatCompactNumber(focusStats.min)],
+    ["focus max", formatCompactNumber(focusStats.max)],
   ]);
   status.textContent = "Drawn";
   status.className = "pill good";
