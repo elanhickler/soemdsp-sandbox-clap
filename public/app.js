@@ -858,15 +858,28 @@ function renderPhaseAudioStatsProbe() {
   const waveform = state.waveform;
   if (!waveform || state.waveformProbeFrame === null) {
     probe.textContent = "probe";
+    probe.dataset.probeSource = "none";
+    probe.dataset.probeFrame = "none";
+    probe.title = "Phase audio stats probe idle";
     updatePhaseProbeTargets();
     return;
   }
 
   const frame = clampFrame(state.waveformProbeFrame, waveform);
   const region = waveformRegionAtFrame(frame);
+  const source = state.waveformProbeSource || "probe";
   probe.textContent = region
     ? `${probeSourceText()} ${formatProbeFrame(frame, waveform, region)}`
     : "probe";
+  probe.dataset.probeSource = source;
+  probe.dataset.probeFrame = String(frame);
+  probe.title = region
+    ? `Phase audio stats probe ${source} / ${formatProbeFrame(frame, waveform, region)}`
+    : `Phase audio stats probe ${source} / ${formatProbeFrame(
+        frame,
+        waveform,
+        region,
+      )} / no phase`;
   updatePhaseProbeTargets();
 }
 
@@ -3305,6 +3318,15 @@ function parameterTimelineProbeLabeled() {
   );
 }
 
+function phaseAudioStatsProbeLabeled() {
+  const probe = document.getElementById("phaseAudioStatsProbe");
+  return (
+    Boolean(probe?.dataset.probeSource) &&
+    Boolean(probe?.dataset.probeFrame) &&
+    Boolean(probe?.title)
+  );
+}
+
 function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform)) {
   const rows = [
     [
@@ -3341,6 +3363,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["phase parameter readout", parameterResyncContractIssue(manifest) === ""],
     ["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0],
     ["phase audio stats probe", waveformReady && Boolean(document.getElementById("phaseAudioStatsProbe"))],
+    ["phase audio stats probe labels", waveformReady && phaseAudioStatsProbeLabeled()],
     ["signal inspection", waveformReady && Boolean(document.getElementById("signalPlotCanvas"))],
     ["signal plot probe", waveformReady && Boolean(document.getElementById("signalPlotProbe"))],
     ["signal plot source probe", waveformReady && Boolean(document.getElementById("signalPlotProbeSource"))],

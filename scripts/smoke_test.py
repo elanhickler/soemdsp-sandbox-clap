@@ -354,6 +354,16 @@ def require_shell_contract(html: str) -> None:
     )
     require_shell_element(
         parser,
+        "phaseAudioStatsProbe",
+        "span",
+        {
+            "data-probe-source": "none",
+            "data-probe-frame": "none",
+            "title": "Phase audio stats probe idle",
+        },
+    )
+    require_shell_element(
+        parser,
         "signalPlotCanvas",
         "canvas",
         {"width": "720", "height": "360", "aria-label": "Primary WAV signal plot"},
@@ -1349,6 +1359,9 @@ def require_waveform_seek_source_contract() -> None:
         "`Level envelope probe ${source}",
         "probe.title = \"Parameter timeline probe idle\"",
         "probe.title = `Parameter timeline probe ${source}",
+        "probe.title = \"Phase audio stats probe idle\"",
+        "probe.title = region",
+        "Phase audio stats probe ${source}",
         "function updateWaveformScrubberLabel(scrubber, waveform, activeRegion)",
         "scrubber.setAttribute(\"aria-valuetext\"",
         "scrubber.dataset.followMode = followText",
@@ -1611,6 +1624,7 @@ def require_waveform_seek_source_contract() -> None:
         "function waveformProbeLabeled()",
         "function levelEnvelopeProbeLabeled()",
         "function parameterTimelineProbeLabeled()",
+        "function phaseAudioStatsProbeLabeled()",
         'label.startsWith("Jump waveform to ")',
         'label.includes(" phase at frame ")',
         'button.title.startsWith("Jump to ")',
@@ -1639,6 +1653,7 @@ def require_waveform_seek_source_contract() -> None:
         '["phase preview target", waveformReady && Boolean(document.querySelector(".phase"))]',
         '["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0]',
         '["phase audio stats probe", waveformReady && Boolean(document.getElementById("phaseAudioStatsProbe"))]',
+        '["phase audio stats probe labels", waveformReady && phaseAudioStatsProbeLabeled()]',
         '["signal inspection", waveformReady && Boolean(document.getElementById("signalPlotCanvas"))]',
         '["signal plot probe", waveformReady && Boolean(document.getElementById("signalPlotProbe"))]',
         "function renderUnavailableHandsOnReadiness()",
