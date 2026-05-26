@@ -3068,6 +3068,17 @@ function renderUnavailableSandboxContract() {
   }
 }
 
+function renderUnavailableBoundaryFlags() {
+  renderKeyValue(
+    document.getElementById("boundaryFlags"),
+    requiredFlags.map(([key, expected]) => [
+      key,
+      "unavailable",
+      expected,
+    ]),
+  );
+}
+
 function renderArtifactCoverage(manifest) {
   const links = manifest.artifactLinks || [];
   const phases = manifest.phases || [];
@@ -3785,7 +3796,7 @@ function renderError(message, details = {}) {
   renderSignalPlotControls();
   clearSignalPlotProbe();
   clearElement("signalPlotMeta");
-  clearElement("boundaryFlags");
+  renderUnavailableBoundaryFlags();
   clearElement("phaseCoverage");
   clearElement("phaseList");
   renderUnavailableChecklist();
