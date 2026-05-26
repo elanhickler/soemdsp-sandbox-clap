@@ -56,6 +56,16 @@ const phaseAudioFrequencyToleranceHz = 0.5;
 const phaseAudioAmplitudeTolerance = 0.001;
 const phaseAudioRmsTolerance = 0.001;
 const signalPlotSettingsKey = "soemdsp-sandbox.signalPlotSettings";
+const inspectionSources = Object.freeze({
+  waveform: "waveform",
+  scrubber: "scrubber",
+  levelEnvelope: "level envelope",
+  signalPlot: "signal plot",
+  parameterTimeline: "parameter timeline",
+  phaseAudioStats: "phase audio stats",
+  phaseList: "phase list",
+  phaseJump: "phase jump",
+});
 
 function artifactUrl(path) {
   return `/artifact?path=${encodeURIComponent(path)}`;
@@ -928,7 +938,7 @@ function probePhaseAudioStats(event) {
   }
 
   state.waveformProbeFrame = clampFrame(Math.round(startFrame + (endFrame - startFrame) / 2), waveform);
-  state.waveformProbeSource = "phase audio stats";
+  state.waveformProbeSource = inspectionSources.phaseAudioStats;
   state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
@@ -1415,7 +1425,7 @@ function renderSignalPlotProbe() {
   }
 
   const nearest = state.signalPlotProbe.nearest;
-  const probeSource = state.waveformProbeSource || "signal plot";
+  const probeSource = state.waveformProbeSource || inspectionSources.signalPlot;
   const pointText = `x ${formatCompactNumber(
     state.signalPlotProbe.x,
   )} / y ${formatCompactNumber(state.signalPlotProbe.y)}`;
@@ -1457,7 +1467,8 @@ function probeSignalPlot(event) {
 
   state.signalPlotProbe = signalPlotProbeAtClientPoint(event.clientX, event.clientY);
   state.waveformProbeFrame = state.signalPlotProbe.nearest?.frame ?? null;
-  state.waveformProbeSource = state.waveformProbeFrame === null ? null : "signal plot";
+  state.waveformProbeSource =
+    state.waveformProbeFrame === null ? null : inspectionSources.signalPlot;
   drawSignalPlot();
   renderSignalPlotProbe();
   drawWaveform();
@@ -1753,7 +1764,7 @@ function renderWaveformPhaseControls() {
     button.addEventListener("focus", () => probePhaseButton(index));
     button.addEventListener("blur", clearPhaseButtonProbe);
     button.addEventListener("click", () => {
-      seekPrimaryAudioToFrame(region.startFrame, "phase jump");
+      seekPrimaryAudioToFrame(region.startFrame, inspectionSources.phaseJump);
     });
     container.append(button);
   }
@@ -1800,7 +1811,7 @@ function probePhaseButton(index) {
 
   state.phaseJumpPreviewIndex = index;
   updateActivePhaseButtons(activeWaveformRegion());
-  setSharedProbeFrame(region.startFrame, "phase jump");
+  setSharedProbeFrame(region.startFrame, inspectionSources.phaseJump);
 }
 
 function clearPhaseButtonProbe() {
@@ -2450,7 +2461,7 @@ function syncWaveformToAudioEnd() {
   setPlayheadFrame(state.waveform.frames);
 }
 
-function seekPrimaryAudioToFrame(frame, source = "waveform") {
+function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform) {
   const waveform = state.waveform;
   if (!waveform) {
     return;
@@ -2478,7 +2489,7 @@ function seekWaveformAtClientX(clientX) {
     return;
   }
 
-  seekPrimaryAudioToFrame(waveformFrameAtClientX(clientX), "waveform");
+  seekPrimaryAudioToFrame(waveformFrameAtClientX(clientX), inspectionSources.waveform);
 }
 
 function waveformFrameAtClientX(clientX) {
@@ -2503,7 +2514,7 @@ function probeWaveformAtClientX(clientX) {
   }
 
   state.waveformProbeFrame = waveformFrameAtClientX(clientX);
-  state.waveformProbeSource = "waveform";
+  state.waveformProbeSource = inspectionSources.waveform;
   state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
   renderWaveformProbe();
   drawSignalPlot();
@@ -2517,7 +2528,7 @@ function probeLevelEnvelopeAtClientX(clientX) {
   }
 
   state.waveformProbeFrame = waveformFrameAtClientXForCanvas(clientX, "levelEnvelopeCanvas");
-  state.waveformProbeSource = "level envelope";
+  state.waveformProbeSource = inspectionSources.levelEnvelope;
   state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
   renderWaveformProbe();
   drawWaveform();
@@ -2591,7 +2602,7 @@ function scrubWaveform(event) {
   }
 
   const ratio = Number(event.currentTarget.value);
-  seekPrimaryAudioToFrame(Math.round(ratio * waveform.frames), "scrubber");
+  seekPrimaryAudioToFrame(Math.round(ratio * waveform.frames), inspectionSources.scrubber);
 }
 
 function beginScrubberDrag(event) {
@@ -2947,7 +2958,7 @@ function probeParameterTimelineSegment(event) {
   const rect = event.currentTarget.getBoundingClientRect();
   const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
   state.waveformProbeFrame = clampFrame(Math.round(startFrame + (endFrame - startFrame) * ratio), waveform);
-  state.waveformProbeSource = "parameter timeline";
+  state.waveformProbeSource = inspectionSources.parameterTimeline;
   state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
   renderWaveformProbe();
   renderLevelEnvelopeProbe();
@@ -3840,7 +3851,7 @@ function probePhaseList(event) {
   }
 
   state.waveformProbeFrame = clampFrame(Math.round(startFrame + (endFrame - startFrame) / 2), waveform);
-  state.waveformProbeSource = "phase list";
+  state.waveformProbeSource = inspectionSources.phaseList;
   state.signalPlotProbe = signalPlotProbeAtFrame(state.waveformProbeFrame);
   renderWaveformProbe();
   renderLevelEnvelopeProbe();

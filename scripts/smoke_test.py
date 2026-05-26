@@ -1466,7 +1466,7 @@ def require_waveform_seek_source_contract() -> None:
     app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
     require(
-        'function seekPrimaryAudioToFrame(frame, source = "waveform")' in app_source,
+        "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)" in app_source,
         "waveform seek helper missing",
     )
     require(
@@ -1637,13 +1637,22 @@ def require_waveform_seek_source_contract() -> None:
         "state.lastSeekFrame = null",
         "state.lastSeekFollowAudio = null",
         "state.scrubberPointerActive = false",
+        "const inspectionSources = Object.freeze(",
+        'waveform: "waveform"',
+        'scrubber: "scrubber"',
+        'levelEnvelope: "level envelope"',
+        'signalPlot: "signal plot"',
+        'parameterTimeline: "parameter timeline"',
+        'phaseAudioStats: "phase audio stats"',
+        'phaseList: "phase list"',
+        'phaseJump: "phase jump"',
         "button.dataset.phaseStartFrame = String(region.startFrame)",
         "button.dataset.phaseStartTime = formatSeconds(region.startFrame / waveform.sampleRate)",
         '`Jump waveform to ${region.name} phase at frame ${region.startFrame}`',
         "`Jump to ${region.name} at ${button.dataset.phaseStartTime}`",
-        'seekPrimaryAudioToFrame(region.startFrame, "phase jump")',
-        'seekPrimaryAudioToFrame(waveformFrameAtClientX(clientX), "waveform")',
-        'seekPrimaryAudioToFrame(Math.round(ratio * waveform.frames), "scrubber")',
+        "seekPrimaryAudioToFrame(region.startFrame, inspectionSources.phaseJump)",
+        "seekPrimaryAudioToFrame(waveformFrameAtClientX(clientX), inspectionSources.waveform)",
+        "seekPrimaryAudioToFrame(Math.round(ratio * waveform.frames), inspectionSources.scrubber)",
         "function setInspectionCursorTarget(region, frame, sampleRate)",
         '`target ${region.name} / ${formatSeconds(frame / sampleRate)} / frame ${frame}`',
         '"target none"',
@@ -1669,16 +1678,16 @@ def require_waveform_seek_source_contract() -> None:
         '["hover source", hoverFrame === null ? "none" : hoverSource]',
         "const hoverDeltaFrame = hoverFrame === null ? null : hoverFrame - transportFrame",
         '"hover delta"',
-        'state.waveformProbeSource = "waveform"',
-        'state.waveformProbeSource = "level envelope"',
+        "state.waveformProbeSource = inspectionSources.waveform",
+        "state.waveformProbeSource = inspectionSources.levelEnvelope",
         "function formatProbeFrame(frame, waveform, region = waveformRegionAtFrameFor(waveform, frame))",
         "function waveformRegionAtFrameFor(waveform, frame)",
         "formatProbeFrame(frame, waveform, region)} / peak ${formatCompactNumber(",
-        'state.waveformProbeSource = state.waveformProbeFrame === null ? null : "signal plot"',
-        'state.waveformProbeSource = "parameter timeline"',
-        'state.waveformProbeSource = "phase audio stats"',
-        'state.waveformProbeSource = "phase list"',
-        'setSharedProbeFrame(region.startFrame, "phase jump")',
+        "state.waveformProbeFrame === null ? null : inspectionSources.signalPlot",
+        "state.waveformProbeSource = inspectionSources.parameterTimeline",
+        "state.waveformProbeSource = inspectionSources.phaseAudioStats",
+        "state.waveformProbeSource = inspectionSources.phaseList",
+        "setSharedProbeFrame(region.startFrame, inspectionSources.phaseJump)",
         "function renderSandboxContract(manifest)",
         '["allowed", "display manifest artifacts", Boolean(handoff.entryPoint)]',
         '["allowed", "play browser-native WAV", Boolean(handoff.primaryAudioArtifact)]',
@@ -2111,11 +2120,16 @@ def require_manifest_error_surface_contract() -> None:
 
 def require_follow_free_seek_contract() -> None:
     app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
-    start = app_source.index('function seekPrimaryAudioToFrame(frame, source = "waveform")')
+    start = app_source.index(
+        "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)",
+    )
     end = app_source.index("function seekWaveformAtClientX(clientX)", start)
     seek_function = app_source[start:end]
     sync_start = app_source.index("function syncWaveformToAudio()")
-    sync_end = app_source.index('function seekPrimaryAudioToFrame(frame, source = "waveform")', sync_start)
+    sync_end = app_source.index(
+        "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)",
+        sync_start,
+    )
     sync_function = app_source[sync_start:sync_end]
     require(
         "if (state.followAudio) {" in seek_function,
