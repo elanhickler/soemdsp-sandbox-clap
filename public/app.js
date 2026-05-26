@@ -683,6 +683,11 @@ function parseSummaryNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function isPositiveFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0;
+}
+
 function isPositiveNumber(value) {
   return value !== null && value > 0;
 }
@@ -1152,7 +1157,7 @@ function manifestShapeError(payload) {
     return "wav metadata missing";
   }
 
-  if (!Number.isFinite(Number(manifest.wav.frames))) {
+  if (!isPositiveFiniteNumber(manifest.wav.frames)) {
     return "wav frame count missing";
   }
 
@@ -1163,7 +1168,7 @@ function manifestShapeError(payload) {
     ["dataBytes", "wav data byte count missing"],
     ["fileBytes", "wav file byte count missing"],
   ]) {
-    if (!Number.isFinite(Number(manifest.wav[key]))) {
+    if (!isPositiveFiniteNumber(manifest.wav[key])) {
       return message;
     }
   }
