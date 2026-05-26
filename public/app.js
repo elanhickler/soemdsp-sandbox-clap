@@ -48,6 +48,15 @@ function statusText(ok) {
   return ok ? "OK" : "Check";
 }
 
+function formatHttpStatus(status, text = "") {
+  const code = Number(status);
+  if (!Number.isFinite(code) || code <= 0) {
+    return "Unavailable";
+  }
+
+  return text ? `${code} ${text}` : String(code);
+}
+
 function formatSeconds(seconds) {
   return `${seconds.toFixed(3)}s`;
 }
@@ -839,6 +848,10 @@ function renderSource(response) {
   setStatus("sourceStatus", ok ? "Loaded" : "Check", ok);
   setText("manifestPath", response.manifestPath || "missing");
   setText("sourceError", "none");
+  setText(
+    "manifestHttpStatus",
+    formatHttpStatus(response.responseStatus, response.responseStatusText),
+  );
   setText("artifactRoot", response.artifactRoot || "missing");
   setText("manifestBytes", hasBytes ? formatBytes(bytes) : "missing");
   setText("manifestModified", modified);
@@ -1127,6 +1140,10 @@ function renderError(message, details = {}) {
   setText("audioTitle", "Unavailable");
   setText("manifestPath", details.path || details.manifestPath || "Unavailable");
   setText("sourceError", message || details.message || "Unavailable");
+  setText(
+    "manifestHttpStatus",
+    formatHttpStatus(details.responseStatus, details.responseStatusText),
+  );
   setText("manifestBytes", "Unavailable");
   setText("manifestModified", "Unavailable");
   setText("manifestLoadedAt", "Unavailable");
@@ -1158,6 +1175,13 @@ async function loadManifest() {
   try {
     const response = await fetch("/api/manifest", { cache: "no-store" });
     const payload = await response.json();
+    payload.responseStatus = response.status;
+    payload.responseStatusText = response.statusText;
+    payload.responseHeaders = {
+      cacheControl: response.headers.get("cache-control") || "",
+      expires: response.headers.get("expires") || "",
+      pragma: response.headers.get("pragma") || "",
+    };
     if (!response.ok || !payload.ok) {
       renderError(payload.error || "Manifest failed", payload);
       return;
@@ -1167,11 +1191,6 @@ async function loadManifest() {
       renderError(shapeError, payload);
       return;
     }
-    payload.responseHeaders = {
-      cacheControl: response.headers.get("cache-control") || "",
-      expires: response.headers.get("expires") || "",
-      pragma: response.headers.get("pragma") || "",
-    };
     render(payload);
   } catch (error) {
     renderError(error instanceof Error ? error.message : String(error));
