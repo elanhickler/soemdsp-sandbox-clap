@@ -5942,6 +5942,47 @@ function formatNodeSliderNumber(value) {
   return Number(value).toFixed(6);
 }
 
+function nodeSliderMetadata(slider) {
+  const min = Number(slider.min);
+  const mid = Number(slider.dataset.mid);
+  const max = Number(slider.max);
+  const def = Number(slider.dataset.default);
+  const cur = Number(slider.value);
+  const step = slider.step && slider.step !== "any" ? Number(slider.step) : 0;
+  return {
+    cur,
+    def,
+    display: slider.dataset.display || "decimal",
+    kind: slider.dataset.kind || "decimal",
+    max,
+    mid,
+    min,
+    step,
+  };
+}
+
+function formatNodeSliderMetadataTooltip(slider) {
+  const metadata = nodeSliderMetadata(slider);
+  const stepText = metadata.step > 0 ? formatNodeSliderNumber(metadata.step) : "any";
+  return [
+    `current ${formatNodeSliderNumber(metadata.cur)}`,
+    `default ${formatNodeSliderNumber(metadata.def)}`,
+    `min ${formatNodeSliderNumber(metadata.min)}`,
+    `mid ${formatNodeSliderNumber(metadata.mid)}`,
+    `max ${formatNodeSliderNumber(metadata.max)}`,
+    `step ${stepText}`,
+    `kind ${metadata.kind}`,
+    `display ${metadata.display}`,
+  ].join(" / ");
+}
+
+function syncNodeSliderMetadataTooltip(slider) {
+  const tooltip = formatNodeSliderMetadataTooltip(slider);
+  slider.title = tooltip;
+  slider.setAttribute("aria-valuetext", tooltip);
+  slider.closest(".node-slider-drag-surface")?.setAttribute("title", tooltip);
+}
+
 function clampNodeSliderValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -5954,11 +5995,8 @@ function syncNodeSliderReadout(slider) {
 
   readout.textContent = formatNodeSliderNumber(slider.value);
   readout.dataset.value = slider.value;
-  readout.title = `Double-click to type value / min ${formatNodeSliderNumber(
-    slider.min,
-  )} / mid ${formatNodeSliderNumber(slider.dataset.mid)} / max ${formatNodeSliderNumber(
-    slider.max,
-  )} / default ${formatNodeSliderNumber(slider.dataset.default)}`;
+  readout.title = "Double-click to type value";
+  syncNodeSliderMetadataTooltip(slider);
 }
 
 function updateNodeSliderCurrentValue(slider, rawValue) {
@@ -6055,8 +6093,10 @@ function createNodeSliderDragSurface(slider) {
   surface.className = "node-slider-drag-surface";
   surface.dataset.sliderTarget = slider.id;
   surface.setAttribute("role", "presentation");
+  syncNodeSliderMetadataTooltip(slider);
   slider.insertAdjacentElement("beforebegin", surface);
   surface.append(slider);
+  syncNodeSliderMetadataTooltip(slider);
   return surface;
 }
 
@@ -6124,6 +6164,8 @@ function createNodeSliderReadout(slider) {
 
   slider.dataset.mid ||= String((Number(slider.min) + Number(slider.max)) / 2);
   slider.dataset.default ||= slider.value;
+  slider.dataset.kind ||= Number(slider.step) >= 1 ? "discrete" : "decimal";
+  slider.dataset.display ||= "decimal";
 
   const readout = document.createElement("button");
   readout.type = "button";
