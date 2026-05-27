@@ -5984,12 +5984,16 @@ const nodeGraphModuleDefinitions = Object.freeze({
   },
 });
 
+const nodeGraphGrid = Object.freeze({
+  sizePx: 28,
+});
+
 const nodeGraphDefaultNodeConfigs = Object.freeze([
-  { id: "osc", type: "osc", x: "4%", y: "24px" },
-  { id: "noise", type: "noise", x: "4%", y: "330px" },
-  { id: "gain", type: "gain", x: "36%", y: "205px" },
-  { id: "bias", type: "bias", x: "62%", y: "205px" },
-  { id: "output", type: "output", x: "84%", y: "230px" },
+  { id: "osc", type: "osc", gx: 2, gy: 1 },
+  { id: "noise", type: "noise", gx: 2, gy: 12 },
+  { id: "gain", type: "gain", gx: 16, gy: 7 },
+  { id: "bias", type: "bias", gx: 27, gy: 7 },
+  { id: "output", type: "output", gx: 36, gy: 8 },
 ]);
 
 const nodeGraphDefaultConnections = Object.freeze([
@@ -5997,6 +6001,12 @@ const nodeGraphDefaultConnections = Object.freeze([
   { sourceNode: "gain", sourcePort: "Out", destinationNode: "bias", destinationPort: "In" },
   { sourceNode: "bias", sourcePort: "Out", destinationNode: "output", destinationPort: "In" },
 ]);
+
+const nodeGraphDefaultPatch = Object.freeze({
+  grid: { ...nodeGraphGrid },
+  nodes: nodeGraphDefaultNodeConfigs.map((node) => ({ ...node })),
+  connections: nodeGraphDefaultConnections.map((connection) => ({ ...connection })),
+});
 
 const fallbackNodeMetadataKindTemplates = Object.freeze({
   decimal: { def: 0, label: "Decimal", max: 1, mid: 0.5, min: 0, step: 0.01, unit: "lin" },
@@ -6106,12 +6116,23 @@ const nodeMetadataKindAliases = Object.freeze({
 });
 let nodeMetadataKindTemplates = fallbackNodeMetadataKindTemplates;
 
+function cloneNodeGraphPatch(patch) {
+  return {
+    connections: (patch.connections || []).map((connection) => ({ ...connection })),
+    grid: { sizePx: Number(patch.grid?.sizePx) || nodeGraphGrid.sizePx },
+    nodes: (patch.nodes || []).map((node) => ({ ...node })),
+  };
+}
+
 const nodeGraphMvp = {
-  activeNodes: new Set(["osc", "noise", "gain", "bias", "output"]),
+  activeNodes: new Set(nodeGraphDefaultPatch.nodes.map((node) => node.id)),
   audioContext: null,
   bufferSource: null,
-  connections: nodeGraphDefaultConnections.map((connection) => ({ ...connection })),
+  connections: nodeGraphDefaultPatch.connections.map((connection) => ({ ...connection })),
   dragging: null,
+  historyIndex: -1,
+  historyLimit: 100,
+  historySnapshots: [],
   metadataDragging: null,
   metadataEditorTarget: null,
   metadataPopoverPosition: null,
@@ -6122,6 +6143,7 @@ const nodeGraphMvp = {
     noise: 1,
     osc: 1,
   },
+  patch: cloneNodeGraphPatch(nodeGraphDefaultPatch),
   rendered: null,
   sceneContextPoint: null,
   selected: null,
@@ -6136,6 +6158,271 @@ const nodeGraphZoomLimits = Object.freeze({
   min: 0.55,
   step: 0.08,
 });
+
+function nodeGraphGridSize() {
+  const size = Number(nodeGraphMvp.patch?.grid?.sizePx);
+  return Number.isFinite(size) && size > 0 ? size : nodeGraphGrid.sizePx;
+}
+
+function nodeGraphGridToPixel(point) {
+  const size = nodeGraphGridSize();
+  return {
+    x: point.gx * size,
+    y: point.gy * size,
+  };
+}
+
+function nodeGraphPixelToGrid(point) {
+  const size = nodeGraphGridSize();
+  return {
+    gx: Math.round(point.x / size),
+    gy: Math.round(point.y / size),
+  };
+}
+
+function snapNodeGraphPointToGrid(point) {
+  return nodeGraphGridToPixel(nodeGraphPixelToGrid(point));
+}
+
+function nodeGraphPatchNode(id) {
+  return nodeGraphMvp.patch.nodes.find((node) => node.id === id) || null;
+}
+
+function nodeGraphPatchNodeType(id) {
+  return nodeGraphPatchNode(id)?.type || id;
+}
+
+function nextNodeGraphTypeCounts(nodes = nodeGraphMvp.patch.nodes) {
+  const counts = {};
+  for (const node of nodes) {
+    const match = node.id.match(new RegExp(`^${node.type}-(\\d+)$`));
+    const count = match ? Number(match[1]) : node.id === node.type ? 1 : 0;
+    counts[node.type] = Math.max(counts[node.type] || 0, count);
+  }
+  return {
+    bias: counts.bias || 0,
+    gain: counts.gain || 0,
+    noise: counts.noise || 0,
+    osc: counts.osc || 0,
+  };
+}
+
+function syncNodeGraphRuntimeFromPatch() {
+  nodeGraphMvp.activeNodes = new Set(nodeGraphMvp.patch.nodes.map((node) => node.id));
+  nodeGraphMvp.connections = nodeGraphMvp.patch.connections.map((connection) => ({ ...connection }));
+  nodeGraphMvp.nodeTypeCounts = nextNodeGraphTypeCounts();
+}
+
+function serializeNodeGraphPatch(patch = nodeGraphMvp.patch) {
+  return JSON.stringify(
+    {
+      connections: patch.connections,
+      grid: patch.grid,
+      nodes: patch.nodes,
+    },
+    null,
+    2,
+  );
+}
+
+function validateNodeGraphPatch(patch) {
+  if (!patch || typeof patch !== "object") {
+    throw new Error("patch must be an object");
+  }
+
+  const gridSize = Number(patch.grid?.sizePx);
+  if (!Number.isFinite(gridSize) || gridSize <= 0) {
+    throw new Error("grid.sizePx must be a positive number");
+  }
+
+  if (!Array.isArray(patch.nodes) || patch.nodes.length === 0) {
+    throw new Error("nodes must be a non-empty array");
+  }
+
+  const ids = new Set();
+  const nodes = patch.nodes.map((node) => {
+    const id = String(node.id || "").trim();
+    const type = String(node.type || "").trim();
+    if (!id) {
+      throw new Error("node id missing");
+    }
+    if (ids.has(id)) {
+      throw new Error(`duplicate node id ${id}`);
+    }
+    if (!Object.hasOwn(nodeGraphModuleDefinitions, type)) {
+      throw new Error(`unknown node type ${type}`);
+    }
+    const gx = Math.round(Number(node.gx));
+    const gy = Math.round(Number(node.gy));
+    if (!Number.isFinite(gx) || !Number.isFinite(gy)) {
+      throw new Error(`node ${id} grid position invalid`);
+    }
+    ids.add(id);
+    return { gx, gy, id, type };
+  });
+
+  if (!ids.has("output")) {
+    throw new Error("output node missing");
+  }
+
+  const connections = Array.isArray(patch.connections) ? patch.connections.map((connection) => {
+    const sourceNode = String(connection.sourceNode || "").trim();
+    const sourcePort = String(connection.sourcePort || "").trim();
+    const destinationNode = String(connection.destinationNode || "").trim();
+    const destinationPort = String(connection.destinationPort || "").trim();
+    const sourceType = nodes.find((node) => node.id === sourceNode)?.type;
+    const destinationType = nodes.find((node) => node.id === destinationNode)?.type;
+    if (!sourceType || !destinationType) {
+      throw new Error("connection references missing node");
+    }
+    if (!(nodeGraphModuleDefinitions[sourceType].outputs || []).includes(sourcePort)) {
+      throw new Error(`connection source port invalid: ${sourceNode}.${sourcePort}`);
+    }
+    if (!(nodeGraphModuleDefinitions[destinationType].inputs || []).includes(destinationPort)) {
+      throw new Error(`connection destination port invalid: ${destinationNode}.${destinationPort}`);
+    }
+    return { destinationNode, destinationPort, sourceNode, sourcePort };
+  }) : [];
+
+  return {
+    connections,
+    grid: { sizePx: gridSize },
+    nodes,
+  };
+}
+
+function loadNodeGraphPatchFromScript(text) {
+  return validateNodeGraphPatch(JSON.parse(text));
+}
+
+function setNodeGraphScriptStatus(message, ok = true) {
+  const status = document.getElementById("nodeScriptStatus");
+  if (!status) {
+    return;
+  }
+  status.textContent = message;
+  status.className = `pill ${ok ? "good" : "warn"}`;
+}
+
+function syncNodeGraphScriptView(message = "script synced", ok = true) {
+  const script = document.getElementById("nodePatchScript");
+  if (script && document.activeElement !== script) {
+    script.value = serializeNodeGraphPatch();
+  }
+  setNodeGraphScriptStatus(message, ok);
+}
+
+function renderNodeGraphHistoryControls() {
+  const undo = document.getElementById("nodeUndoButton");
+  const redo = document.getElementById("nodeRedoButton");
+  if (!undo || !redo) {
+    return;
+  }
+  undo.disabled = nodeGraphMvp.historyIndex <= 0;
+  redo.disabled = nodeGraphMvp.historyIndex >= nodeGraphMvp.historySnapshots.length - 1;
+}
+
+function recordNodeGraphHistory() {
+  const snapshot = serializeNodeGraphPatch();
+  if (nodeGraphMvp.historySnapshots[nodeGraphMvp.historyIndex] === snapshot) {
+    renderNodeGraphHistoryControls();
+    return;
+  }
+  nodeGraphMvp.historySnapshots = nodeGraphMvp.historySnapshots.slice(0, nodeGraphMvp.historyIndex + 1);
+  nodeGraphMvp.historySnapshots.push(snapshot);
+  if (nodeGraphMvp.historySnapshots.length > nodeGraphMvp.historyLimit) {
+    nodeGraphMvp.historySnapshots.shift();
+  }
+  nodeGraphMvp.historyIndex = nodeGraphMvp.historySnapshots.length - 1;
+  renderNodeGraphHistoryControls();
+}
+
+function applyNodeGraphPatchToDom() {
+  const container = document.getElementById("nodeGraphNodes");
+  if (!container) {
+    return;
+  }
+
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  workspace?.style.setProperty("--node-grid-size", `${nodeGraphGridSize()}px`);
+
+  for (const element of [...container.querySelectorAll(".dsp-node")]) {
+    if (!nodeGraphPatchNode(element.dataset.node)) {
+      element.remove();
+    }
+  }
+
+  for (const patchNode of nodeGraphMvp.patch.nodes) {
+    let element = nodeGraphNodeElement(patchNode.id);
+    if (element && element.dataset.nodeType !== patchNode.type) {
+      element.remove();
+      element = null;
+    }
+    if (!element) {
+      element = createNodeGraphModuleElement(patchNode.type, patchNode.id);
+      container.append(element);
+    }
+    const point = nodeGraphGridToPixel(patchNode);
+    positionNodeGraphNode(element, point, { clamp: false, snap: false });
+    element.dataset.gridX = String(patchNode.gx);
+    element.dataset.gridY = String(patchNode.gy);
+  }
+}
+
+function commitNodeGraphPatch(patch, options = {}) {
+  nodeGraphMvp.patch = cloneNodeGraphPatch(validateNodeGraphPatch(patch));
+  syncNodeGraphRuntimeFromPatch();
+  applyNodeGraphPatchToDom();
+  if (
+    nodeGraphMvp.selected?.type === "node" &&
+    !nodeGraphMvp.activeNodes.has(nodeGraphMvp.selected.id)
+  ) {
+    setNodeGraphSelection(null);
+  }
+  renderNodePalette();
+  renderNodeGraphConnectionList();
+  syncNodeGraphScriptView(options.status || "script synced", options.ok ?? true);
+  if (options.record !== false) {
+    recordNodeGraphHistory();
+  } else {
+    renderNodeGraphHistoryControls();
+  }
+  if (options.markPending !== false) {
+    markNodeGraphRenderPending();
+  }
+}
+
+function commitNodeGraphScript(text) {
+  try {
+    commitNodeGraphPatch(loadNodeGraphPatchFromScript(text), {
+      status: "script synced",
+    });
+  } catch (error) {
+    setNodeGraphScriptStatus(error.message, false);
+  }
+}
+
+function undoNodeGraphPatch() {
+  if (nodeGraphMvp.historyIndex <= 0) {
+    return;
+  }
+  nodeGraphMvp.historyIndex -= 1;
+  commitNodeGraphPatch(loadNodeGraphPatchFromScript(nodeGraphMvp.historySnapshots[nodeGraphMvp.historyIndex]), {
+    record: false,
+    status: "undo",
+  });
+}
+
+function redoNodeGraphPatch() {
+  if (nodeGraphMvp.historyIndex >= nodeGraphMvp.historySnapshots.length - 1) {
+    return;
+  }
+  nodeGraphMvp.historyIndex += 1;
+  commitNodeGraphPatch(loadNodeGraphPatchFromScript(nodeGraphMvp.historySnapshots[nodeGraphMvp.historyIndex]), {
+    record: false,
+    status: "redo",
+  });
+}
 
 function nodeGraphLabel(node, port) {
   return `${nodeGraphNodeDisplayName(node)}.${port}`;
@@ -6155,7 +6442,7 @@ function nodeGraphNodeElement(node) {
 }
 
 function nodeGraphNodeType(node) {
-  return nodeGraphNodeElement(node)?.dataset.nodeType || node;
+  return nodeGraphNodeElement(node)?.dataset.nodeType || nodeGraphPatchNodeType(node);
 }
 
 function nodeGraphNodeDisplayName(node) {
@@ -6917,7 +7204,14 @@ function createNodeGraphParameter(node, type, parameter) {
   const label = document.createElement("label");
   label.append(document.createTextNode(parameter.label));
   const input = document.createElement("input");
-  input.id = `node-${node}-${parameter.key}`;
+  const legacyIds = {
+    "bias.offset": "nodeBiasAmount",
+    "gain.amount": "nodeGainAmount",
+    "noise.level": "nodeNoiseLevel",
+    "osc.frequency": "nodeOscFrequency",
+    "osc.level": "nodeOscLevel",
+  };
+  input.id = legacyIds[`${node}.${parameter.key}`] || `node-${node}-${parameter.key}`;
   input.dataset.param = parameter.key;
   input.type = "range";
   input.min = parameter.min;
@@ -7320,14 +7614,14 @@ function renderNodeGraphConnectionList() {
 }
 
 function disconnectNodeGraphConnection(index) {
-  nodeGraphMvp.connections = nodeGraphMvp.connections.filter(
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  patch.connections = patch.connections.filter(
     (_connection, connectionIndex) => connectionIndex !== index,
   );
   if (sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", index })) {
     setNodeGraphSelection(null);
   }
-  renderNodeGraphConnectionList();
-  markNodeGraphRenderPending();
+  commitNodeGraphPatch(patch, { status: "wire disconnected" });
 }
 
 function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinationPort) {
@@ -7339,7 +7633,7 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
     return false;
   }
 
-  const duplicate = nodeGraphMvp.connections.some(
+  const duplicate = nodeGraphMvp.patch.connections.some(
     (connection) =>
       connection.sourceNode === sourceNode &&
       connection.sourcePort === sourcePort &&
@@ -7350,14 +7644,14 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
     return false;
   }
 
-  nodeGraphMvp.connections.push({
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  patch.connections.push({
     sourceNode,
     sourcePort,
     destinationNode,
     destinationPort,
   });
-  renderNodeGraphConnectionList();
-  markNodeGraphRenderPending();
+  commitNodeGraphPatch(patch, { status: "wire connected" });
   return true;
 }
 
@@ -7421,12 +7715,17 @@ function nodeGraphClientPoint(event) {
   };
 }
 
-function positionNodeGraphNode(node, point) {
+function positionNodeGraphNode(node, point, options = {}) {
   const graphRect = nodeGraphGraphRect();
   const maxX = Math.max(0, graphRect.width - node.offsetWidth - 10);
   const maxY = Math.max(0, graphRect.height - node.offsetHeight - 10);
-  const x = Math.max(10, Math.min(maxX, point.x));
-  const y = Math.max(10, Math.min(maxY, point.y));
+  const positionedPoint = options.snap === false ? point : snapNodeGraphPointToGrid(point);
+  const x = options.clamp === false
+    ? positionedPoint.x
+    : Math.max(0, Math.min(maxX, positionedPoint.x));
+  const y = options.clamp === false
+    ? positionedPoint.y
+    : Math.max(0, Math.min(maxY, positionedPoint.y));
   node.style.setProperty("--node-x", `${x}px`);
   node.style.setProperty("--node-y", `${y}px`);
 }
@@ -7495,7 +7794,7 @@ function dragNodeGraphNode(event) {
   positionNodeGraphNode(node, {
     x: point.x - offsetX,
     y: point.y - offsetY,
-  });
+  }, { snap: false });
   drawNodeGraphWires();
 }
 
@@ -7510,49 +7809,37 @@ function endNodeGraphNodeDrag(event) {
   if (handle.hasPointerCapture?.(event.pointerId)) {
     handle.releasePointerCapture(event.pointerId);
   }
+  const x = Number.parseFloat(node.style.getPropertyValue("--node-x")) || 0;
+  const y = Number.parseFloat(node.style.getPropertyValue("--node-y")) || 0;
+  const gridPoint = nodeGraphPixelToGrid({ x, y });
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const patchNode = patch.nodes.find((candidate) => candidate.id === node.dataset.node);
+  if (patchNode) {
+    patchNode.gx = gridPoint.gx;
+    patchNode.gy = gridPoint.gy;
+  }
   nodeGraphMvp.nodeDragging = null;
-  drawNodeGraphWires();
+  commitNodeGraphPatch(patch, { status: "layout snapped" });
 }
 
 function restoreDefaultNodeGraph() {
-  const container = document.getElementById("nodeGraphNodes");
-  for (const node of [...container.querySelectorAll(".dsp-node")]) {
-    node.remove();
-  }
-  nodeGraphMvp.activeNodes = new Set();
-  nodeGraphMvp.nodeTypeCounts = {
-    bias: 1,
-    gain: 1,
-    noise: 1,
-    osc: 1,
-  };
-  for (const config of nodeGraphDefaultNodeConfigs) {
-    const node = createNodeGraphModuleElement(config.type, config.id);
-    node.style.setProperty("--node-x", config.x);
-    node.style.setProperty("--node-y", config.y);
-    container.append(node);
-    nodeGraphMvp.activeNodes.add(config.id);
-  }
-  nodeGraphMvp.connections = nodeGraphDefaultConnections.map((connection) => ({
-    ...connection,
-  }));
   setNodeGraphSelection(null);
-  renderNodePalette();
-  renderNodeVisibility();
-  renderNodeGraphConnectionList();
-  markNodeGraphRenderPending();
+  commitNodeGraphPatch(cloneNodeGraphPatch(nodeGraphDefaultPatch), {
+    status: "default chain",
+  });
   loadNodeMetadataKindTemplates();
 }
 
 function clearNodeGraphWires() {
-  nodeGraphMvp.connections = [];
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  patch.connections = [];
   setNodeGraphSelection(null);
   nodeGraphMvp.rendered = null;
   document.getElementById("nodePlayButton").disabled = true;
   document.getElementById("nodeGraphRenderStatus").textContent = "render pending";
   document.getElementById("nodeGraphRenderStatus").className = "pill warn";
   document.getElementById("nodeOutputSummary").textContent = "waiting for render";
-  renderNodeGraphConnectionList();
+  commitNodeGraphPatch(patch, { status: "wires cleared" });
   drawNodeRenderedAudio();
 }
 
@@ -7570,12 +7857,11 @@ function renderNodePalette() {
   }
 }
 
-function defaultNodeGraphModulePoint(type) {
-  const graphRect = nodeGraphGraphRect();
+function defaultNodeGraphModuleGridPoint(type) {
   const count = nodeGraphMvp.nodeTypeCounts[type] || 1;
   return {
-    x: Math.min(graphRect.width - 180, 80 + count * 32),
-    y: Math.min(graphRect.height - 150, 80 + count * 28),
+    gx: 3 + count * 2,
+    gy: 3 + count * 2,
   };
 }
 
@@ -7585,16 +7871,19 @@ function showNodeGraphModule(node, point = null) {
     return;
   }
 
-  nodeGraphMvp.nodeTypeCounts[type] = (nodeGraphMvp.nodeTypeCounts[type] || 0) + 1;
-  const id = `${type}-${nodeGraphMvp.nodeTypeCounts[type]}`;
-  const element = createNodeGraphModuleElement(type, id);
-  document.getElementById("nodeGraphNodes").append(element);
-  nodeGraphMvp.activeNodes.add(id);
-  renderNodePalette();
-  positionNodeGraphNode(element, point || defaultNodeGraphModulePoint(type));
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const counts = nextNodeGraphTypeCounts(patch.nodes);
+  counts[type] = (counts[type] || 0) + 1;
+  const id = `${type}-${counts[type]}`;
+  const gridPoint = point ? nodeGraphPixelToGrid(point) : defaultNodeGraphModuleGridPoint(type);
+  patch.nodes.push({
+    gx: gridPoint.gx,
+    gy: gridPoint.gy,
+    id,
+    type,
+  });
+  commitNodeGraphPatch(patch, { status: "module added" });
   setNodeGraphSelection({ type: "node", id });
-  renderNodeGraphConnectionList();
-  markNodeGraphRenderPending();
 }
 
 function showPaletteNode(node) {
@@ -7604,6 +7893,25 @@ function showPaletteNode(node) {
 function addNodeGraphModuleFromContext(event) {
   showNodeGraphModule(event.currentTarget.dataset.contextModule, nodeGraphMvp.sceneContextPoint);
   closeNodeSceneContextMenu();
+}
+
+function setNodeGraphViewMode(mode) {
+  const scriptMode = mode === "script";
+  document.getElementById("nodeGraphWorkspace").hidden = scriptMode;
+  document.getElementById("nodeScriptView").hidden = !scriptMode;
+  document.getElementById("nodeModularViewButton").classList.toggle("active", !scriptMode);
+  document.getElementById("nodeScriptViewButton").classList.toggle("active", scriptMode);
+  document.getElementById("nodeModularViewButton").setAttribute("aria-pressed", String(!scriptMode));
+  document.getElementById("nodeScriptViewButton").setAttribute("aria-pressed", String(scriptMode));
+  if (scriptMode) {
+    syncNodeGraphScriptView();
+  } else {
+    drawNodeGraphWires();
+  }
+}
+
+function handleNodePatchScriptInput(event) {
+  commitNodeGraphScript(event.currentTarget.value);
 }
 
 function deleteSelectedNodeGraphItem() {
@@ -7618,17 +7926,14 @@ function deleteSelectedNodeGraphItem() {
   }
 
   if (selection.type === "node" && selection.id !== "output") {
-    nodeGraphMvp.activeNodes.delete(selection.id);
-    nodeGraphMvp.connections = nodeGraphMvp.connections.filter(
+    const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+    patch.nodes = patch.nodes.filter((node) => node.id !== selection.id);
+    patch.connections = patch.connections.filter(
       (connection) =>
         connection.sourceNode !== selection.id && connection.destinationNode !== selection.id,
     );
-    nodeGraphNodeElement(selection.id)?.remove();
     setNodeGraphSelection(null);
-    renderNodePalette();
-    renderNodeVisibility();
-    renderNodeGraphConnectionList();
-    markNodeGraphRenderPending();
+    commitNodeGraphPatch(patch, { status: "module deleted" });
   }
 }
 
@@ -7637,10 +7942,23 @@ function handleNodeGraphKeydown(event) {
     closeNodeSceneContextMenu();
     return;
   }
-  if (event.key !== "Delete" && event.key !== "Backspace") {
+  if (event.target.closest("input, textarea, select")) {
     return;
   }
-  if (event.target.closest("input, textarea")) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey) {
+    event.preventDefault();
+    undoNodeGraphPatch();
+    return;
+  }
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
+  ) {
+    event.preventDefault();
+    redoNodeGraphPatch();
+    return;
+  }
+  if (event.key !== "Delete" && event.key !== "Backspace") {
     return;
   }
 
@@ -7874,7 +8192,6 @@ async function playNodeGraphAudio() {
 }
 
 function initNodeGraphMvp() {
-  registerExistingNodeGraphNodes();
   for (const button of document.querySelectorAll("[data-palette-node]")) {
     button.addEventListener("click", () => showPaletteNode(button.dataset.paletteNode));
   }
@@ -7902,6 +8219,15 @@ function initNodeGraphMvp() {
   document.getElementById("nodePlayButton").addEventListener("click", playNodeGraphAudio);
   document.getElementById("nodeDefaultButton").addEventListener("click", restoreDefaultNodeGraph);
   document.getElementById("nodeDeleteButton").addEventListener("click", deleteSelectedNodeGraphItem);
+  document.getElementById("nodeUndoButton").addEventListener("click", undoNodeGraphPatch);
+  document.getElementById("nodeRedoButton").addEventListener("click", redoNodeGraphPatch);
+  document
+    .getElementById("nodeModularViewButton")
+    .addEventListener("click", () => setNodeGraphViewMode("modular"));
+  document
+    .getElementById("nodeScriptViewButton")
+    .addEventListener("click", () => setNodeGraphViewMode("script"));
+  document.getElementById("nodePatchScript").addEventListener("input", handleNodePatchScriptInput);
   document.getElementById("toggleDebugButton").addEventListener("click", toggleDebugSections);
   document
     .getElementById("nodeParameterMetadataPopover")
@@ -7928,9 +8254,11 @@ function initNodeGraphMvp() {
   document.addEventListener("mousemove", dragNodeSlider);
   document.addEventListener("mouseup", endNodeSliderDrag);
 
-  renderNodePalette();
-  renderNodeVisibility();
-  renderNodeGraphConnectionList();
+  commitNodeGraphPatch(cloneNodeGraphPatch(nodeGraphDefaultPatch), {
+    markPending: false,
+    record: false,
+  });
+  recordNodeGraphHistory();
   markNodeGraphRenderPending();
   applyNodeGraphZoom();
   loadNodeMetadataKindTemplates();

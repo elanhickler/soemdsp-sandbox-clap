@@ -144,12 +144,34 @@ audio {
   margin-top: 14px;
 }
 
+.node-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.node-view-tabs,
+.node-history-controls {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.node-view-tabs button.active {
+  border-color: rgba(127, 199, 217, 0.58);
+  color: var(--accent);
+}
+
 .compact-heading {
   margin-bottom: 10px;
 }
 
 .node-graph-workspace {
   --node-graph-zoom: 1;
+  --node-grid-size: 28px;
   position: relative;
   min-height: 560px;
   margin-top: 16px;
@@ -160,9 +182,36 @@ audio {
     linear-gradient(rgba(127, 199, 217, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(127, 199, 217, 0.055) 1px, transparent 1px),
     #111418;
-  background-size: 28px 28px;
+  background-size: var(--node-grid-size) var(--node-grid-size);
   touch-action: none;
   user-select: none;
+}
+
+.node-graph-workspace[hidden] {
+  display: none;
+}
+
+.node-script-view {
+  margin-top: 16px;
+}
+
+.node-script-view textarea {
+  width: 100%;
+  min-height: 420px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111418;
+  color: var(--text);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.node-script-view textarea:focus {
+  outline: none;
+  border-color: rgba(127, 199, 217, 0.58);
 }
 
 .node-graph-zoom-surface {

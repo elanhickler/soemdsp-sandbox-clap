@@ -58,6 +58,25 @@
         </div>
       </div>
 
+      <div class="node-view-toolbar" aria-label="Modular view mode">
+        <div class="node-view-tabs" role="group" aria-label="Node graph view">
+          <button
+            id="nodeModularViewButton"
+            class="active"
+            type="button"
+            aria-pressed="true">Modular View</button>
+          <button
+            id="nodeScriptViewButton"
+            type="button"
+            aria-pressed="false">Script View</button>
+        </div>
+        <div class="node-history-controls" role="group" aria-label="Node graph history">
+          <button id="nodeUndoButton" type="button" disabled>Undo</button>
+          <button id="nodeRedoButton" type="button" disabled>Redo</button>
+          <span id="nodeScriptStatus" class="pill good">script synced</span>
+        </div>
+      </div>
+
       <div
         id="nodeGraphWorkspace"
         class="node-graph-workspace"
@@ -68,129 +87,15 @@
             class="node-wire-svg"
             aria-hidden="true"
             focusable="false"></svg>
-          <div id="nodeGraphNodes" class="node-graph-nodes">
-          <article class="dsp-node" data-node="osc" data-node-type="osc" style="--node-x: 4%; --node-y: 24px;">
-            <div class="dsp-node-title">
-              <span>Osc</span>
-            </div>
-            <div class="node-port-rail output">
-              <button
-                class="node-port output"
-                type="button"
-                data-node="osc"
-                data-port="Out"
-                data-io="output"
-                aria-label="Osc output port Out"
-                title="Osc output port Out"></button>
-            </div>
-            <label>
-              Frequency
-              <input id="nodeOscFrequency" data-param="frequency" type="range" min="80" max="880" step="any" value="220" data-step="1" data-mid="220" data-default="220">
-            </label>
-            <label>
-              Level
-              <input id="nodeOscLevel" data-param="level" type="range" min="0" max="0.8" step="any" value="0.35" data-step="0.01" data-mid="0.35" data-default="0.35">
-            </label>
-          </article>
-
-          <article class="dsp-node" data-node="noise" data-node-type="noise" style="--node-x: 4%; --node-y: 330px;">
-            <div class="dsp-node-title">
-              <span>Noise</span>
-            </div>
-            <div class="node-port-rail output">
-              <button
-                class="node-port output"
-                type="button"
-                data-node="noise"
-                data-port="Out"
-                data-io="output"
-                aria-label="Noise output port Out"
-                title="Noise output port Out"></button>
-            </div>
-            <label>
-              Level
-              <input id="nodeNoiseLevel" data-param="level" type="range" min="0" max="0.5" step="any" value="0.12" data-step="0.01" data-mid="0.12" data-default="0.12">
-            </label>
-          </article>
-
-          <article class="dsp-node" data-node="gain" data-node-type="gain" style="--node-x: 36%; --node-y: 205px;">
-            <div class="dsp-node-title">
-              <span>Gain</span>
-            </div>
-            <div class="node-port-rail input">
-              <button
-                class="node-port input"
-                type="button"
-                data-node="gain"
-                data-port="In"
-                data-io="input"
-                aria-label="Gain input port In"
-                title="Gain input port In"></button>
-            </div>
-            <div class="node-port-rail output">
-              <button
-                class="node-port output"
-                type="button"
-                data-node="gain"
-                data-port="Out"
-                data-io="output"
-                aria-label="Gain output port Out"
-                title="Gain output port Out"></button>
-            </div>
-            <label>
-              Amount
-              <input id="nodeGainAmount" data-param="amount" type="range" min="0" max="3" step="any" value="1.5" data-step="0.01" data-mid="1" data-default="1.5">
-            </label>
-          </article>
-
-          <article class="dsp-node" data-node="bias" data-node-type="bias" style="--node-x: 62%; --node-y: 205px;">
-            <div class="dsp-node-title">
-              <span>Bias</span>
-            </div>
-            <div class="node-port-rail input">
-              <button
-                class="node-port input"
-                type="button"
-                data-node="bias"
-                data-port="In"
-                data-io="input"
-                aria-label="Bias input port In"
-                title="Bias input port In"></button>
-            </div>
-            <div class="node-port-rail output">
-              <button
-                class="node-port output"
-                type="button"
-                data-node="bias"
-                data-port="Out"
-                data-io="output"
-                aria-label="Bias output port Out"
-                title="Bias output port Out"></button>
-            </div>
-            <label>
-              Offset
-              <input id="nodeBiasAmount" data-param="offset" type="range" min="-0.4" max="0.4" step="any" value="0.05" data-step="0.01" data-mid="0" data-default="0.05">
-            </label>
-          </article>
-
-          <article class="dsp-node output-node" data-node="output" data-node-type="output" style="--node-x: 84%; --node-y: 230px;">
-            <div class="dsp-node-title">
-              <span>Output</span>
-            </div>
-            <div class="node-port-rail input">
-              <button
-                class="node-port input"
-                type="button"
-                data-node="output"
-                data-port="In"
-                data-io="input"
-                aria-label="Output input port In"
-                title="Output input port In"></button>
-            </div>
-            <p id="nodeOutputSummary">waiting for render</p>
-          </article>
-          </div>
+          <div id="nodeGraphNodes" class="node-graph-nodes"></div>
         </div>
+      </div>
+
+      <div id="nodeScriptView" class="node-script-view" hidden>
+        <textarea
+          id="nodePatchScript"
+          spellcheck="false"
+          aria-label="Node graph patch script"></textarea>
       </div>
 
       <div
