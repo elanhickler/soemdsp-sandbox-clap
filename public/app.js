@@ -8366,12 +8366,21 @@ async function startNodeGraphLiveAudio() {
   try {
     setNodeGraphLiveStatus("starting", "warn");
     renderNodeGraphLiveControls(false);
-    await stopNodeGraphLiveAudio();
-    setNodeGraphLiveStatus("starting", "warn");
-    renderNodeGraphLiveControls(false);
+    if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
+      await stopNodeGraphLiveAudio();
+      setNodeGraphLiveStatus("starting", "warn");
+      renderNodeGraphLiveControls(false);
+    }
 
     const plan = nodeGraphBuildLivePlan();
-    const context = new AudioContext();
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) {
+      throw new Error("Web Audio API unavailable");
+    }
+    const context = new AudioContextConstructor();
+    if (context.state === "suspended") {
+      await context.resume();
+    }
     await context.audioWorklet.addModule("/public/node-live-audio-worklet.js");
     const liveNode = new AudioWorkletNode(context, "node-live-audio-processor", {
       numberOfInputs: 0,
