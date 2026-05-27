@@ -446,6 +446,20 @@ function formatProbeFrame(frame, waveform, region = waveformRegionAtFrameFor(wav
   }`;
 }
 
+function probeFrameLabelsReady() {
+  const waveform = state.waveform;
+  if (!waveform || !Number.isFinite(waveform.sampleRate) || waveform.sampleRate <= 0) {
+    return false;
+  }
+
+  const label = formatProbeFrame(0, waveform);
+  return (
+    label.includes("0.000s") &&
+    label.includes("frame 0") &&
+    label.includes(waveformRegionAtFrameFor(waveform, 0)?.name || "phase")
+  );
+}
+
 function formatPhaseRange(span, sampleRate) {
   if (!sampleRate) {
     return "unavailable";
@@ -4356,7 +4370,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["parameter timeline probe labels", waveformReady && parameterTimelineProbeLabeled()],
     ["parameter timeline segment labels", waveformReady && parameterTimelineSegmentsLabeled()],
     ["parameter timeline preview", waveformReady && parameterTimelinePreviewAvailable()],
-    ["probe frame labels", waveformReady && typeof formatProbeFrame === "function"],
+    ["probe frame labels", waveformReady && probeFrameLabelsReady()],
     ["follow/free view", followAudioControlLabeled()],
     ["current measured audio", waveformReady && currentMeasuredAudioPillsLabeled()],
     ["current parameter labels", waveformReady && currentParameterPillsLabeled()],
