@@ -4204,6 +4204,10 @@ function parameterTimelineSegmentsLabeled() {
   );
 }
 
+function parameterTimelinePreviewAvailable() {
+  return parameterTimelineSegmentsLabeled();
+}
+
 function phaseListItemsLabeled() {
   const items = [...document.querySelectorAll("#phaseList .phase")];
   return (
@@ -4225,6 +4229,10 @@ function phaseListItemsLabeled() {
       );
     })
   );
+}
+
+function phasePreviewTargetAvailable() {
+  return phaseListItemsLabeled() && phaseAudioStatsItemsLabeled();
 }
 
 function phaseAudioStatsItemsLabeled() {
@@ -4347,7 +4355,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["parameter timeline probe", waveformReady && parameterTimelineProbeLabeled()],
     ["parameter timeline probe labels", waveformReady && parameterTimelineProbeLabeled()],
     ["parameter timeline segment labels", waveformReady && parameterTimelineSegmentsLabeled()],
-    ["parameter timeline preview", waveformReady && Boolean(document.querySelector(".parameter-segment"))],
+    ["parameter timeline preview", waveformReady && parameterTimelinePreviewAvailable()],
     ["probe frame labels", waveformReady && typeof formatProbeFrame === "function"],
     ["follow/free view", followAudioControlLabeled()],
     ["current measured audio", waveformReady && currentMeasuredAudioPillsLabeled()],
@@ -4366,7 +4374,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["phase list probe", waveformReady && phaseListProbeLabeled()],
     ["phase list probe labels", waveformReady && phaseListProbeLabeled()],
     ["phase list item labels", waveformReady && phaseListItemsLabeled()],
-    ["phase preview target", waveformReady && Boolean(document.querySelector(".phase"))],
+    ["phase preview target", waveformReady && phasePreviewTargetAvailable()],
     ["phase parameter readout", parameterResyncContractIssue(manifest) === ""],
     ["parameter summary card labels", parameterResyncContractIssue(manifest) === "" && parameterSummaryCardsLabeled()],
     ["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0],
