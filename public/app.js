@@ -4298,6 +4298,21 @@ function signalPlotProbeLabeled() {
   return probePillsLabeled(["signalPlotProbe", "signalPlotProbeSource"]);
 }
 
+function waveformToSignalProbeAvailable() {
+  const probe = signalPlotProbeAtFrame(0);
+  return (
+    Boolean(probe) &&
+    Number.isFinite(probe.x) &&
+    Number.isFinite(probe.y) &&
+    probe.nearest?.frame === 0 &&
+    probe.nearest.distance === 0
+  );
+}
+
+function signalToWaveformProbeAvailable() {
+  return waveformProbeLabeled();
+}
+
 function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform)) {
   const rows = [
     [
@@ -4364,8 +4379,8 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["signal plot probe labels", waveformReady && signalPlotProbeLabeled()],
     ["signal plot control labels", waveformReady && signalPlotControlsLabeled()],
     ["signal plot canvas labels", waveformReady && signalPlotCanvasLabeled()],
-    ["waveform-to-signal probe", waveformReady && Boolean(signalPlotProbeAtFrame(0))],
-    ["signal-to-waveform probe", waveformReady && Boolean(document.getElementById("waveformProbe"))],
+    ["waveform-to-signal probe", waveformReady && waveformToSignalProbeAvailable()],
+    ["signal-to-waveform probe", waveformReady && signalToWaveformProbeAvailable()],
     ["inspection cursor", waveformReady && inspectionCursorLabeled()],
     ["inspection source pill", waveformReady && inspectionCursorPillLabeled("inspectionCursorSource")],
     ["inspection delta pill", waveformReady && inspectionCursorPillLabeled("inspectionCursorDelta")],
