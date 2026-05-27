@@ -401,6 +401,19 @@ audio {
   text-transform: uppercase;
 }
 
+.metadata-popover-grid .metadata-checkbox-label {
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #111418;
+  color: var(--text);
+  font-size: 0.66rem;
+  text-transform: none;
+}
+
 .metadata-popover-grid input,
 .metadata-popover-grid select,
 .metadata-popover-grid button {
@@ -414,6 +427,13 @@ audio {
   color: var(--text);
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.78rem;
+}
+
+.metadata-popover-grid input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  accent-color: var(--accent);
 }
 
 .metadata-popover-grid button {

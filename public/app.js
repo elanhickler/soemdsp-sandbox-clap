@@ -6129,8 +6129,14 @@ function nodeGraphReadNodeNumber(node, key) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function formatNodeSliderNumber(value) {
-  return Number(value).toFixed(6);
+function formatNodeSliderNumber(value, options = {}) {
+  const number = Number(value);
+  const text = number.toFixed(6);
+  return options.showSign && number >= 0 ? `+${text}` : text;
+}
+
+function nodeSliderShouldShowSign(slider) {
+  return slider.dataset.showSign === "true";
 }
 
 function formatNodeSliderCompactNumber(value) {
@@ -6160,6 +6166,7 @@ function nodeSliderMetadata(slider) {
   return {
     cur,
     def,
+    showSign: nodeSliderShouldShowSign(slider),
     unit: slider.dataset.unit ?? "",
     kind: slider.dataset.kind || "decimal",
     max,
@@ -6181,6 +6188,7 @@ function formatNodeSliderMetadataTooltip(slider) {
     `step ${stepText}`,
     `kind ${metadata.kind}`,
     `unit ${metadata.unit}`,
+    `show sign ${metadata.showSign}`,
   ].join(" / ");
 }
 
@@ -6247,6 +6255,7 @@ function setNodeSliderMetadata(slider, metadata) {
   slider.dataset.step = metadata.step > 0 ? String(metadata.step) : "any";
   slider.dataset.kind = metadata.kind || "decimal";
   slider.dataset.unit = metadata.unit ?? "";
+  slider.dataset.showSign = metadata.showSign ? "true" : "false";
   slider.value = String(clampNodeSliderValue(Number(slider.value), metadata.min, metadata.max));
   syncNodeSliderReadout(slider);
 }
@@ -6276,7 +6285,9 @@ function syncNodeSliderReadout(slider) {
   const unitText = readout.querySelector(".node-slider-readout-unit");
   const position = nodeSliderTravelFromValue(slider, Number(slider.value)) * 100;
   const unit = (slider.dataset.unit || "").trim();
-  valueText.textContent = formatNodeSliderNumber(slider.value);
+  valueText.textContent = formatNodeSliderNumber(slider.value, {
+    showSign: nodeSliderShouldShowSign(slider),
+  });
   unitText.textContent = unit;
   unitText.classList.toggle("is-empty", !unit);
   unitText.setAttribute("aria-hidden", unit ? "false" : "true");
@@ -6442,6 +6453,7 @@ function fillNodeMetadataPopover(slider) {
   document.getElementById("metadataStepValue").value = formatNodeMetadataStep(metadata.step);
   document.getElementById("metadataKindValue").value = normalizeNodeMetadataKind(metadata.kind);
   document.getElementById("metadataUnitValue").value = metadata.unit;
+  document.getElementById("metadataShowSignValue").checked = metadata.showSign;
   document.getElementById("metadataSetDefaultButton").classList.remove("armed");
 }
 
@@ -6502,6 +6514,7 @@ function readNodeMetadataEditorValues(slider) {
     step: stepInput.toLowerCase() === "any"
       ? 0
       : Math.max(0, parseNodeMetadataNumber(stepInput, current.step)),
+    showSign: document.getElementById("metadataShowSignValue").checked,
     unit: document.getElementById("metadataUnitValue").value.trim(),
   };
 }
@@ -6684,7 +6697,9 @@ function beginNodeSliderReadoutEdit(readout) {
   input.type = "text";
   input.className = "node-slider-readout-input";
   input.inputMode = "decimal";
-  input.value = formatNodeSliderNumber(slider.value);
+  input.value = formatNodeSliderNumber(slider.value, {
+    showSign: nodeSliderShouldShowSign(slider),
+  });
   input.dataset.sliderTarget = slider.id;
   input.setAttribute("aria-label", readout.getAttribute("aria-label"));
   input.addEventListener("keydown", (event) => {
@@ -6721,6 +6736,7 @@ function createNodeSliderReadout(slider) {
   slider.step = "any";
   slider.dataset.kind ||= "decimal";
   slider.dataset.unit ??= "";
+  slider.dataset.showSign ??= "false";
 
   const readout = document.createElement("button");
   readout.type = "button";
