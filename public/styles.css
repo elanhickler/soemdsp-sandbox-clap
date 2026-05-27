@@ -831,6 +831,15 @@ audio {
   border-right: 1px solid var(--line);
 }
 
+.node-live-controls {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 10px;
+  border-right: 1px solid var(--line);
+}
+
 .node-palette button.active {
   border-color: rgba(113, 212, 155, 0.42);
   color: var(--good);

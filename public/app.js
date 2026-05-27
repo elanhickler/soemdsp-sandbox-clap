@@ -6154,6 +6154,12 @@ const nodeGraphMvp = {
   historyIndex: -1,
   historyLimit: 100,
   historySnapshots: [],
+  live: {
+    context: null,
+    node: null,
+    syncFrame: 0,
+    syncTimer: 0,
+  },
   metadataDragging: null,
   metadataEditorTarget: null,
   metadataPopoverPosition: null,
@@ -6480,6 +6486,7 @@ function commitNodeGraphPatch(patch, options = {}) {
   if (options.markPending !== false) {
     markNodeGraphRenderPending();
   }
+  scheduleNodeGraphLivePlanSync();
 }
 
 function commitNodeGraphScript(text) {
@@ -6544,6 +6551,14 @@ function nodeGraphNodeDisplayName(node) {
 function nodeGraphReadNodeNumber(node, key) {
   const input = nodeGraphNodeElement(node)?.querySelector(`[data-param="${key}"]`);
   const value = Number(input?.value);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function nodeGraphParameterFallback(type, key) {
+  const parameter = nodeGraphModuleDefinitions[type]?.parameters?.find(
+    (candidate) => candidate.key === key,
+  );
+  const value = Number(parameter?.defaultValue);
   return Number.isFinite(value) ? value : 0;
 }
 
@@ -7054,6 +7069,7 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
     fillNodeMetadataPopover(slider);
   }
   markNodeGraphRenderPending();
+  scheduleNodeGraphLivePlanSync();
 }
 
 function setNodeSliderValue(slider, value) {
@@ -7062,6 +7078,7 @@ function setNodeSliderValue(slider, value) {
   );
   syncNodeSliderReadout(slider);
   markNodeGraphRenderPending();
+  scheduleNodeGraphLivePlanSync();
 }
 
 function beginNodeSliderDrag(event) {
@@ -7260,6 +7277,7 @@ function attachNodeGraphNodeEvents(node) {
     slider.addEventListener("input", () => {
       syncNodeSliderReadout(slider);
       markNodeGraphRenderPending();
+      scheduleNodeGraphLivePlanSync();
     });
   }
 }
@@ -8238,6 +8256,151 @@ function nodeGraphStableSeed(text) {
   return seed || 0x12345678;
 }
 
+function setNodeGraphLiveStatus(text, state = "") {
+  const status = document.getElementById("nodeLiveStatus");
+  if (!status) {
+    return;
+  }
+  status.textContent = text;
+  status.className = `pill ${state}`.trim();
+}
+
+function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) {
+  const starting = document.getElementById("nodeLiveStatus")?.textContent === "starting";
+  document.getElementById("nodeStartLiveButton").disabled = running || starting;
+  document.getElementById("nodeStopLiveButton").disabled = !running && !starting;
+}
+
+function nodeGraphBuildLivePlan() {
+  const validation = nodeGraphValidate();
+  if (!validation.valid) {
+    throw new Error(validation.issues.join(", "));
+  }
+
+  return {
+    connections: nodeGraphMvp.patch.connections.map((connection) => ({ ...connection })),
+    nodes: nodeGraphMvp.patch.nodes.map((node) => {
+      const definition = nodeGraphModuleDefinitions[node.type];
+      const params = {};
+      for (const parameter of definition.parameters || []) {
+        const value = nodeGraphReadNodeNumber(node.id, parameter.key);
+        params[parameter.key] = Number.isFinite(value)
+          ? value
+          : nodeGraphParameterFallback(node.type, parameter.key);
+      }
+      return {
+        id: node.id,
+        params,
+        type: node.type,
+      };
+    }),
+    outputNode: "output",
+  };
+}
+
+function sendNodeGraphLivePlan() {
+  if (!nodeGraphMvp.live.node) {
+    return;
+  }
+
+  try {
+    nodeGraphMvp.live.node.port.postMessage({
+      plan: nodeGraphBuildLivePlan(),
+      type: "setPlan",
+    });
+    setNodeGraphLiveStatus("running", "good");
+  } catch (error) {
+    nodeGraphMvp.live.node.port.postMessage({ type: "stop" });
+    setNodeGraphLiveStatus("error", "warn");
+    document.getElementById("nodeLiveStatus").title = error.message;
+  }
+}
+
+function scheduleNodeGraphLivePlanSync() {
+  if (!nodeGraphMvp.live.node || nodeGraphMvp.live.syncFrame || nodeGraphMvp.live.syncTimer) {
+    return;
+  }
+  const flush = () => flushNodeGraphLivePlanSync();
+  nodeGraphMvp.live.syncFrame = window.requestAnimationFrame(flush);
+  nodeGraphMvp.live.syncTimer = window.setTimeout(flush, 50);
+}
+
+function clearNodeGraphLivePlanSync() {
+  if (nodeGraphMvp.live.syncFrame) {
+    window.cancelAnimationFrame(nodeGraphMvp.live.syncFrame);
+    nodeGraphMvp.live.syncFrame = 0;
+  }
+  if (nodeGraphMvp.live.syncTimer) {
+    window.clearTimeout(nodeGraphMvp.live.syncTimer);
+    nodeGraphMvp.live.syncTimer = 0;
+  }
+}
+
+function flushNodeGraphLivePlanSync() {
+  clearNodeGraphLivePlanSync();
+  sendNodeGraphLivePlan();
+}
+
+async function stopNodeGraphLiveAudio() {
+  clearNodeGraphLivePlanSync();
+  const liveNode = nodeGraphMvp.live.node;
+  const liveContext = nodeGraphMvp.live.context;
+  nodeGraphMvp.live.node = null;
+  nodeGraphMvp.live.context = null;
+
+  try {
+    liveNode?.port.postMessage({ type: "stop" });
+    liveNode?.disconnect();
+  } catch (_error) {
+    // Live shutdown is best effort; a disconnected worklet is already silent.
+  }
+  if (liveContext && liveContext.state !== "closed") {
+    await liveContext.close();
+  }
+  setNodeGraphLiveStatus("stopped");
+  document.getElementById("nodeLiveStatus").removeAttribute("title");
+  renderNodeGraphLiveControls(false);
+}
+
+async function startNodeGraphLiveAudio() {
+  try {
+    setNodeGraphLiveStatus("starting", "warn");
+    renderNodeGraphLiveControls(false);
+    await stopNodeGraphLiveAudio();
+    setNodeGraphLiveStatus("starting", "warn");
+    renderNodeGraphLiveControls(false);
+
+    const plan = nodeGraphBuildLivePlan();
+    const context = new AudioContext();
+    await context.audioWorklet.addModule("/public/node-live-audio-worklet.js");
+    const liveNode = new AudioWorkletNode(context, "node-live-audio-processor", {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+    });
+    liveNode.port.onmessage = (event) => {
+      if (event.data?.type === "error") {
+        setNodeGraphLiveStatus("error", "warn");
+        document.getElementById("nodeLiveStatus").title = event.data.message || "live audio error";
+      }
+    };
+
+    nodeGraphMvp.live.context = context;
+    nodeGraphMvp.live.node = liveNode;
+    liveNode.port.postMessage({ plan, type: "setPlan" });
+    liveNode.connect(context.destination);
+    await context.resume();
+    setNodeGraphLiveStatus("running", "good");
+    document.getElementById("nodeLiveStatus").removeAttribute("title");
+    renderNodeGraphLiveControls(true);
+  } catch (error) {
+    await stopNodeGraphLiveAudio();
+    setNodeGraphLiveStatus("error", "warn");
+    document.getElementById("nodeLiveStatus").title = error.message;
+    renderNodeGraphLiveControls(false);
+  }
+}
+
 function renderNodeGraphAudio() {
   const validation = nodeGraphValidate();
   const renderStatus = document.getElementById("nodeGraphRenderStatus");
@@ -8483,6 +8646,8 @@ function initNodeGraphMvp() {
   });
   document.getElementById("nodeRenderButton").addEventListener("click", renderNodeGraphAudio);
   document.getElementById("nodePlayButton").addEventListener("click", playNodeGraphAudio);
+  document.getElementById("nodeStartLiveButton").addEventListener("click", startNodeGraphLiveAudio);
+  document.getElementById("nodeStopLiveButton").addEventListener("click", stopNodeGraphLiveAudio);
   document.getElementById("nodeDefaultButton").addEventListener("click", restoreDefaultNodeGraph);
   document.getElementById("nodeDeleteButton").addEventListener("click", deleteSelectedNodeGraphItem);
   document.getElementById("nodeUndoButton").addEventListener("click", undoNodeGraphPatch);

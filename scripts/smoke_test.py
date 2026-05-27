@@ -196,6 +196,7 @@ REQUIRED_SHELL_IDS = {
     "nodeGraphWorkspace",
     "nodeGraphZoomSurface",
     "nodeInteractionHelp",
+    "nodeLiveStatus",
     "nodeZoomInButton",
     "nodeZoomOutButton",
     "nodeModularViewButton",
@@ -219,6 +220,8 @@ REQUIRED_SHELL_IDS = {
     "nodeScriptView",
     "nodeScriptViewButton",
     "nodeSignalPlotCanvas",
+    "nodeStartLiveButton",
+    "nodeStopLiveButton",
     "nodeUndoButton",
     "nodeWaveformCanvas",
     "nodeWireSvg",
@@ -526,6 +529,24 @@ def require_shell_contract(html: str) -> None:
         "nodePlayButton",
         "button",
         {"type": "button", "disabled": ""},
+    )
+    require_shell_element(
+        parser,
+        "nodeStartLiveButton",
+        "button",
+        {"type": "button"},
+    )
+    require_shell_element(
+        parser,
+        "nodeStopLiveButton",
+        "button",
+        {"type": "button", "disabled": ""},
+    )
+    require_shell_element(
+        parser,
+        "nodeLiveStatus",
+        "span",
+        {},
     )
     require_shell_element(
         parser,
@@ -1796,6 +1817,11 @@ def require_root_shell(base_url: str) -> None:
 def require_static_assets(base_url: str) -> None:
     for path, content_type, source_path in [
         ("/public/app.js", ("application/javascript", "text/javascript"), PUBLIC / "app.js"),
+        (
+            "/public/node-live-audio-worklet.js",
+            ("application/javascript", "text/javascript"),
+            PUBLIC / "node-live-audio-worklet.js",
+        ),
         ("/public/styles.css", "text/css", PUBLIC / "styles.css"),
     ]:
         expected = source_path.read_bytes()
@@ -2855,6 +2881,7 @@ def require_node_graph_mvp_contract() -> None:
     index_source = (PUBLIC / "index.html").read_text(encoding="utf-8")
     app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
+    worklet_source = (PUBLIC / "node-live-audio-worklet.js").read_text(encoding="utf-8")
 
     for snippet in [
         "Modular View",
@@ -2871,6 +2898,10 @@ def require_node_graph_mvp_contract() -> None:
         "nodePatchScriptFileInput",
         "nodePatchNameHeader",
         "nodePatchTagsHeader",
+        "Live Audio",
+        "nodeStartLiveButton",
+        "nodeStopLiveButton",
+        "nodeLiveStatus",
         "nodeInteractionHelp",
         "nodeModularViewButton",
         "nodeScriptViewButton",
@@ -3123,6 +3154,15 @@ def require_node_graph_mvp_contract() -> None:
         "node.style.setProperty(\"--node-y\"",
         "function renderNodeGraphAudio()",
         'document.getElementById("nodeRenderButton").addEventListener("click", renderNodeGraphAudio)',
+        "function nodeGraphBuildLivePlan()",
+        "function startNodeGraphLiveAudio()",
+        "function stopNodeGraphLiveAudio()",
+        "function scheduleNodeGraphLivePlanSync()",
+        "function sendNodeGraphLivePlan()",
+        'audioWorklet.addModule("/public/node-live-audio-worklet.js")',
+        '"node-live-audio-processor"',
+        'document.getElementById("nodeStartLiveButton").addEventListener("click", startNodeGraphLiveAudio)',
+        'document.getElementById("nodeStopLiveButton").addEventListener("click", stopNodeGraphLiveAudio)',
         "function nodeGraphStableSeed(text)",
         "function drawNodeRenderedWaveform()",
         "function drawNodeRenderedSignalPlot()",
@@ -3247,6 +3287,7 @@ def require_node_graph_mvp_contract() -> None:
         ".node-param-port.modulation-input",
         "rgba(177, 132, 255",
         ".node-palette",
+        ".node-live-controls",
         "body.debug-collapsed",
         ".node-slider-readout",
         "cursor: all-scroll;",
@@ -3274,6 +3315,17 @@ def require_node_graph_mvp_contract() -> None:
         ".node-signal-plot",
     ]:
         require(snippet in style_source, f"node graph style missing {snippet}")
+
+    for snippet in [
+        "class NodeLiveAudioProcessor extends AudioWorkletProcessor",
+        'registerProcessor("node-live-audio-processor", NodeLiveAudioProcessor)',
+        'message.type === "setPlan"',
+        'message.type === "stop"',
+        "mixNodeInput(nodeId, frameValues, visiting)",
+        "Math.min(0.95",
+        "for (const channel of output)",
+    ]:
+        require(snippet in worklet_source, f"live audio worklet source missing {snippet}")
 
 
 def fetch_valid_manifest_payload(base_url: str) -> dict[str, object]:
