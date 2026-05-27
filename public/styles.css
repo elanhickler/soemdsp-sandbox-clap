@@ -161,7 +161,7 @@ audio {
   gap: 8px;
 }
 
-.node-hover-tooltip {
+.node-interaction-help {
   flex: 1 1 180px;
   min-width: 140px;
   min-height: 44px;
@@ -178,7 +178,7 @@ audio {
   white-space: pre-line;
 }
 
-.node-hover-tooltip:empty {
+.node-interaction-help:empty {
   color: transparent;
 }
 

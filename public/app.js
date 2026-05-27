@@ -8144,28 +8144,20 @@ function handleNodeGraphKeydown(event) {
   deleteSelectedNodeGraphItem();
 }
 
-function nodeHoverTooltipText(target) {
+function nodeInteractionHelpText(target) {
   if (!(target instanceof Element)) {
     return "";
   }
-  const tooltipTarget = target.closest(
-    "[data-hover-tooltip], button, input, textarea, select, .node-slider-readout, .node-port, .node-param-port",
+  const helpTarget = target.closest(
+    "[data-interaction-help], button, input, textarea, select, .node-slider-readout, .node-port, .node-param-port",
   );
-  if (!tooltipTarget) {
+  if (!helpTarget) {
     return "";
   }
-  const label = (
-    tooltipTarget.dataset.hoverTooltip ||
-    tooltipTarget.getAttribute("title") ||
-    tooltipTarget.getAttribute("aria-label") ||
-    tooltipTarget.textContent ||
-    ""
-  ).trim();
-  const mouseHint = nodeHoverTooltipMouseHint(tooltipTarget);
-  return [label, mouseHint].filter(Boolean).join("\n");
+  return nodeInteractionMouseHint(helpTarget);
 }
 
-function nodeHoverTooltipMouseHint(element) {
+function nodeInteractionMouseHint(element) {
   if (element.classList.contains("node-drag-handle")) {
     return "Mouse: drag to move module.";
   }
@@ -8205,35 +8197,26 @@ function nodeHoverTooltipMouseHint(element) {
   if (element.matches("button")) {
     return "Mouse: click to activate.";
   }
-  return "Mouse: hover or focus for details.";
+  return "Mouse: interact for details.";
 }
 
-function setNodeHoverTooltip(text = "") {
-  const tooltip = document.getElementById("nodeHoverTooltip");
-  if (tooltip) {
-    tooltip.textContent = text;
+function setNodeInteractionHelp(text = "") {
+  const help = document.getElementById("nodeInteractionHelp");
+  if (help) {
+    help.textContent = text;
   }
 }
 
-function handleNodeHoverTooltip(event) {
-  setNodeHoverTooltip(nodeHoverTooltipText(event.target));
+function handleNodeInteractionHelp(event) {
+  setNodeInteractionHelp(nodeInteractionHelpText(event.target));
 }
 
-function clearNodeHoverTooltip(event) {
-  if (event.relatedTarget && event.currentTarget?.contains?.(event.relatedTarget)) {
-    return;
-  }
-  setNodeHoverTooltip("");
-}
-
-function attachNodeHoverTooltipTarget(element) {
-  element.dataset.hoverReady = "true";
-  const showTooltip = () => setNodeHoverTooltip(nodeHoverTooltipText(element));
-  element.addEventListener("mouseenter", showTooltip);
-  element.addEventListener("click", showTooltip);
-  element.addEventListener("mouseleave", () => setNodeHoverTooltip(""));
-  element.addEventListener("focus", showTooltip);
-  element.addEventListener("blur", () => setNodeHoverTooltip(""));
+function attachNodeInteractionHelpTarget(element) {
+  element.dataset.interactionHelpReady = "true";
+  const showHelp = () => setNodeInteractionHelp(nodeInteractionHelpText(element));
+  element.addEventListener("pointerdown", showHelp);
+  element.addEventListener("click", showHelp);
+  element.addEventListener("focus", showHelp);
 }
 
 function toggleDebugSections() {
@@ -8464,18 +8447,14 @@ async function playNodeGraphAudio() {
 
 function initNodeGraphMvp() {
   const nodePanel = document.querySelector(".node-wiring-panel");
-  nodePanel?.addEventListener("pointerover", handleNodeHoverTooltip);
-  nodePanel?.addEventListener("pointerout", clearNodeHoverTooltip);
-  nodePanel?.addEventListener("mouseover", handleNodeHoverTooltip);
-  nodePanel?.addEventListener("mouseout", clearNodeHoverTooltip);
-  nodePanel?.addEventListener("click", handleNodeHoverTooltip);
-  nodePanel?.addEventListener("focusin", handleNodeHoverTooltip);
-  nodePanel?.addEventListener("focusout", clearNodeHoverTooltip);
-  document.getElementById("nodeHoverTooltip")?.setAttribute("data-ready", "true");
+  nodePanel?.addEventListener("pointerdown", handleNodeInteractionHelp);
+  nodePanel?.addEventListener("click", handleNodeInteractionHelp);
+  nodePanel?.addEventListener("focusin", handleNodeInteractionHelp);
+  document.getElementById("nodeInteractionHelp")?.setAttribute("data-ready", "true");
   for (const element of document.querySelectorAll(
     ".node-view-toolbar button, .node-graph-controls button, .node-slider-readout",
   )) {
-    attachNodeHoverTooltipTarget(element);
+    attachNodeInteractionHelpTarget(element);
   }
   for (const button of document.querySelectorAll("[data-palette-node]")) {
     button.addEventListener("click", () => showPaletteNode(button.dataset.paletteNode));
