@@ -6214,7 +6214,8 @@ function syncNodeSliderReadout(slider) {
   const unit = (slider.dataset.unit || "").trim();
   valueText.textContent = formatNodeSliderNumber(slider.value);
   unitText.textContent = unit;
-  unitText.hidden = !unit;
+  unitText.classList.toggle("is-empty", !unit);
+  unitText.setAttribute("aria-hidden", unit ? "false" : "true");
   readout.dataset.value = slider.value;
   readout.dataset.unit = unit;
   readout.title = `${formatNodeSliderMetadataTooltip(slider)} / double-click to type`;
