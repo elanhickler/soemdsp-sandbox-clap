@@ -173,6 +173,7 @@ audio {
 .node-graph-workspace {
   --node-graph-zoom: 1;
   --node-grid-size: 28px;
+  --node-module-grid-fill: 8px;
   position: relative;
   min-height: 560px;
   margin-top: 16px;
@@ -274,9 +275,9 @@ audio {
   top: var(--node-y);
   display: grid;
   gap: 0;
-  width: calc(var(--node-grid-size) * 7);
-  min-width: calc(var(--node-grid-size) * 7);
-  padding: 0;
+  width: calc((var(--node-grid-size) * 7) + var(--node-module-grid-fill));
+  min-width: calc((var(--node-grid-size) * 7) + var(--node-module-grid-fill));
+  padding: 0 0 var(--node-module-grid-fill);
   border-radius: 8px;
   outline: 1px solid rgba(243, 241, 236, 0.18);
   background: rgba(27, 30, 34, 0.96);
@@ -304,8 +305,8 @@ audio {
 }
 
 .dsp-node.output-node {
-  width: calc(var(--node-grid-size) * 6);
-  min-width: calc(var(--node-grid-size) * 6);
+  width: calc((var(--node-grid-size) * 6) + var(--node-module-grid-fill));
+  min-width: calc((var(--node-grid-size) * 6) + var(--node-module-grid-fill));
 }
 
 .dsp-node-header {
