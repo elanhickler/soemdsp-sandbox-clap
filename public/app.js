@@ -230,6 +230,15 @@ function labelWaveformHeaderPill(element, label, value, ok) {
   element.title = `${label}: ${valueText} / ${stateName}`;
 }
 
+function labelWaveformControlButton(button, label, value, stateName) {
+  const valueText = String(value);
+  button.dataset.waveformControlLabel = label;
+  button.dataset.waveformControlValue = valueText;
+  button.dataset.waveformControlState = stateName;
+  button.setAttribute("aria-label", `${label}: ${valueText}`);
+  button.title = `${label}: ${valueText} / ${stateName}`;
+}
+
 function labelInspectionCursorPill(element, label, value, stateName) {
   element.setAttribute("aria-label", `${label}: ${value}`);
   element.title = `${label}: ${value}`;
@@ -2700,17 +2709,18 @@ function renderWaveformPlayControl(audio = document.getElementById("audioPlayer"
   const ready = Boolean(audio?.getAttribute("src"));
   const playing = ready && !audio.paused && !audio.ended;
   const ended = ready && audio.ended;
-  const label = playing
+  const value = playing ? "Pause Audio" : ended ? "Replay Audio" : "Play Audio";
+  const actionValue = playing
     ? "Pause primary audio"
     : ended
       ? "Replay primary audio from start"
       : "Play primary audio";
+  const stateName = !ready ? "disabled" : playing ? "playing" : ended ? "ended" : "idle";
   button.disabled = !ready;
-  button.textContent = playing ? "Pause Audio" : ended ? "Replay Audio" : "Play Audio";
+  button.textContent = value;
   button.setAttribute("aria-pressed", String(playing));
-  button.setAttribute("aria-label", label);
-  button.title = label;
   button.classList.toggle("active", playing);
+  labelWaveformControlButton(button, "waveform playback", actionValue, stateName);
 }
 
 async function togglePrimaryAudioPlayback() {
@@ -2751,14 +2761,15 @@ function setFollowAudio(enabled, syncNow) {
 
 function renderFollowAudioControl() {
   const button = document.getElementById("followAudioButton");
-  const label = state.followAudio
+  const value = state.followAudio ? "Follow Audio" : "Free View";
+  const actionValue = state.followAudio
     ? "Waveform view follows primary audio"
     : "Waveform view is independent of primary audio";
-  button.textContent = state.followAudio ? "Follow Audio" : "Free View";
+  const stateName = state.followAudio ? "follow" : "free";
+  button.textContent = value;
   button.setAttribute("aria-pressed", String(state.followAudio));
-  button.setAttribute("aria-label", label);
-  button.title = label;
   button.classList.toggle("active", state.followAudio);
+  labelWaveformControlButton(button, "waveform view mode", actionValue, stateName);
   setInspectionCursorView(state.followAudio);
 }
 
@@ -3709,16 +3720,26 @@ function phaseJumpButtonsLabeled(manifest) {
 }
 
 function waveformControlsLabeled() {
-  const playButton = document.getElementById("waveformPlayButton");
-  const followButton = document.getElementById("followAudioButton");
-  return (
-    Boolean(playButton?.getAttribute("aria-label")) &&
-    Boolean(playButton?.title) &&
-    Boolean(followButton?.getAttribute("aria-label")) &&
-    Boolean(followButton?.title) &&
-    ["true", "false"].includes(playButton?.getAttribute("aria-pressed")) &&
-    ["true", "false"].includes(followButton?.getAttribute("aria-pressed"))
-  );
+  return waveformControlButtonsLabeled(["waveformPlayButton", "followAudioButton"]);
+}
+
+function waveformControlButtonsLabeled(ids) {
+  return ids.every((id) => {
+    const button = document.getElementById(id);
+    const label = button?.dataset.waveformControlLabel;
+    const value = button?.dataset.waveformControlValue;
+    const stateName = button?.dataset.waveformControlState;
+    const ariaLabel = button?.getAttribute("aria-label") || "";
+    const title = button?.title || "";
+    return (
+      Boolean(label) &&
+      Boolean(value) &&
+      Boolean(stateName) &&
+      ariaLabel === `${label}: ${value}` &&
+      title === `${label}: ${value} / ${stateName}` &&
+      ["true", "false"].includes(button?.getAttribute("aria-pressed"))
+    );
+  });
 }
 
 function waveformScrubberLabeled() {
