@@ -6562,24 +6562,13 @@ function nodeGraphFindInputConnections(node, port) {
 
 function nodeGraphValidate() {
   const issues = [];
-  const plan = [];
   const route = [];
-  let sourceNode = "";
+  const sourceNodes = new Set();
   const visiting = new Set();
   const visited = new Set();
 
   function inputConnections(node, port) {
     return nodeGraphFindInputConnections(node, port);
-  }
-
-  for (const node of nodeGraphMvp.activeNodes) {
-    const type = nodeGraphNodeType(node);
-    if (type === "gain" || type === "bias" || type === "output") {
-      const connections = inputConnections(node, "In");
-      if (connections.length > 1) {
-        issues.push(`unsupported multi-source into ${nodeGraphLabel(node, "In")}`);
-      }
-    }
   }
 
   function resolveInput(node, port) {
@@ -6592,17 +6581,20 @@ function nodeGraphValidate() {
       );
       return false;
     }
-    if (connections.length > 1) {
-      return false;
+    let resolved = true;
+    for (const connection of connections) {
+      resolved = resolveNode(connection.sourceNode) && resolved;
     }
-    return resolveNode(connections[0].sourceNode);
+    return resolved;
   }
 
   function resolveNode(node) {
     const type = nodeGraphNodeType(node);
     if (type === "osc" || type === "noise") {
-      sourceNode = node;
-      route.push(node);
+      sourceNodes.add(node);
+      if (!route.includes(node)) {
+        route.push(node);
+      }
       return true;
     }
     if (type !== "gain" && type !== "bias" && type !== "output") {
@@ -6624,26 +6616,24 @@ function nodeGraphValidate() {
     if (!resolved) {
       return false;
     }
-    if (type !== "output") {
-      plan.push(node);
+    if (!route.includes(node)) {
       route.push(node);
     }
     return true;
   }
 
   resolveNode("output");
-  route.push("output");
 
   const uniqueIssues = [...new Set(issues)];
-  if (!sourceNode && !uniqueIssues.length) {
+  if (!sourceNodes.size && !uniqueIssues.length) {
     uniqueIssues.push("missing renderable source");
   }
 
   return {
     issues: uniqueIssues,
-    plan,
+    sourceNodes: [...sourceNodes],
     route,
-    sourceNode,
+    sourceNode: [...sourceNodes][0] || "",
     valid: uniqueIssues.length === 0,
   };
 }
@@ -6827,9 +6817,9 @@ function renderNodeGraphConnectionList() {
 
   status.textContent = validation.valid ? "Graph Valid" : "Graph Incomplete";
   status.className = `pill ${validation.valid ? "good" : "warn"}`;
-  source.textContent = validation.sourceNode
-    ? `source ${nodeGraphNodeDisplayName(validation.sourceNode).toLowerCase()}`
-    : "source missing";
+  source.textContent = validation.sourceNodes.length
+    ? `sources ${validation.sourceNodes.map((node) => nodeGraphNodeDisplayName(node).toLowerCase()).join(" + ")}`
+    : "sources missing";
   validationPill.textContent = validation.valid
     ? "valid"
     : validation.issues.join(", ");
@@ -7179,6 +7169,14 @@ function toggleDebugSections() {
   button.setAttribute("aria-pressed", String(!collapsed));
 }
 
+function nodeGraphStableSeed(text) {
+  let seed = 0x12345678;
+  for (const character of text) {
+    seed = (Math.imul(seed ^ character.charCodeAt(0), 16777619)) >>> 0;
+  }
+  return seed || 0x12345678;
+}
+
 function renderNodeGraphAudio() {
   const validation = nodeGraphValidate();
   const renderStatus = document.getElementById("nodeGraphRenderStatus");
@@ -7196,38 +7194,69 @@ function renderNodeGraphAudio() {
 
   const frames = Math.floor(nodeGraphMvp.sampleRate * nodeGraphMvp.seconds);
   const samples = new Float32Array(frames);
-  const sourceNode = validation.sourceNode;
-  const sourceType = nodeGraphNodeType(sourceNode);
-  const frequency = sourceType === "osc" ? nodeGraphReadNodeNumber(sourceNode, "frequency") : 0;
-  const oscLevel = sourceType === "osc" ? nodeGraphReadNodeNumber(sourceNode, "level") : 0;
-  const noiseLevel = sourceType === "noise" ? nodeGraphReadNodeNumber(sourceNode, "level") : 0;
-  let phase = 0;
-  let seed = 0x12345678;
+  const phases = new Map();
+  const noiseSeeds = new Map();
+  for (const node of nodeGraphMvp.activeNodes) {
+    const type = nodeGraphNodeType(node);
+    if (type === "osc") {
+      phases.set(node, 0);
+    }
+    if (type === "noise") {
+      noiseSeeds.set(node, nodeGraphStableSeed(node));
+    }
+  }
   let peak = 0;
   let squareSum = 0;
 
   for (let frame = 0; frame < frames; frame += 1) {
-    seed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
-    const noise = (seed / 0xffffffff) * 2 - 1;
-    const osc = Math.sin(phase) * oscLevel;
-    let output = sourceType === "noise" ? noise * noiseLevel : osc;
-    for (const node of validation.plan) {
+    const frameValues = new Map();
+
+    function mixNodeInput(node) {
+      return nodeGraphFindInputConnections(node, "In").reduce(
+        (sum, connection) => sum + evaluateNode(connection.sourceNode),
+        0,
+      );
+    }
+
+    function evaluateNode(node) {
+      if (frameValues.has(node)) {
+        return frameValues.get(node);
+      }
+
       const type = nodeGraphNodeType(node);
+      let value = 0;
+      if (type === "osc") {
+        const phase = phases.get(node) || 0;
+        const frequency = nodeGraphReadNodeNumber(node, "frequency");
+        value = Math.sin(phase) * nodeGraphReadNodeNumber(node, "level");
+        phases.set(
+          node,
+          (phase + (Math.PI * 2 * frequency) / nodeGraphMvp.sampleRate) % (Math.PI * 2),
+        );
+      }
+      if (type === "noise") {
+        const seed = (Math.imul(1664525, noiseSeeds.get(node) || 0x12345678) + 1013904223) >>> 0;
+        noiseSeeds.set(node, seed);
+        value = ((seed / 0xffffffff) * 2 - 1) * nodeGraphReadNodeNumber(node, "level");
+      }
       if (type === "gain") {
-        output *= nodeGraphReadNodeNumber(node, "amount");
+        value = mixNodeInput(node) * nodeGraphReadNodeNumber(node, "amount");
       }
       if (type === "bias") {
-        output += nodeGraphReadNodeNumber(node, "offset");
+        value = mixNodeInput(node) + nodeGraphReadNodeNumber(node, "offset");
       }
+      if (type === "output") {
+        value = mixNodeInput(node);
+      }
+      frameValues.set(node, value);
+      return value;
     }
+
+    let output = evaluateNode("output");
     output = Math.max(-0.95, Math.min(0.95, output));
     samples[frame] = output;
     peak = Math.max(peak, Math.abs(output));
     squareSum += output * output;
-    phase += (Math.PI * 2 * frequency) / nodeGraphMvp.sampleRate;
-    if (phase > Math.PI * 2) {
-      phase -= Math.PI * 2;
-    }
   }
 
   const rms = Math.sqrt(squareSum / frames);
@@ -7235,7 +7264,7 @@ function renderNodeGraphAudio() {
     peak,
     rms,
     samples,
-    sourceNode,
+    sourceNodes: validation.sourceNodes,
   };
   playButton.disabled = false;
   renderStatus.textContent = "render ready";
