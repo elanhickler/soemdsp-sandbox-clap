@@ -3166,7 +3166,7 @@ def require_node_graph_mvp_contract() -> None:
         "--node-grid-height-units",
         ".node-settings-view",
         ".node-settings-grid",
-        ".node-settings-description",
+        "grid-template-columns: minmax(0, 1fr)",
         "transform: scale(var(--node-graph-zoom));",
         ".node-wiring-panel .audio-panel",
         ".node-wire-svg",

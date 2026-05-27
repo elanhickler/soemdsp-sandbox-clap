@@ -229,7 +229,7 @@ audio {
 
 .node-settings-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -263,10 +263,6 @@ audio {
   padding: 10px;
   line-height: 1.45;
   resize: vertical;
-}
-
-.node-settings-description {
-  grid-column: 1 / -1;
 }
 
 .node-settings-grid input:focus,
