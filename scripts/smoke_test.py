@@ -165,6 +165,27 @@ REQUIRED_SHELL_IDS = {
     "manifestPath",
     "manifestPragma",
     "manifestStatus",
+    "nodeAudioStats",
+    "nodeBiasAmount",
+    "nodeClearButton",
+    "nodeConnectionList",
+    "nodeDefaultButton",
+    "nodeGainAmount",
+    "nodeGraphNodes",
+    "nodeGraphRenderStatus",
+    "nodeGraphSource",
+    "nodeGraphStatus",
+    "nodeGraphValidation",
+    "nodeGraphWorkspace",
+    "nodeNoiseLevel",
+    "nodeOscFrequency",
+    "nodeOscLevel",
+    "nodeOutputSummary",
+    "nodePlayButton",
+    "nodeRenderButton",
+    "nodeSignalPlotCanvas",
+    "nodeWaveformCanvas",
+    "nodeWireSvg",
     "parameterSummary",
     "parameterSummaryStatus",
     "parameterTimeline",
@@ -412,6 +433,42 @@ def require_shell_contract(html: str) -> None:
         "audioPlayer",
         "audio",
         {"controls": "", "preload": "metadata"},
+    )
+    require_shell_element(
+        parser,
+        "nodeGraphWorkspace",
+        "div",
+        {"aria-label": "Drag wires between DSP node ports"},
+    )
+    require_shell_element(
+        parser,
+        "nodeWireSvg",
+        "svg",
+        {"aria-hidden": "true", "focusable": "false"},
+    )
+    require_shell_element(
+        parser,
+        "nodeRenderButton",
+        "button",
+        {"type": "button"},
+    )
+    require_shell_element(
+        parser,
+        "nodePlayButton",
+        "button",
+        {"type": "button", "disabled": ""},
+    )
+    require_shell_element(
+        parser,
+        "nodeWaveformCanvas",
+        "canvas",
+        {"width": "560", "height": "150", "aria-label": "Node graph rendered waveform"},
+    )
+    require_shell_element(
+        parser,
+        "nodeSignalPlotCanvas",
+        "canvas",
+        {"width": "560", "height": "220", "aria-label": "Node graph rendered signal plot"},
     )
     require_shell_element(
         parser,
@@ -2724,6 +2781,57 @@ def require_follow_free_seek_contract() -> None:
         require(snippet in app_source, f"scrubber drag guard missing {snippet}")
 
 
+def require_node_graph_mvp_contract() -> None:
+    index_source = (PUBLIC / "index.html").read_text(encoding="utf-8")
+    app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
+    style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
+
+    for snippet in [
+        "Node Wiring MVP",
+        "data-node=\"osc\"",
+        "data-node=\"noise\"",
+        "data-node=\"gain\"",
+        "data-node=\"bias\"",
+        "data-node=\"output\"",
+        "nodeWaveformCanvas",
+        "nodeSignalPlotCanvas",
+    ]:
+        require(snippet in index_source, f"node graph shell missing {snippet}")
+
+    for snippet in [
+        "const nodeGraphDefaultConnections",
+        "const nodeGraphAllowedInputs",
+        "function beginNodeGraphWireDrag(event)",
+        "function dragNodeGraphWire(event)",
+        "function endNodeGraphWireDrag(event)",
+        "function connectNodeGraphPorts(",
+        "function nodeGraphValidate()",
+        "function renderNodeGraphAudio()",
+        "function drawNodeRenderedWaveform()",
+        "function drawNodeRenderedSignalPlot()",
+        "async function playNodeGraphAudio()",
+        "sourceNode === \"noise\" ? noise * noiseLevel : osc",
+        "sourceSample * gainAmount + biasAmount",
+        "new AudioContext({ sampleRate: nodeGraphMvp.sampleRate })",
+        "initNodeGraphMvp();",
+    ]:
+        require(snippet in app_source, f"node graph source missing {snippet}")
+
+    for snippet in [
+        ".node-graph-workspace",
+        ".node-wire-svg",
+        ".node-wire-path",
+        ".node-wire-path.temp",
+        ".dsp-node",
+        ".node-port.output",
+        ".node-port.input",
+        ".node-graph-output",
+        ".node-waveform",
+        ".node-signal-plot",
+    ]:
+        require(snippet in style_source, f"node graph style missing {snippet}")
+
+
 def fetch_valid_manifest_payload(base_url: str) -> dict[str, object]:
     manifest_response = request(f"{base_url}/api/manifest")
     require(manifest_response.status == 200, "manifest endpoint did not return 200")
@@ -2888,6 +2996,7 @@ def run_valid_manifest_smoke(port: int, manifest: Path) -> None:
         run_step("waveform seek source contract", require_waveform_seek_source_contract)
         run_step("manifest error surface contract", require_manifest_error_surface_contract)
         run_step("follow/free seek contract", require_follow_free_seek_contract)
+        run_step("node graph MVP contract", require_node_graph_mvp_contract)
 
         payload: dict[str, object] = {}
 

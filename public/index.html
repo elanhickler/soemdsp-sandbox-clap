@@ -53,6 +53,167 @@
       <audio id="audioPlayer" controls preload="metadata"></audio>
     </section>
 
+    <section class="panel node-wiring-panel" aria-label="Node wiring MVP">
+      <div class="panel-heading">
+        <div>
+          <p class="label">Browser Patch Proof</p>
+          <h2>Node Wiring MVP</h2>
+        </div>
+        <div class="panel-heading-actions">
+          <span id="nodeGraphStatus" class="pill">Graph Ready</span>
+          <span id="nodeGraphSource" class="pill">source osc</span>
+          <span id="nodeGraphRenderStatus" class="pill">render pending</span>
+        </div>
+      </div>
+
+      <div
+        id="nodeGraphWorkspace"
+        class="node-graph-workspace"
+        aria-label="Drag wires between DSP node ports">
+        <svg
+          id="nodeWireSvg"
+          class="node-wire-svg"
+          aria-hidden="true"
+          focusable="false"></svg>
+        <div id="nodeGraphNodes" class="node-graph-nodes">
+          <article class="dsp-node" data-node="osc" style="--node-x: 4%; --node-y: 14%;">
+            <div class="dsp-node-title">
+              <span>Osc</span>
+              <button
+                class="node-port output"
+                type="button"
+                data-node="osc"
+                data-port="Out"
+                data-io="output"
+                aria-label="Osc output port">Out</button>
+            </div>
+            <label>
+              Frequency
+              <input id="nodeOscFrequency" type="range" min="80" max="880" step="1" value="220">
+            </label>
+            <label>
+              Level
+              <input id="nodeOscLevel" type="range" min="0" max="0.8" step="0.01" value="0.35">
+            </label>
+          </article>
+
+          <article class="dsp-node" data-node="noise" style="--node-x: 4%; --node-y: 56%;">
+            <div class="dsp-node-title">
+              <span>Noise</span>
+              <button
+                class="node-port output"
+                type="button"
+                data-node="noise"
+                data-port="Out"
+                data-io="output"
+                aria-label="Noise output port">Out</button>
+            </div>
+            <label>
+              Level
+              <input id="nodeNoiseLevel" type="range" min="0" max="0.5" step="0.01" value="0.12">
+            </label>
+          </article>
+
+          <article class="dsp-node" data-node="gain" style="--node-x: 36%; --node-y: 30%;">
+            <div class="dsp-node-title">
+              <button
+                class="node-port input"
+                type="button"
+                data-node="gain"
+                data-port="In"
+                data-io="input"
+                aria-label="Gain input port">In</button>
+              <span>Gain</span>
+              <button
+                class="node-port output"
+                type="button"
+                data-node="gain"
+                data-port="Out"
+                data-io="output"
+                aria-label="Gain output port">Out</button>
+            </div>
+            <label>
+              Amount
+              <input id="nodeGainAmount" type="range" min="0" max="3" step="0.01" value="1.5">
+            </label>
+          </article>
+
+          <article class="dsp-node" data-node="bias" style="--node-x: 62%; --node-y: 30%;">
+            <div class="dsp-node-title">
+              <button
+                class="node-port input"
+                type="button"
+                data-node="bias"
+                data-port="In"
+                data-io="input"
+                aria-label="Bias input port">In</button>
+              <span>Bias</span>
+              <button
+                class="node-port output"
+                type="button"
+                data-node="bias"
+                data-port="Out"
+                data-io="output"
+                aria-label="Bias output port">Out</button>
+            </div>
+            <label>
+              Offset
+              <input id="nodeBiasAmount" type="range" min="-0.4" max="0.4" step="0.01" value="0.05">
+            </label>
+          </article>
+
+          <article class="dsp-node output-node" data-node="output" style="--node-x: 84%; --node-y: 34%;">
+            <div class="dsp-node-title">
+              <button
+                class="node-port input"
+                type="button"
+                data-node="output"
+                data-port="In"
+                data-io="input"
+                aria-label="Output input port">In</button>
+              <span>Output</span>
+            </div>
+            <p id="nodeOutputSummary">waiting for render</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="node-graph-controls">
+        <button id="nodeRenderButton" type="button">Render Graph</button>
+        <button id="nodePlayButton" type="button" disabled>Play Render</button>
+        <button id="nodeDefaultButton" type="button">Default Chain</button>
+        <button id="nodeClearButton" type="button">Clear Wires</button>
+      </div>
+
+      <div class="node-graph-output">
+        <div>
+          <div class="panel-heading compact-heading">
+            <h3>Graph Connections</h3>
+            <span id="nodeGraphValidation" class="pill">valid</span>
+          </div>
+          <ol id="nodeConnectionList" class="node-connection-list"></ol>
+        </div>
+        <div>
+          <div class="panel-heading compact-heading">
+            <h3>Rendered Output</h3>
+            <span id="nodeAudioStats" class="pill">peak 0 / rms 0</span>
+          </div>
+          <canvas
+            id="nodeWaveformCanvas"
+            class="node-waveform"
+            width="560"
+            height="150"
+            aria-label="Node graph rendered waveform"></canvas>
+          <canvas
+            id="nodeSignalPlotCanvas"
+            class="node-signal-plot"
+            width="560"
+            height="220"
+            aria-label="Node graph rendered signal plot"></canvas>
+        </div>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-heading">
         <h2>Hands-On Readiness</h2>

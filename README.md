@@ -1,10 +1,13 @@
 # soemdsp-sandbox
 
-Read-only local sandbox shell for inspecting `soemdsp` demo handoff manifests.
+Local browser sandbox for `soemdsp` proof artifacts and demo-scoped interactive patching.
 
-This first shell consumes the generated bound WAV resync artifact packet from the sibling `soemdsp` repository. It displays manifest status, source file metadata, source error and detail fields, manifest HTTP status, browser-side manifest load time, manifest response cache headers, producer proof flags, a hands-on readiness panel for mouse-and-ears testing including phase, parameter timeline, probe frame-label, and inspection hover-delta readiness, a compact sandbox contract summary, boundary flags, phase coverage, phase reports with explicit or derived time ranges plus frame/time/phase hover probe and preview target, structured parameter resync values and change ratios, a read-only inspection cursor with state-styled header source/delta/audio-progress/playback/view/preview/seek/seek-target/seek-sync/transport-time-frame/target-time-frame/named-divergence pills plus mirrored browser audio time and duration, last seek source/frame/time/phase, last seek transport match/delta with aligned/drift states, last seek hover match/delta, and hover source/delta/frequency/amplitude/envelope values, live phase-labeled current frequency/amplitude readouts, a phase-aligned parameter timeline with active phase/frequency/amplitude, source-labeled hover probe and preview target, decoded per-phase audio stats with measured frequency and peak deltas plus frame/time/phase hover probe and preview target, producer-side phase audio measurements from the manifest with browser-visible verification state, the inline artifact manifest and text reports, artifact coverage including missing-path count, visible metadata-only artifact-packet reachability method, served artifact modified times, labeled reachable artifact links, non-clickable missing artifact paths, no-store local success and error responses, malformed manifest shape checks with sandbox handoff, phase audio measurement, and positive detailed WAV metadata requirements, source details, manifest error paths and roots, a waveform with current-phase, phase time/frame range, source-labeled hover probe, visible phase-jump hover/focus preview target time/frame, hover marker, sample-cursor, byte metadata, peak, RMS, min/max, DC offset feedback, mirrored audio progress/duration, waveform progress/duration, waveform frame progress/sample value, a decoded level envelope with peak/RMS summary and source-labeled hover probe, an X/Y signal plot with header summaries, frame/time/phase hover probe, waveform-to-signal hover probe, signal-to-waveform hover probe, source-labeled nearest frame/time/phase probe, nearest sample hover marker, resettable browser-local inspection preferences, selectable phase focus, trace/points mode, display scale, full/cursor window size, focused stats, lag, and current frame/time/phase/point readout derived from the decoded WAV, explicit follow/free view controls, browser-backed seekable audio, and the generated WAV through a browser-native audio control.
+The sandbox now has two lanes:
 
-It also applies the current read-only consumer checklist in the browser, so unsupported contract or ownership states are visible as warnings.
+- a browser-only Node Wiring MVP where Osc or Noise can be wired through Gain, Bias, and Output, validated, rendered to an audible Web Audio buffer, and inspected through local waveform and signal-plot canvases
+- a read-only artifact inspector for generated `soemdsp` handoff manifests, WAVs, phase reports, producer proofs, boundary flags, parameter resync data, waveform playback, level envelopes, and X/Y signal plots
+
+The server remains read-only. The node graph is intentionally demo-scoped browser state; it does not save patches, mutate `Circuit`, add a scheduler, or become a plugin layer.
 
 ## Run
 
@@ -36,7 +39,8 @@ python C:\Users\argit\Documents\_PROGRAMMING\soemdsp-sandbox\scripts\smoke_test.
 
 The smoke test starts isolated local servers on automatic temporary ports, checks
 the manifest endpoint, checks the root shell DOM contract, duplicate IDs, and
-audio/waveform control attributes, checks static assets, checks the waveform
+audio/waveform control attributes, checks the node graph MVP shell/source/style
+contract, checks static assets, checks the waveform
 seek source contract, checks producer proof flags, checks the handoff contract and boundary flags, checks handoff artifact
 references, checks artifact and phase coverage, checks every manifest artifact
 link for reachability, checks report documents, checks hands-on readiness source
@@ -59,9 +63,10 @@ server error responses.
 
 ## Boundaries
 
-This shell is read-only.
+The local server is read-only. The browser may generate temporary audio from the
+demo node graph, but it does not write patch/project state.
 
-It does not:
+The sandbox does not:
 
 - instantiate DSP objects
 - schedule processing

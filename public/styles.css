@@ -136,6 +136,189 @@ audio {
   width: 100%;
 }
 
+.node-wiring-panel {
+  border-color: rgba(127, 199, 217, 0.28);
+}
+
+.compact-heading {
+  margin-bottom: 10px;
+}
+
+.node-graph-workspace {
+  position: relative;
+  min-height: 430px;
+  margin-top: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(127, 199, 217, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127, 199, 217, 0.055) 1px, transparent 1px),
+    #111418;
+  background-size: 28px 28px;
+  touch-action: none;
+  user-select: none;
+}
+
+.node-wire-svg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.node-wire-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.node-wire-path.temp {
+  stroke: var(--accent-2);
+  stroke-dasharray: 8 7;
+}
+
+.node-graph-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.dsp-node {
+  position: absolute;
+  left: var(--node-x);
+  top: var(--node-y);
+  display: grid;
+  gap: 12px;
+  width: min(190px, 27vw);
+  min-width: 150px;
+  padding: 13px;
+  border: 1px solid rgba(243, 241, 236, 0.18);
+  border-radius: 8px;
+  background: rgba(27, 30, 34, 0.96);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.dsp-node.connected {
+  border-color: rgba(113, 212, 155, 0.46);
+}
+
+.dsp-node.output-node {
+  width: min(170px, 24vw);
+}
+
+.dsp-node-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+}
+
+.dsp-node-title span {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.dsp-node label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.dsp-node input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.dsp-node p {
+  margin: 0;
+  color: var(--muted);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+}
+
+.node-port {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.72rem;
+}
+
+.node-port.output {
+  border-color: rgba(127, 199, 217, 0.48);
+  background: rgba(127, 199, 217, 0.13);
+}
+
+.node-port.input {
+  border-color: rgba(226, 168, 109, 0.48);
+  background: rgba(226, 168, 109, 0.11);
+}
+
+.node-port.dragging {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+.node-graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.node-graph-output {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.node-connection-list {
+  display: grid;
+  gap: 8px;
+  min-height: 96px;
+  margin: 0;
+  padding: 0 0 0 22px;
+}
+
+.node-connection-list li {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.82rem;
+}
+
+.node-connection-list li.warn-row {
+  background: var(--bad-bg);
+}
+
+.node-waveform,
+.node-signal-plot {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #101214;
+}
+
+.node-signal-plot {
+  margin-top: 10px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
@@ -863,8 +1046,40 @@ code {
   .checklist,
   .readiness-list,
   .parameter-summary,
+  .node-graph-output,
   .chain-row,
   .artifact-row {
     grid-template-columns: 1fr;
+  }
+
+  .node-graph-workspace {
+    min-height: 680px;
+  }
+
+  .dsp-node,
+  .dsp-node.output-node {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+
+  .dsp-node[data-node="osc"] {
+    top: 18px;
+  }
+
+  .dsp-node[data-node="noise"] {
+    top: 160px;
+  }
+
+  .dsp-node[data-node="gain"] {
+    top: 292px;
+  }
+
+  .dsp-node[data-node="bias"] {
+    top: 424px;
+  }
+
+  .dsp-node[data-node="output"] {
+    top: 556px;
   }
 }
