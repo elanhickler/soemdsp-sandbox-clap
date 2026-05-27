@@ -2875,7 +2875,7 @@ def require_node_graph_mvp_contract() -> None:
         "metadataStepValue",
         "metadataKindValue",
         "metadataUnitValue",
-        "Set Defaults From Kind",
+        "Set Defaults from Kind",
     ]:
         require(snippet in index_source, f"node graph shell missing {snippet}")
 

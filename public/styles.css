@@ -397,7 +397,6 @@ audio {
   align-self: end;
   font-family: inherit;
   font-size: 0.66rem;
-  text-transform: uppercase;
 }
 
 .node-parameter-metadata-popover button:focus {
