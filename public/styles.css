@@ -546,10 +546,10 @@ audio {
 
 .node-port {
   display: block;
-  width: 6px;
-  min-width: 6px;
-  height: 12px;
-  min-height: 12px;
+  width: 12px;
+  min-width: 12px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
   color: transparent;
   font-family: Consolas, "Courier New", monospace;
