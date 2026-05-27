@@ -2822,6 +2822,8 @@ def require_node_graph_mvp_contract() -> None:
         "function syncNodeSliderMetadataTooltip(slider)",
         "slider.dataset.mid",
         "slider.dataset.default",
+        "slider.dataset.step",
+        'slider.step = "any"',
         "slider.dataset.kind",
         "slider.dataset.display",
         "function beginNodeSliderReadoutEdit(readout)",

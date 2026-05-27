@@ -5948,7 +5948,10 @@ function nodeSliderMetadata(slider) {
   const max = Number(slider.max);
   const def = Number(slider.dataset.default);
   const cur = Number(slider.value);
-  const step = slider.step && slider.step !== "any" ? Number(slider.step) : 0;
+  const step =
+    slider.dataset.step && slider.dataset.step !== "any"
+      ? Number(slider.dataset.step)
+      : 0;
   return {
     cur,
     def,
@@ -5988,7 +5991,7 @@ function clampNodeSliderValue(value, min, max) {
 }
 
 function quantizeNodeSliderDragValue(slider, value) {
-  const step = Number(slider.step);
+  const step = Number(slider.dataset.step);
   if (!Number.isFinite(step) || step <= 0) {
     return value;
   }
@@ -6173,7 +6176,9 @@ function createNodeSliderReadout(slider) {
 
   slider.dataset.mid ||= String((Number(slider.min) + Number(slider.max)) / 2);
   slider.dataset.default ||= slider.value;
-  slider.dataset.kind ||= Number(slider.step) >= 1 ? "discrete" : "decimal";
+  slider.dataset.step ||= slider.step || "any";
+  slider.step = "any";
+  slider.dataset.kind ||= "decimal";
   slider.dataset.display ||= "decimal";
 
   const readout = document.createElement("button");
