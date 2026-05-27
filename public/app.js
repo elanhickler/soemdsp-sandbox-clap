@@ -73,6 +73,13 @@ const inspectionModes = Object.freeze({
   hover: "hover",
   probe: "probe",
 });
+const statusStripLabels = Object.freeze({
+  manifestStatus: "Manifest",
+  contractStatus: "Contract",
+  inspectionMode: "Mode",
+  frameCount: "Frames",
+  checklistStatus: "Checklist",
+});
 
 function artifactUrl(path) {
   return `/artifact?path=${encodeURIComponent(path)}`;
@@ -136,7 +143,16 @@ function clampFrame(frame, waveform) {
 }
 
 function setText(id, value) {
-  document.getElementById(id).textContent = value;
+  const element = document.getElementById(id);
+  element.textContent = value;
+  if (statusStripLabels[id]) {
+    const valueText = String(value);
+    const ok =
+      valueText !== "Loading" &&
+      valueText !== "Unavailable" &&
+      valueText !== "0";
+    labelStatusStripValue(element, statusStripLabels[id], valueText, ok);
+  }
 }
 
 function setSourceText(id, key, value, expected = "present", ok = true) {
@@ -164,6 +180,20 @@ function setStatus(id, value, ok) {
   const isPill = element.classList.contains("pill");
   element.textContent = value;
   element.className = isPill ? `pill ${ok ? "good" : "warn"}` : ok ? "" : "warn";
+  if (statusStripLabels[id]) {
+    labelStatusStripValue(element, statusStripLabels[id], value, ok);
+  }
+}
+
+function labelStatusStripValue(element, label, value, ok) {
+  const valueText = String(value);
+  const stateName = ok ? "ok" : "check";
+  element.dataset.statusLabel = label;
+  element.dataset.statusValue = valueText;
+  element.dataset.statusState = stateName;
+  element.setAttribute("role", "status");
+  element.setAttribute("aria-label", `${label}: ${valueText}`);
+  element.title = `${label}: ${valueText} / ${stateName}`;
 }
 
 function labelInspectionCursorPill(element, label, value, stateName) {
@@ -3703,6 +3733,21 @@ function reportViewerLabeled() {
   );
 }
 
+function statusStripItemsLabeled() {
+  return Object.entries(statusStripLabels).every(([id, labelText]) => {
+    const element = document.getElementById(id);
+    const label = element?.getAttribute("aria-label") || "";
+    return (
+      element?.dataset.statusLabel === labelText &&
+      Boolean(element.dataset.statusValue) &&
+      element.dataset.statusState === "ok" &&
+      element.getAttribute("role") === "status" &&
+      label === `${labelText}: ${element.dataset.statusValue}` &&
+      element.title === `${label} / ok`
+    );
+  });
+}
+
 function artifactRowsLabeled() {
   const rows = [...document.querySelectorAll("#artifactList .artifact-row")];
   return (
@@ -4027,6 +4072,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ],
     ["waveform play control", Boolean(document.getElementById("waveformPlayButton"))],
     ["waveform control labels", waveformControlsLabeled()],
+    ["status strip labels", statusStripItemsLabeled()],
     ["report control labels", reportControlsLabeled()],
     ["report viewer labels", state.reports.length > 0 && reportViewerLabeled()],
     ["artifact row labels", artifactRowsLabeled()],
