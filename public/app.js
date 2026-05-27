@@ -1211,6 +1211,8 @@ function renderPhaseAudioStats() {
     );
     const frequencyValue = activeParameterValue("frequency", region);
     const amplitudeValue = activeParameterValue("amplitude", region);
+    const biasValue = activeParameterValue("bias", region) ?? 0;
+    const targetPeak = targetPeakFor(amplitudeValue, biasValue);
     const measuredFrequency = estimateZeroCrossingFrequency(
       waveform.samples,
       region.startFrame,
@@ -1246,6 +1248,8 @@ function renderPhaseAudioStats() {
       measuredFrequency === null ? "missing" : `${formatCompactNumber(measuredFrequency)} Hz`;
     const targetAmplitudeText =
       amplitudeValue === null ? "missing" : formatCompactNumber(amplitudeValue);
+    const targetPeakText =
+      targetPeak === null ? "missing" : formatCompactNumber(targetPeak);
     const peakText = formatCompactNumber(stats.peak);
     const rmsText = formatCompactNumber(stats.rms);
     const startTime = formatSeconds(region.startFrame / waveform.sampleRate);
@@ -1262,7 +1266,7 @@ function renderPhaseAudioStats() {
     item.dataset.endTime = endTime;
     item.dataset.targetFrequency = targetFrequencyText;
     item.dataset.measuredFrequency = measuredFrequencyText;
-    item.dataset.targetAmplitude = targetAmplitudeText;
+    item.dataset.targetAmplitude = targetPeakText;
     item.dataset.peak = peakText;
     item.dataset.rms = rmsText;
     item.dataset.producerMatch = String(Boolean(producerOk));
@@ -1288,7 +1292,7 @@ function renderPhaseAudioStats() {
         ? "missing"
         : formatSignedNumber(producerFrequencyDelta);
     const peakDelta =
-      amplitudeValue === null ? "missing" : formatSignedNumber(stats.peak - amplitudeValue);
+      targetPeak === null ? "missing" : formatSignedNumber(stats.peak - targetPeak);
     const producerPeakDeltaText =
       producerPeakDelta === null
         ? "missing"
@@ -1302,6 +1306,8 @@ function renderPhaseAudioStats() {
       ["producer freq", Number.isFinite(producerFrequency) ? `${formatCompactNumber(producerFrequency)} Hz` : "missing"],
       ["producer freq delta", producerFrequencyDeltaText],
       ["target amp", targetAmplitudeText],
+      ["target bias", formatCompactNumber(biasValue)],
+      ["target peak", targetPeakText],
       ["peak", peakText],
       ["peak delta", peakDelta],
       ["producer peak", Number.isFinite(producerPeak) ? formatCompactNumber(producerPeak) : "missing"],
@@ -2213,18 +2219,29 @@ function measuredPhaseAudio(region) {
       waveform.sampleRate,
     ),
     peak: stats.peak,
+    dcOffset: stats.dcOffset,
   };
 }
 
-function measuredPhaseAudioMatches(measurement, targetFrequency, targetAmplitude) {
+function targetPeakFor(targetAmplitude, targetBias) {
+  if (targetAmplitude === null) {
+    return null;
+  }
+  return targetAmplitude + Math.abs(targetBias || 0);
+}
+
+function measuredPhaseAudioMatches(measurement, targetFrequency, targetAmplitude, targetBias = 0) {
+  const targetPeak = targetPeakFor(targetAmplitude, targetBias);
   return (
     measurement !== null &&
     Number.isFinite(measurement.frequency) &&
     Number.isFinite(measurement.peak) &&
+    Number.isFinite(measurement.dcOffset) &&
     targetFrequency !== null &&
-    targetAmplitude !== null &&
+    targetPeak !== null &&
     Math.abs(measurement.frequency - targetFrequency) <= phaseAudioFrequencyToleranceHz &&
-    Math.abs(measurement.peak - targetAmplitude) <= phaseAudioAmplitudeTolerance
+    Math.abs(measurement.peak - targetPeak) <= phaseAudioAmplitudeTolerance &&
+    Math.abs(measurement.dcOffset - (targetBias || 0)) <= phaseAudioAmplitudeTolerance
   );
 }
 
@@ -2247,14 +2264,17 @@ function renderCurrentParameters(region) {
   const status = document.getElementById("currentParameterStatus");
   const frequencyValue = activeParameterValue("frequency", region);
   const amplitudeValue = activeParameterValue("amplitude", region);
+  const biasValue = activeParameterValue("bias", region) ?? 0;
+  const targetPeak = targetPeakFor(amplitudeValue, biasValue);
   const measurement = measuredPhaseAudio(region);
   const frequencyDelta = measuredPhaseDelta(measurement?.frequency, frequencyValue);
-  const peakDelta = measuredPhaseDelta(measurement?.peak, amplitudeValue);
+  const peakDelta = measuredPhaseDelta(measurement?.peak, targetPeak);
   const ok = frequencyValue !== null && amplitudeValue !== null;
   const measurementOk = measuredPhaseAudioMatches(
     measurement,
     frequencyValue,
     amplitudeValue,
+    biasValue,
   );
 
   const frequencyText =
@@ -3181,8 +3201,11 @@ function renderParameterSummaryCards(pairs) {
 
   const firstFrequency = parseSummaryNumber(pairs.get("first half frequency"));
   const firstAmplitude = parseSummaryNumber(pairs.get("first half amplitude"));
+  const firstBias = parseSummaryNumber(pairs.get("first half bias"));
   const secondFrequency = parseSummaryNumber(pairs.get("second half frequency"));
   const secondAmplitude = parseSummaryNumber(pairs.get("second half amplitude"));
+  const secondBias = parseSummaryNumber(pairs.get("second half bias"));
+  const hasBias = pairs.has("first half bias") || pairs.has("second half bias");
   const values = [
     [
       "First Frequency",
@@ -3208,6 +3231,22 @@ function renderParameterSummaryCards(pairs) {
       "",
       isPositiveNumber(secondAmplitude),
     ],
+    ...(hasBias
+      ? [
+          [
+            "First Bias",
+            pairs.get("first half bias"),
+            "",
+            Number.isFinite(firstBias),
+          ],
+          [
+            "Second Bias",
+            pairs.get("second half bias"),
+            "",
+            Number.isFinite(secondBias),
+          ],
+        ]
+      : []),
     [
       "Frequency Change",
       formatSummaryChange(firstFrequency, secondFrequency),
@@ -3220,6 +3259,16 @@ function renderParameterSummaryCards(pairs) {
       "comparison",
       isUpwardChange(firstAmplitude, secondAmplitude),
     ],
+    ...(hasBias
+      ? [
+          [
+            "Bias Change",
+            formatSummaryChange(firstBias, secondBias),
+            "comparison",
+            Number.isFinite(firstBias) && Number.isFinite(secondBias) && firstBias !== secondBias,
+          ],
+        ]
+      : []),
   ];
 
   for (const [label, value, kind, ok] of values) {
@@ -3532,12 +3581,17 @@ function parameterResyncPairs(manifest) {
   const resync = manifest?.parameterResync || {};
   const frequency = resync.frequency || {};
   const amplitude = resync.amplitude || {};
+  const bias = resync.bias || {};
   const pairs = new Map([
     ["first half frequency", manifestValueText(frequency.first)],
     ["first half amplitude", manifestValueText(amplitude.first)],
     ["second half frequency", manifestValueText(frequency.second)],
     ["second half amplitude", manifestValueText(amplitude.second)],
   ]);
+  if (resync.bias && typeof resync.bias === "object") {
+    pairs.set("first half bias", manifestValueText(resync.bias.first));
+    pairs.set("second half bias", manifestValueText(resync.bias.second));
+  }
 
   return [...pairs.values()].every(Boolean) ? pairs : null;
 }
@@ -4045,7 +4099,10 @@ function keyValueRowsLabeled(containerId, expectedRows) {
 }
 
 function producerProofRowsLabeled() {
-  return keyValueRowsLabeled("producerProof", 9);
+  return (
+    keyValueRowsLabeled("producerProof", 9) ||
+    keyValueRowsLabeled("producerProof", 10)
+  );
 }
 
 function boundaryFlagRowsLabeled() {
@@ -4091,7 +4148,7 @@ function sourceRowsLabeled() {
 function parameterSummaryCardsLabeled() {
   const cards = [...document.querySelectorAll("#parameterSummary .summary-card")];
   return (
-    cards.length === 6 &&
+    (cards.length === 6 || cards.length === 9) &&
     cards.every((card) => {
       const label = card.getAttribute("aria-label") || "";
       return (
@@ -4517,6 +4574,9 @@ function renderProducerProof(manifest) {
     ["audio engine", boolText(Boolean(manifest.audioEngine)), false],
     ["frequency setter", boolText(Boolean(setters.frequency)), true],
     ["amplitude setter", boolText(Boolean(setters.amplitude)), true],
+    ...(setters.bias !== undefined
+      ? [["bias setter", boolText(Boolean(setters.bias)), true]]
+      : []),
     ["phase measurements", boolText(phaseAudioIssues.length === 0), true],
     ["caller processing order", boolText(callerProcessingIssue === ""), true],
   ];
@@ -5302,7 +5362,49 @@ function manifestShapeError(payload) {
 }
 
 function callerProcessingOrderIssue(manifest) {
-  if (manifest?.demo !== "runtime_dsp_object_circuit_connected_wav_demo") {
+  const expectedByDemo = {
+    runtime_dsp_object_circuit_connected_wav_demo: [
+      {
+        sourceNode: "Tiny Oscillator",
+        sourcePort: "Out",
+        destinationNode: "Tiny Gain",
+        destinationPort: "A",
+        callerStep: "oscillator.processSample -> gain.processSample",
+      },
+      {
+        sourceNode: "Tiny Gain",
+        sourcePort: "Out",
+        destinationNode: "Audio Out",
+        destinationPort: "In",
+        callerStep: "gain.processSample -> output sample",
+      },
+    ],
+    runtime_dsp_object_circuit_connected_bias_wav_demo: [
+      {
+        sourceNode: "Tiny Oscillator",
+        sourcePort: "Out",
+        destinationNode: "Tiny Gain",
+        destinationPort: "A",
+        callerStep: "oscillator.processSample -> gain.processSample",
+      },
+      {
+        sourceNode: "Tiny Gain",
+        sourcePort: "Out",
+        destinationNode: "Tiny Bias",
+        destinationPort: "A",
+        callerStep: "gain.processSample -> bias.processSample",
+      },
+      {
+        sourceNode: "Tiny Bias",
+        sourcePort: "Out",
+        destinationNode: "Audio Out",
+        destinationPort: "In",
+        callerStep: "bias.processSample -> output sample",
+      },
+    ],
+  };
+  const expectedSteps = expectedByDemo[manifest?.demo];
+  if (!expectedSteps) {
     return "";
   }
 
@@ -5310,7 +5412,7 @@ function callerProcessingOrderIssue(manifest) {
   if (!connections || typeof connections !== "object") {
     return "circuit connections missing";
   }
-  if (Number(connections.count) !== 2) {
+  if (Number(connections.count) !== expectedSteps.length) {
     return "circuit connection count mismatch";
   }
   if (connections.describesProcessingChain !== true) {
@@ -5336,22 +5438,6 @@ function callerProcessingOrderIssue(manifest) {
     return "caller processing ownership missing";
   }
 
-  const expectedSteps = [
-    {
-      sourceNode: "Tiny Oscillator",
-      sourcePort: "Out",
-      destinationNode: "Tiny Gain",
-      destinationPort: "A",
-      callerStep: "oscillator.processSample -> gain.processSample",
-    },
-    {
-      sourceNode: "Tiny Gain",
-      sourcePort: "Out",
-      destinationNode: "Audio Out",
-      destinationPort: "In",
-      callerStep: "gain.processSample -> output sample",
-    },
-  ];
   const steps = order.steps;
   if (!Array.isArray(steps) || steps.length !== expectedSteps.length) {
     return "caller processing step count mismatch";
@@ -5454,6 +5540,7 @@ function phaseAudioMeasurementIssues(manifest) {
   const resync = manifest?.parameterResync || {};
   const frequency = resync.frequency || {};
   const amplitude = resync.amplitude || {};
+  const bias = resync.bias || {};
 
   if (!Array.isArray(measurements)) {
     return ["phase audio measurements missing"];
@@ -5508,6 +5595,10 @@ function phaseAudioMeasurementIssues(manifest) {
 
     const targetFrequency = Number(frequency[name]);
     const targetAmplitude = Number(amplitude[name]);
+    const targetBias =
+      bias[name] === undefined || bias[name] === null ? 0 : Number(bias[name]);
+    const targetPeak =
+      targetAmplitude + (Number.isFinite(targetBias) ? Math.abs(targetBias) : 0);
     if (
       !Number.isFinite(targetFrequency) ||
       Math.abs(measuredFrequency - targetFrequency) > phaseAudioFrequencyToleranceHz
@@ -5516,9 +5607,16 @@ function phaseAudioMeasurementIssues(manifest) {
     }
     if (
       !Number.isFinite(targetAmplitude) ||
-      Math.abs(peak - targetAmplitude) > phaseAudioAmplitudeTolerance
+      !Number.isFinite(targetPeak) ||
+      Math.abs(peak - targetPeak) > phaseAudioAmplitudeTolerance
     ) {
       return [`${name} phase audio peak mismatch`];
+    }
+    if (
+      !Number.isFinite(targetBias) ||
+      Math.abs(dcOffset - targetBias) > phaseAudioAmplitudeTolerance
+    ) {
+      return [`${name} phase audio dc offset mismatch`];
     }
   }
 

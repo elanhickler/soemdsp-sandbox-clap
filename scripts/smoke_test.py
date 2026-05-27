@@ -47,25 +47,55 @@ EXPECTED_DEMOS = {
         "demo-local-bound-wav-resync-artifacts",
     "runtime_dsp_object_circuit_connected_wav_demo":
         "demo-local-circuit-connected-wav-artifacts",
+    "runtime_dsp_object_circuit_connected_bias_wav_demo":
+        "demo-local-circuit-connected-bias-wav-artifacts",
 }
-EXPECTED_CALLER_PROCESSING_STEPS = [
-    {
-        "index": 0,
-        "sourceNode": "Tiny Oscillator",
-        "sourcePort": "Out",
-        "destinationNode": "Tiny Gain",
-        "destinationPort": "A",
-        "callerStep": "oscillator.processSample -> gain.processSample",
-    },
-    {
-        "index": 1,
-        "sourceNode": "Tiny Gain",
-        "sourcePort": "Out",
-        "destinationNode": "Audio Out",
-        "destinationPort": "In",
-        "callerStep": "gain.processSample -> output sample",
-    },
-]
+EXPECTED_CALLER_PROCESSING_STEPS = {
+    "runtime_dsp_object_circuit_connected_wav_demo": [
+        {
+            "index": 0,
+            "sourceNode": "Tiny Oscillator",
+            "sourcePort": "Out",
+            "destinationNode": "Tiny Gain",
+            "destinationPort": "A",
+            "callerStep": "oscillator.processSample -> gain.processSample",
+        },
+        {
+            "index": 1,
+            "sourceNode": "Tiny Gain",
+            "sourcePort": "Out",
+            "destinationNode": "Audio Out",
+            "destinationPort": "In",
+            "callerStep": "gain.processSample -> output sample",
+        },
+    ],
+    "runtime_dsp_object_circuit_connected_bias_wav_demo": [
+        {
+            "index": 0,
+            "sourceNode": "Tiny Oscillator",
+            "sourcePort": "Out",
+            "destinationNode": "Tiny Gain",
+            "destinationPort": "A",
+            "callerStep": "oscillator.processSample -> gain.processSample",
+        },
+        {
+            "index": 1,
+            "sourceNode": "Tiny Gain",
+            "sourcePort": "Out",
+            "destinationNode": "Tiny Bias",
+            "destinationPort": "A",
+            "callerStep": "gain.processSample -> bias.processSample",
+        },
+        {
+            "index": 2,
+            "sourceNode": "Tiny Bias",
+            "sourcePort": "Out",
+            "destinationNode": "Audio Out",
+            "destinationPort": "In",
+            "callerStep": "bias.processSample -> output sample",
+        },
+    ],
+}
 REPORT_ARTIFACT_KINDS = {
     "manifest",
     "text-summary",
@@ -788,8 +818,10 @@ def require_phase_contract(payload: dict[str, object]) -> None:
     require(isinstance(resync, dict), "parameter resync missing")
     frequency = resync.get("frequency")
     amplitude = resync.get("amplitude")
+    bias = resync.get("bias", {})
     require(isinstance(frequency, dict), "frequency resync missing")
     require(isinstance(amplitude, dict), "amplitude resync missing")
+    require(isinstance(bias, dict), "bias resync invalid")
     for phase in phases:
         require(isinstance(phase, dict), "phase not object")
         name = phase.get("name")
@@ -799,13 +831,21 @@ def require_phase_contract(payload: dict[str, object]) -> None:
         measured_frequency = float(measurement.get("measuredFrequency", 0))
         peak = float(measurement.get("peak", 0))
         rms = float(measurement.get("rms", 0))
+        dc_offset = float(measurement.get("dcOffset", 0))
+        target_amplitude = float(amplitude.get(name, 0))
+        target_bias = float(bias.get(name, 0))
+        target_peak = target_amplitude + abs(target_bias)
         require(
             abs(measured_frequency - float(frequency.get(name, 0))) < 0.5,
             f"{name} producer measured frequency mismatch",
         )
         require(
-            abs(peak - float(amplitude.get(name, 0))) < 0.001,
+            abs(peak - target_peak) < 0.001,
             f"{name} producer measured peak mismatch",
+        )
+        require(
+            abs(dc_offset - target_bias) < 0.001,
+            f"{name} producer measured dc offset mismatch",
         )
         require(rms > 0, f"{name} producer measured rms missing")
 
@@ -1006,11 +1046,13 @@ def require_parameter_resync_contract_negative_cases() -> None:
 
 
 def caller_processing_order_contract_fixture() -> dict[str, object]:
+    demo = "runtime_dsp_object_circuit_connected_wav_demo"
+    steps = EXPECTED_CALLER_PROCESSING_STEPS[demo]
     return {
         "manifest": {
-            "demo": "runtime_dsp_object_circuit_connected_wav_demo",
+            "demo": demo,
             "circuitConnections": {
-                "count": 2,
+                "count": len(steps),
                 "describesProcessingChain": True,
             },
             "callerProcessingOrderProof": {
@@ -1019,7 +1061,7 @@ def caller_processing_order_contract_fixture() -> dict[str, object]:
             "callerProcessingOrder": {
                 "matchesCircuitConnections": True,
                 "callerOwnsProcessingOrder": True,
-                "steps": json.loads(json.dumps(EXPECTED_CALLER_PROCESSING_STEPS)),
+                "steps": json.loads(json.dumps(steps)),
             },
         },
     }
@@ -1028,12 +1070,16 @@ def caller_processing_order_contract_fixture() -> dict[str, object]:
 def require_caller_processing_order_contract(payload: dict[str, object]) -> None:
     manifest = payload.get("manifest")
     require(isinstance(manifest, dict), "manifest object missing")
-    if manifest.get("demo") != "runtime_dsp_object_circuit_connected_wav_demo":
+    expected_steps = EXPECTED_CALLER_PROCESSING_STEPS.get(str(manifest.get("demo")))
+    if expected_steps is None:
         return
 
     connections = manifest.get("circuitConnections")
     require(isinstance(connections, dict), "circuit connections missing")
-    require(int(connections.get("count", 0)) == 2, "circuit connection count mismatch")
+    require(
+        int(connections.get("count", 0)) == len(expected_steps),
+        "circuit connection count mismatch",
+    )
     require(
         connections.get("describesProcessingChain") is True,
         "circuit connection chain flag missing",
@@ -1060,10 +1106,10 @@ def require_caller_processing_order_contract(payload: dict[str, object]) -> None
     steps = order.get("steps")
     require(isinstance(steps, list), "caller processing steps missing")
     require(
-        len(steps) == len(EXPECTED_CALLER_PROCESSING_STEPS),
+        len(steps) == len(expected_steps),
         "caller processing step count mismatch",
     )
-    for index, expected in enumerate(EXPECTED_CALLER_PROCESSING_STEPS):
+    for index, expected in enumerate(expected_steps):
         step = steps[index]
         require(isinstance(step, dict), "caller processing step invalid")
         for key, expected_value in expected.items():
@@ -1363,8 +1409,10 @@ def require_phase_audio_measurements(
     require(isinstance(resync, dict), "phase measurement resync missing")
     frequency = resync.get("frequency")
     amplitude = resync.get("amplitude")
+    bias = resync.get("bias", {})
     require(isinstance(frequency, dict), "phase measurement frequency missing")
     require(isinstance(amplitude, dict), "phase measurement amplitude missing")
+    require(isinstance(bias, dict), "phase measurement bias invalid")
     producer_measurements = manifest.get("phaseAudioMeasurements")
     require(
         isinstance(producer_measurements, list),
@@ -1386,6 +1434,8 @@ def require_phase_audio_measurements(
 
         target_frequency = float(frequency.get(name, 0))
         target_amplitude = float(amplitude.get(name, 0))
+        target_bias = float(bias.get(name, 0))
+        target_peak = target_amplitude + abs(target_bias)
         require(target_frequency > 0, f"{name} target frequency missing")
         require(target_amplitude > 0, f"{name} target amplitude missing")
 
@@ -1404,9 +1454,14 @@ def require_phase_audio_measurements(
         phase_samples = samples[start_frame:end_frame]
         peak = max(abs(sample) for sample in phase_samples)
         rms = (sum(sample * sample for sample in phase_samples) / len(phase_samples)) ** 0.5
+        dc_offset = sum(phase_samples) / len(phase_samples)
         require(
-            abs(peak - target_amplitude) < 0.001,
-            f"{name} peak {peak} did not match target amplitude {target_amplitude}",
+            abs(peak - target_peak) < 0.001,
+            f"{name} peak {peak} did not match target peak {target_peak}",
+        )
+        require(
+            abs(dc_offset - target_bias) < 0.001,
+            f"{name} dc offset {dc_offset} did not match target bias {target_bias}",
         )
         producer_measurement = producer_measurements_by_name.get(name)
         require(
@@ -1660,7 +1715,8 @@ def require_waveform_seek_source_contract() -> None:
         "function activeParameterValue(name, region)",
         "function producerPhaseAudioMeasurement(region)",
         "function measuredPhaseAudio(region)",
-        "function measuredPhaseAudioMatches(measurement, targetFrequency, targetAmplitude)",
+        "function targetPeakFor(targetAmplitude, targetBias)",
+        "function measuredPhaseAudioMatches(measurement, targetFrequency, targetAmplitude, targetBias = 0)",
         "function measuredPhaseDelta(measuredValue, targetValue)",
         "const measuredFrequency = document.getElementById(\"currentMeasuredFrequency\")",
         "const measuredPeak = document.getElementById(\"currentMeasuredPeak\")",
@@ -1675,7 +1731,8 @@ def require_waveform_seek_source_contract() -> None:
         '"measured ok"',
         '"measured mismatch"',
         "Math.abs(measurement.frequency - targetFrequency) <= phaseAudioFrequencyToleranceHz",
-        "Math.abs(measurement.peak - targetAmplitude) <= phaseAudioAmplitudeTolerance",
+        "Math.abs(measurement.peak - targetPeak) <= phaseAudioAmplitudeTolerance",
+        "Math.abs(measurement.dcOffset - (targetBias || 0)) <= phaseAudioAmplitudeTolerance",
         "function phaseAudioMeasurementIssues(manifest)",
         "const phaseAudioFrequencyToleranceHz = 0.5",
         "const phaseAudioAmplitudeTolerance = 0.001",
@@ -2022,7 +2079,7 @@ def require_waveform_seek_source_contract() -> None:
         "item.dataset.endTime = endTime",
         "item.dataset.targetFrequency = targetFrequencyText",
         "item.dataset.measuredFrequency = measuredFrequencyText",
-        "item.dataset.targetAmplitude = targetAmplitudeText",
+        "item.dataset.targetAmplitude = targetPeakText",
         "item.dataset.peak = peakText",
         "item.dataset.rms = rmsText",
         "item.dataset.producerMatch = String(Boolean(producerOk))",
@@ -2054,6 +2111,8 @@ def require_waveform_seek_source_contract() -> None:
         '["producer freq", Number.isFinite(producerFrequency) ? `${formatCompactNumber(producerFrequency)} Hz` : "missing"]',
         '["producer freq delta", producerFrequencyDeltaText]',
         '["target amp", targetAmplitudeText]',
+        '["target bias", formatCompactNumber(biasValue)]',
+        '["target peak", targetPeakText]',
         '["peak", peakText]',
         '["peak delta", peakDelta]',
         '["producer peak", Number.isFinite(producerPeak) ? formatCompactNumber(producerPeak) : "missing"]',
@@ -2178,7 +2237,8 @@ def require_waveform_seek_source_contract() -> None:
         "dd.setAttribute(\"aria-label\", `${key}: ${valueText}`)",
         "function keyValueRowsLabeled(containerId, expectedRows)",
         "function producerProofRowsLabeled()",
-        'return keyValueRowsLabeled("producerProof", 9)',
+        'keyValueRowsLabeled("producerProof", 9)',
+        'keyValueRowsLabeled("producerProof", 10)',
         "function circuitChainRowsLabeled()",
         'document.querySelectorAll("#circuitChain .chain-row")',
         "function renderCircuitChain(manifest)",
@@ -2299,7 +2359,7 @@ def require_waveform_seek_source_contract() -> None:
         '["phase preview target", waveformReady && phasePreviewTargetAvailable()]',
         '["producer measurement compare", phaseAudioMeasurementIssues(manifest).length === 0]',
         "function callerProcessingOrderIssue(manifest)",
-        'manifest?.demo !== "runtime_dsp_object_circuit_connected_wav_demo"',
+        "runtime_dsp_object_circuit_connected_bias_wav_demo",
         "callerProcessingOrderProof",
         "matchesCircuitConnections",
         '["caller processing order", callerProcessingIssue === ""]',
