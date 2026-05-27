@@ -48,8 +48,8 @@
     <section class="panel node-wiring-panel" aria-label="Node wiring MVP">
       <div class="panel-heading">
         <div>
-          <p class="label">Browser Patch Proof</p>
-          <h2>Node Wiring MVP</h2>
+          <p id="nodePatchTagsHeader" class="label"></p>
+          <h2 id="nodePatchNameHeader"></h2>
         </div>
         <div class="panel-heading-actions">
           <span id="nodeGraphStatus" class="pill">Graph Ready</span>
@@ -129,11 +129,11 @@
           <label>Patch Name
             <input id="patchNameValue" type="text" autocomplete="off" data-patch-info-field>
           </label>
-          <label>Patch Author
-            <input id="patchAuthorValue" type="text" autocomplete="off" data-patch-info-field>
-          </label>
           <label>Patch Tags
             <input id="patchTagsValue" type="text" autocomplete="off" data-patch-info-field>
+          </label>
+          <label>Patch Author
+            <input id="patchAuthorValue" type="text" autocomplete="off" data-patch-info-field>
           </label>
           <label class="node-settings-description">Patch Description
             <textarea id="patchDescriptionValue" spellcheck="true" data-patch-info-field></textarea>

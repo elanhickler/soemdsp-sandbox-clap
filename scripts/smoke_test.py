@@ -205,6 +205,8 @@ REQUIRED_SHELL_IDS = {
     "nodePalette",
     "nodePatchScript",
     "nodePatchScriptFileInput",
+    "nodePatchNameHeader",
+    "nodePatchTagsHeader",
     "nodePlayButton",
     "nodeRedoButton",
     "nodeRenderButton",
@@ -2855,7 +2857,6 @@ def require_node_graph_mvp_contract() -> None:
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
 
     for snippet in [
-        "Node Wiring MVP",
         "Modular View",
         "Script View",
         "Patch settings",
@@ -2868,6 +2869,8 @@ def require_node_graph_mvp_contract() -> None:
         "loadNodeGraphScriptButton",
         "saveNodeGraphScriptButton",
         "nodePatchScriptFileInput",
+        "nodePatchNameHeader",
+        "nodePatchTagsHeader",
         "nodeInteractionHelp",
         "nodeModularViewButton",
         "nodeScriptViewButton",
@@ -2919,6 +2922,20 @@ def require_node_graph_mvp_contract() -> None:
     ]:
         require(snippet not in index_source, f"dangerous clear wires control should be absent: {snippet}")
 
+    for snippet in [
+        "Browser Patch Proof",
+        "Node Wiring MVP",
+    ]:
+        require(snippet not in index_source, f"static patch header should be absent: {snippet}")
+
+    settings_order = [
+        index_source.index("patchNameValue"),
+        index_source.index("patchTagsValue"),
+        index_source.index("patchAuthorValue"),
+        index_source.index("patchDescriptionValue"),
+    ]
+    require(settings_order == sorted(settings_order), "settings fields should be ordered name, tags, author, description")
+
     workspace_index = index_source.index("nodeGraphWorkspace")
     audio_index = index_source.index("audioPlayer")
     controls_index = index_source.index("nodeRenderButton")
@@ -2955,6 +2972,8 @@ def require_node_graph_mvp_contract() -> None:
         "function normalizeNodeGraphPatchInfo(info = {})",
         "function syncNodeGraphSettingsView()",
         "function readNodeGraphSettingsView()",
+        "nodePatchNameHeader",
+        "nodePatchTagsHeader",
         "function handleNodeGraphSettingsInput()",
         "info: normalizeNodeGraphPatchInfo(patch.info)",
         "function beginNodeGraphWireDrag(event)",

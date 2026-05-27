@@ -6375,6 +6375,8 @@ function setNodeGraphSettingsField(id, value) {
 
 function syncNodeGraphSettingsView() {
   const info = normalizeNodeGraphPatchInfo(nodeGraphMvp.patch.info);
+  document.getElementById("nodePatchNameHeader").textContent = info.name;
+  document.getElementById("nodePatchTagsHeader").textContent = info.tags;
   setNodeGraphSettingsField("patchNameValue", info.name);
   setNodeGraphSettingsField("patchAuthorValue", info.author);
   setNodeGraphSettingsField("patchTagsValue", info.tags);
