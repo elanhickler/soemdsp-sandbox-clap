@@ -357,7 +357,8 @@ audio {
   text-transform: uppercase;
 }
 
-.metadata-popover-grid input {
+.metadata-popover-grid input,
+.metadata-popover-grid select {
   width: 100%;
   min-width: 0;
   height: 30px;
@@ -370,10 +371,15 @@ audio {
   font-size: 0.78rem;
 }
 
-.node-parameter-metadata-popover button:focus,
-.metadata-popover-grid input:focus {
+.node-parameter-metadata-popover button:focus {
   outline: none;
   border-color: rgba(127, 199, 217, 0.5);
+}
+
+.metadata-popover-grid input:focus,
+.metadata-popover-grid select:focus {
+  outline: none;
+  border-color: var(--line);
 }
 
 .metadata-popover-actions {

@@ -5998,6 +5998,18 @@ const nodeGraphDefaultConnections = Object.freeze([
   { sourceNode: "bias", sourcePort: "Out", destinationNode: "output", destinationPort: "In" },
 ]);
 
+const nodeMetadataKindTemplates = Object.freeze({
+  decimal: { def: 0.5, label: "Decimal", max: 1, mid: 0.5, min: 0, step: 0.01, unit: "" },
+  bipolar: { def: 0, label: "Bipolar", max: 1, mid: 0, min: -1, step: 0.01, unit: "" },
+  gain: { def: 1, label: "Gain", max: 3, mid: 1, min: 0, step: 0.01, unit: "x" },
+  percent: { def: 50, label: "Percent", max: 100, mid: 50, min: 0, step: 1, unit: "%" },
+  pitch: { def: 440, label: "Pitch", max: 20000, mid: 440, min: 20, step: 1, unit: "Hz" },
+  seconds: { def: 1, label: "Seconds", max: 10, mid: 1, min: 0, step: 0.01, unit: "s" },
+  milliseconds: { def: 250, label: "Milliseconds", max: 5000, mid: 250, min: 0, step: 1, unit: "ms" },
+  sustain: { def: 0.7, label: "Sustain", max: 1, mid: 0.7, min: 0, step: 0.01, unit: "" },
+  pan: { def: 0, label: "Pan", max: 1, mid: 0, min: -1, step: 0.01, unit: "pan" },
+});
+
 const nodeGraphMvp = {
   activeNodes: new Set(["osc", "noise", "gain", "bias", "output"]),
   audioContext: null,
@@ -6067,6 +6079,10 @@ function parseNodeMetadataNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function formatNodeMetadataStep(value) {
+  return value > 0 ? formatNodeSliderCompactNumber(value) : "any";
+}
+
 function nodeSliderMetadata(slider) {
   const min = Number(slider.min);
   const mid = Number(slider.dataset.mid);
@@ -6080,7 +6096,7 @@ function nodeSliderMetadata(slider) {
   return {
     cur,
     def,
-    display: slider.dataset.display || "decimal",
+    unit: slider.dataset.unit ?? "",
     kind: slider.dataset.kind || "decimal",
     max,
     mid,
@@ -6100,7 +6116,7 @@ function formatNodeSliderMetadataTooltip(slider) {
     `max ${formatNodeSliderNumber(metadata.max)}`,
     `step ${stepText}`,
     `kind ${metadata.kind}`,
-    `display ${metadata.display}`,
+    `unit ${metadata.unit}`,
   ].join(" / ");
 }
 
@@ -6124,7 +6140,7 @@ function setNodeSliderMetadata(slider, metadata) {
   );
   slider.dataset.step = metadata.step > 0 ? String(metadata.step) : "any";
   slider.dataset.kind = metadata.kind || "decimal";
-  slider.dataset.display = metadata.display || "decimal";
+  slider.dataset.unit = metadata.unit ?? "";
   slider.value = String(clampNodeSliderValue(Number(slider.value), metadata.min, metadata.max));
   syncNodeSliderReadout(slider);
 }
@@ -6186,7 +6202,21 @@ function positionNodeMetadataPopover(popover, x, y) {
   popover.style.top = `${top}px`;
 }
 
+function populateNodeMetadataKindChoices() {
+  const select = document.getElementById("metadataKindValue");
+  if (select.options.length) {
+    return;
+  }
+  for (const [kind, template] of Object.entries(nodeMetadataKindTemplates)) {
+    const option = document.createElement("option");
+    option.value = kind;
+    option.textContent = template.label;
+    select.append(option);
+  }
+}
+
 function fillNodeMetadataPopover(slider) {
+  populateNodeMetadataKindChoices();
   const metadata = nodeSliderMetadata(slider);
   document.getElementById("metadataPopoverTitle").textContent =
     `${nodeSliderLabelText(slider)} Metadata`;
@@ -6195,10 +6225,9 @@ function fillNodeMetadataPopover(slider) {
   document.getElementById("metadataMaxValue").value = formatNodeSliderCompactNumber(metadata.max);
   document.getElementById("metadataDefaultValue").value =
     formatNodeSliderCompactNumber(metadata.def);
-  document.getElementById("metadataStepValue").value =
-    metadata.step > 0 ? formatNodeSliderCompactNumber(metadata.step) : "any";
+  document.getElementById("metadataStepValue").value = formatNodeMetadataStep(metadata.step);
   document.getElementById("metadataKindValue").value = metadata.kind;
-  document.getElementById("metadataDisplayValue").value = metadata.display;
+  document.getElementById("metadataUnitValue").value = metadata.unit;
 }
 
 function openNodeMetadataPopover(event, readout) {
@@ -6237,52 +6266,63 @@ function markNodeGraphRenderPending() {
   document.getElementById("nodeGraphRenderStatus").className = "pill warn";
 }
 
-function applyNodeMetadataPopover(event) {
-  event.preventDefault();
-  const slider = document.getElementById(nodeGraphMvp.metadataEditorTarget);
-  if (!slider) {
-    closeNodeMetadataPopover();
-    return;
-  }
-
+function readNodeMetadataEditorValues(slider) {
   const current = nodeSliderMetadata(slider);
   let min = parseNodeMetadataNumber(document.getElementById("metadataMinValue").value, current.min);
   let max = parseNodeMetadataNumber(document.getElementById("metadataMaxValue").value, current.max);
   if (min > max) {
     [min, max] = [max, min];
   }
-  const mid = parseNodeMetadataNumber(document.getElementById("metadataMidValue").value, current.mid);
-  const def = parseNodeMetadataNumber(
-    document.getElementById("metadataDefaultValue").value,
-    current.def,
-  );
   const stepInput = document.getElementById("metadataStepValue").value.trim();
-  const step = stepInput.toLowerCase() === "any"
-    ? 0
-    : Math.max(0, parseNodeMetadataNumber(stepInput, current.step));
-  const kind = document.getElementById("metadataKindValue").value.trim() || "decimal";
-  const display = document.getElementById("metadataDisplayValue").value.trim() || "decimal";
-  setNodeSliderMetadata(slider, { min, mid, max, def, step, kind, display });
+  return {
+    def: parseNodeMetadataNumber(document.getElementById("metadataDefaultValue").value, current.def),
+    kind: document.getElementById("metadataKindValue").value || "decimal",
+    max,
+    mid: parseNodeMetadataNumber(document.getElementById("metadataMidValue").value, current.mid),
+    min,
+    step: stepInput.toLowerCase() === "any"
+      ? 0
+      : Math.max(0, parseNodeMetadataNumber(stepInput, current.step)),
+    unit: document.getElementById("metadataUnitValue").value.trim(),
+  };
+}
+
+function applyNodeMetadataEditor() {
+  const slider = document.getElementById(nodeGraphMvp.metadataEditorTarget);
+  if (!slider) {
+    return;
+  }
+
+  setNodeSliderMetadata(slider, readNodeMetadataEditorValues(slider));
   markNodeGraphRenderPending();
-  closeNodeMetadataPopover();
 }
 
-function setNodeMetadataDefaultFromCurrent() {
+function setNodeMetadataDefaultsFromKind() {
   const slider = document.getElementById(nodeGraphMvp.metadataEditorTarget);
   if (!slider) {
     return;
   }
+  const kind = document.getElementById("metadataKindValue").value || "decimal";
+  const template = nodeMetadataKindTemplates[kind] || nodeMetadataKindTemplates.decimal;
+  document.getElementById("metadataMinValue").value = formatNodeSliderCompactNumber(template.min);
+  document.getElementById("metadataMidValue").value = formatNodeSliderCompactNumber(template.mid);
+  document.getElementById("metadataMaxValue").value = formatNodeSliderCompactNumber(template.max);
   document.getElementById("metadataDefaultValue").value =
-    formatNodeSliderCompactNumber(slider.value);
+    formatNodeSliderCompactNumber(template.def);
+  document.getElementById("metadataStepValue").value = formatNodeMetadataStep(template.step);
+  document.getElementById("metadataUnitValue").value = template.unit;
+  applyNodeMetadataEditor();
 }
 
-function resetNodeMetadataCurrentToDefault() {
-  const slider = document.getElementById(nodeGraphMvp.metadataEditorTarget);
-  if (!slider) {
+function handleNodeMetadataKindChange() {
+  setNodeMetadataDefaultsFromKind();
+}
+
+function handleNodeMetadataEditorInput() {
+  if (!nodeGraphMvp.metadataEditorTarget) {
     return;
   }
-  updateNodeSliderCurrentValue(slider, slider.dataset.default);
-  fillNodeMetadataPopover(slider);
+  applyNodeMetadataEditor();
 }
 
 function updateNodeSliderCurrentValue(slider, rawValue) {
@@ -6447,7 +6487,7 @@ function createNodeSliderReadout(slider) {
   slider.dataset.step ||= slider.step || "any";
   slider.step = "any";
   slider.dataset.kind ||= "decimal";
-  slider.dataset.display ||= "decimal";
+  slider.dataset.unit ??= "";
 
   const readout = document.createElement("button");
   readout.type = "button";
@@ -6505,7 +6545,7 @@ function createNodeGraphParameter(node, type, parameter) {
   input.dataset.mid = parameter.mid;
   input.dataset.default = parameter.defaultValue;
   input.dataset.kind = "decimal";
-  input.dataset.display = "decimal";
+  input.dataset.unit = "";
   input.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} ${parameter.label}`);
   label.append(input);
   return label;
@@ -7429,19 +7469,16 @@ function initNodeGraphMvp() {
   document.getElementById("toggleDebugButton").addEventListener("click", toggleDebugSections);
   document
     .getElementById("nodeParameterMetadataPopover")
-    .addEventListener("submit", applyNodeMetadataPopover);
+    .addEventListener("input", handleNodeMetadataEditorInput);
+  document
+    .getElementById("metadataKindValue")
+    .addEventListener("change", handleNodeMetadataKindChange);
   document
     .getElementById("metadataPopoverClose")
     .addEventListener("click", closeNodeMetadataPopover);
   document
-    .getElementById("metadataCancelButton")
-    .addEventListener("click", closeNodeMetadataPopover);
-  document
     .getElementById("metadataSetDefaultButton")
-    .addEventListener("click", setNodeMetadataDefaultFromCurrent);
-  document
-    .getElementById("metadataResetCurrentButton")
-    .addEventListener("click", resetNodeMetadataCurrentToDefault);
+    .addEventListener("click", setNodeMetadataDefaultsFromKind);
   for (const button of document.querySelectorAll("[data-context-module]")) {
     button.addEventListener("click", addNodeGraphModuleFromContext);
   }

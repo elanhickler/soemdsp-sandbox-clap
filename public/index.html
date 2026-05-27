@@ -206,7 +206,7 @@
         <button id="toggleDebugButton" type="button" aria-pressed="true">Hide Evidence</button>
       </div>
 
-      <form
+      <div
         id="nodeParameterMetadataPopover"
         class="node-parameter-metadata-popover"
         hidden
@@ -221,16 +221,13 @@
           <label>Max <input id="metadataMaxValue" type="text" inputmode="decimal"></label>
           <label>Default <input id="metadataDefaultValue" type="text" inputmode="decimal"></label>
           <label>Drag Step <input id="metadataStepValue" type="text" inputmode="decimal"></label>
-          <label>Kind <input id="metadataKindValue" type="text"></label>
-          <label>Display <input id="metadataDisplayValue" type="text"></label>
+          <label>Kind <select id="metadataKindValue"></select></label>
+          <label>Unit <input id="metadataUnitValue" type="text"></label>
         </div>
         <div class="metadata-popover-actions">
-          <button id="metadataSetDefaultButton" type="button">Set Default From Current</button>
-          <button id="metadataResetCurrentButton" type="button">Reset Current</button>
-          <button id="metadataCancelButton" type="button">Cancel</button>
-          <button id="metadataApplyButton" type="submit">Apply</button>
+          <button id="metadataSetDefaultButton" type="button">Set Defaults From Kind</button>
         </div>
-      </form>
+      </div>
 
       <div class="node-graph-output">
         <div class="node-preview-panel">
