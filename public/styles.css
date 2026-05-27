@@ -145,6 +145,7 @@ audio {
 }
 
 .node-graph-workspace {
+  --node-graph-zoom: 1;
   position: relative;
   min-height: 560px;
   margin-top: 16px;
@@ -158,6 +159,15 @@ audio {
   background-size: 28px 28px;
   touch-action: none;
   user-select: none;
+}
+
+.node-graph-zoom-surface {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: calc(100% / var(--node-graph-zoom));
+  height: calc(100% / var(--node-graph-zoom));
+  transform: scale(var(--node-graph-zoom));
+  transform-origin: 0 0;
 }
 
 .node-wire-svg {

@@ -70,12 +70,13 @@
         id="nodeGraphWorkspace"
         class="node-graph-workspace"
         aria-label="Drag wires between DSP node ports; right-click empty scene space to add modules">
-        <svg
-          id="nodeWireSvg"
-          class="node-wire-svg"
-          aria-hidden="true"
-          focusable="false"></svg>
-        <div id="nodeGraphNodes" class="node-graph-nodes">
+        <div id="nodeGraphZoomSurface" class="node-graph-zoom-surface">
+          <svg
+            id="nodeWireSvg"
+            class="node-wire-svg"
+            aria-hidden="true"
+            focusable="false"></svg>
+          <div id="nodeGraphNodes" class="node-graph-nodes">
           <article class="dsp-node" data-node="osc" data-node-type="osc" style="--node-x: 4%; --node-y: 24px;">
             <div class="dsp-node-title">
               <span>Osc</span>
@@ -175,6 +176,7 @@
             </div>
             <p id="nodeOutputSummary">waiting for render</p>
           </article>
+          </div>
         </div>
       </div>
 

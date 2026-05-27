@@ -6095,7 +6095,14 @@ const nodeGraphMvp = {
   sampleRate: 44100,
   seconds: 2,
   sliderDragging: null,
+  zoom: 1,
 };
+
+const nodeGraphZoomLimits = Object.freeze({
+  max: 1.8,
+  min: 0.55,
+  step: 0.08,
+});
 
 function nodeGraphLabel(node, port) {
   return `${nodeGraphNodeDisplayName(node)}.${port}`;
@@ -6993,18 +7000,69 @@ function nodeGraphPortSelector(node, port, io) {
   return `.node-port.${io}[data-node="${CSS.escape(node)}"][data-port="${CSS.escape(port)}"]`;
 }
 
-function nodeGraphPortCenter(node, port, io) {
+function nodeGraphZoom() {
+  return Number.isFinite(nodeGraphMvp.zoom) ? nodeGraphMvp.zoom : 1;
+}
+
+function nodeGraphZoomSurface() {
+  return document.getElementById("nodeGraphZoomSurface");
+}
+
+function nodeGraphGraphRect() {
   const workspace = document.getElementById("nodeGraphWorkspace");
-  const element = workspace.querySelector(nodeGraphPortSelector(node, port, io));
+  const workspaceRect = workspace.getBoundingClientRect();
+  const zoom = nodeGraphZoom();
+  return {
+    height: workspaceRect.height / zoom,
+    width: workspaceRect.width / zoom,
+  };
+}
+
+function applyNodeGraphZoom() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  workspace.style.setProperty("--node-graph-zoom", String(nodeGraphZoom()));
+  workspace.dataset.zoom = nodeGraphZoom().toFixed(2);
+  drawNodeGraphWires();
+}
+
+function setNodeGraphZoom(nextZoom) {
+  const zoom = Math.max(
+    nodeGraphZoomLimits.min,
+    Math.min(nodeGraphZoomLimits.max, nextZoom),
+  );
+  if (Math.abs(zoom - nodeGraphZoom()) < 0.001) {
+    return;
+  }
+  nodeGraphMvp.zoom = zoom;
+  applyNodeGraphZoom();
+}
+
+function zoomNodeGraphAt(event) {
+  if (event.target.closest(".node-scene-context-menu, .node-parameter-metadata-popover")) {
+    return;
+  }
+
+  event.preventDefault();
+  const direction = event.deltaY < 0 ? 1 : -1;
+  setNodeGraphZoom(nodeGraphZoom() + direction * nodeGraphZoomLimits.step);
+}
+
+function nodeGraphPortCenter(node, port, io) {
+  const surface = nodeGraphZoomSurface();
+  const element = surface.querySelector(nodeGraphPortSelector(node, port, io));
   if (!element) {
     return { x: 0, y: 0 };
   }
 
-  const workspaceRect = workspace.getBoundingClientRect();
+  const surfaceRect = surface.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
+  const zoom = nodeGraphZoom();
   return {
-    x: elementRect.left + elementRect.width / 2 - workspaceRect.left,
-    y: elementRect.top + elementRect.height / 2 - workspaceRect.top,
+    x: (elementRect.left + elementRect.width / 2 - surfaceRect.left) / zoom,
+    y: (elementRect.top + elementRect.height / 2 - surfaceRect.top) / zoom,
   };
 }
 
@@ -7061,14 +7119,14 @@ function selectNodeGraphWire(event, index) {
 }
 
 function drawNodeGraphWires() {
-  const workspace = document.getElementById("nodeGraphWorkspace");
+  const workspace = nodeGraphZoomSurface();
   const svg = document.getElementById("nodeWireSvg");
   if (!workspace || !svg) {
     return;
   }
 
-  const workspaceRect = workspace.getBoundingClientRect();
-  svg.setAttribute("viewBox", `0 0 ${workspaceRect.width} ${workspaceRect.height}`);
+  const graphRect = nodeGraphGraphRect();
+  svg.setAttribute("viewBox", `0 0 ${graphRect.width} ${graphRect.height}`);
   svg.replaceChildren();
 
   for (const node of workspace.querySelectorAll(".dsp-node")) {
@@ -7224,17 +7282,13 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
 
 function beginNodeGraphWireDrag(event) {
   const port = event.currentTarget;
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const workspaceRect = workspace.getBoundingClientRect();
   const from = nodeGraphPortCenter(port.dataset.node, port.dataset.port, "output");
+  const to = nodeGraphClientPoint(event);
   nodeGraphMvp.dragging = {
     from,
     sourceNode: port.dataset.node,
     sourcePort: port.dataset.port,
-    to: {
-      x: event.clientX - workspaceRect.left,
-      y: event.clientY - workspaceRect.top,
-    },
+    to,
   };
   port.classList.add("dragging");
   port.setPointerCapture(event.pointerId);
@@ -7246,12 +7300,7 @@ function dragNodeGraphWire(event) {
     return;
   }
 
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const workspaceRect = workspace.getBoundingClientRect();
-  nodeGraphMvp.dragging.to = {
-    x: event.clientX - workspaceRect.left,
-    y: event.clientY - workspaceRect.top,
-  };
+  nodeGraphMvp.dragging.to = nodeGraphClientPoint(event);
   drawNodeGraphWires();
 }
 
@@ -7282,19 +7331,19 @@ function endNodeGraphWireDrag(event) {
 }
 
 function nodeGraphClientPoint(event) {
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const workspaceRect = workspace.getBoundingClientRect();
+  const surface = nodeGraphZoomSurface();
+  const surfaceRect = surface.getBoundingClientRect();
+  const zoom = nodeGraphZoom();
   return {
-    x: event.clientX - workspaceRect.left,
-    y: event.clientY - workspaceRect.top,
+    x: (event.clientX - surfaceRect.left) / zoom,
+    y: (event.clientY - surfaceRect.top) / zoom,
   };
 }
 
 function positionNodeGraphNode(node, point) {
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const workspaceRect = workspace.getBoundingClientRect();
-  const maxX = Math.max(0, workspaceRect.width - node.offsetWidth - 10);
-  const maxY = Math.max(0, workspaceRect.height - node.offsetHeight - 10);
+  const graphRect = nodeGraphGraphRect();
+  const maxX = Math.max(0, graphRect.width - node.offsetWidth - 10);
+  const maxY = Math.max(0, graphRect.height - node.offsetHeight - 10);
   const x = Math.max(10, Math.min(maxX, point.x));
   const y = Math.max(10, Math.min(maxY, point.y));
   node.style.setProperty("--node-x", `${x}px`);
@@ -7337,15 +7386,16 @@ function beginNodeGraphNodeDrag(event) {
     return;
   }
   setNodeGraphSelection({ type: "node", id: node.dataset.node });
-  const workspace = document.getElementById("nodeGraphWorkspace");
+  const surface = nodeGraphZoomSurface();
   const nodeRect = node.getBoundingClientRect();
-  const workspaceRect = workspace.getBoundingClientRect();
+  const surfaceRect = surface.getBoundingClientRect();
   const point = nodeGraphClientPoint(event);
+  const zoom = nodeGraphZoom();
   nodeGraphMvp.nodeDragging = {
     handle,
     node,
-    offsetX: point.x - (nodeRect.left - workspaceRect.left),
-    offsetY: point.y - (nodeRect.top - workspaceRect.top),
+    offsetX: point.x - (nodeRect.left - surfaceRect.left) / zoom,
+    offsetY: point.y - (nodeRect.top - surfaceRect.top) / zoom,
   };
   node.classList.add("dragging");
   handle.classList.add("dragging");
@@ -7440,12 +7490,11 @@ function renderNodePalette() {
 }
 
 function defaultNodeGraphModulePoint(type) {
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const workspaceRect = workspace.getBoundingClientRect();
+  const graphRect = nodeGraphGraphRect();
   const count = nodeGraphMvp.nodeTypeCounts[type] || 1;
   return {
-    x: Math.min(workspaceRect.width - 180, 80 + count * 32),
-    y: Math.min(workspaceRect.height - 150, 80 + count * 28),
+    x: Math.min(graphRect.width - 180, 80 + count * 32),
+    y: Math.min(graphRect.height - 150, 80 + count * 28),
   };
 }
 
@@ -7751,6 +7800,9 @@ function initNodeGraphMvp() {
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("contextmenu", openNodeSceneContextMenu);
+  document
+    .getElementById("nodeGraphWorkspace")
+    .addEventListener("wheel", zoomNodeGraphAt, { passive: false });
 
   document.addEventListener("pointermove", dragNodeGraphWire);
   document.addEventListener("pointerup", endNodeGraphWireDrag);
@@ -7800,6 +7852,7 @@ function initNodeGraphMvp() {
   renderNodeVisibility();
   renderNodeGraphConnectionList();
   markNodeGraphRenderPending();
+  applyNodeGraphZoom();
   loadNodeMetadataKindTemplates();
 }
 
