@@ -242,6 +242,37 @@ audio {
   accent-color: var(--accent);
 }
 
+.node-slider-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.node-slider-number {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.node-slider-number span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.node-slider-number input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #111418;
+  color: var(--text);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.76rem;
+}
+
 .dsp-node p {
   margin: 0;
   color: var(--muted);

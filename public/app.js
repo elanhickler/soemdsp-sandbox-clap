@@ -5935,6 +5935,107 @@ function nodeGraphReadNumber(id) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function formatNodeSliderNumber(value) {
+  return Number(value).toString();
+}
+
+function clampNodeSliderValue(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function syncNodeSliderNumberFields(slider) {
+  const row = slider.parentElement.querySelector(".node-slider-numbers");
+  if (!row) {
+    return;
+  }
+
+  const fields = {
+    min: slider.min,
+    mid: slider.value,
+    max: slider.max,
+  };
+  for (const [field, value] of Object.entries(fields)) {
+    const input = row.querySelector(`[data-slider-number-field="${field}"]`);
+    if (input) {
+      input.value = formatNodeSliderNumber(value);
+    }
+  }
+}
+
+function updateNodeSliderFromNumber(input) {
+  const slider = document.getElementById(input.dataset.sliderTarget);
+  if (!slider) {
+    return;
+  }
+
+  const value = Number(input.value);
+  if (!Number.isFinite(value)) {
+    syncNodeSliderNumberFields(slider);
+    return;
+  }
+
+  if (input.dataset.sliderNumberField === "min") {
+    const max = Number(slider.max);
+    slider.min = String(Math.min(value, max));
+    slider.value = String(
+      clampNodeSliderValue(Number(slider.value), Number(slider.min), Number(slider.max)),
+    );
+  }
+  if (input.dataset.sliderNumberField === "mid") {
+    slider.value = String(
+      clampNodeSliderValue(value, Number(slider.min), Number(slider.max)),
+    );
+  }
+  if (input.dataset.sliderNumberField === "max") {
+    const min = Number(slider.min);
+    slider.max = String(Math.max(value, min));
+    slider.value = String(
+      clampNodeSliderValue(Number(slider.value), Number(slider.min), Number(slider.max)),
+    );
+  }
+
+  syncNodeSliderNumberFields(slider);
+  renderNodeGraphAudio();
+}
+
+function createNodeSliderNumberControls(slider) {
+  if (slider.parentElement.querySelector(".node-slider-numbers")) {
+    return;
+  }
+
+  const row = document.createElement("div");
+  row.className = "node-slider-numbers";
+  for (const [field, labelText] of [
+    ["min", "Min"],
+    ["mid", "Mid"],
+    ["max", "Max"],
+  ]) {
+    const label = document.createElement("label");
+    label.className = "node-slider-number";
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = labelText;
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = slider.step || "any";
+    input.inputMode = "decimal";
+    input.draggable = false;
+    input.dataset.sliderTarget = slider.id;
+    input.dataset.sliderNumberField = field;
+    input.setAttribute("aria-label", `${slider.id} ${labelText.toLowerCase()} value`);
+    input.addEventListener("change", () => updateNodeSliderFromNumber(input));
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        updateNodeSliderFromNumber(input);
+        input.blur();
+      }
+    });
+    label.append(labelSpan, input);
+    row.append(label);
+  }
+  slider.insertAdjacentElement("afterend", row);
+  syncNodeSliderNumberFields(slider);
+}
+
 function nodeGraphInputKey(node, port) {
   return `${node}.${port}`;
 }
@@ -6533,7 +6634,12 @@ function initNodeGraphMvp() {
     "nodeGainAmount",
     "nodeBiasAmount",
   ]) {
-    document.getElementById(id).addEventListener("input", renderNodeGraphAudio);
+    const slider = document.getElementById(id);
+    createNodeSliderNumberControls(slider);
+    slider.addEventListener("input", () => {
+      syncNodeSliderNumberFields(slider);
+      renderNodeGraphAudio();
+    });
   }
 
   renderNodeGraphConnectionList();
