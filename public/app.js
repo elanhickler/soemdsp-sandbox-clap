@@ -3773,6 +3773,21 @@ function primaryAudioLabeled(manifest) {
   );
 }
 
+function reloadManifestControlLabeled() {
+  const button = document.getElementById("refreshButton");
+  const label = button?.getAttribute("aria-label") || "";
+  return (
+    button?.dataset.loading !== undefined &&
+    ["true", "false"].includes(button.getAttribute("aria-busy")) &&
+    ["true", "false"].includes(button.dataset.loading) &&
+    ["Reload manifest", "Loading manifest"].includes(label) &&
+    Boolean(button.title) &&
+    (button.dataset.loading === "true"
+      ? button.disabled && label === "Loading manifest"
+      : !button.disabled && label === "Reload manifest")
+  );
+}
+
 function artifactRowsLabeled() {
   const rows = [...document.querySelectorAll("#artifactList .artifact-row")];
   return (
@@ -4096,6 +4111,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
         Boolean(manifest?.sandboxHandoff?.primaryAudioArtifact),
     ],
     ["primary audio labels", primaryAudioLabeled(manifest)],
+    ["reload manifest labels", reloadManifestControlLabeled()],
     ["waveform play control", Boolean(document.getElementById("waveformPlayButton"))],
     ["waveform control labels", waveformControlsLabeled()],
     ["status strip labels", statusStripItemsLabeled()],
