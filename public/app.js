@@ -3702,6 +3702,10 @@ function boundaryFlagRowsLabeled() {
   return keyValueRowsLabeled("boundaryFlags", requiredFlags.length);
 }
 
+function phaseCoverageRowsLabeled() {
+  return keyValueRowsLabeled("phaseCoverage", 5);
+}
+
 function signalPlotControlsLabeled() {
   const groups = [...document.querySelectorAll("#signalPlotControls .control-group")];
   const buttons = [...document.querySelectorAll("#signalPlotControls button")];
@@ -3912,6 +3916,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
         manifest.phases.length > 0 &&
         phaseReportCoverageIssue(manifest) === "",
     ],
+    ["phase coverage row labels", phaseCoverageRowsLabeled()],
     ["phase jump preview", waveformReady && Boolean(document.querySelector("#waveformPhaseControls button"))],
     ["phase jump labels", waveformReady && phaseJumpButtonsLabeled(manifest)],
     ["phase jump target", waveformReady && Boolean(document.getElementById("waveformPhaseJumpTarget"))],
