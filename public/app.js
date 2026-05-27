@@ -857,10 +857,19 @@ function renderLevelEnvelope() {
   const meta = document.getElementById("levelEnvelopeMeta");
   const peak = document.getElementById("levelEnvelopePeak");
   const rms = document.getElementById("levelEnvelopeRms");
+  const canvas = document.getElementById("levelEnvelopeCanvas");
   const waveform = state.waveform;
   const envelope = waveform?.envelope;
 
   if (!waveform || !envelope) {
+    canvas.dataset.envelopeSource = "unavailable";
+    canvas.dataset.envelopeWindowMs = "unavailable";
+    canvas.dataset.envelopeWindowFrames = "unavailable";
+    canvas.dataset.envelopeWindows = "unavailable";
+    canvas.dataset.envelopePeak = "unavailable";
+    canvas.dataset.envelopeRms = "unavailable";
+    canvas.dataset.envelopeFrames = "unavailable";
+    canvas.title = "Primary WAV level envelope unavailable";
     peak.textContent = "peak 0";
     rms.textContent = "rms 0";
     renderLevelEnvelopeProbe();
@@ -872,6 +881,16 @@ function renderLevelEnvelope() {
 
   peak.textContent = `peak ${formatCompactNumber(envelope.peak)}`;
   rms.textContent = `rms ${formatCompactNumber(envelope.rms)}`;
+  canvas.dataset.envelopeSource = "decoded primary WAV";
+  canvas.dataset.envelopeWindowMs = String(envelope.windowMs);
+  canvas.dataset.envelopeWindowFrames = String(envelope.windowFrames);
+  canvas.dataset.envelopeWindows = String(envelope.windows.length);
+  canvas.dataset.envelopePeak = formatCompactNumber(envelope.peak);
+  canvas.dataset.envelopeRms = formatCompactNumber(envelope.rms);
+  canvas.dataset.envelopeFrames = String(waveform.frames);
+  canvas.title =
+    `Primary WAV level envelope / ${formatCompactNumber(envelope.windowMs)} ms window / ` +
+    `${envelope.windows.length} windows / peak ${formatCompactNumber(envelope.peak)} / rms ${formatCompactNumber(envelope.rms)}`;
   renderLevelEnvelopeProbe();
   renderKeyValue(meta, [
     ["window", `${formatCompactNumber(envelope.windowMs)} ms`],
@@ -3452,6 +3471,21 @@ function waveformScrubberLabeled() {
   );
 }
 
+function levelEnvelopeCanvasLabeled() {
+  const canvas = document.getElementById("levelEnvelopeCanvas");
+  return (
+    canvas?.getAttribute("aria-label") === "Primary WAV level envelope" &&
+    canvas.dataset.envelopeSource === "decoded primary WAV" &&
+    canvas.dataset.envelopeWindowMs !== undefined &&
+    canvas.dataset.envelopeWindowFrames !== undefined &&
+    canvas.dataset.envelopeWindows !== undefined &&
+    canvas.dataset.envelopePeak !== undefined &&
+    canvas.dataset.envelopeRms !== undefined &&
+    canvas.dataset.envelopeFrames !== undefined &&
+    Boolean(canvas.title)
+  );
+}
+
 function reportControlsLabeled() {
   const buttons = [...document.querySelectorAll("#reportControls button")];
   return (
@@ -3633,6 +3667,7 @@ function renderHandsOnReadiness(manifest, waveformReady = Boolean(state.waveform
     ["waveform probe labels", waveformReady && waveformProbeLabeled()],
     ["level envelope probe", waveformReady && Boolean(document.getElementById("levelEnvelopeProbe"))],
     ["level envelope probe labels", waveformReady && levelEnvelopeProbeLabeled()],
+    ["level envelope canvas labels", waveformReady && levelEnvelopeCanvasLabeled()],
     ["parameter timeline probe", waveformReady && Boolean(document.getElementById("parameterTimelineProbe"))],
     ["parameter timeline probe labels", waveformReady && parameterTimelineProbeLabeled()],
     ["parameter timeline segment labels", waveformReady && parameterTimelineSegmentsLabeled()],
