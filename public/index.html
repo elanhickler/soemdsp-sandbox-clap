@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>soemdsp-sandbox</title>
+  <link rel="stylesheet" href="/public/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">soemdsp-sandbox</p>
+        <h1>Bound WAV Resync</h1>
+      </div>
+      <button
+        id="refreshButton"
+        type="button"
+        aria-label="Reload manifest"
+        aria-busy="false"
+        data-loading="false"
+        title="Reload manifest and artifacts">Reload Manifest</button>
+    </header>
+
+    <section class="status-strip" aria-label="Sandbox status">
+      <div>
+        <span>MANIFEST</span>
+        <strong id="manifestStatus">Loading</strong>
+      </div>
+      <div>
+        <span>CONTRACT</span>
+        <strong id="contractStatus">Loading</strong>
+      </div>
+      <div>
+        <span>MODE</span>
+        <strong id="inspectionMode">Loading</strong>
+      </div>
+      <div>
+        <span>FRAMES</span>
+        <strong id="frameCount">Loading</strong>
+      </div>
+      <div>
+        <span>CHECKLIST</span>
+        <strong id="checklistStatus">Loading</strong>
+      </div>
+    </section>
+
+    <section class="panel node-wiring-panel" aria-label="Node wiring MVP">
+      <div class="panel-heading">
+        <div>
+          <p id="nodePatchNameHeader"></p>
+          <h2 id="nodePatchTagsHeader"></h2>
+        </div>
+        <div class="panel-heading-actions">
+          <span id="nodeGraphStatus" class="pill">Graph Ready</span>
+          <span id="nodeGraphSource" class="pill">source osc</span>
+          <span id="nodeGraphRenderStatus" class="pill">render pending</span>
+        </div>
+      </div>
+
+      <div class="node-view-toolbar" aria-label="Modular view mode">
+        <div class="node-view-tabs" role="group" aria-label="Node graph view">
+          <button
+            id="nodeSettingsViewButton"
+            type="button"
+            aria-label="Patch settings"
+            aria-pressed="false"
+            title="Patch settings">&#9881;</button>
+          <button
+            id="nodeModularViewButton"
+            class="active"
+            type="button"
+            aria-pressed="true">Modular View</button>
+          <button
+            id="nodeScriptViewButton"
+            type="button"
+            aria-pressed="false">Script View</button>
+          <span class="node-zoom-controls" role="group" aria-label="Node graph zoom">
+            <button id="nodeZoomOutButton" type="button" aria-label="Zoom out graph" title="Zoom out graph">-</button>
+            <button id="nodeZoomInButton" type="button" aria-label="Zoom in graph" title="Zoom in graph">+</button>
+          </span>
+        </div>
+        <div id="nodeInteractionHelp" class="node-interaction-help" role="status" aria-live="polite"></div>
+        <div class="node-history-controls" role="group" aria-label="Node graph history">
+          <button id="nodeUndoButton" type="button" disabled>Undo</button>
+          <button id="nodeRedoButton" type="button" disabled>Redo</button>
+          <span id="nodeScriptStatus" class="pill good">script synced</span>
+        </div>
+      </div>
+
+      <div
+        id="nodeGraphWorkspace"
+        class="node-graph-workspace"
+        aria-label="Drag wires between DSP node ports; right-click empty scene space to add modules">
+        <div id="nodeGraphZoomSurface" class="node-graph-zoom-surface">
+          <svg
+            id="nodeWireSvg"
+            class="node-wire-svg"
+            aria-hidden="true"
+            focusable="false"></svg>
+          <div id="nodeGraphNodes" class="node-graph-nodes"></div>
+          <div id="nodeSelectionMarquee" class="node-selection-marquee" hidden></div>
+        </div>
+      </div>
+
+      <div id="nodeScriptView" class="node-script-view" hidden>
+        <textarea
+          id="nodePatchScript"
+          spellcheck="false"
+          aria-label="Node graph patch script"></textarea>
+      </div>
+
+      <div id="nodeSettingsView" class="node-settings-view" hidden>
+        <div class="node-settings-actions" aria-label="Patch script actions">
+          <button
+            id="loadNodeGraphScriptButton"
+            type="button"
+            title="Load patch script">Load Script</button>
+          <button
+            id="saveNodeGraphScriptButton"
+            type="button"
+            title="Save patch script">Save Script</button>
+          <input
+            id="nodePatchScriptFileInput"
+            type="file"
+            accept="application/json,.json"
+            hidden>
+        </div>
+        <div class="node-settings-grid">
+          <label>Patch Name
+            <input id="patchNameValue" type="text" autocomplete="off" data-patch-info-field>
+          </label>
+          <label>Patch Tags
+            <input id="patchTagsValue" type="text" autocomplete="off" data-patch-info-field>
+          </label>
+          <label>Patch Author
+            <input id="patchAuthorValue" type="text" autocomplete="off" data-patch-info-field>
+          </label>
+          <label class="node-settings-description">Patch Description
+            <textarea id="patchDescriptionValue" spellcheck="true" data-patch-info-field></textarea>
+          </label>
+        </div>
+      </div>
+
+      <div
+        id="nodeSceneContextMenu"
+        class="node-scene-context-menu"
+        hidden
+        role="menu"
+        aria-label="Add module">
+        <div class="scene-context-title">Add Module</div>
+        <div class="scene-context-add-group">
+          <button id="nodeSceneAddOsc" type="button" role="menuitem" data-context-module="osc">Osc</button>
+          <button id="nodeSceneAddNoise" type="button" role="menuitem" data-context-module="noise">Noise</button>
+          <button id="nodeSceneAddGain" type="button" role="menuitem" data-context-module="gain">Gain</button>
+          <button id="nodeSceneAddBias" type="button" role="menuitem" data-context-module="bias">Bias</button>
+        </div>
+        <button id="nodeSceneDeleteModule" class="scene-context-danger" type="button" role="menuitem" hidden>
+          <span>Delete</span>
+          <kbd>Delete</kbd>
+        </button>
+      </div>
+
+      <section class="audio-panel" aria-label="Primary audio">
+        <div>
+          <p>PRIMARY AUDIO</p>
+          <h2 id="audioTitle">runtime_dsp_object_bound_wav_resync_demo.wav</h2>
+        </div>
+        <audio id="audioPlayer" controls preload="metadata"></audio>
+      </section>
+
+      <div class="node-graph-controls">
+        <div id="nodePalette" class="node-palette" aria-label="Node palette">
+          <button type="button" data-palette-node="osc">Osc</button>
+          <button type="button" data-palette-node="noise">Noise</button>
+          <button type="button" data-palette-node="gain">Gain</button>
+          <button type="button" data-palette-node="bias">Bias</button>
+        </div>
+        <button id="nodeRenderButton" type="button">Render Sample</button>
+        <button id="nodePlayButton" type="button" disabled>Play Render</button>
+        <div class="node-live-controls" aria-label="Live Audio">
+          <button
+            id="nodeLiveInputButton"
+            class="node-live-toggle"
+            type="button"
+            aria-pressed="false">INPUT</button>
+          <button
+            id="nodeLiveOutputButton"
+            class="node-live-toggle"
+            type="button"
+            aria-pressed="false">OUTPUT</button>
+          <span id="nodeLiveStatus" class="pill">stopped</span>
+          <span id="nodeLiveEngineStatus" class="pill">engine idle</span>
+          <span id="nodeLivePlanStatus" class="pill">plan idle</span>
+          <span id="nodeLiveMeter" class="pill">live peak 0 / rms 0</span>
+          <span id="nodeLiveRouteStatus" class="pill">route stopped</span>
+        </div>
+        <button id="nodeDefaultButton" type="button">Default Chain</button>
+        <button id="nodeDeleteButton" type="button" disabled>Delete Selection</button>
+        <button id="toggleDebugButton" type="button" aria-pressed="true">Hide Evidence</button>
+      </div>
+
+      <div
+        id="nodeParameterMetadataPopover"
+        class="node-parameter-metadata-popover"
+        hidden
+        aria-label="Parameter metadata editor">
+        <div class="metadata-popover-heading">
+          <div class="metadata-popover-title-group">
+            <button
+              id="metadataPopoverDragHandle"
+              class="metadata-popover-drag-handle"
+              type="button"
+              aria-label="Move parameter metadata editor"
+              title="Move parameter metadata editor">&#x2725;</button>
+            <strong id="metadataPopoverTitle">Parameter Metadata</strong>
+          </div>
+          <button id="metadataPopoverClose" type="button" aria-label="Close parameter metadata editor">Close</button>
+        </div>
+        <div class="metadata-popover-grid">
+          <label>Min <input id="metadataMinValue" type="text" inputmode="decimal"></label>
+          <label>Mid <input id="metadataMidValue" type="text" inputmode="decimal"></label>
+          <label>Max <input id="metadataMaxValue" type="text" inputmode="decimal"></label>
+          <label>Default <input id="metadataDefaultValue" type="text" inputmode="decimal"></label>
+          <label>Drag Step <input id="metadataStepValue" type="text" inputmode="decimal"></label>
+          <label>Kind <select id="metadataKindValue"></select></label>
+          <label>Unit <input id="metadataUnitValue" type="text"></label>
+          <label class="metadata-choices-label">
+            Choices
+            <textarea
+              id="metadataChoicesValue"
+              rows="2"
+              spellcheck="false"
+              placeholder="Saw, Square, Triangle, Sine, Noise"></textarea>
+          </label>
+          <label class="metadata-checkbox-label">
+            <input id="metadataShowSignValue" type="checkbox">
+            Always show +/-
+          </label>
+          <label class="metadata-checkbox-label">
+            <input id="metadataWraparoundValue" type="checkbox">
+            Wraparound
+          </label>
+          <label class="metadata-checkbox-label">
+            <input id="metadataLinearSmoothingValue" type="checkbox">
+            Linear smoothing
+          </label>
+          <label class="metadata-checkbox-label">
+            <input id="metadataDisplayChoicesValue" type="checkbox">
+            Display choices
+          </label>
+          <button id="metadataSetDefaultButton" type="button">Set Defaults from Kind</button>
+        </div>
+      </div>
+
+      <div class="node-graph-output">
+        <div class="node-preview-panel">
+          <div class="panel-heading compact-heading">
+            <h3>Rendered Output</h3>
+            <span id="nodeAudioStats" class="pill">peak 0.000 / rms 0.000</span>
+          </div>
+          <canvas
+            id="nodeWaveformCanvas"
+            class="node-waveform"
+            width="720"
+            height="180"
+            aria-label="Node graph rendered waveform"></canvas>
+          <canvas
+            id="nodeSignalPlotCanvas"
+            class="node-signal-plot"
+            width="720"
+            height="300"
+            aria-label="Node graph rendered signal plot"></canvas>
+        </div>
+        <div>
+          <div class="panel-heading compact-heading">
+            <h3>Graph Connections</h3>
+            <span id="nodeGraphValidation" class="pill">valid</span>
+          </div>
+          <ol id="nodeConnectionList" class="node-connection-list"></ol>
+          <div class="panel-heading compact-heading node-execution-plan-heading">
+            <h3>Execution Plan</h3>
+            <span id="nodeExecutionPlanStatus" class="pill">waiting</span>
+          </div>
+          <pre id="nodeExecutionPlanDebug" class="node-execution-plan-debug">waiting for graph</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Hands-On Readiness</h2>
+        <span id="handsOnReadinessStatus" class="pill">Loading</span>
+      </div>
+      <div id="handsOnReadiness" class="readiness-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Inspection Cursor</h2>
+        <div class="panel-heading-actions">
+          <span id="inspectionCursorSource" class="pill">source</span>
+          <span id="inspectionCursorDelta" class="pill">delta</span>
+          <span id="inspectionCursorAudio" class="pill">audio 0.000s / unknown</span>
+          <span id="inspectionCursorPlayback" class="pill">playback paused</span>
+          <span id="inspectionCursorView" class="pill">view follow</span>
+          <span id="inspectionCursorPreview" class="pill">preview idle</span>
+          <span id="inspectionCursorSeek" class="pill">seek idle</span>
+          <span id="inspectionCursorSeekTarget" class="pill">seek target none</span>
+          <span id="inspectionCursorSeekSync" class="pill">seek sync idle</span>
+          <span id="inspectionCursorTransport" class="pill">transport none</span>
+          <span id="inspectionCursorTarget" class="pill">target none</span>
+          <span id="inspectionCursorDivergence" class="pill">phase aligned</span>
+          <span id="inspectionCursorStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <dl id="inspectionCursor" class="kv compact"></dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Producer Proof</h2>
+        <span id="producerStatus" class="pill">Loading</span>
+      </div>
+      <dl id="producerProof" class="kv"></dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Circuit Chain</h2>
+        <span id="circuitChainStatus" class="pill">Loading</span>
+      </div>
+      <div id="circuitChain" class="chain-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Sandbox Contract</h2>
+        <span id="sandboxContractStatus" class="pill">Loading</span>
+      </div>
+      <div id="sandboxContract" class="contract-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Parameter Resync</h2>
+        <span id="parameterSummaryStatus" class="pill">Loading</span>
+      </div>
+      <div id="parameterSummary" class="parameter-summary"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Parameter Timeline</h2>
+        <div class="panel-heading-actions">
+          <span id="parameterTimelinePhase" class="pill">phase</span>
+          <span
+            id="parameterTimelineProbe"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Parameter timeline probe idle">probe</span>
+          <span id="parameterTimelineStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <div
+        id="parameterTimeline"
+        class="parameter-timeline"
+        aria-label="Manifest parameter resync timeline">
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Documents</h2>
+        <span id="reportStatus" class="pill">Loading</span>
+      </div>
+      <div id="reportControls" class="report-controls"></div>
+      <pre id="reportViewer" class="report-viewer"></pre>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Waveform</h2>
+        <div class="panel-heading-actions">
+          <button
+            id="waveformPlayButton"
+            class="view-toggle"
+            type="button"
+            aria-pressed="false"
+            aria-label="Play primary audio"
+            title="Play primary audio"
+            disabled>Play Audio</button>
+          <button
+            id="followAudioButton"
+            class="view-toggle"
+            type="button"
+            aria-pressed="true"
+            aria-label="Waveform view follows primary audio"
+            title="Waveform follows primary audio">Follow Audio</button>
+          <span id="audioPosition" class="pill">audio 0.000s / unknown</span>
+          <span id="waveformPosition" class="pill">0.000s / unknown</span>
+          <span id="waveformSample" class="pill">frame 0 / unknown / sample 0</span>
+          <span
+            id="waveformProbe"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Waveform probe idle">probe</span>
+          <span id="waveformPhase" class="pill">phase</span>
+          <span id="waveformPhaseRange" class="pill">range</span>
+          <span id="waveformPhaseJumpTarget" class="pill">jump idle</span>
+          <span id="currentFrequency" class="pill">freq</span>
+          <span id="currentAmplitude" class="pill">amp</span>
+          <span id="currentMeasuredFrequency" class="pill">measured freq</span>
+          <span id="currentMeasuredPeak" class="pill">peak</span>
+          <span id="currentMeasuredFrequencyDelta" class="pill">freq delta</span>
+          <span id="currentMeasuredPeakDelta" class="pill">peak delta</span>
+          <span id="currentMeasuredStatus" class="pill">measured</span>
+          <span id="currentParameterStatus" class="pill">params</span>
+          <span id="waveformStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <canvas
+        id="waveformCanvas"
+        class="waveform"
+        width="1120"
+        height="180"
+        aria-label="Primary WAV waveform">
+      </canvas>
+      <input
+        id="waveformScrubber"
+        class="waveform-scrubber"
+        type="range"
+        min="0"
+        max="1"
+        step="0.001"
+        value="0"
+        aria-label="Waveform position"
+        aria-valuetext="0.000s / unknown / phase unknown / follow"
+        data-follow-mode="follow"
+        title="Waveform position 0.000s / unknown / phase unknown / Follow Audio">
+      <div id="waveformPhaseControls" class="phase-controls"></div>
+      <dl id="waveformMeta" class="kv compact"></dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Level Envelope</h2>
+        <div class="panel-heading-actions">
+          <span id="levelEnvelopePeak" class="pill">peak 0</span>
+          <span id="levelEnvelopeRms" class="pill">rms 0</span>
+          <span
+            id="levelEnvelopeProbe"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Level envelope probe idle">probe</span>
+          <span id="levelEnvelopeStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <canvas
+        id="levelEnvelopeCanvas"
+        class="level-envelope"
+        width="1120"
+        height="140"
+        aria-label="Primary WAV level envelope">
+      </canvas>
+      <dl id="levelEnvelopeMeta" class="kv compact"></dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Phase Audio Stats</h2>
+        <div class="panel-heading-actions">
+          <span
+            id="phaseAudioStatsProbe"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Phase audio stats probe idle">probe</span>
+          <span id="phaseAudioStatsStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <div id="phaseAudioStats" class="phase-stat-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Signal Plot</h2>
+        <div class="panel-heading-actions">
+          <span id="signalPlotModeSummary" class="pill">trace / x1</span>
+          <span id="signalPlotWindowSummary" class="pill">full</span>
+          <span id="signalPlotLagSummary" class="pill">lag 1 ms</span>
+          <span id="signalPlotPoint" class="pill">x 0 / y 0</span>
+          <span
+            id="signalPlotProbe"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Signal plot probe idle">probe</span>
+          <span
+            id="signalPlotProbeSource"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Signal plot source probe idle">near frame</span>
+          <span id="signalPlotStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <canvas
+        id="signalPlotCanvas"
+        class="signal-plot"
+        width="720"
+        height="360"
+        aria-label="Primary WAV signal plot">
+      </canvas>
+      <div id="signalPlotControls" class="phase-controls"></div>
+      <dl id="signalPlotMeta" class="kv compact"></dl>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Boundary Flags</h2>
+        <dl id="boundaryFlags" class="kv"></dl>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h2>Phase Coverage</h2>
+          <span id="phaseCoverageStatus" class="pill">Loading</span>
+        </div>
+        <dl id="phaseCoverage" class="kv compact"></dl>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Phases</h2>
+        <div class="panel-heading-actions">
+          <span
+            id="phaseProbe"
+            class="pill"
+            data-probe-source="none"
+            data-probe-frame="none"
+            title="Phase list probe idle">probe</span>
+          <span id="phaseStatus" class="pill">Loading</span>
+        </div>
+      </div>
+      <div id="phaseList" class="phase-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Consumer Checklist</h2>
+      <div id="checklist" class="checklist"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Artifact Coverage</h2>
+        <span id="artifactCoverageStatus" class="pill">Loading</span>
+      </div>
+      <dl id="artifactCoverage" class="kv compact"></dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Artifacts</h2>
+        <span id="artifactStatus" class="pill">Checking</span>
+      </div>
+      <div id="artifactList" class="artifact-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <h2>Source</h2>
+        <span id="sourceStatus" class="pill">Loading</span>
+      </div>
+      <dl class="kv">
+        <dt>Manifest</dt>
+        <dd id="manifestPath">Loading</dd>
+        <dt>Source Error</dt>
+        <dd id="sourceError">Loading</dd>
+        <dt>Source Detail</dt>
+        <dd id="sourceDetail">Loading</dd>
+        <dt>HTTP Status</dt>
+        <dd id="manifestHttpStatus">Loading</dd>
+        <dt>Manifest Bytes</dt>
+        <dd id="manifestBytes">Loading</dd>
+        <dt>Manifest Modified</dt>
+        <dd id="manifestModified">Loading</dd>
+        <dt>Response Loaded</dt>
+        <dd id="manifestLoadedAt">Loading</dd>
+        <dt>Cache Control</dt>
+        <dd id="manifestCacheControl">Loading</dd>
+        <dt>Pragma</dt>
+        <dd id="manifestPragma">Loading</dd>
+        <dt>Expires</dt>
+        <dd id="manifestExpires">Loading</dd>
+        <dt>Artifact Root</dt>
+        <dd id="artifactRoot">Loading</dd>
+      </dl>
+    </section>
+  </main>
+
+  <script src="/public/app.js"></script>
+</body>
+</html>
