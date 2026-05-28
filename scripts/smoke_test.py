@@ -3240,6 +3240,7 @@ def require_node_graph_mvp_contract() -> None:
         "signalInputs",
         "modulationInputs",
         "parameters: nodeGraphExecutionParameterSnapshot(plan.order)",
+        "partialOrder: plan.valid ? [] : plan.order",
         "schedule:",
         "schedule blocked:",
         "function beginNodeGraphNodeDrag(event)",

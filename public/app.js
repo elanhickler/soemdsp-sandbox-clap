@@ -8307,9 +8307,10 @@ function serializeNodeGraphExecutionPlanDebug(plan) {
     {
       issues: plan.issues,
       modulationInputs,
-      order: plan.order,
+      order: plan.valid ? plan.order : [],
       outputNode: plan.outputNode,
       parameters: nodeGraphExecutionParameterSnapshot(plan.order),
+      partialOrder: plan.valid ? [] : plan.order,
       signalInputs,
       sourceNodes: plan.sourceNodes,
       valid: plan.valid,
