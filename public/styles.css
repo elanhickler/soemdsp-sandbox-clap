@@ -600,7 +600,7 @@ audio {
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: 10px;
-  row-gap: 5px;
+  row-gap: 3px;
   min-height: 0;
   padding: 0 13px 0 0;
 }
@@ -611,8 +611,10 @@ audio {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.25;
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  padding-left: 3px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
