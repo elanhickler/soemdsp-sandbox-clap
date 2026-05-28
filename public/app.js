@@ -8636,7 +8636,10 @@ function renderNodeGraphConnectionList() {
     button.dataset.connectionIndex = String(index);
     button.dataset.connectionKind = "signal";
     button.setAttribute("aria-label", `Disconnect ${label.textContent}`);
-    button.addEventListener("click", () => disconnectNodeGraphConnection(index, "signal"));
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      disconnectNodeGraphConnection(index, "signal");
+    });
     item.append(label, button);
     list.append(item);
     renderedWireCount += 1;
@@ -8669,7 +8672,10 @@ function renderNodeGraphConnectionList() {
     button.dataset.connectionIndex = String(index);
     button.dataset.connectionKind = "modulation";
     button.setAttribute("aria-label", `Disconnect ${label.textContent}`);
-    button.addEventListener("click", () => disconnectNodeGraphConnection(index, "modulation"));
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      disconnectNodeGraphConnection(index, "modulation");
+    });
     item.append(label, button);
     list.append(item);
     renderedWireCount += 1;

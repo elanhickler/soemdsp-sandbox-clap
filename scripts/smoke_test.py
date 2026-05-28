@@ -3325,6 +3325,7 @@ def require_node_graph_mvp_contract() -> None:
         "gradientUnits",
         '["50%", "0.16"]',
         "data-connection-row-index",
+        "event.stopPropagation();",
         "function deleteSelectedNodeGraphItem()",
         "function showPaletteNode(node)",
         'addEventListener("contextmenu", openNodeSceneContextMenu)',
