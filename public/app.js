@@ -8456,7 +8456,6 @@ function nodeGraphValidate() {
   return {
     issues: plan.issues,
     order: plan.order,
-    route: plan.order,
     scheduleText: nodeGraphScheduleText(
       plan.order,
       plan.issues,

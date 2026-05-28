@@ -3502,6 +3502,11 @@ def require_node_graph_mvp_contract() -> None:
         "node graph scheduler should allow feedback cycles as state reads",
     )
 
+    require(
+        "route: plan.order" not in app_source,
+        "node graph validation should expose schedule order, not stale route aliases",
+    )
+
     for snippet in [
         "zoomNodeGraphAt",
         'addEventListener("wheel"',
