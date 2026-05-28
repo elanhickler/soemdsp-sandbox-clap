@@ -3371,6 +3371,7 @@ def require_node_graph_mvp_contract() -> None:
         ".node-port.input",
         ".node-param-port",
         "left: 0",
+        "top: calc(50% + 9px)",
         "transform: translateY(-50%)",
         ".node-param-port.modulation-input",
         "border-left-width: 0",

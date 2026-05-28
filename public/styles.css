@@ -841,7 +841,7 @@ audio {
 .node-param-port {
   position: absolute;
   left: 0;
-  top: 50%;
+  top: calc(50% + 9px);
   display: block;
   width: 13px;
   min-width: 13px;
