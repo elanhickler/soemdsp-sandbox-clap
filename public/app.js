@@ -6894,7 +6894,7 @@ function applyNodeGraphPatchToDom() {
     const bypassButton = element.querySelector(".node-bypass-button");
     if (bypassButton) {
       bypassButton.setAttribute("aria-pressed", bypassed ? "true" : "false");
-      bypassButton.textContent = "⏻";
+      bypassButton.textContent = "⌽";
       bypassButton.title = bypassed
         ? "Mouse: click to include this module in the compiled engine."
         : "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.";
@@ -8429,7 +8429,7 @@ function createNodeGraphModuleElement(type, node) {
     bypassButton.className = "node-bypass-button";
     bypassButton.type = "button";
     bypassButton.dataset.node = node;
-    bypassButton.textContent = "⏻";
+    bypassButton.textContent = "⌽";
     bypassButton.setAttribute("aria-label", `Bypass ${nodeGraphNodeLabels[type]} module`);
     bypassButton.setAttribute("aria-pressed", "false");
     bypassButton.setAttribute("title", "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.");

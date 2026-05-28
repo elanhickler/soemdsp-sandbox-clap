@@ -3275,7 +3275,7 @@ def require_node_graph_mvp_contract() -> None:
         "node-header-title",
         "node-action-button",
         "node-bypass-button",
-        "bypassButton.textContent = \"⏻\"",
+        "bypassButton.textContent = \"⌽\"",
         "node-execution-order-badge",
         "toggleNodeGraphModuleBypass",
         "Module actions",
