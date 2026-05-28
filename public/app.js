@@ -6321,6 +6321,7 @@ function cloneNodeGraphParamMeta(paramMeta = {}) {
 function cloneNodeGraphPatch(patch) {
   return {
     connections: (patch.connections || []).map((connection) => ({ ...connection })),
+    format: { ...(patch.format || nodeGraphPatchFormat) },
     grid: { sizePx: Number(patch.grid?.sizePx) || nodeGraphGrid.sizePx },
     info: normalizeNodeGraphPatchInfo(patch.info),
     modulations: (patch.modulations || []).map((modulation) => ({ ...modulation })),

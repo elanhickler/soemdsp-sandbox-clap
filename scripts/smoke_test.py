@@ -3089,6 +3089,7 @@ def require_node_graph_mvp_contract() -> None:
         "soemdsp-sandbox-node-patch",
         "const nodeGraphDefaultPatch",
         "function cloneNodeGraphPatch(patch)",
+        "format: { ...(patch.format || nodeGraphPatchFormat) }",
         "function cloneNodeGraphParamMeta(paramMeta = {})",
         "paramMeta: cloneNodeGraphParamMeta(node.paramMeta)",
         "function nodeGraphDefaultParamMetaForType(type)",
