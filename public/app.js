@@ -10591,10 +10591,14 @@ function renderNodeGraphAudio() {
 
   const rms = Math.sqrt(squareSum / frames);
   nodeGraphMvp.rendered = {
+    channels: 2,
+    durationSeconds: frames / nodeGraphMvp.sampleRate,
+    frames,
     peak,
     leftSamples,
     rightSamples,
     rms,
+    sampleRate: nodeGraphMvp.sampleRate,
     samples,
     sourceNodes: validation.sourceNodes,
   };
