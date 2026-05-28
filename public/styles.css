@@ -207,7 +207,7 @@ audio {
 .node-graph-workspace {
   --node-graph-zoom: 1;
   --node-grid-size: 28px;
-  --node-header-height: 56px;
+  --node-header-height: 48px;
   --node-module-grid-inset: 6px;
   position: relative;
   min-height: 560px;
@@ -469,9 +469,9 @@ audio {
   min-width: 0;
   height: var(--node-header-height);
   display: grid;
-  grid-template-rows: 22px minmax(0, 1fr);
-  gap: 2px;
-  padding: 5px 18px 5px 18px;
+  grid-template-rows: 21px minmax(0, 1fr);
+  gap: 1px;
+  padding: 3px 16px;
   border-bottom: 1px solid rgba(243, 241, 236, 0.08);
   background: rgba(243, 241, 236, 0.025);
 }
@@ -491,7 +491,7 @@ audio {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 8px;
+  gap: 5px;
 }
 
 .node-header-actions {
@@ -500,7 +500,7 @@ audio {
 
 .node-header-title-row {
   justify-content: center;
-  padding: 0 12px;
+  padding: 0 10px;
 }
 
 .node-header-title {
@@ -548,8 +548,8 @@ audio {
 .node-bypass-button {
   width: 20px;
   min-width: 20px;
-  height: 20px;
-  min-height: 20px;
+  height: 19px;
+  min-height: 19px;
   padding: 0;
   border-color: rgba(243, 241, 236, 0.18);
   border-radius: 5px;
@@ -560,8 +560,8 @@ audio {
 }
 
 .node-bypass-button {
-  width: 22px;
-  min-width: 22px;
+  width: 21px;
+  min-width: 21px;
   padding: 0;
   color: var(--muted);
   cursor: pointer;

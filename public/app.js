@@ -6166,6 +6166,7 @@ const nodeGraphDefaultPatch = Object.freeze({
     scale: 1,
     style: "glow",
     theme: "cyan-violet",
+    trail: 0.35,
   },
   grid: { ...nodeGraphGrid },
   nodes: nodeGraphDefaultNodeConfigs.map((node) => ({ ...node })),
@@ -6319,11 +6320,13 @@ function normalizeNodeGraphPatchVisual(visual = {}) {
   const scale = Number(visual.scale);
   const style = String(visual.style || "glow").trim();
   const theme = String(visual.theme || "cyan-violet").trim();
+  const trail = Number(visual.trail);
   return {
     mode: ["auto", "stereo-xy", "mono-lag-xy"].includes(mode) ? mode : "auto",
     scale: Number.isFinite(scale) ? Math.max(0.1, Math.min(4, scale)) : 1,
     style: ["glow", "trace", "points"].includes(style) ? style : "glow",
     theme: ["cyan-violet", "ember-gold", "signal-green"].includes(theme) ? theme : "cyan-violet",
+    trail: Number.isFinite(trail) ? Math.max(0, Math.min(1, trail)) : 0.35,
   };
 }
 
@@ -6778,6 +6781,7 @@ function syncNodeGraphSettingsView() {
   setNodeGraphSettingsField("patchVisualScaleValue", visual.scale);
   setNodeGraphSettingsField("patchVisualStyleValue", visual.style);
   setNodeGraphSettingsField("patchVisualThemeValue", visual.theme);
+  setNodeGraphSettingsField("patchVisualTrailValue", visual.trail);
 }
 
 function readNodeGraphSettingsView() {
@@ -6795,6 +6799,7 @@ function readNodeGraphVisualSettingsView() {
     scale: document.getElementById("patchVisualScaleValue")?.value,
     style: document.getElementById("patchVisualStyleValue")?.value,
     theme: document.getElementById("patchVisualThemeValue")?.value,
+    trail: document.getElementById("patchVisualTrailValue")?.value,
   });
 }
 
@@ -12060,13 +12065,25 @@ function drawNodeRenderedVisualOutput() {
 
   if (visualSettings.style === "points") {
     context.fillStyle = visualTheme.point;
+    if (visualSettings.trail > 0) {
+      context.globalAlpha = visualSettings.trail;
+      for (let frame = firstFrame; frame < sourceSamples.length; frame += Math.max(step * 9, 9)) {
+        const point = visualPoint(frame);
+        context.fillRect(point.x - 2, point.y - 2, 4, 4);
+      }
+      context.globalAlpha = 1;
+    }
     for (let frame = firstFrame; frame < sourceSamples.length; frame += Math.max(step * 3, 3)) {
       const point = visualPoint(frame);
       context.fillRect(point.x - 1, point.y - 1, 2, 2);
     }
   } else {
-    if (visualSettings.style === "glow") {
-      drawVisualTrace({ lineWidth: 4, strokeStyle: visualTheme.glow });
+    if (visualSettings.trail > 0) {
+      context.globalAlpha = visualSettings.style === "glow"
+        ? visualSettings.trail
+        : visualSettings.trail * 0.45;
+      drawVisualTrace({ lineWidth: visualSettings.style === "glow" ? 4 : 3, strokeStyle: visualTheme.glow });
+      context.globalAlpha = 1;
     }
     drawVisualTrace({ lineWidth: 1.3, strokeStyle: visualTheme.trace });
   }
@@ -12077,6 +12094,7 @@ function drawNodeRenderedVisualOutput() {
   canvas.dataset.visualScale = String(visualSettings.scale);
   canvas.dataset.visualStyle = visualSettings.style;
   canvas.dataset.visualTheme = visualSettings.theme;
+  canvas.dataset.visualTrail = String(visualSettings.trail);
   canvas.dataset.visualFrames = String(sourceSamples.length);
   canvas.dataset.visualPeak = formatCompactNumber(rendered.peak || 0);
   canvas.dataset.visualRms = formatCompactNumber(rendered.rms || 0);
@@ -12092,6 +12110,7 @@ function drawNodeRenderedVisualOutput() {
     Source: canvas.dataset.visualSource,
     Style: visualSettings.style,
     Theme: visualSettings.theme,
+    Trail: visualSettings.trail,
   });
   if (status) {
     status.textContent = visualSettings.mode === "auto" ? `auto ${visualMode}` : visualMode;
