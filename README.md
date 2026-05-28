@@ -85,7 +85,8 @@ Render Sample and Live Audio expose patch evidence for debugging:
 - the execution debug panel reports whether the last render still matches the
   current patch
 - Render Sample and Live Audio evidence include active graph counts for nodes,
-  signal wires, modulation wires, feedback wires, and state reads
+  signal wires, modulation wires, feedback wires, and state reads; Live Audio
+  evidence also lists the state-read feedback wire identities
 - Live Audio error evidence includes the blocking message so failures can be
   inspected without scraping the visible status text
 - Live Audio plan and parameter acknowledgements show the current patch

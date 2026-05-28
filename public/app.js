@@ -10368,6 +10368,12 @@ function setNodeGraphLiveEvidence(kind = "idle", details = {}) {
     engine: nodeGraphMvp.live.usesWorklet ? "worklet" : nodeGraphMvp.live.runtime ? "fallback" : "idle",
     feedbackConnectionCount: Number(details.feedbackConnectionCount ?? planEvidence.feedbackConnectionCount) || 0,
     feedbackModulationCount: Number(details.feedbackModulationCount ?? planEvidence.feedbackModulationCount) || 0,
+    feedbackModulations: [
+      ...(details.feedbackModulations || planEvidence.feedbackModulations || []),
+    ],
+    feedbackSignals: [
+      ...(details.feedbackSignals || planEvidence.feedbackSignals || []),
+    ],
     kind,
     matchesCurrentPatch: patchFingerprint ? patchFingerprint === currentPatchFingerprint : false,
     message: String(details.message || ""),
@@ -10439,6 +10445,12 @@ function nodeGraphLivePlanEvidenceDetails(plan, details = {}) {
     connectionCount: plan.connections.length,
     feedbackConnectionCount: plan.feedbackConnections.length,
     feedbackModulationCount: plan.feedbackModulations.length,
+    feedbackModulations: plan.feedbackModulations.map((modulation) =>
+      `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam}`,
+    ),
+    feedbackSignals: plan.feedbackConnections.map((connection) =>
+      `${connection.sourceNode}.${connection.sourcePort} -> ${connection.destinationNode}.${connection.destinationPort}`,
+    ),
     modulationCount: plan.modulations.length,
     nodeCount: plan.nodes.length,
     patchFingerprint: plan.patchFingerprint,
