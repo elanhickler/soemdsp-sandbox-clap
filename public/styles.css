@@ -357,6 +357,11 @@ audio {
   stroke-width: 2.5;
 }
 
+.node-wire-path.state-read {
+  stroke-dasharray: 9 6;
+  filter: drop-shadow(0 0 4px rgba(177, 132, 255, 0.22));
+}
+
 .node-wire-hit-path {
   fill: none;
   stroke: rgba(255, 255, 255, 0.001);

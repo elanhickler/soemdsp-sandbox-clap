@@ -8789,6 +8789,7 @@ function drawNodeGraphWires() {
   if (!workspace || !svg) {
     return;
   }
+  const feedbackSets = nodeGraphFeedbackIdentitySets(compileNodeGraphExecutionPlan());
 
   const graphRect = nodeGraphGraphRect();
   svg.setAttribute("viewBox", `0 0 ${graphRect.width} ${graphRect.height}`);
@@ -8819,6 +8820,7 @@ function drawNodeGraphWires() {
       gradientId: `node-wire-gradient-${index}`,
       index,
       kind: "signal",
+      pathClass: `node-wire-path${feedbackSets.signal.has(nodeGraphSignalWireIdentity(connection)) ? " state-read" : ""}`,
       to,
     });
 
@@ -8845,7 +8847,7 @@ function drawNodeGraphWires() {
       gradientId: `node-modulation-wire-gradient-${index}`,
       index,
       kind: "modulation",
-      pathClass: "node-wire-path node-modulation-wire-path",
+      pathClass: `node-wire-path node-modulation-wire-path${feedbackSets.modulation.has(nodeGraphModulationWireIdentity(modulation)) ? " state-read" : ""}`,
       to,
     });
 
