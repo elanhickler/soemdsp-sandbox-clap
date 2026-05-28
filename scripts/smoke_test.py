@@ -2996,6 +2996,17 @@ def require_node_graph_mvp_contract() -> None:
         "primary audio widget should sit below node workspace and above render controls",
     )
 
+    fallback_index = app_source.index("const fallbackNodeMetadataKindTemplates")
+    fallback_waveform_index = app_source.index("waveform: {", fallback_index)
+    fallback_waveform_end = app_source.index("bypass: {", fallback_waveform_index)
+    fallback_waveform_source = app_source[fallback_waveform_index:fallback_waveform_end]
+    for snippet in [
+        "max: 4",
+        "mid: 2",
+        "min: 0",
+    ]:
+        require(snippet in fallback_waveform_source, f"fallback waveform metadata missing {snippet}")
+
     for snippet in [
         "const nodeGraphDefaultConnections",
         "const nodeGraphAudioBlockSize = 512",
