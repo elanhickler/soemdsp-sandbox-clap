@@ -9476,6 +9476,15 @@ function setNodeGraphLiveStatus(text, state = "") {
   status.className = `pill ${state}`.trim();
 }
 
+function setNodeGraphLiveEngineStatus(text = "engine idle", state = "") {
+  const status = document.getElementById("nodeLiveEngineStatus");
+  if (!status) {
+    return;
+  }
+  status.textContent = text;
+  status.className = `pill ${state}`.trim();
+}
+
 function setNodeGraphLiveMeter(peak = 0, rms = 0) {
   const meter = document.getElementById("nodeLiveMeter");
   if (!meter) {
@@ -9980,6 +9989,7 @@ async function stopNodeGraphLiveAudio() {
     await liveContext.close();
   }
   setNodeGraphLiveStatus("stopped");
+  setNodeGraphLiveEngineStatus();
   setNodeGraphLiveMeter();
   setNodeGraphLiveRouteStatus("route stopped");
   document.getElementById("nodeLiveStatus").removeAttribute("title");
@@ -10038,8 +10048,10 @@ async function startNodeGraphLiveAudio() {
     try {
       liveNode = await createNodeGraphLiveWorkletNode(context);
       usesWorklet = true;
-    } catch (_error) {
+    } catch (error) {
       liveNode = createNodeGraphLiveScriptProcessorNode(context, plan);
+      setNodeGraphLiveEngineStatus("engine fallback", "warn");
+      document.getElementById("nodeLiveEngineStatus").title = error.message;
     }
     nodeGraphMvp.live.context = context;
     nodeGraphMvp.live.meterGain = null;
@@ -10049,6 +10061,10 @@ async function startNodeGraphLiveAudio() {
     liveNode.connect(outputGain);
     outputGain.connect(context.destination);
     sendNodeGraphLivePlan();
+    if (usesWorklet) {
+      setNodeGraphLiveEngineStatus("engine worklet", "good");
+      document.getElementById("nodeLiveEngineStatus").removeAttribute("title");
+    }
     await context.resume();
     document.getElementById("nodeLiveStatus").removeAttribute("title");
     renderNodeGraphLiveControls(true);
