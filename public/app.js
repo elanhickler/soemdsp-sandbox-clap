@@ -5913,6 +5913,19 @@ const nodeGraphModuleDefinitions = Object.freeze({
     outputs: ["Out"],
     parameters: [
       {
+        choices: ["Saw", "Square", "Triangle", "Sine", "Noise"],
+        defaultValue: "0",
+        displayChoices: true,
+        key: "waveform",
+        kind: "waveform",
+        label: "Waveform",
+        linearSmoothing: false,
+        max: "4",
+        mid: "2",
+        min: "0",
+        step: "1",
+      },
+      {
         defaultValue: "220",
         key: "frequency",
         label: "Frequency",
@@ -7529,6 +7542,7 @@ function createNodeGraphParameter(node, type, parameter) {
     "osc.frequency": "nodeOscFrequency",
     "osc.level": "nodeOscLevel",
     "osc.phase": "nodeOscPhase",
+    "osc.waveform": "nodeOscWaveform",
   };
   input.id = legacyIds[`${node}.${parameter.key}`] || `node-${node}-${parameter.key}`;
   input.dataset.param = parameter.key;
@@ -9195,7 +9209,7 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "osc") {
       phases.set(node.id, 0);
     }
-    if (node.type === "noise") {
+    if (node.type === "osc" || node.type === "noise") {
       noiseSeeds.set(node.id, nodeGraphStableSeed(node.id));
     }
     for (const [key, value] of Object.entries(node.params || {})) {
@@ -9244,7 +9258,7 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     if (node.type === "osc" && !runtime.phases.has(node.id)) {
       runtime.phases.set(node.id, 0);
     }
-    if (node.type === "noise" && !runtime.noiseSeeds.has(node.id)) {
+    if ((node.type === "osc" || node.type === "noise") && !runtime.noiseSeeds.has(node.id)) {
       runtime.noiseSeeds.set(node.id, nodeGraphStableSeed(node.id));
     }
     for (const [key, value] of Object.entries(node.params || {})) {
@@ -9329,6 +9343,29 @@ function nodeGraphPhaseRadians(value) {
   return wrapNodeSliderValue(Number(value) || 0, 0, 1) * Math.PI * 2;
 }
 
+function nextNodeGraphNoiseSample(runtime, nodeId) {
+  const seed = (Math.imul(1664525, runtime.noiseSeeds.get(nodeId) || 0x12345678) + 1013904223) >>> 0;
+  runtime.noiseSeeds.set(nodeId, seed);
+  return (seed / 0xffffffff) * 2 - 1;
+}
+
+function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, waveform) {
+  const phaseCycle = wrapNodeSliderValue(phase / (Math.PI * 2), 0, 1);
+  switch (Math.round(Number(waveform) || 0)) {
+    case 1:
+      return phaseCycle < 0.5 ? 1 : -1;
+    case 2:
+      return 1 - Math.abs(phaseCycle - 0.5) * 4;
+    case 3:
+      return Math.sin(phase);
+    case 4:
+      return nextNodeGraphNoiseSample(runtime, nodeId);
+    case 0:
+    default:
+      return phaseCycle * 2 - 1;
+  }
+}
+
 function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
   const frameValues = new Map();
   const mixInput = (nodeId, port = "In") => (runtime.inputConnections.get(`${nodeId}.${port}`) || []).reduce(
@@ -9362,7 +9399,21 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
-      value = Math.sin(phase + phaseOffset) * readNodeGraphLiveEffectiveParam(
+      const waveform = readNodeGraphLiveEffectiveParam(
+        runtime,
+        node,
+        "waveform",
+        0,
+        frame,
+        frames,
+        frameValues,
+      );
+      value = nodeGraphOscillatorWaveformSample(
+        runtime,
+        nodeId,
+        phase + phaseOffset,
+        waveform,
+      ) * readNodeGraphLiveEffectiveParam(
         runtime,
         node,
         "level",
@@ -9376,9 +9427,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         (phase + (Math.PI * 2 * frequency) / sampleRate) % (Math.PI * 2),
       );
     } else if (node?.type === "noise") {
-      const seed = (Math.imul(1664525, runtime.noiseSeeds.get(nodeId) || 0x12345678) + 1013904223) >>> 0;
-      runtime.noiseSeeds.set(nodeId, seed);
-      value = ((seed / 0xffffffff) * 2 - 1) * readNodeGraphLiveEffectiveParam(
+      value = nextNodeGraphNoiseSample(runtime, nodeId) * readNodeGraphLiveEffectiveParam(
         runtime,
         node,
         "level",
