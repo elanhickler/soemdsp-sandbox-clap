@@ -8760,11 +8760,16 @@ function nodeGraphLastRenderDebug() {
   }
   const currentPatchFingerprint = nodeGraphPatchFingerprint();
   return {
+    connectionCount: Number(rendered.connectionCount) || 0,
     clipCount: Number(rendered.clipCount) || 0,
     currentPatchFingerprint,
     durationSeconds: Number(rendered.durationSeconds) || 0,
+    feedbackConnectionCount: Number(rendered.feedbackConnectionCount) || 0,
+    feedbackModulationCount: Number(rendered.feedbackModulationCount) || 0,
     frames: Number(rendered.frames) || 0,
     matchesCurrentPatch: rendered.patchFingerprint === currentPatchFingerprint,
+    modulationCount: Number(rendered.modulationCount) || 0,
+    nodeCount: Number(rendered.nodeCount) || 0,
     patchFingerprint: rendered.patchFingerprint || "",
     peak: Number(rendered.peak) || 0,
     rms: Number(rendered.rms) || 0,
@@ -11345,8 +11350,13 @@ function renderNodeGraphAudio() {
   const rms = Math.sqrt(squareSum / frames);
   nodeGraphMvp.rendered = {
     channels: 2,
+    connectionCount: plan.connections.length,
     durationSeconds: frames / nodeGraphMvp.sampleRate,
+    feedbackConnectionCount: plan.feedbackConnections.length,
+    feedbackModulationCount: plan.feedbackModulations.length,
     frames,
+    modulationCount: plan.modulations.length,
+    nodeCount: plan.nodes.length,
     peak,
     leftSamples,
     patchFingerprint,
