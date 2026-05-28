@@ -71,7 +71,7 @@ plan for Render Sample and Live Audio. The execution model is single-pass
 stored-output:
 
 - acyclic edges are evaluated as same-pass dependencies
-- cycle-closing signal or modulation edges are allowed as state reads
+- patch-node-order cycle-closing signal or modulation edges are allowed as state reads
 - each node starts with stored output `0`
 - each node overwrites its stored output when it runs
 - disconnected modules remain in the editable patch but are omitted from the

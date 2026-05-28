@@ -8361,10 +8361,40 @@ function nodeGraphDependencyPathExists(dependencies, startNode, targetNode) {
   return visit(startNode);
 }
 
+function nodeGraphNodeOrderIndexes(nodes) {
+  return new Map(nodes.map((node, index) => [node.id, index]));
+}
+
+function nodeGraphCompareSchedulingEdges(a, b) {
+  return Number(a.isBackward) - Number(b.isBackward) ||
+    a.sourceOrder - b.sourceOrder ||
+    a.destinationOrder - b.destinationOrder ||
+    a.kindOrder - b.kindOrder ||
+    a.index - b.index;
+}
+
+function nodeGraphSchedulingEdge(sourceNode, destinationNode, kind, index, payload, nodeOrder) {
+  const sourceOrder = nodeOrder.get(sourceNode) ?? Number.MAX_SAFE_INTEGER;
+  const destinationOrder = nodeOrder.get(destinationNode) ?? Number.MAX_SAFE_INTEGER;
+  return {
+    destinationNode,
+    index,
+    isBackward: sourceOrder >= destinationOrder,
+    kind,
+    kindOrder: kind === "signal" ? 0 : 1,
+    payload: { ...payload },
+    sourceNode,
+    sourceOrder,
+    destinationOrder,
+  };
+}
+
 function nodeGraphBuildSchedulingDependencies(planGraph, reachableNodes) {
   const orderDependencies = new Map(planGraph.nodes.map((node) => [node.id, new Set()]));
   const feedbackConnections = [];
   const feedbackModulations = [];
+  const nodeOrder = nodeGraphNodeOrderIndexes(planGraph.nodes);
+  const schedulingEdges = [];
   const validSignalWires = new Set(
     [...planGraph.inputConnections.values()]
       .flat()
@@ -8376,7 +8406,7 @@ function nodeGraphBuildSchedulingDependencies(planGraph, reachableNodes) {
       .map(nodeGraphModulationWireIdentity),
   );
 
-  for (const connection of planGraph.connections) {
+  for (const [index, connection] of planGraph.connections.entries()) {
     if (
       !validSignalWires.has(nodeGraphSignalWireIdentity(connection)) ||
       !reachableNodes.has(connection.sourceNode) ||
@@ -8384,14 +8414,17 @@ function nodeGraphBuildSchedulingDependencies(planGraph, reachableNodes) {
     ) {
       continue;
     }
-    if (nodeGraphDependencyPathExists(orderDependencies, connection.sourceNode, connection.destinationNode)) {
-      feedbackConnections.push({ ...connection });
-    } else {
-      orderDependencies.get(connection.destinationNode)?.add(connection.sourceNode);
-    }
+    schedulingEdges.push(nodeGraphSchedulingEdge(
+      connection.sourceNode,
+      connection.destinationNode,
+      "signal",
+      index,
+      connection,
+      nodeOrder,
+    ));
   }
 
-  for (const modulation of planGraph.modulations) {
+  for (const [index, modulation] of planGraph.modulations.entries()) {
     if (
       !validModulationWires.has(nodeGraphModulationWireIdentity(modulation)) ||
       !reachableNodes.has(modulation.sourceNode) ||
@@ -8399,10 +8432,25 @@ function nodeGraphBuildSchedulingDependencies(planGraph, reachableNodes) {
     ) {
       continue;
     }
-    if (nodeGraphDependencyPathExists(orderDependencies, modulation.sourceNode, modulation.destinationNode)) {
-      feedbackModulations.push({ ...modulation });
+    schedulingEdges.push(nodeGraphSchedulingEdge(
+      modulation.sourceNode,
+      modulation.destinationNode,
+      "modulation",
+      index,
+      modulation,
+      nodeOrder,
+    ));
+  }
+
+  for (const edge of schedulingEdges.sort(nodeGraphCompareSchedulingEdges)) {
+    if (nodeGraphDependencyPathExists(orderDependencies, edge.sourceNode, edge.destinationNode)) {
+      if (edge.kind === "signal") {
+        feedbackConnections.push(edge.payload);
+      } else {
+        feedbackModulations.push(edge.payload);
+      }
     } else {
-      orderDependencies.get(modulation.destinationNode)?.add(modulation.sourceNode);
+      orderDependencies.get(edge.destinationNode)?.add(edge.sourceNode);
     }
   }
 
@@ -8723,7 +8771,7 @@ function serializeNodeGraphExecutionPlanDebug(plan) {
       patchWireCount: nodeGraphPatchWireCount(plan),
       parameters: nodeGraphExecutionParameterSnapshot(plan),
       partialOrder: plan.valid ? [] : plan.order,
-      schedulerPolicy: "same-pass acyclic edges; cycle-closing edges read stored outputs",
+      schedulerPolicy: "same-pass acyclic edges; patch-node-order cycle-closing edges read stored outputs",
       samePassDependencies,
       signalInputs,
       sourceNodes: plan.sourceNodes,
@@ -8735,6 +8783,43 @@ function serializeNodeGraphExecutionPlanDebug(plan) {
     null,
     2,
   );
+}
+
+function serializeNodeGraphExecutionPlanApiDebug(plan) {
+  return {
+    activeNodeCount: plan.reachableNodes?.length || 0,
+    activeWireCount: nodeGraphActiveWireCount(plan),
+    feedbackModulations: plan.feedbackModulations.map((modulation) =>
+      `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam}`,
+    ),
+    feedbackSignals: plan.feedbackConnections.map((connection) =>
+      `${connection.sourceNode}.${connection.sourcePort} -> ${connection.destinationNode}.${connection.destinationPort}`,
+    ),
+    inactiveNodes: plan.inactiveNodes || [],
+    issues: [...plan.issues],
+    order: [...plan.order],
+    patchNodeCount: plan.nodes?.length || 0,
+    patchWireCount: nodeGraphPatchWireCount(plan),
+    samePassDependencies: [...plan.orderDependencies.entries()].reduce(
+      (dependencies, [node, sources]) => ({
+        ...dependencies,
+        [node]: [...sources],
+      }),
+      {},
+    ),
+    schedulerPolicy: "same-pass acyclic edges; patch-node-order cycle-closing edges read stored outputs",
+    stateReadCount: nodeGraphStateReadCount(plan),
+    valid: plan.valid,
+    wireReads: nodeGraphExecutionWireReads(plan),
+  };
+}
+
+function installNodeGraphDebugApi() {
+  window.soemdspSandboxDebug = Object.freeze({
+    compileExecutionPlan(patch = nodeGraphMvp.patch) {
+      return serializeNodeGraphExecutionPlanApiDebug(compileNodeGraphExecutionPlan(patch));
+    },
+  });
 }
 
 function renderNodeGraphExecutionPlanDebug(plan = compileNodeGraphExecutionPlan()) {
@@ -11246,6 +11331,7 @@ async function playNodeGraphAudio() {
 }
 
 function initNodeGraphMvp() {
+  installNodeGraphDebugApi();
   const nodePanel = document.querySelector(".node-wiring-panel");
   nodePanel?.addEventListener("pointerover", handleNodeInteractionHelp);
   nodePanel?.addEventListener("pointermove", handleNodeInteractionHelp);
