@@ -602,6 +602,15 @@ audio {
   border-color: rgba(127, 199, 217, 0.58);
 }
 
+.node-action-button:hover,
+.node-bypass-button:hover {
+  border-color: rgba(243, 241, 236, 0.2);
+}
+
+.node-bypass-button[aria-pressed="true"]:hover {
+  border-color: rgba(242, 93, 93, 0.76);
+}
+
 .dsp-node label,
 .node-parameter-control {
   display: grid;
