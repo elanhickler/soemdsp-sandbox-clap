@@ -3101,6 +3101,7 @@ def require_node_graph_mvp_contract() -> None:
         "function applyNodeGraphPatchToDom()",
         "function serializeNodeGraphPatch(patch = nodeGraphMvp.patch)",
         "format: { ...nodeGraphPatchFormat }",
+        "unsupported patch format",
         "patchNode.paramMeta?.[parameter.key]",
         "function normalizeNodeGraphPatchParameter(type, key, value, metadata = null)",
         "function nodeGraphReadPatchParameterValue(node, key)",

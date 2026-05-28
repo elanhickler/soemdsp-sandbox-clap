@@ -6490,6 +6490,15 @@ function validateNodeGraphPatch(patch) {
     throw new Error("patch must be an object");
   }
 
+  if (patch.format !== undefined) {
+    if (
+      patch.format?.kind !== nodeGraphPatchFormat.kind ||
+      Number(patch.format?.version) !== nodeGraphPatchFormat.version
+    ) {
+      throw new Error("unsupported patch format");
+    }
+  }
+
   const gridSize = Number(patch.grid?.sizePx);
   if (!Number.isFinite(gridSize) || gridSize <= 0) {
     throw new Error("grid.sizePx must be a positive number");
