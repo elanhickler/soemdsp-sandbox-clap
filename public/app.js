@@ -8529,6 +8529,27 @@ function nodeGraphSelectionCanDelete(selection = nodeGraphMvp.selected) {
   );
 }
 
+function nodeGraphDeleteTitle(selection = nodeGraphMvp.selected) {
+  if (!selection) {
+    return "Delete unavailable: nothing selected";
+  }
+  if (selection.type === "wire") {
+    return nodeGraphWireSelectionExists(selection)
+      ? "Delete selected wire"
+      : "Delete unavailable: selected wire no longer exists";
+  }
+  const selectedNodeIds = nodeGraphSelectedNodeIds(selection);
+  if (!selectedNodeIds.size) {
+    return "Delete unavailable: nothing selected";
+  }
+  if ([...selectedNodeIds].every((id) => id === "output")) {
+    return "Delete unavailable: Output module is required";
+  }
+  return selectedNodeIds.size === 1
+    ? "Delete selected module"
+    : "Delete selected modules";
+}
+
 function pruneNodeGraphSelectionAfterPatch() {
   const selection = nodeGraphMvp.selected;
   if (!selection) {
@@ -8584,6 +8605,7 @@ function renderNodeGraphSelection() {
 
   const button = document.getElementById("nodeDeleteButton");
   button.disabled = !nodeGraphSelectionCanDelete();
+  button.title = nodeGraphDeleteTitle();
 }
 
 function nodeGraphPath(from, to) {
@@ -9169,8 +9191,10 @@ function configureNodeSceneContextMenu(mode) {
   deleteButton.hidden = !moduleMode;
   if (moduleMode) {
     deleteButton.disabled = !nodeGraphSelectionCanDelete();
+    deleteButton.title = nodeGraphDeleteTitle();
   } else {
     deleteButton.disabled = true;
+    deleteButton.title = "Delete unavailable: select a module";
   }
 }
 
