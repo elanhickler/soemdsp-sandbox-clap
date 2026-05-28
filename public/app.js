@@ -6720,6 +6720,22 @@ function nodeSliderChoiceLabel(slider) {
   return metadata.choices[Math.max(0, Math.min(metadata.choices.length - 1, index))] ?? null;
 }
 
+function nodeSliderChoiceIndexFromText(slider, value) {
+  const metadata = nodeSliderMetadata(slider);
+  if (!metadata.displayChoices || !metadata.choices.length) {
+    return null;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  const index = metadata.choices.findIndex(
+    (choice) => choice.toLowerCase() === normalized,
+  );
+  return index >= 0 ? index : null;
+}
+
 function nodeSliderMetadata(slider) {
   const min = Number(slider.min);
   const mid = Number(slider.dataset.mid);
@@ -7257,7 +7273,8 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
   }
 
   const normalizedValue = String(rawValue).trim();
-  const value = Number(normalizedValue);
+  const choiceIndex = nodeSliderChoiceIndexFromText(slider, normalizedValue);
+  const value = choiceIndex ?? Number(normalizedValue);
   if (!Number.isFinite(value)) {
     syncNodeSliderReadout(slider);
     return;
@@ -7390,8 +7407,8 @@ function beginNodeSliderReadoutEdit(readout) {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "node-slider-readout-input";
-  input.inputMode = "decimal";
-  input.value = formatNodeSliderNumber(slider.value, {
+  input.inputMode = nodeSliderShouldDisplayChoices(slider) ? "text" : "decimal";
+  input.value = nodeSliderChoiceLabel(slider) ?? formatNodeSliderNumber(slider.value, {
     reserveSignSpace: true,
     showSign: nodeSliderShouldShowSign(slider),
   });
