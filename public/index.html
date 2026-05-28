@@ -149,10 +149,16 @@
         role="menu"
         aria-label="Add module">
         <div class="scene-context-title">Add Module</div>
-        <button id="nodeSceneAddOsc" type="button" role="menuitem" data-context-module="osc">Osc</button>
-        <button id="nodeSceneAddNoise" type="button" role="menuitem" data-context-module="noise">Noise</button>
-        <button id="nodeSceneAddGain" type="button" role="menuitem" data-context-module="gain">Gain</button>
-        <button id="nodeSceneAddBias" type="button" role="menuitem" data-context-module="bias">Bias</button>
+        <div class="scene-context-add-group">
+          <button id="nodeSceneAddOsc" type="button" role="menuitem" data-context-module="osc">Osc</button>
+          <button id="nodeSceneAddNoise" type="button" role="menuitem" data-context-module="noise">Noise</button>
+          <button id="nodeSceneAddGain" type="button" role="menuitem" data-context-module="gain">Gain</button>
+          <button id="nodeSceneAddBias" type="button" role="menuitem" data-context-module="bias">Bias</button>
+        </div>
+        <button id="nodeSceneDeleteModule" class="scene-context-danger" type="button" role="menuitem" hidden>
+          <span>Delete</span>
+          <kbd>Delete</kbd>
+        </button>
       </div>
 
       <section class="audio-panel" aria-label="Primary audio">

@@ -6215,6 +6215,7 @@ const nodeGraphMvp = {
   patch: cloneNodeGraphPatch(nodeGraphDefaultPatch),
   rendered: null,
   sceneContextPoint: null,
+  sceneContextTargetNode: null,
   selected: null,
   sampleRate: 44100,
   seconds: 2,
@@ -7148,6 +7149,7 @@ function closeNodeSceneContextMenu() {
   const menu = document.getElementById("nodeSceneContextMenu");
   menu.hidden = true;
   nodeGraphMvp.sceneContextPoint = null;
+  nodeGraphMvp.sceneContextTargetNode = null;
 }
 
 function markNodeGraphRenderPending() {
@@ -8291,14 +8293,44 @@ function positionNodeSceneContextMenu(menu, x, y) {
   menu.style.top = `${top}px`;
 }
 
+function configureNodeSceneContextMenu(mode) {
+  const menu = document.getElementById("nodeSceneContextMenu");
+  const title = menu.querySelector(".scene-context-title");
+  const addGroup = menu.querySelector(".scene-context-add-group");
+  const deleteButton = document.getElementById("nodeSceneDeleteModule");
+  const moduleMode = mode === "module";
+  title.textContent = moduleMode ? "Module" : "Add Module";
+  addGroup.hidden = moduleMode;
+  deleteButton.hidden = !moduleMode;
+  if (moduleMode) {
+    const deletableIds = [...nodeGraphSelectedNodeIds()].filter((id) => id !== "output");
+    deleteButton.disabled = !deletableIds.length;
+  } else {
+    deleteButton.disabled = true;
+  }
+}
+
 function openNodeSceneContextMenu(event) {
-  if (event.target.closest(".dsp-node, .node-port, .node-slider-readout")) {
+  if (event.target.closest(".node-port, .node-param-port, .node-slider-readout")) {
     return;
   }
 
   event.preventDefault();
   event.stopPropagation();
-  nodeGraphMvp.sceneContextPoint = nodeGraphClientPoint(event);
+  const node = event.target.closest(".dsp-node");
+  if (node) {
+    const selectedNodeIds = nodeGraphSelectedNodeIds();
+    if (!selectedNodeIds.has(node.dataset.node)) {
+      setNodeGraphSelection({ type: "node", id: node.dataset.node });
+    }
+    nodeGraphMvp.sceneContextPoint = null;
+    nodeGraphMvp.sceneContextTargetNode = node.dataset.node;
+    configureNodeSceneContextMenu("module");
+  } else {
+    nodeGraphMvp.sceneContextPoint = nodeGraphClientPoint(event);
+    nodeGraphMvp.sceneContextTargetNode = null;
+    configureNodeSceneContextMenu("add");
+  }
   positionNodeSceneContextMenu(
     document.getElementById("nodeSceneContextMenu"),
     event.clientX,
@@ -8471,6 +8503,11 @@ function addNodeGraphModuleFromContext(event) {
   closeNodeSceneContextMenu();
 }
 
+function deleteNodeGraphModuleFromContext() {
+  deleteSelectedNodeGraphItem();
+  closeNodeSceneContextMenu();
+}
+
 function setNodeGraphViewMode(mode) {
   const settingsMode = mode === "settings";
   const scriptMode = mode === "script";
@@ -8581,7 +8618,7 @@ function deleteSelectedNodeGraphItem() {
 }
 
 function handleNodeGraphKeydown(event) {
-  if (event.key === "Escape" && nodeGraphMvp.sceneContextPoint) {
+  if (event.key === "Escape" && !document.getElementById("nodeSceneContextMenu").hidden) {
     closeNodeSceneContextMenu();
     return;
   }
@@ -9424,7 +9461,7 @@ function initNodeGraphMvp() {
   document.addEventListener("keydown", handleNodeGraphKeydown);
   document.addEventListener("pointerdown", (event) => {
     const menu = document.getElementById("nodeSceneContextMenu");
-    if (nodeGraphMvp.sceneContextPoint && !menu.contains(event.target)) {
+    if (!menu.hidden && !menu.contains(event.target)) {
       closeNodeSceneContextMenu();
     }
   });
@@ -9479,6 +9516,9 @@ function initNodeGraphMvp() {
   for (const button of document.querySelectorAll("[data-context-module]")) {
     button.addEventListener("click", addNodeGraphModuleFromContext);
   }
+  document
+    .getElementById("nodeSceneDeleteModule")
+    .addEventListener("click", deleteNodeGraphModuleFromContext);
 
   document.addEventListener("pointermove", dragNodeSlider);
   document.addEventListener("pointerup", endNodeSliderDrag);
