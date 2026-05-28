@@ -9038,11 +9038,13 @@ function selectNodeGraphWire(event, index, kind = "signal") {
 
 function drawNodeGraphWirePath(svg, options) {
   const {
+    alias = "",
     from,
     gradientClass = "node-wire-gradient-stop",
     gradientId,
     index,
     kind = "signal",
+    mode = "same-pass",
     pathClass = "node-wire-path",
     to,
   } = options;
@@ -9050,16 +9052,20 @@ function drawNodeGraphWirePath(svg, options) {
   const stroke = createNodeGraphWireGradient(svg, gradientId, from, to, gradientClass);
   const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   hitPath.setAttribute("class", "node-wire-hit-path");
+  hitPath.dataset.alias = alias;
   hitPath.dataset.connectionIndex = String(index);
   hitPath.dataset.connectionKind = kind;
+  hitPath.dataset.interactionMode = mode;
   hitPath.setAttribute("d", pathData);
   hitPath.addEventListener("click", (event) => selectNodeGraphWire(event, index, kind));
   svg.append(hitPath);
 
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("class", pathClass);
+  path.dataset.alias = alias;
   path.dataset.connectionIndex = String(index);
   path.dataset.connectionKind = kind;
+  path.dataset.interactionMode = mode;
   path.setAttribute("d", pathData);
   path.setAttribute("stroke", stroke);
   svg.append(path);
@@ -9101,11 +9107,14 @@ function drawNodeGraphWires() {
     );
     const isFeedback = feedbackSets.signal.has(nodeGraphSignalWireIdentity(connection));
     const isInactive = !nodeGraphSignalConnectionIsActive(connection, activeNodeIds);
+    const mode = isInactive ? "inactive" : isFeedback ? "state-read" : "same-pass";
     drawNodeGraphWirePath(svg, {
+      alias: `${connection.sourceNode}.${connection.sourcePort} -> ${connection.destinationNode}.${connection.destinationPort}`,
       from,
       gradientId: `node-wire-gradient-${index}`,
       index,
       kind: "signal",
+      mode,
       pathClass: [
         "node-wire-path",
         isFeedback ? "state-read" : "",
@@ -9133,12 +9142,15 @@ function drawNodeGraphWires() {
     );
     const isFeedback = feedbackSets.modulation.has(nodeGraphModulationWireIdentity(modulation));
     const isInactive = !nodeGraphModulationIsActive(modulation, activeNodeIds);
+    const mode = isInactive ? "inactive" : isFeedback ? "state-read" : "same-pass";
     drawNodeGraphWirePath(svg, {
+      alias: `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam} mod`,
       from,
       gradientClass: "node-modulation-wire-gradient-stop",
       gradientId: `node-modulation-wire-gradient-${index}`,
       index,
       kind: "modulation",
+      mode,
       pathClass: [
         "node-wire-path",
         "node-modulation-wire-path",
@@ -10002,7 +10014,7 @@ function nodeInteractionHelpText(target) {
     return "";
   }
   const helpTarget = target.closest(
-    "[data-interaction-help], button, input, textarea, select, .node-slider-readout, .node-port, .node-param-port",
+    "[data-interaction-help], button, input, textarea, select, .node-slider-readout, .node-port, .node-param-port, .node-wire-hit-path, .node-wire-path",
   );
   if (!helpTarget) {
     return "";
@@ -10030,6 +10042,11 @@ function nodeInteractionMouseHint(element) {
   if (element.classList.contains("node-param-port")) {
     const action = "Mouse: drop an output here to modulate this parameter.";
     return alias ? `Alias: ${alias}\n${action}` : action;
+  }
+  if (element.classList.contains("node-wire-hit-path") || element.classList.contains("node-wire-path")) {
+    const mode = element.dataset.interactionMode || "same-pass";
+    const action = "Mouse: click to select this wire. Delete removes selected wire.";
+    return alias ? `Alias: ${alias}\nMode: ${mode}\n${action}` : action;
   }
   if (element.matches("input, textarea, select")) {
     return "Mouse: click to edit, drag to select text.";
@@ -10064,6 +10081,9 @@ function nodeInteractionMouseHint(element) {
 function setNodeInteractionHelp(text = "") {
   const help = document.getElementById("nodeInteractionHelp");
   if (help) {
+    if (help.textContent === text) {
+      return;
+    }
     help.textContent = text;
   }
 }
@@ -11223,7 +11243,9 @@ async function playNodeGraphAudio() {
 function initNodeGraphMvp() {
   const nodePanel = document.querySelector(".node-wiring-panel");
   nodePanel?.addEventListener("pointerover", handleNodeInteractionHelp);
+  nodePanel?.addEventListener("pointermove", handleNodeInteractionHelp);
   nodePanel?.addEventListener("mouseover", handleNodeInteractionHelp);
+  nodePanel?.addEventListener("mousemove", handleNodeInteractionHelp);
   nodePanel?.addEventListener("pointerdown", handleNodeInteractionHelp);
   nodePanel?.addEventListener("click", handleNodeInteractionHelp);
   nodePanel?.addEventListener("focusin", handleNodeInteractionHelp);
