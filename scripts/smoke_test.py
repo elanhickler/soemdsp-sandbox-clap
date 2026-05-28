@@ -3298,6 +3298,7 @@ def require_node_graph_mvp_contract() -> None:
         "error.issues = [...compiled.issues]",
         "setNodeGraphLiveOutputMuted(false)",
         "setNodeGraphLiveOutputMuted(true)",
+        "renderNodeGraphLiveControls(true)",
         "setNodeGraphLiveBlockedError(\"plan\", error)",
         "setNodeGraphLiveBlockedError(\"params\", error, { route: false })",
         "message.sessionId !== nodeGraphMvp.live.sessionId",

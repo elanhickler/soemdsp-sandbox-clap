@@ -10222,6 +10222,7 @@ function sendNodeGraphLivePlan() {
     setNodeGraphLiveStatus("running", "good");
     clearNodeGraphLiveStatusTitle();
     setNodeGraphLiveRouteStatus(nodeGraphScheduleText(plan.order), "good");
+    renderNodeGraphLiveControls(true);
   } catch (error) {
     setNodeGraphLiveOutputMuted(true);
     nodeGraphMvp.live.runtime = null;
