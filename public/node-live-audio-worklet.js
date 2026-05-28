@@ -83,6 +83,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.smoothers.delete(key);
       }
     }
+    this.port.postMessage({
+      connectionCount: Array.isArray(plan?.connections) ? plan.connections.length : 0,
+      modulationCount: Array.isArray(plan?.modulations) ? plan.modulations.length : 0,
+      nodeCount: this.nodes.size,
+      order: [...this.order],
+      type: "planApplied",
+    });
   }
 
   buildInputConnectionMap(connections, ids) {

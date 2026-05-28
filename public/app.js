@@ -9502,10 +9502,28 @@ function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error"
   setNodeGraphLiveStatus("error", "warn");
   setNodeGraphLiveEngineStatus("engine error", "warn");
   setNodeGraphLiveEngineTitle(message);
+  setNodeGraphLivePlanStatus("plan blocked", "warn");
   setNodeGraphLiveMeter();
   setNodeGraphLiveRouteStatus(`processor error: ${message}`, "warn");
   document.getElementById("nodeLiveStatus").title = message;
   renderNodeGraphLiveControls(Boolean(nodeGraphMvp.live.node));
+}
+
+function setNodeGraphLivePlanStatus(text = "plan idle", state = "") {
+  const status = document.getElementById("nodeLivePlanStatus");
+  if (!status) {
+    return;
+  }
+  status.textContent = text;
+  status.className = `pill ${state}`.trim();
+}
+
+function nodeGraphLivePlanStatusText(plan) {
+  return `plan ${plan.nodes.length} nodes / ${plan.connections.length} wires / ${plan.modulations.length} mods`;
+}
+
+function nodeGraphLivePlanAppliedStatusText(message) {
+  return `plan ${Number(message.nodeCount) || 0} nodes / ${Number(message.connectionCount) || 0} wires / ${Number(message.modulationCount) || 0} mods`;
 }
 
 function setNodeGraphLiveMeter(peak = 0, rms = 0) {
@@ -9931,6 +9949,8 @@ function handleNodeGraphLiveWorkletMessage(event) {
   const message = event.data || {};
   if (message.type === "meter") {
     setNodeGraphLiveMeter(Number(message.peak) || 0, Number(message.rms) || 0);
+  } else if (message.type === "planApplied") {
+    setNodeGraphLivePlanStatus(nodeGraphLivePlanAppliedStatusText(message), "good");
   }
 }
 
@@ -9942,20 +9962,24 @@ function sendNodeGraphLivePlan() {
   try {
     const plan = nodeGraphBuildLivePlan();
     if (nodeGraphMvp.live.usesWorklet) {
+      setNodeGraphLivePlanStatus("plan sent", "warn");
       nodeGraphMvp.live.node?.port?.postMessage({
         plan,
         type: "setPlan",
       });
     } else if (nodeGraphMvp.live.runtime) {
       updateNodeGraphLiveRuntimePlan(nodeGraphMvp.live.runtime, plan);
+      setNodeGraphLivePlanStatus(nodeGraphLivePlanStatusText(plan), "good");
     } else {
       nodeGraphMvp.live.runtime = createNodeGraphLiveRuntime(plan);
+      setNodeGraphLivePlanStatus(nodeGraphLivePlanStatusText(plan), "good");
     }
     setNodeGraphLiveStatus("running", "good");
     setNodeGraphLiveRouteStatus(nodeGraphScheduleText(plan.order), "good");
   } catch (error) {
     nodeGraphMvp.live.runtime = null;
     nodeGraphMvp.live.node?.port?.postMessage({ type: "stop" });
+    setNodeGraphLivePlanStatus("plan blocked", "warn");
     setNodeGraphLiveMeter();
     setNodeGraphLiveRouteStatus(`schedule blocked: ${error.message}`, "warn");
     setNodeGraphLiveStatus("error", "warn");
@@ -10014,6 +10038,7 @@ async function stopNodeGraphLiveAudio() {
   setNodeGraphLiveStatus("stopped");
   setNodeGraphLiveEngineStatus();
   setNodeGraphLiveEngineTitle();
+  setNodeGraphLivePlanStatus();
   setNodeGraphLiveMeter();
   setNodeGraphLiveRouteStatus("route stopped");
   document.getElementById("nodeLiveStatus").removeAttribute("title");
