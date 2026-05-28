@@ -76,6 +76,8 @@ stored-output:
 - each node overwrites its stored output when it runs
 - disconnected modules remain in the editable patch but are omitted from the
   audio runtime plan until they become reachable from Output
+- patch scripts preserve each node's current parameter values and parameter
+  metadata through `nodes[].params` and `nodes[].paramMeta`
 
 Render Sample and Live Audio expose patch evidence for debugging:
 

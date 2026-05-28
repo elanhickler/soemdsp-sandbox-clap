@@ -3812,6 +3812,7 @@ def require_readme_scheduler_contract() -> None:
         "patch-node-order cycle-closing signal or modulation edges are allowed as state reads",
         "each node starts with stored output `0`",
         "disconnected modules remain in the editable patch but are omitted from the audio runtime plan",
+        "patch scripts preserve each node's current parameter values and parameter metadata",
         "rendered samples store the patch fingerprint that produced them",
         "Render Sample and Live Audio evidence include active graph counts",
         "Live Audio error evidence includes the blocking message",
