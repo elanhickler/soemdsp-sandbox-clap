@@ -6683,8 +6683,12 @@ function renderNodeGraphHistoryControls() {
   if (!undo || !redo) {
     return;
   }
-  undo.disabled = nodeGraphMvp.historyIndex <= 0;
-  redo.disabled = nodeGraphMvp.historyIndex >= nodeGraphMvp.historySnapshots.length - 1;
+  const canUndo = nodeGraphMvp.historyIndex > 0;
+  const canRedo = nodeGraphMvp.historyIndex < nodeGraphMvp.historySnapshots.length - 1;
+  undo.disabled = !canUndo;
+  redo.disabled = !canRedo;
+  undo.title = canUndo ? "Undo patch edit" : "Undo unavailable";
+  redo.title = canRedo ? "Redo patch edit" : "Redo unavailable";
 }
 
 function recordNodeGraphHistory() {
