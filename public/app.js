@@ -9609,6 +9609,18 @@ function nodeGraphLiveBlockedStatusText(kind, error) {
   return `${kind} blocked ${issues.length} ${issues.length === 1 ? "issue" : "issues"}`;
 }
 
+function setNodeGraphLiveBlockedError(kind, error, options = {}) {
+  const message = error?.message || "unknown issue";
+  setNodeGraphLivePlanStatus(nodeGraphLiveBlockedStatusText(kind, error), "warn");
+  setNodeGraphLivePlanTitle(message);
+  setNodeGraphLiveMeter();
+  if (options.route !== false) {
+    setNodeGraphLiveRouteStatus(`schedule blocked: ${message}`, "warn");
+  }
+  setNodeGraphLiveStatus("error", "warn");
+  document.getElementById("nodeLiveStatus").title = message;
+}
+
 function nodeGraphLivePlanScheduleTitle(order = []) {
   return order.length
     ? `worklet order: ${order.join(" -> ")}`
@@ -10156,12 +10168,7 @@ function sendNodeGraphLivePlan() {
   } catch (error) {
     nodeGraphMvp.live.runtime = null;
     nodeGraphMvp.live.node?.port?.postMessage({ type: "stop" });
-    setNodeGraphLivePlanStatus(nodeGraphLiveBlockedStatusText("plan", error), "warn");
-    setNodeGraphLivePlanTitle(error.message);
-    setNodeGraphLiveMeter();
-    setNodeGraphLiveRouteStatus(`schedule blocked: ${error.message}`, "warn");
-    setNodeGraphLiveStatus("error", "warn");
-    document.getElementById("nodeLiveStatus").title = error.message;
+    setNodeGraphLiveBlockedError("plan", error);
   }
 }
 
@@ -10194,10 +10201,7 @@ function sendNodeGraphLiveParameterUpdate() {
     }
     setNodeGraphLiveStatus("running", "good");
   } catch (error) {
-    setNodeGraphLivePlanStatus(nodeGraphLiveBlockedStatusText("params", error), "warn");
-    setNodeGraphLivePlanTitle(error.message);
-    setNodeGraphLiveStatus("error", "warn");
-    document.getElementById("nodeLiveStatus").title = error.message;
+    setNodeGraphLiveBlockedError("params", error, { route: false });
   }
 }
 
@@ -10360,8 +10364,7 @@ async function startNodeGraphLiveAudio() {
     renderNodeGraphLiveControls(true);
   } catch (error) {
     await stopNodeGraphLiveAudio();
-    setNodeGraphLiveStatus("error", "warn");
-    document.getElementById("nodeLiveStatus").title = error.message;
+    setNodeGraphLiveBlockedError("plan", error);
     renderNodeGraphLiveControls(false);
   }
 }
