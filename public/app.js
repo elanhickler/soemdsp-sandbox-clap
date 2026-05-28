@@ -9109,7 +9109,10 @@ function drawNodeGraphWires() {
     const isInactive = !nodeGraphSignalConnectionIsActive(connection, activeNodeIds);
     const mode = isInactive ? "inactive" : isFeedback ? "state-read" : "same-pass";
     drawNodeGraphWirePath(svg, {
-      alias: `${connection.sourceNode}.${connection.sourcePort} -> ${connection.destinationNode}.${connection.destinationPort}`,
+      alias: `${nodeGraphLabel(connection.sourceNode, connection.sourcePort)} -> ${nodeGraphLabel(
+        connection.destinationNode,
+        connection.destinationPort,
+      )}`,
       from,
       gradientId: `node-wire-gradient-${index}`,
       index,
@@ -9144,7 +9147,9 @@ function drawNodeGraphWires() {
     const isInactive = !nodeGraphModulationIsActive(modulation, activeNodeIds);
     const mode = isInactive ? "inactive" : isFeedback ? "state-read" : "same-pass";
     drawNodeGraphWirePath(svg, {
-      alias: `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam} mod`,
+      alias: `${nodeGraphLabel(modulation.sourceNode, modulation.sourcePort)} -> ${nodeGraphNodeDisplayName(
+        modulation.destinationNode,
+      )}.${modulation.destinationParam} mod`,
       from,
       gradientClass: "node-modulation-wire-gradient-stop",
       gradientId: `node-modulation-wire-gradient-${index}`,
