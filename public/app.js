@@ -8121,9 +8121,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
   const issues = [];
   const nodeList = Array.isArray(patch.nodes) ? patch.nodes.map((node) => ({ ...node })) : [];
   const nodeMap = new Map(nodeList.map((node) => [node.id, node]));
-  const nodeOrderIndex = new Map(nodeList.map((node, index) => [node.id, index]));
   const dependencies = new Map(nodeList.map((node) => [node.id, new Set()]));
-  const orderDependencies = new Map(nodeList.map((node) => [node.id, new Set()]));
   const inputConnections = new Map();
   const modulationConnections = new Map();
 
@@ -8132,13 +8130,6 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
       map.set(destinationNode, new Set());
     }
     map.get(destinationNode).add(sourceNode);
-  }
-
-  function addSchedulingDependency(destinationNode, sourceNode) {
-    addDependency(dependencies, destinationNode, sourceNode);
-    if ((nodeOrderIndex.get(sourceNode) ?? -1) < (nodeOrderIndex.get(destinationNode) ?? -1)) {
-      addDependency(orderDependencies, destinationNode, sourceNode);
-    }
   }
 
   for (const node of nodeList) {
@@ -8168,7 +8159,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
     const connections = inputConnections.get(key) || [];
     connections.push({ ...connection });
     inputConnections.set(key, connections);
-    addSchedulingDependency(connection.destinationNode, connection.sourceNode);
+    addDependency(dependencies, connection.destinationNode, connection.sourceNode);
   }
 
   for (const modulation of patch.modulations || []) {
@@ -8192,7 +8183,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
     const modulations = modulationConnections.get(key) || [];
     modulations.push({ ...modulation });
     modulationConnections.set(key, modulations);
-    addSchedulingDependency(modulation.destinationNode, modulation.sourceNode);
+    addDependency(dependencies, modulation.destinationNode, modulation.sourceNode);
   }
 
   return {
@@ -8204,7 +8195,6 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
     modulations: (patch.modulations || []).map((modulation) => ({ ...modulation })),
     nodeMap,
     nodes: nodeList,
-    orderDependencies,
   };
 }
 
@@ -8242,40 +8232,77 @@ function nodeGraphTopologicalOrder(nodes, dependencies, reachableNodes) {
   return { order };
 }
 
-function nodeGraphClassifyFeedbackEdges(planGraph, order) {
-  const indexByNode = new Map(order.map((nodeId, index) => [nodeId, index]));
+function nodeGraphDependencyPathExists(dependencies, startNode, targetNode) {
+  if (startNode === targetNode) {
+    return true;
+  }
+  const visited = new Set();
+
+  function visit(nodeId) {
+    if (nodeId === targetNode) {
+      return true;
+    }
+    if (visited.has(nodeId)) {
+      return false;
+    }
+    visited.add(nodeId);
+    for (const dependency of dependencies.get(nodeId) || []) {
+      if (visit(dependency)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return visit(startNode);
+}
+
+function nodeGraphBuildSchedulingDependencies(planGraph, reachableNodes) {
+  const orderDependencies = new Map(planGraph.nodes.map((node) => [node.id, new Set()]));
   const feedbackConnections = [];
   const feedbackModulations = [];
+  const validSignalWires = new Set(
+    [...planGraph.inputConnections.values()]
+      .flat()
+      .map(nodeGraphSignalWireIdentity),
+  );
+  const validModulationWires = new Set(
+    [...planGraph.modulationConnections.values()]
+      .flat()
+      .map(nodeGraphModulationWireIdentity),
+  );
 
-  for (const connections of planGraph.inputConnections.values()) {
-    for (const connection of connections) {
-      const sourceIndex = indexByNode.get(connection.sourceNode);
-      const destinationIndex = indexByNode.get(connection.destinationNode);
-      if (
-        Number.isFinite(sourceIndex) &&
-        Number.isFinite(destinationIndex) &&
-        sourceIndex >= destinationIndex
-      ) {
-        feedbackConnections.push({ ...connection });
-      }
+  for (const connection of planGraph.connections) {
+    if (
+      !validSignalWires.has(nodeGraphSignalWireIdentity(connection)) ||
+      !reachableNodes.has(connection.sourceNode) ||
+      !reachableNodes.has(connection.destinationNode)
+    ) {
+      continue;
+    }
+    if (nodeGraphDependencyPathExists(orderDependencies, connection.sourceNode, connection.destinationNode)) {
+      feedbackConnections.push({ ...connection });
+    } else {
+      orderDependencies.get(connection.destinationNode)?.add(connection.sourceNode);
     }
   }
 
-  for (const modulations of planGraph.modulationConnections.values()) {
-    for (const modulation of modulations) {
-      const sourceIndex = indexByNode.get(modulation.sourceNode);
-      const destinationIndex = indexByNode.get(modulation.destinationNode);
-      if (
-        Number.isFinite(sourceIndex) &&
-        Number.isFinite(destinationIndex) &&
-        sourceIndex >= destinationIndex
-      ) {
-        feedbackModulations.push({ ...modulation });
-      }
+  for (const modulation of planGraph.modulations) {
+    if (
+      !validModulationWires.has(nodeGraphModulationWireIdentity(modulation)) ||
+      !reachableNodes.has(modulation.sourceNode) ||
+      !reachableNodes.has(modulation.destinationNode)
+    ) {
+      continue;
+    }
+    if (nodeGraphDependencyPathExists(orderDependencies, modulation.sourceNode, modulation.destinationNode)) {
+      feedbackModulations.push({ ...modulation });
+    } else {
+      orderDependencies.get(modulation.destinationNode)?.add(modulation.sourceNode);
     }
   }
 
-  return { feedbackConnections, feedbackModulations };
+  return { feedbackConnections, feedbackModulations, orderDependencies };
 }
 
 function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
@@ -8319,9 +8346,9 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     }
   }
 
-  const topology = nodeGraphTopologicalOrder(graph.nodes, graph.orderDependencies, reachableNodes);
+  const scheduling = nodeGraphBuildSchedulingDependencies(graph, reachableNodes);
+  const topology = nodeGraphTopologicalOrder(graph.nodes, scheduling.orderDependencies, reachableNodes);
   const order = topology.order.filter((nodeId) => reachableNodes.has(nodeId));
-  const feedback = nodeGraphClassifyFeedbackEdges(graph, order);
   const sourceNodes = order.filter((nodeId) => {
     const type = graph.nodeMap.get(nodeId)?.type;
     return type === "osc" || type === "noise";
@@ -8332,15 +8359,15 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   return {
     connections: graph.connections,
     dependencies: graph.dependencies,
-    feedbackConnections: feedback.feedbackConnections,
-    feedbackModulations: feedback.feedbackModulations,
+    feedbackConnections: scheduling.feedbackConnections,
+    feedbackModulations: scheduling.feedbackModulations,
     inputConnections: graph.inputConnections,
     issues: uniqueIssues,
     modulationConnections: graph.modulationConnections,
     modulations: graph.modulations,
     nodeMap: graph.nodeMap,
     nodes: graph.nodes,
-    orderDependencies: graph.orderDependencies,
+    orderDependencies: scheduling.orderDependencies,
     order,
     outputNode,
     sourceNodes,
