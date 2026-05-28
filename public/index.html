@@ -295,6 +295,12 @@
               <ul id="nodeExecutionWireModes" class="node-execution-wire-modes"></ul>
             </div>
           </div>
+          <div id="nodeExecutionPolicy" class="node-execution-policy" aria-label="Execution wire mode policy">
+            <span><strong>same-pass</strong> source already ran this frame</span>
+            <span><strong>state-read</strong> stored previous output</span>
+            <span><strong>bypassed</strong> compiler ignores node/wire</span>
+            <span><strong>inactive</strong> not reachable from Output</span>
+          </div>
           <pre id="nodeExecutionPlanDebug" class="node-execution-plan-debug">waiting for graph</pre>
         </div>
       </div>

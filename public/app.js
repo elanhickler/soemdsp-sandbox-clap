@@ -8805,6 +8805,21 @@ function nodeGraphExecutionWireRows(plan) {
   ];
 }
 
+function nodeGraphWireModeHelp(mode) {
+  switch (mode) {
+    case "same-pass":
+      return "same-pass: source already ran this frame";
+    case "state-read":
+      return "state-read: reads the stored previous output";
+    case "bypassed":
+      return "bypassed: compiler ignores the touched node or wire";
+    case "inactive":
+      return "inactive: not reachable from Output";
+    default:
+      return "unknown wire execution mode";
+  }
+}
+
 function nodeGraphStateReadCount(plan) {
   return (plan.feedbackConnections?.length || 0) + (plan.feedbackModulations?.length || 0);
 }
@@ -9138,7 +9153,7 @@ function renderNodeGraphExecutionPlanSummary(plan) {
       item.dataset.wireMode = row.mode;
       item.tabIndex = 0;
       item.setAttribute("role", "button");
-      item.setAttribute("title", `Select ${row.kind} wire`);
+      item.setAttribute("title", `Select ${row.kind} wire. ${nodeGraphWireModeHelp(row.mode)}`);
       item.textContent = `${row.kind === "modulation" ? "mod" : "signal"} ${row.source} -> ${row.destination} [${row.mode}]`;
       item.addEventListener("click", () => setNodeGraphSelection({ type: "wire", kind: row.kind, index: row.index }));
       item.addEventListener("keydown", (event) => {
