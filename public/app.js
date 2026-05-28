@@ -8806,7 +8806,11 @@ function renderNodeGraphConnectionList() {
     : validation.issues.join(", ");
   validationPill.className = `pill ${validation.valid ? "good" : "warn"}`;
 
-  document.getElementById("nodeRenderButton").disabled = !validation.valid;
+  const renderButton = document.getElementById("nodeRenderButton");
+  renderButton.disabled = !validation.valid;
+  renderButton.title = validation.valid
+    ? "Render current patch sample"
+    : `Render blocked: ${validation.issues.join(", ")}`;
   renderNodeGraphExecutionPlanDebug(plan);
   drawNodeGraphWires();
 }

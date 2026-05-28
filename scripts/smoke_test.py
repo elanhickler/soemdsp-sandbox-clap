@@ -3048,6 +3048,8 @@ def require_node_graph_mvp_contract() -> None:
         "function connectNodeGraphPorts(",
         "function connectNodeGraphModulation(",
         "function disconnectNodeGraphConnection(index, kind = \"signal\")",
+        "Render current patch sample",
+        "Render blocked: ${validation.issues.join(\", \")}",
         "function createNodeSliderReadout(slider)",
         "function updateNodeSliderCurrentValue(slider, rawValue)",
         "function syncNodeGraphPatchParameterFromSlider(slider, options = {})",
