@@ -7525,13 +7525,18 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   }
   const frames = Number(details.frames) || 0;
   const sampleRate = Number(details.sampleRate) || nodeGraphMvp.sampleRate;
+  const stateReadCount = Number(details.stateReadCount) || 0;
   const durationSeconds = frames > 0 && sampleRate > 0 ? frames / sampleRate : 0;
   audioStats.textContent = `peak ${peak.toFixed(3)} / rms ${rms.toFixed(3)}`;
   audioStats.dataset.renderFrames = String(frames);
   audioStats.dataset.renderSampleRate = String(sampleRate);
   audioStats.dataset.renderDuration = durationSeconds.toFixed(3);
+  audioStats.dataset.renderStateReads = String(stateReadCount);
+  const stateReadText = stateReadCount
+    ? ` / ${stateReadCount} ${stateReadCount === 1 ? "state read" : "state reads"}`
+    : "";
   audioStats.title = frames > 0
-    ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz`
+    ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz${stateReadText}`
     : "Rendered sample unavailable";
 }
 
@@ -10718,6 +10723,8 @@ function renderNodeGraphAudio() {
   const leftSamples = new Float32Array(frames);
   const rightSamples = new Float32Array(frames);
   const plan = nodeGraphBuildLivePlan();
+  const stateReadCount = (plan.feedbackConnections?.length || 0) +
+    (plan.feedbackModulations?.length || 0);
   const runtime = createNodeGraphLiveRuntime(plan);
   let peak = 0;
   let squareSum = 0;
@@ -10768,6 +10775,7 @@ function renderNodeGraphAudio() {
     sampleRate: nodeGraphMvp.sampleRate,
     samples,
     sourceNodes: validation.sourceNodes,
+    stateReadCount,
   };
   playButton.disabled = false;
   playButton.title = "Play rendered sample";
@@ -10776,6 +10784,7 @@ function renderNodeGraphAudio() {
   setNodeGraphAudioStats(peak, rms, {
     frames,
     sampleRate: nodeGraphMvp.sampleRate,
+    stateReadCount,
   });
   document.getElementById("nodeOutputSummary").textContent = validation.scheduleText;
   drawNodeRenderedAudio();
