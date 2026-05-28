@@ -10351,10 +10351,14 @@ function setNodeGraphLiveEvidence(kind = "idle", details = {}) {
   const currentPatchFingerprint = nodeGraphPatchFingerprint();
   nodeGraphMvp.live.lastEvidence = {
     active: Boolean(nodeGraphMvp.live.node || nodeGraphMvp.live.context),
+    connectionCount: Number(details.connectionCount) || 0,
     currentPatchFingerprint,
     engine: nodeGraphMvp.live.usesWorklet ? "worklet" : nodeGraphMvp.live.runtime ? "fallback" : "idle",
+    feedbackConnectionCount: Number(details.feedbackConnectionCount) || 0,
+    feedbackModulationCount: Number(details.feedbackModulationCount) || 0,
     kind,
     matchesCurrentPatch: patchFingerprint ? patchFingerprint === currentPatchFingerprint : false,
+    modulationCount: Number(details.modulationCount) || 0,
     nodeCount: Number(details.nodeCount) || 0,
     parameterCount: Number(details.parameterCount) || 0,
     patchFingerprint,
@@ -10991,6 +10995,10 @@ function sendNodeGraphLivePlan() {
     nodeGraphMvp.live.planSerial += 1;
     if (nodeGraphMvp.live.usesWorklet) {
       setNodeGraphLiveEvidence("plan-sent", {
+        connectionCount: plan.connections.length,
+        feedbackConnectionCount: plan.feedbackConnections.length,
+        feedbackModulationCount: plan.feedbackModulations.length,
+        modulationCount: plan.modulations.length,
         nodeCount: plan.nodes.length,
         patchFingerprint: plan.patchFingerprint,
         planSerial: nodeGraphMvp.live.planSerial,
@@ -11007,6 +11015,10 @@ function sendNodeGraphLivePlan() {
     } else if (nodeGraphMvp.live.runtime) {
       updateNodeGraphLiveRuntimePlan(nodeGraphMvp.live.runtime, plan);
       setNodeGraphLiveEvidence("plan-applied", {
+        connectionCount: plan.connections.length,
+        feedbackConnectionCount: plan.feedbackConnections.length,
+        feedbackModulationCount: plan.feedbackModulations.length,
+        modulationCount: plan.modulations.length,
         nodeCount: plan.nodes.length,
         patchFingerprint: plan.patchFingerprint,
         planSerial: nodeGraphMvp.live.planSerial,
@@ -11016,6 +11028,10 @@ function sendNodeGraphLivePlan() {
     } else {
       nodeGraphMvp.live.runtime = createNodeGraphLiveRuntime(plan);
       setNodeGraphLiveEvidence("plan-applied", {
+        connectionCount: plan.connections.length,
+        feedbackConnectionCount: plan.feedbackConnections.length,
+        feedbackModulationCount: plan.feedbackModulations.length,
+        modulationCount: plan.modulations.length,
         nodeCount: plan.nodes.length,
         patchFingerprint: plan.patchFingerprint,
         planSerial: nodeGraphMvp.live.planSerial,
