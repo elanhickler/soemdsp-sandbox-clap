@@ -9647,6 +9647,7 @@ function setNodeGraphLiveBlockedError(kind, error, options = {}) {
   }
   setNodeGraphLiveStatus("error", "warn");
   document.getElementById("nodeLiveStatus").title = message;
+  renderNodeGraphLiveControls(Boolean(nodeGraphMvp.live.node));
 }
 
 function nodeGraphLivePlanScheduleTitle(order = []) {
@@ -9719,7 +9720,9 @@ function setNodeGraphLiveRouteStatus(text, state = "") {
 }
 
 function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) {
-  const starting = document.getElementById("nodeLiveStatus")?.textContent === "starting";
+  const statusText = document.getElementById("nodeLiveStatus")?.textContent || "";
+  const starting = statusText === "starting";
+  const outputActive = (running || starting) && statusText !== "error";
   const inputButton = document.getElementById("nodeLiveInputButton");
   const outputButton = document.getElementById("nodeLiveOutputButton");
   if (inputButton) {
@@ -9728,8 +9731,8 @@ function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) 
   }
   if (outputButton) {
     outputButton.disabled = starting;
-    outputButton.classList.toggle("active", running || starting);
-    outputButton.setAttribute("aria-pressed", running || starting ? "true" : "false");
+    outputButton.classList.toggle("active", outputActive);
+    outputButton.setAttribute("aria-pressed", outputActive ? "true" : "false");
   }
 }
 
