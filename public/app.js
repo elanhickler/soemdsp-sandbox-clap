@@ -8446,6 +8446,14 @@ function nodeGraphStateReadText(count) {
   return count === 1 ? "1 state read" : `${count} state reads`;
 }
 
+function nodeGraphActiveNodeText(plan) {
+  const patchNodeCount = plan.nodes?.length || 0;
+  const activeNodeCount = plan.reachableNodes?.length || 0;
+  return patchNodeCount > activeNodeCount
+    ? `${activeNodeCount}/${patchNodeCount} active`
+    : "";
+}
+
 function nodeGraphScheduleText(order, issues = [], feedbackConnections = [], feedbackModulations = []) {
   if (issues.length) {
     return `schedule blocked: ${issues.join(", ")}`;
@@ -8559,8 +8567,13 @@ function renderNodeGraphExecutionPlanDebug(plan = compileNodeGraphExecutionPlan(
     return;
   }
   const stateReadCount = nodeGraphStateReadCount(plan);
+  const activeNodeText = nodeGraphActiveNodeText(plan);
   status.textContent = plan.valid
-    ? `compiled${stateReadCount ? ` / ${nodeGraphStateReadText(stateReadCount)}` : ""}`
+    ? [
+      "compiled",
+      activeNodeText,
+      stateReadCount ? nodeGraphStateReadText(stateReadCount) : "",
+    ].filter(Boolean).join(" / ")
     : "blocked";
   status.title = plan.valid
     ? "Execution model: single-pass stored-output"
