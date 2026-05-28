@@ -6539,6 +6539,9 @@ function validateNodeGraphPatch(patch) {
     if (!Object.hasOwn(nodeGraphModuleDefinitions, type)) {
       throw new Error(`unknown node type ${type}`);
     }
+    if (type === "output" && id !== "output") {
+      throw new Error("output module id must be output");
+    }
     const gx = Math.round(Number(node.gx));
     const gy = Math.round(Number(node.gy));
     if (!Number.isFinite(gx) || !Number.isFinite(gy)) {
