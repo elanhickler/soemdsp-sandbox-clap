@@ -6205,6 +6205,7 @@ const nodeGraphMvp = {
   metadataDragging: null,
   metadataEditorTarget: null,
   metadataPopoverPosition: null,
+  modulations: nodeGraphDefaultPatch.modulations.map((modulation) => ({ ...modulation })),
   nodeDragging: null,
   nodeTypeCounts: {
     bias: 1,
@@ -6286,6 +6287,7 @@ function nextNodeGraphTypeCounts(nodes = nodeGraphMvp.patch.nodes) {
 function syncNodeGraphRuntimeFromPatch() {
   nodeGraphMvp.activeNodes = new Set(nodeGraphMvp.patch.nodes.map((node) => node.id));
   nodeGraphMvp.connections = nodeGraphMvp.patch.connections.map((connection) => ({ ...connection }));
+  nodeGraphMvp.modulations = nodeGraphMvp.patch.modulations.map((modulation) => ({ ...modulation }));
   nodeGraphMvp.nodeTypeCounts = nextNodeGraphTypeCounts();
 }
 
@@ -7732,6 +7734,10 @@ function nodeGraphPortSelector(node, port, io) {
   return `.node-port.${io}[data-node="${CSS.escape(node)}"][data-port="${CSS.escape(port)}"]`;
 }
 
+function nodeGraphModulationPortSelector(node, parameter) {
+  return `.node-param-port.modulation-input[data-node="${CSS.escape(node)}"][data-param="${CSS.escape(parameter)}"]`;
+}
+
 function nodeGraphZoom() {
   return Number.isFinite(nodeGraphMvp.zoom) ? nodeGraphMvp.zoom : 1;
 }
@@ -7787,6 +7793,17 @@ function zoomNodeGraphBy(delta) {
 function nodeGraphPortCenter(node, port, io) {
   const surface = nodeGraphZoomSurface();
   const element = surface.querySelector(nodeGraphPortSelector(node, port, io));
+  return nodeGraphElementCenter(element);
+}
+
+function nodeGraphModulationPortCenter(node, parameter) {
+  const surface = nodeGraphZoomSurface();
+  const element = surface.querySelector(nodeGraphModulationPortSelector(node, parameter));
+  return nodeGraphElementCenter(element);
+}
+
+function nodeGraphElementCenter(element) {
+  const surface = nodeGraphZoomSurface();
   if (!element) {
     return { x: 0, y: 0 };
   }
@@ -7832,6 +7849,12 @@ function sameNodeGraphSelection(a, b) {
   if (a?.type !== b?.type) {
     return false;
   }
+  if (a?.type === "wire") {
+    return (
+      (a.kind || "signal") === (b.kind || "signal") &&
+      a.index === b.index
+    );
+  }
   if (a?.type === "nodes") {
     return (
       Array.isArray(a.ids) &&
@@ -7854,6 +7877,7 @@ function renderNodeGraphSelection() {
       "selected",
       sameNodeGraphSelection(nodeGraphMvp.selected, {
         type: "wire",
+        kind: path.dataset.connectionKind || "signal",
         index: Number(path.dataset.connectionIndex),
       }),
     );
@@ -7864,6 +7888,7 @@ function renderNodeGraphSelection() {
       "selected",
       sameNodeGraphSelection(nodeGraphMvp.selected, {
         type: "wire",
+        kind: item.dataset.connectionRowKind || "signal",
         index: Number(item.dataset.connectionRowIndex),
       }),
     );
@@ -7880,7 +7905,7 @@ function nodeGraphPath(from, to) {
   return `M ${from.x} ${from.y} C ${from.x + span} ${from.y}, ${to.x - span} ${to.y}, ${to.x} ${to.y}`;
 }
 
-function createNodeGraphWireGradient(svg, id, from, to) {
+function createNodeGraphWireGradient(svg, id, from, to, stopClass = "node-wire-gradient-stop") {
   const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
   gradient.id = id;
   gradient.setAttribute("gradientUnits", "userSpaceOnUse");
@@ -7895,7 +7920,7 @@ function createNodeGraphWireGradient(svg, id, from, to) {
     ["100%", "1"],
   ]) {
     const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-    stop.setAttribute("class", "node-wire-gradient-stop");
+    stop.setAttribute("class", stopClass);
     stop.setAttribute("offset", offset);
     stop.setAttribute("stop-opacity", opacity);
     gradient.append(stop);
@@ -7905,9 +7930,38 @@ function createNodeGraphWireGradient(svg, id, from, to) {
   return `url(#${id})`;
 }
 
-function selectNodeGraphWire(event, index) {
+function selectNodeGraphWire(event, index, kind = "signal") {
   event.stopPropagation();
-  setNodeGraphSelection({ type: "wire", index });
+  setNodeGraphSelection({ type: "wire", kind, index });
+}
+
+function drawNodeGraphWirePath(svg, options) {
+  const {
+    from,
+    gradientClass = "node-wire-gradient-stop",
+    gradientId,
+    index,
+    kind = "signal",
+    pathClass = "node-wire-path",
+    to,
+  } = options;
+  const pathData = nodeGraphPath(from, to);
+  const stroke = createNodeGraphWireGradient(svg, gradientId, from, to, gradientClass);
+  const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  hitPath.setAttribute("class", "node-wire-hit-path");
+  hitPath.dataset.connectionIndex = String(index);
+  hitPath.dataset.connectionKind = kind;
+  hitPath.setAttribute("d", pathData);
+  hitPath.addEventListener("click", (event) => selectNodeGraphWire(event, index, kind));
+  svg.append(hitPath);
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("class", pathClass);
+  path.dataset.connectionIndex = String(index);
+  path.dataset.connectionKind = kind;
+  path.setAttribute("d", pathData);
+  path.setAttribute("stroke", stroke);
+  svg.append(path);
 }
 
 function drawNodeGraphWires() {
@@ -7941,24 +7995,43 @@ function drawNodeGraphWires() {
       connection.destinationPort,
       "input",
     );
-    const pathData = nodeGraphPath(from, to);
-    const stroke = createNodeGraphWireGradient(svg, `node-wire-gradient-${index}`, from, to);
-    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    hitPath.setAttribute("class", "node-wire-hit-path");
-    hitPath.dataset.connectionIndex = String(index);
-    hitPath.setAttribute("d", pathData);
-    hitPath.addEventListener("click", (event) => selectNodeGraphWire(event, index));
-    svg.append(hitPath);
-
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("class", "node-wire-path");
-    path.dataset.connectionIndex = String(index);
-    path.setAttribute("d", pathData);
-    path.setAttribute("stroke", stroke);
-    svg.append(path);
+    drawNodeGraphWirePath(svg, {
+      from,
+      gradientId: `node-wire-gradient-${index}`,
+      index,
+      kind: "signal",
+      to,
+    });
 
     nodeGraphNodeElement(connection.sourceNode)?.classList.add("connected");
     nodeGraphNodeElement(connection.destinationNode)?.classList.add("connected");
+  }
+
+  for (const [index, modulation] of nodeGraphMvp.modulations.entries()) {
+    if (
+      !nodeGraphMvp.activeNodes.has(modulation.sourceNode) ||
+      !nodeGraphMvp.activeNodes.has(modulation.destinationNode)
+    ) {
+      continue;
+    }
+
+    const from = nodeGraphPortCenter(modulation.sourceNode, modulation.sourcePort, "output");
+    const to = nodeGraphModulationPortCenter(
+      modulation.destinationNode,
+      modulation.destinationParam,
+    );
+    drawNodeGraphWirePath(svg, {
+      from,
+      gradientClass: "node-modulation-wire-gradient-stop",
+      gradientId: `node-modulation-wire-gradient-${index}`,
+      index,
+      kind: "modulation",
+      pathClass: "node-wire-path node-modulation-wire-path",
+      to,
+    });
+
+    nodeGraphNodeElement(modulation.sourceNode)?.classList.add("connected");
+    nodeGraphNodeElement(modulation.destinationNode)?.classList.add("connected");
   }
 
   if (nodeGraphMvp.dragging) {
@@ -7989,6 +8062,7 @@ function renderNodeGraphConnectionList() {
   const validationPill = document.getElementById("nodeGraphValidation");
 
   list.replaceChildren();
+  let renderedWireCount = 0;
   for (const [index, connection] of nodeGraphMvp.connections.entries()) {
     if (
       !nodeGraphMvp.activeNodes.has(connection.sourceNode) ||
@@ -7999,11 +8073,12 @@ function renderNodeGraphConnectionList() {
 
     const item = document.createElement("li");
     item.dataset.connectionRowIndex = String(index);
+    item.dataset.connectionRowKind = "signal";
     item.classList.toggle(
       "selected",
-      sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", index }),
+      sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", kind: "signal", index }),
     );
-    item.addEventListener("click", () => setNodeGraphSelection({ type: "wire", index }));
+    item.addEventListener("click", () => setNodeGraphSelection({ type: "wire", kind: "signal", index }));
     const label = document.createElement("span");
     label.textContent = `${nodeGraphLabel(connection.sourceNode, connection.sourcePort)} -> ${nodeGraphLabel(
       connection.destinationNode,
@@ -8014,13 +8089,48 @@ function renderNodeGraphConnectionList() {
     button.type = "button";
     button.textContent = "Disconnect";
     button.dataset.connectionIndex = String(index);
+    button.dataset.connectionKind = "signal";
     button.setAttribute("aria-label", `Disconnect ${label.textContent}`);
-    button.addEventListener("click", () => disconnectNodeGraphConnection(index));
+    button.addEventListener("click", () => disconnectNodeGraphConnection(index, "signal"));
     item.append(label, button);
     list.append(item);
+    renderedWireCount += 1;
   }
 
-  if (!nodeGraphMvp.connections.length) {
+  for (const [index, modulation] of nodeGraphMvp.modulations.entries()) {
+    if (
+      !nodeGraphMvp.activeNodes.has(modulation.sourceNode) ||
+      !nodeGraphMvp.activeNodes.has(modulation.destinationNode)
+    ) {
+      continue;
+    }
+
+    const item = document.createElement("li");
+    item.dataset.connectionRowIndex = String(index);
+    item.dataset.connectionRowKind = "modulation";
+    item.classList.toggle(
+      "selected",
+      sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", kind: "modulation", index }),
+    );
+    item.addEventListener("click", () => setNodeGraphSelection({ type: "wire", kind: "modulation", index }));
+    const label = document.createElement("span");
+    label.textContent = `${nodeGraphLabel(modulation.sourceNode, modulation.sourcePort)} -> ${nodeGraphNodeDisplayName(
+      modulation.destinationNode,
+    )}.${modulation.destinationParam} mod`;
+    const button = document.createElement("button");
+    button.className = "disconnect-wire-button";
+    button.type = "button";
+    button.textContent = "Disconnect";
+    button.dataset.connectionIndex = String(index);
+    button.dataset.connectionKind = "modulation";
+    button.setAttribute("aria-label", `Disconnect ${label.textContent}`);
+    button.addEventListener("click", () => disconnectNodeGraphConnection(index, "modulation"));
+    item.append(label, button);
+    list.append(item);
+    renderedWireCount += 1;
+  }
+
+  if (!renderedWireCount) {
     const item = document.createElement("li");
     item.className = "warn-row";
     item.textContent = "No wires connected";
@@ -8041,12 +8151,18 @@ function renderNodeGraphConnectionList() {
   drawNodeGraphWires();
 }
 
-function disconnectNodeGraphConnection(index) {
+function disconnectNodeGraphConnection(index, kind = "signal") {
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
-  patch.connections = patch.connections.filter(
-    (_connection, connectionIndex) => connectionIndex !== index,
-  );
-  if (sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", index })) {
+  if (kind === "modulation") {
+    patch.modulations = patch.modulations.filter(
+      (_modulation, modulationIndex) => modulationIndex !== index,
+    );
+  } else {
+    patch.connections = patch.connections.filter(
+      (_connection, connectionIndex) => connectionIndex !== index,
+    );
+  }
+  if (sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", kind, index })) {
     setNodeGraphSelection(null);
   }
   commitNodeGraphPatch(patch, { status: "wire disconnected" });
@@ -8083,6 +8199,36 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
   return true;
 }
 
+function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, destinationParam) {
+  if (
+    !nodeGraphMvp.activeNodes.has(sourceNode) ||
+    !nodeGraphMvp.activeNodes.has(destinationNode)
+  ) {
+    return false;
+  }
+
+  const duplicate = nodeGraphMvp.patch.modulations.some(
+    (modulation) =>
+      modulation.sourceNode === sourceNode &&
+      modulation.sourcePort === sourcePort &&
+      modulation.destinationNode === destinationNode &&
+      modulation.destinationParam === destinationParam,
+  );
+  if (duplicate) {
+    return false;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  patch.modulations.push({
+    sourceNode,
+    sourcePort,
+    destinationNode,
+    destinationParam,
+  });
+  commitNodeGraphPatch(patch, { status: "modulation connected" });
+  return true;
+}
+
 function beginNodeGraphWireDrag(event) {
   const port = event.currentTarget;
   const from = nodeGraphPortCenter(port.dataset.node, port.dataset.port, "output");
@@ -8115,13 +8261,20 @@ function endNodeGraphWireDrag(event) {
   const dragging = nodeGraphMvp.dragging;
   const target = document
     .elementFromPoint(event.clientX, event.clientY)
-    ?.closest?.(".node-port.input");
+    ?.closest?.(".node-port.input, .node-param-port.modulation-input");
   document
     .querySelector(nodeGraphPortSelector(dragging.sourceNode, dragging.sourcePort, "output"))
     ?.classList.remove("dragging");
   nodeGraphMvp.dragging = null;
 
-  if (target?.dataset.node && target?.dataset.port) {
+  if (target?.classList?.contains("modulation-input") && target?.dataset.node && target?.dataset.param) {
+    connectNodeGraphModulation(
+      dragging.sourceNode,
+      dragging.sourcePort,
+      target.dataset.node,
+      target.dataset.param,
+    );
+  } else if (target?.dataset.node && target?.dataset.port) {
     connectNodeGraphPorts(
       dragging.sourceNode,
       dragging.sourcePort,
@@ -8468,6 +8621,7 @@ function restoreDefaultNodeGraph() {
 function clearNodeGraphWires() {
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
   patch.connections = [];
+  patch.modulations = [];
   setNodeGraphSelection(null);
   nodeGraphMvp.rendered = null;
   document.getElementById("nodePlayButton").disabled = true;
@@ -8621,7 +8775,7 @@ function deleteSelectedNodeGraphItem() {
   }
 
   if (selection.type === "wire") {
-    disconnectNodeGraphConnection(selection.index);
+    disconnectNodeGraphConnection(selection.index, selection.kind || "signal");
     return;
   }
 
@@ -8636,6 +8790,11 @@ function deleteSelectedNodeGraphItem() {
       (connection) =>
         !selectedNodeIds.has(connection.sourceNode) &&
         !selectedNodeIds.has(connection.destinationNode),
+    );
+    patch.modulations = patch.modulations.filter(
+      (modulation) =>
+        !selectedNodeIds.has(modulation.sourceNode) &&
+        !selectedNodeIds.has(modulation.destinationNode),
     );
     setNodeGraphSelection(null);
     commitNodeGraphPatch(patch, {
@@ -8834,6 +8993,7 @@ function nodeGraphBuildLivePlan() {
 
   return {
     connections: nodeGraphMvp.patch.connections.map((connection) => ({ ...connection })),
+    modulations: nodeGraphMvp.patch.modulations.map((modulation) => ({ ...modulation })),
     nodes: nodeGraphMvp.patch.nodes.map((node) => {
       const definition = nodeGraphModuleDefinitions[node.type];
       const params = {};
@@ -8865,6 +9025,13 @@ function createNodeGraphLiveRuntime(plan) {
     connections.push(connection);
     inputConnections.set(key, connections);
   }
+  const modulationConnections = new Map();
+  for (const modulation of plan.modulations || []) {
+    const key = nodeGraphParameterKey(modulation.destinationNode, modulation.destinationParam);
+    const modulations = modulationConnections.get(key) || [];
+    modulations.push(modulation);
+    modulationConnections.set(key, modulations);
+  }
   const phases = new Map();
   const noiseSeeds = new Map();
   const smoothers = new Map();
@@ -8888,6 +9055,7 @@ function createNodeGraphLiveRuntime(plan) {
     meterPeak: 0,
     meterSamples: 0,
     meterSquareSum: 0,
+    modulationConnections,
     nodes,
     noiseSeeds,
     outputNode: plan.outputNode || "output",
@@ -8904,6 +9072,13 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     const connections = runtime.inputConnections.get(key) || [];
     connections.push(connection);
     runtime.inputConnections.set(key, connections);
+  }
+  runtime.modulationConnections = new Map();
+  for (const modulation of plan.modulations || []) {
+    const key = nodeGraphParameterKey(modulation.destinationNode, modulation.destinationParam);
+    const modulations = runtime.modulationConnections.get(key) || [];
+    modulations.push(modulation);
+    runtime.modulationConnections.set(key, modulations);
   }
   runtime.outputNode = plan.outputNode || "output";
   const nodeIds = new Set(runtime.nodes.keys());
@@ -8958,6 +9133,51 @@ function readNodeGraphLiveSmoothedParam(runtime, node, key, fallback, frame, fra
   return readNodeGraphSmoothedParameter(smoother, frame, frames);
 }
 
+function nodeGraphApplyParameterBounds(value, metadata = {}) {
+  const min = Number(metadata.min);
+  const max = Number(metadata.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return value;
+  }
+  return metadata.wraparound
+    ? wrapNodeSliderValue(value, min, max)
+    : clampNodeSliderValue(value, min, max);
+}
+
+function readNodeGraphLiveEffectiveParam(
+  runtime,
+  node,
+  key,
+  fallback,
+  frame,
+  frames,
+  frameValues,
+  visiting,
+  sampleRate,
+) {
+  const base = readNodeGraphLiveSmoothedParam(runtime, node, key, fallback, frame, frames);
+  const metadata = node?.paramMeta?.[key] || {};
+  const min = Number(metadata.min);
+  const max = Number(metadata.max);
+  const depth = Number.isFinite(min) && Number.isFinite(max) ? (max - min) * 0.5 : 0;
+  const modulations = runtime.modulationConnections?.get(nodeGraphParameterKey(node?.id, key)) || [];
+  const modulationValue = modulations.reduce(
+    (sum, modulation) =>
+      sum +
+      evaluateNodeGraphLiveNode(
+        runtime,
+        modulation.sourceNode,
+        frameValues,
+        visiting,
+        sampleRate,
+        frame,
+        frames,
+      ) * depth,
+    0,
+  );
+  return nodeGraphApplyParameterBounds(base + modulationValue, metadata);
+}
+
 function nodeGraphPhaseRadians(value) {
   return wrapNodeSliderValue(Number(value) || 0, 0, 1) * Math.PI * 2;
 }
@@ -8990,10 +9210,40 @@ function evaluateNodeGraphLiveNode(runtime, nodeId, frameValues, visiting, sampl
   if (node?.type === "osc") {
     const phase = runtime.phases.get(nodeId) || 0;
     const phaseOffset = nodeGraphPhaseRadians(
-      readNodeGraphLiveSmoothedParam(runtime, node, "phase", 0, frame, frames),
+      readNodeGraphLiveEffectiveParam(
+        runtime,
+        node,
+        "phase",
+        0,
+        frame,
+        frames,
+        frameValues,
+        visiting,
+        sampleRate,
+      ),
     );
-    const frequency = readNodeGraphLiveSmoothedParam(runtime, node, "frequency", 220, frame, frames);
-    value = Math.sin(phase + phaseOffset) * readNodeGraphLiveSmoothedParam(runtime, node, "level", 0.35, frame, frames);
+    const frequency = readNodeGraphLiveEffectiveParam(
+      runtime,
+      node,
+      "frequency",
+      220,
+      frame,
+      frames,
+      frameValues,
+      visiting,
+      sampleRate,
+    );
+    value = Math.sin(phase + phaseOffset) * readNodeGraphLiveEffectiveParam(
+      runtime,
+      node,
+      "level",
+      0.35,
+      frame,
+      frames,
+      frameValues,
+      visiting,
+      sampleRate,
+    );
     runtime.phases.set(
       nodeId,
       (phase + (Math.PI * 2 * frequency) / sampleRate) % (Math.PI * 2),
@@ -9001,11 +9251,41 @@ function evaluateNodeGraphLiveNode(runtime, nodeId, frameValues, visiting, sampl
   } else if (node?.type === "noise") {
     const seed = (Math.imul(1664525, runtime.noiseSeeds.get(nodeId) || 0x12345678) + 1013904223) >>> 0;
     runtime.noiseSeeds.set(nodeId, seed);
-    value = ((seed / 0xffffffff) * 2 - 1) * readNodeGraphLiveSmoothedParam(runtime, node, "level", 0.12, frame, frames);
+    value = ((seed / 0xffffffff) * 2 - 1) * readNodeGraphLiveEffectiveParam(
+      runtime,
+      node,
+      "level",
+      0.12,
+      frame,
+      frames,
+      frameValues,
+      visiting,
+      sampleRate,
+    );
   } else if (node?.type === "gain") {
-    value = mixInput() * readNodeGraphLiveSmoothedParam(runtime, node, "amount", 1, frame, frames);
+    value = mixInput() * readNodeGraphLiveEffectiveParam(
+      runtime,
+      node,
+      "amount",
+      1,
+      frame,
+      frames,
+      frameValues,
+      visiting,
+      sampleRate,
+    );
   } else if (node?.type === "bias") {
-    value = mixInput() + readNodeGraphLiveSmoothedParam(runtime, node, "offset", 0, frame, frames);
+    value = mixInput() + readNodeGraphLiveEffectiveParam(
+      runtime,
+      node,
+      "offset",
+      0,
+      frame,
+      frames,
+      frameValues,
+      visiting,
+      sampleRate,
+    );
   } else if (node?.type === "output") {
     const left = mixInput("Left");
     const right = mixInput("Right");
@@ -9231,17 +9511,6 @@ function renderNodeGraphAudio() {
   const rightSamples = new Float32Array(frames);
   const plan = nodeGraphBuildLivePlan();
   const runtime = createNodeGraphLiveRuntime(plan);
-  const phases = new Map();
-  const noiseSeeds = new Map();
-  for (const node of nodeGraphMvp.activeNodes) {
-    const type = nodeGraphNodeType(node);
-    if (type === "osc") {
-      phases.set(node, 0);
-    }
-    if (type === "noise") {
-      noiseSeeds.set(node, nodeGraphStableSeed(node));
-    }
-  }
   let peak = 0;
   let squareSum = 0;
 
@@ -9250,62 +9519,34 @@ function renderNodeGraphAudio() {
     for (let blockFrame = 0; blockFrame < blockFrames; blockFrame += 1) {
       const frameValues = new Map();
       const frame = blockStart + blockFrame;
-
-      function mixNodeInput(node, port = "In") {
-        return nodeGraphFindInputConnections(node, port).reduce(
-          (sum, connection) => sum + evaluateNode(connection.sourceNode),
-          0,
-        );
-      }
-
-      function smoothedParam(node, key, fallback = 0) {
-        return readNodeGraphLiveSmoothedParam(
-          runtime,
-          runtime.nodes.get(node),
-          key,
-          fallback,
-          blockFrame,
-          blockFrames,
-        );
-      }
-
-      function evaluateNode(node) {
-        if (frameValues.has(node)) {
-          return frameValues.get(node);
-        }
-
-        const type = nodeGraphNodeType(node);
-        let value = 0;
-        if (type === "osc") {
-          const phase = phases.get(node) || 0;
-          const frequency = smoothedParam(node, "frequency", 220);
-          const phaseOffset = nodeGraphPhaseRadians(smoothedParam(node, "phase", 0));
-          value = Math.sin(phase + phaseOffset) * smoothedParam(node, "level", 0.35);
-          phases.set(
-            node,
-            (phase + (Math.PI * 2 * frequency) / nodeGraphMvp.sampleRate) % (Math.PI * 2),
-          );
-        }
-        if (type === "noise") {
-          const seed = (Math.imul(1664525, noiseSeeds.get(node) || 0x12345678) + 1013904223) >>> 0;
-          noiseSeeds.set(node, seed);
-          value = ((seed / 0xffffffff) * 2 - 1) * smoothedParam(node, "level", 0.12);
-        }
-        if (type === "gain") {
-          value = mixNodeInput(node) * smoothedParam(node, "amount", 1);
-        }
-        if (type === "bias") {
-          value = mixNodeInput(node) + smoothedParam(node, "offset", 0);
-        }
-        if (type === "output") {
-          value = (mixNodeInput(node, "Left") + mixNodeInput(node, "Right")) * 0.5;
-        }
-        frameValues.set(node, value);
-        return value;
-      }
-
-      const left = Math.max(-0.95, Math.min(0.95, mixNodeInput("output", "Left")));
-      const right = Math.max(-0.95, Math.min(0.95, mixNodeInput("output", "Right")));
+      const left = Math.max(
+        -0.95,
+        Math.min(
+          0.95,
+          evaluateNodeGraphLiveOutputPort(
+            runtime,
+            "Left",
+            frameValues,
+            nodeGraphMvp.sampleRate,
+            blockFrame,
+            blockFrames,
+          ),
+        ),
+      );
+      const right = Math.max(
+        -0.95,
+        Math.min(
+          0.95,
+          evaluateNodeGraphLiveOutputPort(
+            runtime,
+            "Right",
+            frameValues,
+            nodeGraphMvp.sampleRate,
+            blockFrame,
+            blockFrames,
+          ),
+        ),
+      );
       const output = (left + right) * 0.5;
       leftSamples[frame] = left;
       rightSamples[frame] = right;

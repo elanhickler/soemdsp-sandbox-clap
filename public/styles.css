@@ -344,9 +344,17 @@ audio {
   stop-color: var(--accent);
 }
 
+.node-modulation-wire-gradient-stop {
+  stop-color: rgba(177, 132, 255, 0.92);
+}
+
 .node-wire-path.selected {
   filter: drop-shadow(0 0 5px rgba(247, 183, 88, 0.42));
   stroke-width: 5;
+}
+
+.node-modulation-wire-path {
+  stroke-width: 2.5;
 }
 
 .node-wire-hit-path {
