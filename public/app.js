@@ -6818,10 +6818,10 @@ function applyNodeGraphPatchToDom() {
     const bypassButton = element.querySelector(".node-bypass-button");
     if (bypassButton) {
       bypassButton.setAttribute("aria-pressed", bypassed ? "true" : "false");
-      bypassButton.textContent = bypassed ? "Bypassed" : "Bypass";
+      bypassButton.textContent = "⏻";
       bypassButton.title = bypassed
-        ? "Click to include this module in the compiled engine"
-        : "Click to bypass this module";
+        ? "Mouse: click to include this module in the compiled engine."
+        : "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.";
     }
     for (const parameter of nodeGraphModuleDefinitions[patchNode.type]?.parameters || []) {
       const input = element.querySelector(`input[data-param="${CSS.escape(parameter.key)}"]`);
@@ -8274,10 +8274,10 @@ function createNodeGraphModuleElement(type, node) {
     bypassButton.className = "node-bypass-button";
     bypassButton.type = "button";
     bypassButton.dataset.node = node;
-    bypassButton.textContent = "Bypass";
+    bypassButton.textContent = "⏻";
     bypassButton.setAttribute("aria-label", `Bypass ${nodeGraphNodeLabels[type]} module`);
     bypassButton.setAttribute("aria-pressed", "false");
-    bypassButton.setAttribute("title", "Click to bypass this module");
+    bypassButton.setAttribute("title", "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.");
     header.append(bypassButton);
   }
   const actionButton = document.createElement("button");
@@ -11780,6 +11780,7 @@ function renderNodeGraphAudio() {
 function drawNodeRenderedAudio() {
   drawNodeRenderedWaveform();
   drawNodeRenderedSignalPlot();
+  drawNodeRenderedVisualOutput();
 }
 
 function drawNodeRenderedWaveform() {
@@ -11855,6 +11856,115 @@ function drawNodeRenderedSignalPlot() {
     }
   }
   context.stroke();
+}
+
+function drawNodeRenderedVisualOutput() {
+  const canvas = document.getElementById("nodeVisualOutputCanvas");
+  const status = document.getElementById("nodeVisualOutputStatus");
+  const context = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  context.clearRect(0, 0, width, height);
+
+  const gradient = context.createRadialGradient(
+    width * 0.5,
+    height * 0.5,
+    0,
+    width * 0.5,
+    height * 0.5,
+    Math.max(width, height) * 0.62,
+  );
+  gradient.addColorStop(0, "#151719");
+  gradient.addColorStop(1, "#0b0d0e");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+
+  context.strokeStyle = "rgba(243, 241, 236, 0.09)";
+  context.lineWidth = 1;
+  context.beginPath();
+  for (const radius of [0.16, 0.29, 0.42]) {
+    context.ellipse(
+      width / 2,
+      height / 2,
+      width * radius,
+      height * radius,
+      0,
+      0,
+      Math.PI * 2,
+    );
+  }
+  context.moveTo(width / 2, height * 0.08);
+  context.lineTo(width / 2, height * 0.92);
+  context.moveTo(width * 0.08, height / 2);
+  context.lineTo(width * 0.92, height / 2);
+  context.stroke();
+
+  const rendered = nodeGraphMvp.rendered;
+  const leftSamples = rendered?.leftSamples || rendered?.samples;
+  const rightSamples = rendered?.rightSamples;
+  const samples = rendered?.samples;
+  if (!leftSamples?.length && !samples?.length) {
+    canvas.dataset.visualSource = "unavailable";
+    canvas.dataset.visualMode = "waiting";
+    canvas.dataset.visualFrames = "0";
+    canvas.title = "Node graph visual output waiting for Render Sample";
+    if (status) {
+      status.textContent = "waiting";
+      status.className = "pill";
+    }
+    return;
+  }
+
+  const sourceSamples = leftSamples || samples;
+  const useStereo = Boolean(rightSamples?.length);
+  const lag = useStereo ? 0 : Math.max(1, Math.floor(nodeGraphMvp.sampleRate * 0.001));
+  const firstFrame = useStereo ? 0 : lag;
+  const step = Math.max(1, Math.floor(sourceSamples.length / 2600));
+
+  context.lineWidth = 4;
+  context.strokeStyle = "rgba(177, 132, 255, 0.14)";
+  context.beginPath();
+  for (let frame = firstFrame; frame < sourceSamples.length; frame += step) {
+    const xSample = useStereo ? sourceSamples[frame] || 0 : sourceSamples[frame - lag] || 0;
+    const ySample = useStereo ? rightSamples[frame] || 0 : sourceSamples[frame] || 0;
+    const x = width / 2 + xSample * (width * 0.42);
+    const y = height / 2 - ySample * (height * 0.42);
+    if (frame === firstFrame) {
+      context.moveTo(x, y);
+    } else {
+      context.lineTo(x, y);
+    }
+  }
+  context.stroke();
+
+  context.lineWidth = 1.3;
+  context.strokeStyle = "#7fc7d9";
+  context.beginPath();
+  for (let frame = firstFrame; frame < sourceSamples.length; frame += step) {
+    const xSample = useStereo ? sourceSamples[frame] || 0 : sourceSamples[frame - lag] || 0;
+    const ySample = useStereo ? rightSamples[frame] || 0 : sourceSamples[frame] || 0;
+    const x = width / 2 + xSample * (width * 0.42);
+    const y = height / 2 - ySample * (height * 0.42);
+    if (frame === firstFrame) {
+      context.moveTo(x, y);
+    } else {
+      context.lineTo(x, y);
+    }
+  }
+  context.stroke();
+
+  canvas.dataset.visualSource = "node graph rendered audio";
+  canvas.dataset.visualMode = useStereo ? "stereo xy" : "mono lag xy";
+  canvas.dataset.visualFrames = String(sourceSamples.length);
+  canvas.dataset.visualPeak = formatCompactNumber(rendered.peak || 0);
+  canvas.dataset.visualRms = formatCompactNumber(rendered.rms || 0);
+  canvas.title =
+    `Node graph visual output / ${canvas.dataset.visualMode} / ` +
+    `${sourceSamples.length} frames / peak ${canvas.dataset.visualPeak} / rms ${canvas.dataset.visualRms}`;
+  if (status) {
+    status.textContent = canvas.dataset.visualMode;
+    status.className = "pill good";
+  }
 }
 
 async function playNodeGraphAudio() {
