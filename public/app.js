@@ -8183,15 +8183,27 @@ function createNodeGraphParameter(node, type, parameter) {
   return row;
 }
 
+function nodeGraphModuleBodyRowCount(type) {
+  const definition = nodeGraphModuleDefinitions[type];
+  return (definition?.parameters?.length || 0) + (definition?.output ? 1 : 0);
+}
+
+function nodeGraphModuleGridWidthUnits(type) {
+  return nodeGraphModuleDefinitions[type]?.output ? 6 : 7;
+}
+
+function nodeGraphModuleGridHeightUnits(type) {
+  return 2 + Math.max(1, nodeGraphModuleBodyRowCount(type)) * 2;
+}
+
 function createNodeGraphModuleElement(type, node) {
   const definition = nodeGraphModuleDefinitions[type];
   const article = document.createElement("article");
   article.className = `dsp-node${definition.output ? " output-node" : ""}`;
   article.dataset.node = node;
   article.dataset.nodeType = type;
-  const bodyRowCount = definition.parameters.length + (definition.output ? 1 : 0);
-  article.style.setProperty("--node-grid-width-units", definition.output ? "6" : "7");
-  article.style.setProperty("--node-grid-height-units", String(2 + Math.max(1, bodyRowCount) * 2));
+  article.style.setProperty("--node-grid-width-units", String(nodeGraphModuleGridWidthUnits(type)));
+  article.style.setProperty("--node-grid-height-units", String(nodeGraphModuleGridHeightUnits(type)));
 
   const header = document.createElement("div");
   header.className = "dsp-node-header dsp-node-title";
@@ -10001,6 +10013,42 @@ function defaultNodeGraphModuleGridPoint(type) {
   };
 }
 
+function nodeGraphPatchNodeGridRect(node) {
+  return {
+    bottom: node.gy + nodeGraphModuleGridHeightUnits(node.type),
+    left: node.gx,
+    right: node.gx + nodeGraphModuleGridWidthUnits(node.type),
+    top: node.gy,
+  };
+}
+
+function nodeGraphGridRectsOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function nodeGraphFindCopiedModuleGridPoint(sourceNode, nodes = nodeGraphMvp.patch.nodes) {
+  const sourceRect = nodeGraphPatchNodeGridRect(sourceNode);
+  const candidate = {
+    gx: sourceNode.gx,
+    gy: sourceRect.bottom + 1,
+  };
+  const maxSearchRows = 200;
+
+  for (let offset = 0; offset < maxSearchRows; offset += 1) {
+    const rect = nodeGraphPatchNodeGridRect({
+      gx: candidate.gx,
+      gy: candidate.gy + offset,
+      type: sourceNode.type,
+    });
+    const overlaps = nodes.some((node) => nodeGraphGridRectsOverlap(rect, nodeGraphPatchNodeGridRect(node)));
+    if (!overlaps) {
+      return { gx: candidate.gx, gy: candidate.gy + offset };
+    }
+  }
+
+  return { gx: candidate.gx, gy: candidate.gy + maxSearchRows };
+}
+
 function showNodeGraphModule(node, point = null) {
   const type = node;
   if (type === "output" || !Object.hasOwn(nodeGraphModuleDefinitions, type)) {
@@ -10041,10 +10089,11 @@ function copyNodeGraphModuleFromContext() {
   const counts = nextNodeGraphTypeCounts(patch.nodes);
   counts[sourceNode.type] = (counts[sourceNode.type] || 0) + 1;
   const id = `${sourceNode.type}-${counts[sourceNode.type]}`;
+  const gridPoint = nodeGraphFindCopiedModuleGridPoint(sourceNode, patch.nodes);
   patch.nodes.push({
     ...createNodeGraphPatchNode(sourceNode.type, {
-      gx: sourceNode.gx + 2,
-      gy: sourceNode.gy + 2,
+      gx: gridPoint.gx,
+      gy: gridPoint.gy,
       id,
     }),
     paramMeta: cloneNodeGraphParamMeta(sourceNode.paramMeta),
