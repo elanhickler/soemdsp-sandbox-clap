@@ -9592,6 +9592,7 @@ function setNodeGraphLiveEngineTitle(text = "") {
 }
 
 function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error") {
+  setNodeGraphLiveOutputMuted(true);
   nodeGraphMvp.live.runtime = null;
   setNodeGraphLiveStatus("error", "warn");
   setNodeGraphLiveEngineStatus("engine error", "warn");
@@ -9690,6 +9691,22 @@ function setNodeGraphLiveMeter(peak = 0, rms = 0) {
   }
   meter.textContent = `live peak ${peak.toFixed(3)} / rms ${rms.toFixed(3)}`;
   meter.className = `pill ${peak > 0.001 ? "good" : ""}`.trim();
+}
+
+function setNodeGraphLiveOutputMuted(muted) {
+  const outputGain = nodeGraphMvp.live.outputGain;
+  const context = nodeGraphMvp.live.context;
+  if (!outputGain?.gain) {
+    return;
+  }
+  const value = muted ? 0 : 1;
+  const time = context?.currentTime || 0;
+  try {
+    outputGain.gain.cancelScheduledValues(time);
+    outputGain.gain.setValueAtTime(value, time);
+  } catch (_error) {
+    outputGain.gain.value = value;
+  }
 }
 
 function setNodeGraphLiveRouteStatus(text, state = "") {
@@ -10190,10 +10207,12 @@ function sendNodeGraphLivePlan() {
       setNodeGraphLivePlanStatus(nodeGraphLivePlanStatusText(plan), "good");
       setNodeGraphLivePlanTitle(nodeGraphLivePlanScheduleTitle(plan.order));
     }
+    setNodeGraphLiveOutputMuted(false);
     setNodeGraphLiveStatus("running", "good");
     clearNodeGraphLiveStatusTitle();
     setNodeGraphLiveRouteStatus(nodeGraphScheduleText(plan.order), "good");
   } catch (error) {
+    setNodeGraphLiveOutputMuted(true);
     nodeGraphMvp.live.runtime = null;
     nodeGraphMvp.live.node?.port?.postMessage({ type: "stop" });
     setNodeGraphLiveBlockedError("plan", error);
