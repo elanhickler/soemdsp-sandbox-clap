@@ -11182,6 +11182,7 @@ function renderNodeGraphAudio() {
     renderStatus.className = "pill warn";
     setNodeGraphAudioStats();
     document.getElementById("nodeOutputSummary").textContent = validation.scheduleText;
+    renderNodeGraphExecutionPlanDebug();
     drawNodeRenderedAudio();
     return;
   }
