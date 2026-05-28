@@ -8815,6 +8815,7 @@ function serializeNodeGraphExecutionPlanDebug(plan) {
     {
       activeNodeCount: plan.reachableNodes?.length || 0,
       activeWireCount: nodeGraphActiveWireCount(plan),
+      currentPatchFingerprint: nodeGraphPatchFingerprint(),
       executionModel: "single-pass stored-output",
       feedbackModulations: plan.feedbackModulations.map((modulation) =>
         `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam}`,
@@ -8851,6 +8852,7 @@ function serializeNodeGraphExecutionPlanApiDebug(plan) {
   return {
     activeNodeCount: plan.reachableNodes?.length || 0,
     activeWireCount: nodeGraphActiveWireCount(plan),
+    currentPatchFingerprint: nodeGraphPatchFingerprint(),
     feedbackModulations: plan.feedbackModulations.map((modulation) =>
       `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam}`,
     ),

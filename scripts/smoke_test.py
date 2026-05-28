@@ -3329,6 +3329,7 @@ def require_node_graph_mvp_contract() -> None:
         "renderNodeGraphExecutionPlanDebug();\n  drawNodeRenderedAudio();",
         "function serializeNodeGraphExecutionPlanDebug(plan)",
         "function serializeNodeGraphExecutionPlanApiDebug(plan)",
+        "currentPatchFingerprint: nodeGraphPatchFingerprint()",
         "function installNodeGraphDebugApi()",
         "window.soemdspSandboxDebug = Object.freeze",
         "compileExecutionPlan(patch = nodeGraphMvp.patch)",
