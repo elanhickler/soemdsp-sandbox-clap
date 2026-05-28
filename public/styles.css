@@ -1035,7 +1035,7 @@ audio {
 .node-execution-plan-debug {
   min-height: 150px;
   max-height: 260px;
-  margin: 0;
+  margin: 10px 0 0;
   padding: 12px;
   overflow: auto;
   border: 1px solid var(--line);
@@ -1046,6 +1046,77 @@ audio {
   font-size: 0.78rem;
   line-height: 1.45;
   white-space: pre-wrap;
+}
+
+.node-execution-plan-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.node-execution-plan-summary > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(12, 14, 16, 0.44);
+}
+
+.node-execution-summary-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.node-execution-order,
+.node-execution-wire-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.node-execution-order li,
+.node-execution-wire-modes li {
+  min-width: 0;
+  padding: 5px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(243, 241, 236, 0.13);
+  border-radius: 5px;
+  background: rgba(243, 241, 236, 0.045);
+  color: var(--text);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-execution-wire-modes li.same-pass {
+  border-color: rgba(113, 212, 155, 0.32);
+  color: var(--good);
+}
+
+.node-execution-wire-modes li.state-read {
+  border-color: rgba(226, 168, 109, 0.42);
+  color: var(--accent-2);
+}
+
+.node-execution-wire-modes li.bypassed,
+.node-execution-wire-modes li.inactive {
+  color: var(--muted);
+  opacity: 0.72;
+}
+
+.node-execution-order li.empty,
+.node-execution-wire-modes li.empty {
+  color: var(--muted);
 }
 
 .disconnect-wire-button {

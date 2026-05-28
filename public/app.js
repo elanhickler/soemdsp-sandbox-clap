@@ -8767,6 +8767,25 @@ function nodeGraphExecutionWireReads(plan) {
   };
 }
 
+function nodeGraphExecutionWireRows(plan) {
+  const activeReads = nodeGraphExecutionWireReads(plan);
+  const inactiveReads = nodeGraphInactiveWireReads(plan);
+  return [
+    ...activeReads.signals.map((read) => ({ ...read, kind: "signal" })),
+    ...activeReads.modulations.map((read) => ({ ...read, kind: "mod" })),
+    ...inactiveReads.signals.map((read) => ({
+      ...read,
+      kind: "signal",
+      mode: read.reason || "inactive",
+    })),
+    ...inactiveReads.modulations.map((read) => ({
+      ...read,
+      kind: "mod",
+      mode: read.reason || "inactive",
+    })),
+  ];
+}
+
 function nodeGraphStateReadCount(plan) {
   return (plan.feedbackConnections?.length || 0) + (plan.feedbackModulations?.length || 0);
 }
@@ -9021,7 +9040,50 @@ function renderNodeGraphExecutionPlanDebug(plan = compileNodeGraphExecutionPlan(
     ? "Execution model: single-pass stored-output"
     : plan.issues.join(", ");
   status.className = `pill ${plan.valid ? "good" : "warn"}`;
+  renderNodeGraphExecutionPlanSummary(plan);
   debug.textContent = serializeNodeGraphExecutionPlanDebug(plan);
+}
+
+function renderNodeGraphExecutionPlanSummary(plan) {
+  const orderList = document.getElementById("nodeExecutionOrder");
+  const wireList = document.getElementById("nodeExecutionWireModes");
+  if (!orderList || !wireList) {
+    return;
+  }
+
+  orderList.replaceChildren();
+  wireList.replaceChildren();
+
+  const order = plan.valid ? plan.order || [] : plan.order || [];
+  if (order.length) {
+    for (const [index, nodeId] of order.entries()) {
+      const item = document.createElement("li");
+      item.dataset.node = nodeId;
+      item.textContent = `${index + 1}. ${nodeGraphNodeDisplayName(nodeId)}`;
+      orderList.append(item);
+    }
+  } else {
+    const item = document.createElement("li");
+    item.className = "empty";
+    item.textContent = plan.issues?.length ? "blocked" : "no active nodes";
+    orderList.append(item);
+  }
+
+  const rows = nodeGraphExecutionWireRows(plan);
+  if (rows.length) {
+    for (const row of rows) {
+      const item = document.createElement("li");
+      item.className = `node-execution-wire-mode ${row.mode}`;
+      item.dataset.wireMode = row.mode;
+      item.textContent = `${row.kind} ${row.source} -> ${row.destination} [${row.mode}]`;
+      wireList.append(item);
+    }
+  } else {
+    const item = document.createElement("li");
+    item.className = "empty";
+    item.textContent = plan.issues?.length ? plan.issues.join(", ") : "no wires";
+    wireList.append(item);
+  }
 }
 
 function nodeGraphPortSelector(node, port, io) {
