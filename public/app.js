@@ -8378,6 +8378,26 @@ function nodeGraphFeedbackIdentitySets(plan) {
   };
 }
 
+function nodeGraphExecutionWireReads(plan) {
+  const feedbackSets = nodeGraphFeedbackIdentitySets(plan);
+  return {
+    modulations: (nodeGraphMvp.patch.modulations || []).map((modulation) => ({
+      destination: `${modulation.destinationNode}.${modulation.destinationParam}`,
+      mode: feedbackSets.modulation.has(nodeGraphModulationWireIdentity(modulation))
+        ? "state-read"
+        : "same-pass",
+      source: `${modulation.sourceNode}.${modulation.sourcePort}`,
+    })),
+    signals: (nodeGraphMvp.patch.connections || []).map((connection) => ({
+      destination: `${connection.destinationNode}.${connection.destinationPort}`,
+      mode: feedbackSets.signal.has(nodeGraphSignalWireIdentity(connection))
+        ? "state-read"
+        : "same-pass",
+      source: `${connection.sourceNode}.${connection.sourcePort}`,
+    })),
+  };
+}
+
 function nodeGraphScheduleText(order, issues = [], feedbackConnections = [], feedbackModulations = []) {
   if (issues.length) {
     return `schedule blocked: ${issues.join(", ")}`;
@@ -8462,6 +8482,7 @@ function serializeNodeGraphExecutionPlanDebug(plan) {
       signalInputs,
       sourceNodes: plan.sourceNodes,
       valid: plan.valid,
+      wireReads: nodeGraphExecutionWireReads(plan),
     },
     null,
     2,
