@@ -10779,8 +10779,7 @@ function renderNodeGraphAudio() {
   const leftSamples = new Float32Array(frames);
   const rightSamples = new Float32Array(frames);
   const plan = nodeGraphBuildLivePlan();
-  const stateReadCount = (plan.feedbackConnections?.length || 0) +
-    (plan.feedbackModulations?.length || 0);
+  const stateReadCount = nodeGraphStateReadCount(plan);
   const runtime = createNodeGraphLiveRuntime(plan);
   let peak = 0;
   let squareSum = 0;
