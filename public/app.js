@@ -6346,6 +6346,7 @@ const nodeGraphMvp = {
     scriptNode: null,
     syncFrame: 0,
     syncTimer: 0,
+    usesWorklet: false,
   },
   marqueeSelection: null,
   metadataDragging: null,
@@ -9894,6 +9895,13 @@ function renderNodeGraphLiveScriptBlock(event) {
   }
 }
 
+function handleNodeGraphLiveWorkletMessage(event) {
+  const message = event.data || {};
+  if (message.type === "meter") {
+    setNodeGraphLiveMeter(Number(message.peak) || 0, Number(message.rms) || 0);
+  }
+}
+
 function sendNodeGraphLivePlan() {
   if (!nodeGraphMvp.live.node && !nodeGraphMvp.live.context) {
     return;
@@ -9901,15 +9909,16 @@ function sendNodeGraphLivePlan() {
 
   try {
     const plan = nodeGraphBuildLivePlan();
-    if (nodeGraphMvp.live.runtime) {
+    if (nodeGraphMvp.live.usesWorklet) {
+      nodeGraphMvp.live.node?.port?.postMessage({
+        plan,
+        type: "setPlan",
+      });
+    } else if (nodeGraphMvp.live.runtime) {
       updateNodeGraphLiveRuntimePlan(nodeGraphMvp.live.runtime, plan);
     } else {
       nodeGraphMvp.live.runtime = createNodeGraphLiveRuntime(plan);
     }
-    nodeGraphMvp.live.node?.port?.postMessage({
-      plan,
-      type: "setPlan",
-    });
     setNodeGraphLiveStatus("running", "good");
     setNodeGraphLiveRouteStatus(nodeGraphScheduleText(plan.order), "good");
   } catch (error) {
@@ -9958,6 +9967,7 @@ async function stopNodeGraphLiveAudio() {
   nodeGraphMvp.live.outputGain = null;
   nodeGraphMvp.live.runtime = null;
   nodeGraphMvp.live.scriptNode = null;
+  nodeGraphMvp.live.usesWorklet = false;
 
   try {
     liveNode?.port?.postMessage({ type: "stop" });
@@ -9974,6 +9984,32 @@ async function stopNodeGraphLiveAudio() {
   setNodeGraphLiveRouteStatus("route stopped");
   document.getElementById("nodeLiveStatus").removeAttribute("title");
   renderNodeGraphLiveControls(false);
+}
+
+async function createNodeGraphLiveWorkletNode(context) {
+  if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
+    throw new Error("AudioWorklet unavailable");
+  }
+  await context.audioWorklet.addModule("/public/node-live-audio-worklet.js");
+  const workletNode = new AudioWorkletNode(
+    context,
+    "node-live-audio-processor",
+    {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+    },
+  );
+  workletNode.port.onmessage = handleNodeGraphLiveWorkletMessage;
+  return workletNode;
+}
+
+function createNodeGraphLiveScriptProcessorNode(context, plan) {
+  const scriptNode = context.createScriptProcessor(nodeGraphAudioBlockSize, 0, 2);
+  scriptNode.onaudioprocess = renderNodeGraphLiveScriptBlock;
+  nodeGraphMvp.live.runtime = createNodeGraphLiveRuntime(plan);
+  nodeGraphMvp.live.scriptNode = scriptNode;
+  return scriptNode;
 }
 
 async function startNodeGraphLiveAudio() {
@@ -9997,19 +10033,23 @@ async function startNodeGraphLiveAudio() {
     }
     const outputGain = context.createGain();
     outputGain.gain.value = 1;
-    const scriptNode = context.createScriptProcessor(nodeGraphAudioBlockSize, 0, 2);
-    scriptNode.onaudioprocess = renderNodeGraphLiveScriptBlock;
+    let liveNode = null;
+    let usesWorklet = false;
+    try {
+      liveNode = await createNodeGraphLiveWorkletNode(context);
+      usesWorklet = true;
+    } catch (_error) {
+      liveNode = createNodeGraphLiveScriptProcessorNode(context, plan);
+    }
     nodeGraphMvp.live.context = context;
     nodeGraphMvp.live.meterGain = null;
-    nodeGraphMvp.live.node = scriptNode;
+    nodeGraphMvp.live.node = liveNode;
     nodeGraphMvp.live.outputGain = outputGain;
-    nodeGraphMvp.live.runtime = createNodeGraphLiveRuntime(plan);
-    nodeGraphMvp.live.scriptNode = scriptNode;
-    scriptNode.connect(outputGain);
+    nodeGraphMvp.live.usesWorklet = usesWorklet;
+    liveNode.connect(outputGain);
     outputGain.connect(context.destination);
-    setNodeGraphLiveRouteStatus(nodeGraphScheduleText(plan.order), "good");
+    sendNodeGraphLivePlan();
     await context.resume();
-    setNodeGraphLiveStatus("running", "good");
     document.getElementById("nodeLiveStatus").removeAttribute("title");
     renderNodeGraphLiveControls(true);
   } catch (error) {
