@@ -6348,6 +6348,7 @@ const nodeGraphMvp = {
     meterGain: null,
     node: null,
     outputGain: null,
+    activeNodeIds: new Set(),
     planSerial: 0,
     runtime: null,
     sessionId: 0,
@@ -10065,37 +10066,54 @@ function nodeGraphBuildLivePlan() {
     throw error;
   }
 
+  const activeNodeIds = new Set(compiled.order);
+  const activeSignalConnections = nodeGraphMvp.patch.connections
+    .filter((connection) =>
+      activeNodeIds.has(connection.sourceNode) &&
+      activeNodeIds.has(connection.destinationNode),
+    )
+    .map((connection) => ({ ...connection }));
+  const activeModulations = nodeGraphMvp.patch.modulations
+    .filter((modulation) =>
+      activeNodeIds.has(modulation.sourceNode) &&
+      activeNodeIds.has(modulation.destinationNode),
+    )
+    .map((modulation) => ({ ...modulation }));
+
   return {
-    connections: nodeGraphMvp.patch.connections.map((connection) => ({ ...connection })),
+    connections: activeSignalConnections,
     feedbackConnections: compiled.feedbackConnections.map((connection) => ({ ...connection })),
     feedbackModulations: compiled.feedbackModulations.map((modulation) => ({ ...modulation })),
-    modulations: nodeGraphMvp.patch.modulations.map((modulation) => ({ ...modulation })),
-    nodes: nodeGraphBuildLiveParameterNodes(),
+    modulations: activeModulations,
+    nodes: nodeGraphBuildLiveParameterNodes(activeNodeIds),
     order: [...compiled.order],
     outputNode: compiled.outputNode,
     sourceNodes: [...compiled.sourceNodes],
   };
 }
 
-function nodeGraphBuildLiveParameterNodes() {
-  return nodeGraphMvp.patch.nodes.map((node) => {
-    const definition = nodeGraphModuleDefinitions[node.type];
-    const params = {};
-    const paramMeta = {};
-    for (const parameter of definition.parameters || []) {
-      const value = nodeGraphReadPatchParameterValue(node, parameter.key);
-      params[parameter.key] = Number.isFinite(value)
-        ? value
-        : nodeGraphParameterFallback(node.type, parameter.key);
-      paramMeta[parameter.key] = nodeGraphReadPatchParameterMetadata(node, parameter.key);
-    }
-    return {
-      id: node.id,
-      paramMeta,
-      params,
-      type: node.type,
-    };
-  });
+function nodeGraphBuildLiveParameterNodes(activeNodeIds = null) {
+  const activeIds = activeNodeIds instanceof Set ? activeNodeIds : null;
+  return nodeGraphMvp.patch.nodes
+    .filter((node) => !activeIds || activeIds.has(node.id))
+    .map((node) => {
+      const definition = nodeGraphModuleDefinitions[node.type];
+      const params = {};
+      const paramMeta = {};
+      for (const parameter of definition.parameters || []) {
+        const value = nodeGraphReadPatchParameterValue(node, parameter.key);
+        params[parameter.key] = Number.isFinite(value)
+          ? value
+          : nodeGraphParameterFallback(node.type, parameter.key);
+        paramMeta[parameter.key] = nodeGraphReadPatchParameterMetadata(node, parameter.key);
+      }
+      return {
+        id: node.id,
+        paramMeta,
+        params,
+        type: node.type,
+      };
+    });
 }
 
 function createNodeGraphLiveRuntime(plan) {
@@ -10518,6 +10536,7 @@ function sendNodeGraphLivePlan() {
 
   try {
     const plan = nodeGraphBuildLivePlan();
+    nodeGraphMvp.live.activeNodeIds = new Set(plan.order);
     nodeGraphMvp.live.planSerial += 1;
     if (nodeGraphMvp.live.usesWorklet) {
       setNodeGraphLivePlanStatus(nodeGraphLivePlanSentStatusText(), "warn");
@@ -10564,7 +10583,7 @@ function sendNodeGraphLiveParameterUpdate() {
   }
 
   try {
-    const nodes = nodeGraphBuildLiveParameterNodes();
+    const nodes = nodeGraphBuildLiveParameterNodes(nodeGraphMvp.live.activeNodeIds);
     nodeGraphMvp.live.planSerial += 1;
     if (nodeGraphMvp.live.usesWorklet) {
       setNodeGraphLivePlanStatus(nodeGraphLiveParametersSentStatusText(nodes), "warn");
@@ -10644,6 +10663,7 @@ async function stopNodeGraphLiveAudio() {
   nodeGraphMvp.live.context = null;
   nodeGraphMvp.live.meterGain = null;
   nodeGraphMvp.live.outputGain = null;
+  nodeGraphMvp.live.activeNodeIds = new Set();
   nodeGraphMvp.live.planSerial = 0;
   nodeGraphMvp.live.runtime = null;
   nodeGraphMvp.live.scriptNode = null;
