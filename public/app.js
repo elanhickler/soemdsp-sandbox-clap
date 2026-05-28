@@ -9520,12 +9520,15 @@ function setNodeGraphLivePlanStatus(text = "plan idle", state = "") {
   status.className = `pill ${state}`.trim();
 }
 
-function nodeGraphLivePlanStatusText(plan) {
-  return `plan ${plan.nodes.length} nodes / ${plan.connections.length} wires / ${plan.modulations.length} mods`;
+function nodeGraphLivePlanStatusText(plan, serial = nodeGraphMvp.live.planSerial) {
+  const serialText = serial ? ` #${serial}` : "";
+  return `plan${serialText} ${plan.nodes.length} nodes / ${plan.connections.length} wires / ${plan.modulations.length} mods`;
 }
 
 function nodeGraphLivePlanAppliedStatusText(message) {
-  return `plan ${Number(message.nodeCount) || 0} nodes / ${Number(message.connectionCount) || 0} wires / ${Number(message.modulationCount) || 0} mods`;
+  const serial = Number(message.planSerial) || 0;
+  const serialText = serial ? ` #${serial}` : "";
+  return `plan${serialText} ${Number(message.nodeCount) || 0} nodes / ${Number(message.connectionCount) || 0} wires / ${Number(message.modulationCount) || 0} mods`;
 }
 
 function setNodeGraphLiveMeter(peak = 0, rms = 0) {
@@ -9973,8 +9976,8 @@ function sendNodeGraphLivePlan() {
 
   try {
     const plan = nodeGraphBuildLivePlan();
+    nodeGraphMvp.live.planSerial += 1;
     if (nodeGraphMvp.live.usesWorklet) {
-      nodeGraphMvp.live.planSerial += 1;
       setNodeGraphLivePlanStatus("plan sent", "warn");
       nodeGraphMvp.live.node?.port?.postMessage({
         plan,
