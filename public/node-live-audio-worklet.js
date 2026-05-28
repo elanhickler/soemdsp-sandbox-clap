@@ -112,6 +112,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       connectionCount: Array.isArray(plan?.connections) ? plan.connections.length : 0,
       feedbackConnectionCount: Array.isArray(plan?.feedbackConnections) ? plan.feedbackConnections.length : 0,
       feedbackModulationCount: Array.isArray(plan?.feedbackModulations) ? plan.feedbackModulations.length : 0,
+      feedbackModulations: (Array.isArray(plan?.feedbackModulations) ? plan.feedbackModulations : []).map(
+        (modulation) =>
+          `${modulation.sourceNode}.${modulation.sourcePort} -> ${modulation.destinationNode}.${modulation.destinationParam}`,
+      ),
+      feedbackSignals: (Array.isArray(plan?.feedbackConnections) ? plan.feedbackConnections : []).map(
+        (connection) =>
+          `${connection.sourceNode}.${connection.sourcePort} -> ${connection.destinationNode}.${connection.destinationPort}`,
+      ),
       modulationCount: Array.isArray(plan?.modulations) ? plan.modulations.length : 0,
       nodeCount: this.nodes.size,
       order: [...this.order],

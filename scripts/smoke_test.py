@@ -3786,6 +3786,8 @@ def require_node_graph_mvp_contract() -> None:
         "planSerial: this.planSerial",
         "sessionId: this.sessionId",
         "stateReadCount:",
+        "feedbackModulations: (Array.isArray(plan?.feedbackModulations)",
+        "feedbackSignals: (Array.isArray(plan?.feedbackConnections)",
         "parameterCount,",
         "patchFingerprint,",
         'type: "planApplied"',
