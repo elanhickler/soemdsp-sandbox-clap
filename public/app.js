@@ -6855,6 +6855,25 @@ function nodeGraphScriptReadyForGraphAction(action = "graph action") {
   return false;
 }
 
+function markNodeGraphRenderScriptBlocked() {
+  const renderStatus = document.getElementById("nodeGraphRenderStatus");
+  const playButton = document.getElementById("nodePlayButton");
+  renderStatus.textContent = "render blocked";
+  renderStatus.className = "pill warn";
+  playButton.disabled = true;
+  playButton.title = "Play blocked: fix script before render";
+}
+
+function markNodeGraphLiveScriptBlocked() {
+  const message = "fix script before live audio";
+  setNodeGraphLiveStatus("error", "warn");
+  setNodeGraphLivePlanStatus("plan blocked", "warn");
+  setNodeGraphLivePlanTitle(message);
+  setNodeGraphLiveScheduleStatus(`schedule blocked: ${message}`, "warn");
+  document.getElementById("nodeLiveStatus").title = message;
+  renderNodeGraphLiveControls(false);
+}
+
 function undoNodeGraphPatch() {
   if (!nodeGraphScriptReadyForGraphAction("undo")) {
     return;
@@ -10902,6 +10921,7 @@ function createNodeGraphLiveScriptProcessorNode(context, plan) {
 async function startNodeGraphLiveAudio() {
   try {
     if (!nodeGraphScriptReadyForGraphAction("live audio")) {
+      markNodeGraphLiveScriptBlocked();
       return;
     }
     setNodeGraphLiveStatus("starting", "warn");
@@ -10960,6 +10980,7 @@ async function startNodeGraphLiveAudio() {
 
 function renderNodeGraphAudio() {
   if (!nodeGraphScriptReadyForGraphAction("render")) {
+    markNodeGraphRenderScriptBlocked();
     return;
   }
   const validation = nodeGraphValidate();
