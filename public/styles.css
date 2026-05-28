@@ -1127,6 +1127,17 @@ audio {
   white-space: nowrap;
 }
 
+.node-execution-order li[role="button"],
+.node-execution-wire-modes li[role="button"] {
+  cursor: pointer;
+}
+
+.node-execution-order li.selected,
+.node-execution-wire-modes li.selected {
+  border-color: rgba(247, 183, 88, 0.62);
+  box-shadow: 0 0 0 1px rgba(247, 183, 88, 0.24);
+}
+
 .node-execution-wire-modes li.same-pass {
   border-color: rgba(113, 212, 155, 0.32);
   color: var(--good);

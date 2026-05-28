@@ -8775,21 +8775,33 @@ function nodeGraphExecutionWireReads(plan) {
 }
 
 function nodeGraphExecutionWireRows(plan) {
-  const activeReads = nodeGraphExecutionWireReads(plan);
-  const inactiveReads = nodeGraphInactiveWireReads(plan);
+  const feedbackSets = nodeGraphFeedbackIdentitySets(plan);
+  const activeNodeIds = nodeGraphActiveNodeIds(plan);
   return [
-    ...activeReads.signals.map((read) => ({ ...read, kind: "signal" })),
-    ...activeReads.modulations.map((read) => ({ ...read, kind: "mod" })),
-    ...inactiveReads.signals.map((read) => ({
-      ...read,
-      kind: "signal",
-      mode: read.reason || "inactive",
-    })),
-    ...inactiveReads.modulations.map((read) => ({
-      ...read,
-      kind: "mod",
-      mode: read.reason || "inactive",
-    })),
+    ...(plan.connections || []).map((connection, index) => {
+      const isActive = nodeGraphSignalConnectionIsActive(connection, activeNodeIds);
+      const isBypassed = nodeGraphWireTouchesBypassed(connection, plan);
+      const isFeedback = feedbackSets.signal.has(nodeGraphSignalWireIdentity(connection));
+      return {
+        destination: `${connection.destinationNode}.${connection.destinationPort}`,
+        index,
+        kind: "signal",
+        mode: isBypassed ? "bypassed" : !isActive ? "inactive" : isFeedback ? "state-read" : "same-pass",
+        source: `${connection.sourceNode}.${connection.sourcePort}`,
+      };
+    }),
+    ...(plan.modulations || []).map((modulation, index) => {
+      const isActive = nodeGraphModulationIsActive(modulation, activeNodeIds);
+      const isBypassed = nodeGraphWireTouchesBypassed(modulation, plan);
+      const isFeedback = feedbackSets.modulation.has(nodeGraphModulationWireIdentity(modulation));
+      return {
+        destination: `${modulation.destinationNode}.${modulation.destinationParam}`,
+        index,
+        kind: "modulation",
+        mode: isBypassed ? "bypassed" : !isActive ? "inactive" : isFeedback ? "state-read" : "same-pass",
+        source: `${modulation.sourceNode}.${modulation.sourcePort}`,
+      };
+    }),
   ];
 }
 
@@ -9096,7 +9108,17 @@ function renderNodeGraphExecutionPlanSummary(plan) {
     for (const [index, nodeId] of order.entries()) {
       const item = document.createElement("li");
       item.dataset.node = nodeId;
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+      item.setAttribute("title", `Select ${nodeGraphNodeDisplayName(nodeId)}`);
       item.textContent = `${index + 1}. ${nodeGraphNodeDisplayName(nodeId)}`;
+      item.addEventListener("click", () => setNodeGraphSelection({ type: "node", id: nodeId }));
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setNodeGraphSelection({ type: "node", id: nodeId });
+        }
+      });
       orderList.append(item);
     }
   } else {
@@ -9111,8 +9133,20 @@ function renderNodeGraphExecutionPlanSummary(plan) {
     for (const row of rows) {
       const item = document.createElement("li");
       item.className = `node-execution-wire-mode ${row.mode}`;
+      item.dataset.connectionKind = row.kind;
+      item.dataset.connectionIndex = String(row.index);
       item.dataset.wireMode = row.mode;
-      item.textContent = `${row.kind} ${row.source} -> ${row.destination} [${row.mode}]`;
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+      item.setAttribute("title", `Select ${row.kind} wire`);
+      item.textContent = `${row.kind === "modulation" ? "mod" : "signal"} ${row.source} -> ${row.destination} [${row.mode}]`;
+      item.addEventListener("click", () => setNodeGraphSelection({ type: "wire", kind: row.kind, index: row.index }));
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setNodeGraphSelection({ type: "wire", kind: row.kind, index: row.index });
+        }
+      });
       wireList.append(item);
     }
   } else {
@@ -9120,6 +9154,24 @@ function renderNodeGraphExecutionPlanSummary(plan) {
     item.className = "empty";
     item.textContent = plan.issues?.length ? plan.issues.join(", ") : "no wires";
     wireList.append(item);
+  }
+  renderNodeGraphExecutionSummarySelection();
+}
+
+function renderNodeGraphExecutionSummarySelection() {
+  const selectedNodeIds = nodeGraphSelectedNodeIds();
+  for (const item of document.querySelectorAll(".node-execution-order li[data-node]")) {
+    item.classList.toggle("selected", selectedNodeIds.has(item.dataset.node));
+  }
+  for (const item of document.querySelectorAll(".node-execution-wire-modes li[data-connection-index]")) {
+    item.classList.toggle(
+      "selected",
+      sameNodeGraphSelection(nodeGraphMvp.selected, {
+        type: "wire",
+        kind: item.dataset.connectionKind || "signal",
+        index: Number(item.dataset.connectionIndex),
+      }),
+    );
   }
 }
 
@@ -9355,6 +9407,7 @@ function renderNodeGraphSelection() {
       }),
     );
   }
+  renderNodeGraphExecutionSummarySelection();
 
   const button = document.getElementById("nodeDeleteButton");
   button.disabled = !nodeGraphSelectionCanDelete();
