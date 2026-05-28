@@ -7532,9 +7532,7 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   audioStats.dataset.renderSampleRate = String(sampleRate);
   audioStats.dataset.renderDuration = durationSeconds.toFixed(3);
   audioStats.dataset.renderStateReads = String(stateReadCount);
-  const stateReadText = stateReadCount
-    ? ` / ${stateReadCount} ${stateReadCount === 1 ? "state read" : "state reads"}`
-    : "";
+  const stateReadText = stateReadCount ? ` / ${nodeGraphStateReadText(stateReadCount)}` : "";
   audioStats.title = frames > 0
     ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz${stateReadText}`
     : "Rendered sample unavailable";
@@ -8407,6 +8405,14 @@ function nodeGraphExecutionWireReads(plan) {
   };
 }
 
+function nodeGraphStateReadCount(plan) {
+  return (plan.feedbackConnections?.length || 0) + (plan.feedbackModulations?.length || 0);
+}
+
+function nodeGraphStateReadText(count) {
+  return count === 1 ? "1 state read" : `${count} state reads`;
+}
+
 function nodeGraphScheduleText(order, issues = [], feedbackConnections = [], feedbackModulations = []) {
   if (issues.length) {
     return `schedule blocked: ${issues.join(", ")}`;
@@ -8506,7 +8512,13 @@ function renderNodeGraphExecutionPlanDebug(plan = compileNodeGraphExecutionPlan(
   if (!status || !debug) {
     return;
   }
-  status.textContent = plan.valid ? "compiled" : "blocked";
+  const stateReadCount = nodeGraphStateReadCount(plan);
+  status.textContent = plan.valid
+    ? `compiled${stateReadCount ? ` / ${nodeGraphStateReadText(stateReadCount)}` : ""}`
+    : "blocked";
+  status.title = plan.valid
+    ? "Execution model: single-pass stored-output"
+    : plan.issues.join(", ");
   status.className = `pill ${plan.valid ? "good" : "warn"}`;
   debug.textContent = serializeNodeGraphExecutionPlanDebug(plan);
 }
@@ -9878,8 +9890,8 @@ function setNodeGraphLivePlanTitle(text = "") {
 
 function nodeGraphLivePlanStatusText(plan, serial = nodeGraphMvp.live.planSerial) {
   const serialText = serial ? ` #${serial}` : "";
-  const feedbackCount = (plan.feedbackConnections?.length || 0) + (plan.feedbackModulations?.length || 0);
-  const feedbackText = feedbackCount ? ` / ${feedbackCount} state reads` : "";
+  const feedbackCount = nodeGraphStateReadCount(plan);
+  const feedbackText = feedbackCount ? ` / ${nodeGraphStateReadText(feedbackCount)}` : "";
   return `plan${serialText} ${plan.nodes.length} nodes / ${plan.connections.length} wires / ${plan.modulations.length} mods${feedbackText}`;
 }
 
@@ -9937,7 +9949,7 @@ function nodeGraphLivePlanAppliedStatusText(message) {
   const serialText = serial ? ` #${serial}` : "";
   const feedbackCount = (Number(message.feedbackConnectionCount) || 0) +
     (Number(message.feedbackModulationCount) || 0);
-  const feedbackText = feedbackCount ? ` / ${feedbackCount} state reads` : "";
+  const feedbackText = feedbackCount ? ` / ${nodeGraphStateReadText(feedbackCount)}` : "";
   return `plan${serialText} ${Number(message.nodeCount) || 0} nodes / ${Number(message.connectionCount) || 0} wires / ${Number(message.modulationCount) || 0} mods${feedbackText}`;
 }
 
