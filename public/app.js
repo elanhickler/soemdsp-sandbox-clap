@@ -10489,13 +10489,16 @@ function configureNodeSceneContextMenu(mode) {
   const addGroup = menu.querySelector(".scene-context-add-group");
   const copyButton = document.getElementById("nodeSceneCopyModule");
   const deleteButton = document.getElementById("nodeSceneDeleteModule");
+  const closeButton = document.getElementById("nodeSceneCloseMenu");
   const moduleMode = mode === "module";
   const targetNode = nodeGraphPatchNode(nodeGraphMvp.sceneContextTargetNode);
   const canCopy = moduleMode && targetNode?.type !== "output";
   title.textContent = moduleMode ? "Module" : "Add Module";
+  menu.setAttribute("aria-label", moduleMode ? "Module actions" : "Add module");
   addGroup.hidden = moduleMode;
   copyButton.hidden = !moduleMode;
   deleteButton.hidden = !moduleMode;
+  closeButton.hidden = false;
   if (moduleMode) {
     copyButton.disabled = !canCopy;
     copyButton.title = canCopy ? "Copy module (Ctrl+C)" : "Copy unavailable: Output module is required";
@@ -12642,12 +12645,6 @@ function initNodeGraphMvp() {
   document.addEventListener("pointerup", endNodeMetadataPopoverDrag);
   document.addEventListener("pointercancel", endNodeMetadataPopoverDrag);
   document.addEventListener("keydown", handleNodeGraphKeydown);
-  document.addEventListener("pointerdown", (event) => {
-    const menu = document.getElementById("nodeSceneContextMenu");
-    if (!menu.hidden && !menu.contains(event.target)) {
-      closeNodeSceneContextMenu();
-    }
-  });
   document.getElementById("nodeRenderButton").addEventListener("click", renderNodeGraphAudio);
   document.getElementById("nodePlayButton").addEventListener("click", playNodeGraphAudio);
   document.getElementById("nodeCopyRuntimeSketchButton").addEventListener("click", copyNodeGraphRuntimeSketch);
@@ -12713,6 +12710,9 @@ function initNodeGraphMvp() {
   document
     .getElementById("nodeSceneCopyModule")
     .addEventListener("click", copyNodeGraphModuleFromContext);
+  document
+    .getElementById("nodeSceneCloseMenu")
+    .addEventListener("click", closeNodeSceneContextMenu);
 
   document.addEventListener("pointermove", dragNodeSlider);
   document.addEventListener("pointerup", endNodeSliderDrag);

@@ -239,6 +239,7 @@ REQUIRED_SHELL_IDS = {
     "nodeSceneAddGain",
     "nodeSceneAddNoise",
     "nodeSceneAddOsc",
+    "nodeSceneCloseMenu",
     "nodeSceneContextMenu",
     "nodeScriptStatus",
     "nodeScriptView",
@@ -3009,6 +3010,8 @@ def require_node_graph_mvp_contract() -> None:
         "Ctrl+C",
         "nodeSceneDeleteModule",
         "Delete",
+        "nodeSceneCloseMenu",
+        "Close",
         "nodeDeleteButton",
         "toggleDebugButton",
         "nodeParameterMetadataPopover",
@@ -3785,11 +3788,12 @@ def require_node_graph_mvp_contract() -> None:
         'addEventListener("pointerup", endNodeGraphMarqueeSelection)',
         'getElementById("nodeSceneDeleteModule")',
         'getElementById("nodeSceneCopyModule")',
+        'getElementById("nodeSceneCloseMenu")',
         'event.target.closest(".dsp-node")',
         'event.target.closest(".node-port, .node-param-port, .node-slider-readout")',
         'closest?.(".node-port.input, .node-param-port.modulation-input")',
         '!document.getElementById("nodeSceneContextMenu").hidden',
-        "if (!menu.hidden && !menu.contains(event.target))",
+        'getElementById("nodeSceneCloseMenu")\n    .addEventListener("click", closeNodeSceneContextMenu)',
         'addEventListener("click", () => zoomNodeGraphBy(-nodeGraphZoomLimits.step))',
         'addEventListener("click", () => zoomNodeGraphBy(nodeGraphZoomLimits.step))',
         "[data-context-module]",
@@ -3864,6 +3868,11 @@ def require_node_graph_mvp_contract() -> None:
     require(
         "feedback cycle unsupported at" not in app_source,
         "node graph scheduler should allow feedback cycles as state reads",
+    )
+
+    require(
+        "if (!menu.hidden && !menu.contains(event.target))" not in app_source,
+        "node scene context menu should close by explicit Close button, not outside click",
     )
 
     require(
