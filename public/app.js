@@ -6812,6 +6812,7 @@ function commitNodeGraphScript(text) {
       status: "script synced",
     });
     nodeGraphMvp.scriptDirty = false;
+    clearNodeGraphScriptBlockedActions();
     return true;
   } catch (error) {
     nodeGraphMvp.scriptDirty = true;
@@ -6872,6 +6873,40 @@ function markNodeGraphLiveScriptBlocked() {
   setNodeGraphLiveScheduleStatus(`schedule blocked: ${message}`, "warn");
   document.getElementById("nodeLiveStatus").title = message;
   renderNodeGraphLiveControls(false);
+}
+
+function clearNodeGraphRenderScriptBlock() {
+  const renderStatus = document.getElementById("nodeGraphRenderStatus");
+  const playButton = document.getElementById("nodePlayButton");
+  if (
+    renderStatus?.textContent === "render blocked" &&
+    playButton?.title === "Play blocked: fix script before render"
+  ) {
+    markNodeGraphRenderPending();
+  }
+}
+
+function clearNodeGraphLiveScriptBlock() {
+  const liveStatus = document.getElementById("nodeLiveStatus");
+  const livePlanStatus = document.getElementById("nodeLivePlanStatus");
+  const liveScheduleStatus = document.getElementById("nodeLiveRouteStatus");
+  if (
+    liveStatus?.textContent === "error" &&
+    livePlanStatus?.textContent === "plan blocked" &&
+    liveScheduleStatus?.textContent === "schedule blocked: fix script before live audio"
+  ) {
+    setNodeGraphLiveStatus("stopped");
+    setNodeGraphLivePlanStatus();
+    setNodeGraphLivePlanTitle();
+    setNodeGraphLiveScheduleStatus("schedule stopped");
+    clearNodeGraphLiveStatusTitle();
+    renderNodeGraphLiveControls(false);
+  }
+}
+
+function clearNodeGraphScriptBlockedActions() {
+  clearNodeGraphRenderScriptBlock();
+  clearNodeGraphLiveScriptBlock();
 }
 
 function undoNodeGraphPatch() {
