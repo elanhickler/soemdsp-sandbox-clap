@@ -6911,6 +6911,7 @@ function clearNodeGraphLiveScriptBlock() {
     liveScheduleStatus?.textContent === "schedule blocked: fix script before live audio"
   ) {
     setNodeGraphLiveStatus("stopped");
+    setNodeGraphLiveEvidence("stopped");
     setNodeGraphLivePlanStatus();
     setNodeGraphLivePlanTitle();
     setNodeGraphLiveScheduleStatus("schedule stopped");
