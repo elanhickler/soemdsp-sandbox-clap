@@ -6390,7 +6390,7 @@ function normalizeNodeGraphPatchInfo(info = {}) {
 }
 
 function normalizeNodeGraphPatchAudio(audio = {}) {
-  const targetSampleRate = Math.round(Number(audio?.targetSampleRate));
+  const targetSampleRate = Number(audio?.targetSampleRate);
   return {
     targetSampleRate: Number.isFinite(targetSampleRate)
       ? Math.max(8000, Math.min(768000, targetSampleRate))
@@ -6408,31 +6408,51 @@ function nodeGraphTargetSampleRate(patch = nodeGraphMvp.patch) {
 }
 
 function nodeGraphOversamplingMultiplier(baseRate, targetRate) {
-  const base = Math.round(Number(baseRate));
-  const target = Math.round(Number(targetRate));
+  const base = Number(baseRate);
+  const target = Number(targetRate);
   if (!Number.isFinite(base) || base <= 0 || !Number.isFinite(target) || target <= 0) {
     return 1;
   }
-  return Math.max(1, Math.min(4, Math.round(target / base)));
+  return Math.max(1, Math.min(4, target / base));
 }
 
 function nodeGraphEffectiveSampleRate(baseRate, multiplier) {
-  const base = Math.round(Number(baseRate));
-  const factor = Math.round(Number(multiplier));
+  const base = Number(baseRate);
+  const factor = Number(multiplier);
   if (!Number.isFinite(base) || base <= 0 || !Number.isFinite(factor) || factor <= 0) {
     return base;
   }
   return base * factor;
 }
 
+function nodeGraphFormatSampleRate(sampleRate) {
+  const value = Number(sampleRate);
+  if (!Number.isFinite(value)) {
+    return "0 Hz";
+  }
+  return `${Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")} Hz`;
+}
+
+function nodeGraphFormatOversamplingRatio(ratio) {
+  const value = Number(ratio);
+  if (!Number.isFinite(value) || value <= 0) {
+    return "x1";
+  }
+  return `x${Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}`;
+}
+
 function nodeGraphAudioDerivation(patch = nodeGraphMvp.patch) {
   const currentSampleRate = nodeGraphBaseSampleRate();
   const targetSampleRate = nodeGraphTargetSampleRate(patch);
-  const oversampling = nodeGraphOversamplingMultiplier(currentSampleRate, targetSampleRate);
+  const oversamplingRatio = nodeGraphOversamplingMultiplier(currentSampleRate, targetSampleRate);
+  const clampedEngineSampleRate = nodeGraphEffectiveSampleRate(currentSampleRate, oversamplingRatio);
   return {
+    clampedEngineSampleRate,
     currentSampleRate,
-    oversampling,
-    resultingSampleRate: nodeGraphEffectiveSampleRate(currentSampleRate, oversampling),
+    outputSampleRate: currentSampleRate,
+    oversampling: oversamplingRatio,
+    oversamplingRatio,
+    resultingSampleRate: clampedEngineSampleRate,
     targetSampleRate,
   };
 }
@@ -7001,10 +7021,11 @@ function syncNodeGraphSettingsView() {
   setNodeGraphSettingsField("patchTagsValue", info.tags);
   setNodeGraphSettingsField("patchDescriptionValue", info.description);
   const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
-  setNodeGraphSettingsField("patchCurrentSampleRateValue", `${audio.currentSampleRate} Hz`);
+  setNodeGraphSettingsField("patchCurrentSampleRateValue", nodeGraphFormatSampleRate(audio.currentSampleRate));
   setNodeGraphSettingsField("patchTargetSampleRateValue", audio.targetSampleRate);
-  setNodeGraphSettingsField("patchResultingSampleRateValue", `${audio.resultingSampleRate} Hz`);
-  setNodeGraphSettingsField("patchResultingOversamplingValue", `x${audio.oversampling}`);
+  setNodeGraphSettingsField("patchResultingSampleRateValue", nodeGraphFormatSampleRate(audio.resultingSampleRate));
+  setNodeGraphSettingsField("patchResultingOversamplingValue", nodeGraphFormatOversamplingRatio(audio.oversamplingRatio));
+  setNodeGraphSettingsField("patchOutputSampleRateValue", nodeGraphFormatSampleRate(audio.outputSampleRate));
   const visual = normalizeNodeGraphPatchVisual(nodeGraphMvp.patch.visual);
   setNodeGraphSettingsField("patchVisualModeValue", visual.mode);
   setNodeGraphSettingsField("patchVisualScaleValue", visual.scale);
@@ -8137,6 +8158,54 @@ function nodeGraphOutputSampleClipped(value) {
   return value < -nodeGraphOutputClipLimit || value > nodeGraphOutputClipLimit;
 }
 
+function nodeGraphTemporaryPrefilterForResample(samples, sourceRate, outputRate) {
+  if (!samples?.length || !Number.isFinite(sourceRate) || !Number.isFinite(outputRate) || sourceRate <= outputRate) {
+    return samples;
+  }
+  const radius = Math.max(1, Math.min(12, Math.ceil(sourceRate / outputRate)));
+  const filtered = new Float32Array(samples.length);
+  for (let index = 0; index < samples.length; index += 1) {
+    let sum = 0;
+    let weightSum = 0;
+    for (let offset = -radius; offset <= radius; offset += 1) {
+      const sampleIndex = Math.max(0, Math.min(samples.length - 1, index + offset));
+      const weight = radius + 1 - Math.abs(offset);
+      sum += samples[sampleIndex] * weight;
+      weightSum += weight;
+    }
+    filtered[index] = weightSum > 0 ? sum / weightSum : samples[index];
+  }
+  return filtered;
+}
+
+function nodeGraphResampleLinear(samples, outputFrames) {
+  const frames = Math.max(1, Math.floor(Number(outputFrames)));
+  if (!samples?.length) {
+    return new Float32Array(frames);
+  }
+  if (samples.length === frames) {
+    return new Float32Array(samples);
+  }
+  if (frames === 1) {
+    return new Float32Array([samples[0]]);
+  }
+  const resampled = new Float32Array(frames);
+  const scale = (samples.length - 1) / (frames - 1);
+  for (let frame = 0; frame < frames; frame += 1) {
+    const position = frame * scale;
+    const leftIndex = Math.floor(position);
+    const rightIndex = Math.min(samples.length - 1, leftIndex + 1);
+    const blend = position - leftIndex;
+    resampled[frame] = samples[leftIndex] * (1 - blend) + samples[rightIndex] * blend;
+  }
+  return resampled;
+}
+
+function nodeGraphResampleRenderedChannel(samples, sourceRate, outputRate, outputFrames) {
+  const filtered = nodeGraphTemporaryPrefilterForResample(samples, sourceRate, outputRate);
+  return nodeGraphResampleLinear(filtered, outputFrames);
+}
+
 function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   const audioStats = document.getElementById("nodeAudioStats");
   if (!audioStats) {
@@ -8144,6 +8213,8 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   }
   const frames = Number(details.frames) || 0;
   const sampleRate = Number(details.sampleRate) || nodeGraphMvp.sampleRate;
+  const engineSampleRate = Number(details.engineSampleRate) || sampleRate;
+  const oversamplingRatio = Number(details.oversamplingRatio) || 1;
   const stateReadCount = Number(details.stateReadCount) || 0;
   const clipCount = Number(details.clipCount) || 0;
   const durationSeconds = frames > 0 && sampleRate > 0 ? frames / sampleRate : 0;
@@ -8153,12 +8224,14 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   audioStats.dataset.renderClips = String(clipCount);
   audioStats.dataset.renderFrames = String(frames);
   audioStats.dataset.renderSampleRate = String(sampleRate);
+  audioStats.dataset.renderEngineSampleRate = String(engineSampleRate);
+  audioStats.dataset.renderOversamplingRatio = String(oversamplingRatio);
   audioStats.dataset.renderDuration = durationSeconds.toFixed(3);
   audioStats.dataset.renderStateReads = String(stateReadCount);
   const stateReadText = stateReadCount ? ` / ${nodeGraphStateReadText(stateReadCount)}` : "";
   const clipTitle = clipCount ? ` / ${nodeGraphOutputClipCountText(clipCount)}` : "";
   audioStats.title = frames > 0
-    ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz${stateReadText}${clipTitle}`
+    ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz output / ${nodeGraphFormatSampleRate(engineSampleRate)} engine / ${nodeGraphFormatOversamplingRatio(oversamplingRatio)}${stateReadText}${clipTitle}`
     : "Rendered sample unavailable";
 }
 
@@ -13109,25 +13182,26 @@ function renderNodeGraphAudio() {
     return;
   }
 
-  const frames = Math.floor(nodeGraphMvp.sampleRate * nodeGraphMvp.seconds);
+  const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
+  const outputSampleRate = audio.outputSampleRate;
+  const engineSampleRate = audio.clampedEngineSampleRate;
+  const outputFrames = Math.floor(outputSampleRate * nodeGraphMvp.seconds);
+  const engineFrames = Math.max(1, Math.round(engineSampleRate * nodeGraphMvp.seconds));
   const patchFingerprint = nodeGraphPatchFingerprint();
-  const samples = new Float32Array(frames);
-  const leftSamples = new Float32Array(frames);
-  const rightSamples = new Float32Array(frames);
+  const engineLeftSamples = new Float32Array(engineFrames);
+  const engineRightSamples = new Float32Array(engineFrames);
   const plan = nodeGraphBuildLivePlan();
   const stateReadCount = nodeGraphStateReadCount(plan);
   const runtime = createNodeGraphLiveRuntime(plan);
   let clipCount = 0;
-  let peak = 0;
-  let squareSum = 0;
 
-  for (let blockStart = 0; blockStart < frames; blockStart += nodeGraphAudioBlockSize) {
-    const blockFrames = Math.min(nodeGraphAudioBlockSize, frames - blockStart);
+  for (let blockStart = 0; blockStart < engineFrames; blockStart += nodeGraphAudioBlockSize) {
+    const blockFrames = Math.min(nodeGraphAudioBlockSize, engineFrames - blockStart);
     for (let blockFrame = 0; blockFrame < blockFrames; blockFrame += 1) {
       const frame = blockStart + blockFrame;
       const frameOutput = evaluateNodeGraphPlanFrame(
         runtime,
-        nodeGraphMvp.sampleRate,
+        engineSampleRate,
         blockFrame,
         blockFrames,
       );
@@ -13139,32 +13213,54 @@ function renderNodeGraphAudio() {
       }
       const left = nodeGraphClampOutputSample(frameOutput.left);
       const right = nodeGraphClampOutputSample(frameOutput.right);
-      const output = (left + right) * 0.5;
-      leftSamples[frame] = left;
-      rightSamples[frame] = right;
-      samples[frame] = output;
-      peak = Math.max(peak, Math.abs(left), Math.abs(right));
-      squareSum += (left * left + right * right) * 0.5;
+      engineLeftSamples[frame] = left;
+      engineRightSamples[frame] = right;
     }
     finishNodeGraphParameterSmoothing(runtime.smoothers);
   }
 
-  const rms = Math.sqrt(squareSum / frames);
+  const leftSamples = nodeGraphResampleRenderedChannel(
+    engineLeftSamples,
+    engineSampleRate,
+    outputSampleRate,
+    outputFrames,
+  );
+  const rightSamples = nodeGraphResampleRenderedChannel(
+    engineRightSamples,
+    engineSampleRate,
+    outputSampleRate,
+    outputFrames,
+  );
+  const samples = new Float32Array(outputFrames);
+  let peak = 0;
+  let squareSum = 0;
+  for (let frame = 0; frame < outputFrames; frame += 1) {
+    const left = leftSamples[frame] || 0;
+    const right = rightSamples[frame] || 0;
+    samples[frame] = (left + right) * 0.5;
+    peak = Math.max(peak, Math.abs(left), Math.abs(right));
+    squareSum += (left * left + right * right) * 0.5;
+  }
+
+  const rms = Math.sqrt(squareSum / outputFrames);
   nodeGraphMvp.rendered = {
     channels: 2,
     connectionCount: plan.connections.length,
-    durationSeconds: frames / nodeGraphMvp.sampleRate,
+    durationSeconds: outputFrames / outputSampleRate,
+    engineFrames,
+    engineSampleRate,
     feedbackConnectionCount: plan.feedbackConnections.length,
     feedbackModulationCount: plan.feedbackModulations.length,
-    frames,
+    frames: outputFrames,
     modulationCount: plan.modulations.length,
     nodeCount: plan.nodes.length,
+    oversamplingRatio: audio.oversamplingRatio,
     peak,
     leftSamples,
     patchFingerprint,
     rightSamples,
     rms,
-    sampleRate: nodeGraphMvp.sampleRate,
+    sampleRate: outputSampleRate,
     samples,
     clipCount,
     sourceNodes: validation.sourceNodes,
@@ -13175,9 +13271,11 @@ function renderNodeGraphAudio() {
   renderStatus.textContent = "render ready";
   renderStatus.className = "pill good";
   setNodeGraphAudioStats(peak, rms, {
-    frames,
-    sampleRate: nodeGraphMvp.sampleRate,
+    frames: outputFrames,
+    sampleRate: outputSampleRate,
     clipCount,
+    engineSampleRate,
+    oversamplingRatio: audio.oversamplingRatio,
     stateReadCount,
   });
   renderNodeGraphExecutionPlanDebug();
@@ -13533,7 +13631,8 @@ async function playNodeGraphAudio() {
   if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
     await stopNodeGraphLiveAudio();
   }
-  nodeGraphMvp.audioContext ||= new AudioContext({ sampleRate: nodeGraphMvp.sampleRate });
+  const renderedSampleRate = Number(nodeGraphMvp.rendered.sampleRate) || nodeGraphMvp.sampleRate;
+  nodeGraphMvp.audioContext ||= new AudioContext({ sampleRate: renderedSampleRate });
   if (nodeGraphMvp.audioContext.state === "suspended") {
     await nodeGraphMvp.audioContext.resume();
   }
@@ -13543,7 +13642,7 @@ async function playNodeGraphAudio() {
   const buffer = nodeGraphMvp.audioContext.createBuffer(
     channelCount,
     nodeGraphMvp.rendered.samples.length,
-    nodeGraphMvp.sampleRate,
+    renderedSampleRate,
   );
   buffer.copyToChannel(nodeGraphMvp.rendered.leftSamples || nodeGraphMvp.rendered.samples, 0);
   if (channelCount > 1) {

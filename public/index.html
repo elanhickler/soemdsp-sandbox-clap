@@ -166,14 +166,17 @@
               type="number"
               min="8000"
               max="768000"
-              step="1"
+              step="any"
               data-patch-audio-field>
           </label>
-          <label>Resulting Sample Rate
+          <label>Resulting Engine Sample Rate
             <input id="patchResultingSampleRateValue" type="text" readonly>
           </label>
           <label>Resulting Oversampling
             <input id="patchResultingOversamplingValue" type="text" readonly>
+          </label>
+          <label>Output Sample Rate
+            <input id="patchOutputSampleRateValue" type="text" readonly>
           </label>
           <label>Visual Output Mode
             <select id="patchVisualModeValue" data-patch-visual-field>
