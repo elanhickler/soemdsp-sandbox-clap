@@ -5916,6 +5916,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         choices: ["Saw", "Square", "Triangle", "Sine", "Noise"],
         defaultValue: "0",
         displayChoices: true,
+        divideChoicesVisibly: true,
         key: "waveform",
         kind: "waveform",
         label: "Waveform",
@@ -6030,6 +6031,23 @@ function nodeGraphDefaultParamsForType(type) {
   return params;
 }
 
+function nodeGraphModuleOutputPorts(type) {
+  const definition = nodeGraphModuleDefinitions[type];
+  if (!definition) {
+    return [];
+  }
+  return [
+    ...(definition.outputs || []),
+    ...(definition.parameters || []).map((parameter) => parameter.key),
+  ];
+}
+
+function nodeGraphParameterOutputPort(type, port) {
+  return nodeGraphModuleDefinitions[type]?.parameters?.find(
+    (parameter) => parameter.key === port,
+  ) || null;
+}
+
 function normalizeNodeGraphMetadataChoices(value, fallback = []) {
   const choices = Array.isArray(value)
     ? value
@@ -6055,7 +6073,9 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
     choices: normalizeNodeGraphMetadataChoices(parameter.choices || []),
     def: clampNodeSliderValue(Number.isFinite(def) ? def : safeMin, safeMin, safeMax),
     displayChoices: Boolean(parameter.displayChoices),
-    divideChoicesVisibly: Boolean(parameter.divideChoicesVisibly),
+    divideChoicesVisibly: Object.hasOwn(parameter, "divideChoicesVisibly")
+      ? Boolean(parameter.divideChoicesVisibly)
+      : Boolean(parameter.displayChoices && parameter.choices?.length),
     kind: parameter.kind || "decimal",
     linearSmoothing: parameter.linearSmoothing !== false,
     max: safeMax,
@@ -6125,7 +6145,7 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
       : fallback.displayChoices,
     divideChoicesVisibly: Object.hasOwn(source, "divideChoicesVisibly")
       ? Boolean(source.divideChoicesVisibly)
-      : fallback.divideChoicesVisibly,
+      : Boolean(fallback.divideChoicesVisibly || (choices.length && fallback.displayChoices)),
     kind: normalizeNodeMetadataKind(source.kind || fallback.kind),
     linearSmoothing: Object.hasOwn(source, "linearSmoothing")
       ? Boolean(source.linearSmoothing)
@@ -6247,6 +6267,7 @@ const fallbackNodeMetadataKindTemplates = Object.freeze({
     choices: ["Saw", "Square", "Triangle", "Sine", "Noise"],
     def: 0,
     displayChoices: true,
+    divideChoicesVisibly: true,
     label: "Waveform",
     linearSmoothing: false,
     max: 4,
@@ -6259,6 +6280,7 @@ const fallbackNodeMetadataKindTemplates = Object.freeze({
     choices: ["active", "BYPASSED"],
     def: 0,
     displayChoices: true,
+    divideChoicesVisibly: true,
     label: "Bypass",
     linearSmoothing: false,
     max: 1,
@@ -6271,6 +6293,7 @@ const fallbackNodeMetadataKindTemplates = Object.freeze({
     choices: ["-", "+"],
     def: -1,
     displayChoices: true,
+    divideChoicesVisibly: true,
     label: "Plus Minus",
     linearSmoothing: false,
     max: 1,
@@ -6284,6 +6307,7 @@ const fallbackNodeMetadataKindTemplates = Object.freeze({
     choices: ["off", "on"],
     def: 1,
     displayChoices: true,
+    divideChoicesVisibly: true,
     label: "On Off",
     linearSmoothing: false,
     max: 1,
@@ -6296,6 +6320,7 @@ const fallbackNodeMetadataKindTemplates = Object.freeze({
     choices: ["idle", "on"],
     def: 0,
     displayChoices: true,
+    divideChoicesVisibly: true,
     label: "Momentary",
     linearSmoothing: false,
     max: 1,
@@ -6761,7 +6786,7 @@ function validateNodeGraphPatch(patch) {
     if (!sourceType || !destinationType) {
       throw new Error("connection references missing node");
     }
-    if (!(nodeGraphModuleDefinitions[sourceType].outputs || []).includes(sourcePort)) {
+    if (!nodeGraphModuleOutputPorts(sourceType).includes(sourcePort)) {
       throw new Error(`connection source port invalid: ${sourceNode}.${sourcePort}`);
     }
     if (destinationType === "output" && destinationPort === "In") {
@@ -6792,7 +6817,7 @@ function validateNodeGraphPatch(patch) {
     if (!sourceType || !destinationType) {
       throw new Error("modulation references missing node");
     }
-    if (!(nodeGraphModuleDefinitions[sourceType].outputs || []).includes(sourcePort)) {
+    if (!nodeGraphModuleOutputPorts(sourceType).includes(sourcePort)) {
       throw new Error(`modulation source port invalid: ${sourceNode}.${sourcePort}`);
     }
     if (!(nodeGraphModuleDefinitions[destinationType].parameters || []).some((parameter) => parameter.key === destinationParam)) {
@@ -8487,6 +8512,20 @@ function createNodeParameterModulationPort(node, type, parameter) {
   return button;
 }
 
+function createNodeParameterOutputPort(node, type, parameter) {
+  const button = document.createElement("button");
+  button.className = "node-param-port parameter-output node-port output";
+  button.type = "button";
+  button.dataset.node = node;
+  button.dataset.param = parameter.key;
+  button.dataset.port = parameter.key;
+  button.dataset.io = "output";
+  button.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${parameter.key} slider`;
+  const label = `${nodeGraphNodeLabels[type]} ${parameter.label} slider output`;
+  button.setAttribute("aria-label", label);
+  return button;
+}
+
 function createNodeGraphParameter(node, type, parameter) {
   const row = document.createElement("div");
   row.className = "node-parameter-row";
@@ -8528,6 +8567,7 @@ function createNodeGraphParameter(node, type, parameter) {
   input.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} ${parameter.label}`);
   label.append(input);
   row.append(label);
+  row.append(createNodeParameterOutputPort(node, type, parameter));
   return row;
 }
 
@@ -8689,7 +8729,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
       issues.push("connection references missing node");
       continue;
     }
-    const sourceOutputs = nodeGraphModuleDefinitions[source.type]?.outputs || [];
+    const sourceOutputs = nodeGraphModuleOutputPorts(source.type);
     const destinationInputs = nodeGraphModuleDefinitions[destination.type]?.inputs || [];
     if (!sourceOutputs.includes(connection.sourcePort)) {
       issues.push(`connection source port invalid: ${connection.sourceNode}.${connection.sourcePort}`);
@@ -8716,7 +8756,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
       issues.push("modulation references missing node");
       continue;
     }
-    const sourceOutputs = nodeGraphModuleDefinitions[source.type]?.outputs || [];
+    const sourceOutputs = nodeGraphModuleOutputPorts(source.type);
     const destinationParameters = nodeGraphModuleDefinitions[destination.type]?.parameters || [];
     if (!sourceOutputs.includes(modulation.sourcePort)) {
       issues.push(`modulation source port invalid: ${modulation.sourceNode}.${modulation.sourcePort}`);
@@ -8937,7 +8977,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     const type = graph.nodeMap.get(nodeId)?.type;
     if (type === "gain" || type === "bias") {
       const inputCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "In")) || []).length;
-      if (!inputCount) {
+      if (!inputCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} input`);
       }
     } else if (type !== "osc" && type !== "noise" && type !== "output") {
@@ -8978,6 +9018,19 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     sourceNodes,
     valid: uniqueIssues.length === 0,
   };
+}
+
+function nodeGraphNodeSignalOutputRequired(graph, nodeId) {
+  const node = graph.nodeMap.get(nodeId);
+  const signalOutputs = new Set(nodeGraphModuleDefinitions[node?.type]?.outputs || []);
+  if (!signalOutputs.size) {
+    return false;
+  }
+  return [...graph.inputConnections.values()]
+    .flat()
+    .some((connection) =>
+      connection.sourceNode === nodeId && signalOutputs.has(connection.sourcePort),
+    );
 }
 
 function compileValidatedNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
@@ -11356,7 +11409,9 @@ function nodeInteractionMouseHint(element) {
     return "Mouse: drag adjusts, double-click types, right-click edits metadata.";
   }
   if (element.classList.contains("node-port")) {
-    const action = element.classList.contains("output")
+    const action = element.classList.contains("parameter-output")
+      ? "Mouse: drag slider output. This sends the slider position normalized from 0 to 1."
+      : element.classList.contains("output")
       ? "Mouse: drag from output to signal input or modulation input."
       : "Mouse: drop a signal output here.";
     return alias ? `Alias: ${alias}\n${action}` : action;
@@ -11952,6 +12007,36 @@ function readNodeGraphRuntimeOutput(runtime, frameValues, nodeId) {
   return runtime.nodeOutputs?.get(nodeId) || 0;
 }
 
+function normalizeNodeGraphParameterOutputValue(value, metadata = {}) {
+  const min = Number(metadata.min);
+  const max = Number(metadata.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return 0;
+  }
+  const bounded = metadata.wraparound
+    ? wrapNodeSliderValue(Number(value) || 0, min, max)
+    : clampNodeSliderValue(Number(value) || 0, min, max);
+  return clampNodeSliderValue((bounded - min) / (max - min), 0, 1);
+}
+
+function readNodeGraphRuntimePortOutput(runtime, frameValues, nodeId, port = "Out", frame = 0, frames = 1) {
+  const node = runtime.nodes?.get(nodeId);
+  const parameter = nodeGraphParameterOutputPort(node?.type, port);
+  if (!parameter) {
+    return readNodeGraphRuntimeOutput(runtime, frameValues, nodeId);
+  }
+  const metadata = node?.paramMeta?.[port] || {};
+  const value = readNodeGraphLiveSmoothedParam(
+    runtime,
+    node,
+    port,
+    nodeGraphParameterFallback(node?.type, port),
+    frame,
+    frames,
+  );
+  return normalizeNodeGraphParameterOutputValue(value, metadata);
+}
+
 function readNodeGraphLiveEffectiveParam(
   runtime,
   node,
@@ -11969,7 +12054,14 @@ function readNodeGraphLiveEffectiveParam(
   const modulations = runtime.modulationConnections?.get(nodeGraphParameterKey(node?.id, key)) || [];
   const modulationValue = modulations.reduce(
     (sum, modulation) =>
-      sum + readNodeGraphRuntimeOutput(runtime, frameValues, modulation.sourceNode) * depth,
+      sum + readNodeGraphRuntimePortOutput(
+        runtime,
+        frameValues,
+        modulation.sourceNode,
+        modulation.sourcePort,
+        frame,
+        frames,
+      ) * depth,
     0,
   );
   return nodeGraphApplyParameterBounds(base + modulationValue, metadata);
@@ -12005,7 +12097,14 @@ function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, waveform) {
 function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
   const frameValues = new Map();
   const mixInput = (nodeId, port = "In") => (runtime.inputConnections.get(`${nodeId}.${port}`) || []).reduce(
-    (sum, connection) => sum + readNodeGraphRuntimeOutput(runtime, frameValues, connection.sourceNode),
+    (sum, connection) => sum + readNodeGraphRuntimePortOutput(
+      runtime,
+      frameValues,
+      connection.sourceNode,
+      connection.sourcePort,
+      frame,
+      frames,
+    ),
     0,
   );
 

@@ -716,12 +716,12 @@ audio {
 
 .node-parameter-row {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
+  grid-template-columns: 14px minmax(0, 1fr) 14px;
   grid-template-rows: minmax(0, 1fr);
   align-items: center;
   column-gap: 8px;
   min-height: 0;
-  padding: 2px 12px 2px 0;
+  padding: 2px 0;
   border-top: 1px solid rgba(243, 241, 236, 0.035);
 }
 
@@ -1142,6 +1142,17 @@ audio {
   border-color: rgba(177, 132, 255, 0.62);
   border-left-width: 0;
   background: rgba(177, 132, 255, 0.16);
+}
+
+.node-param-port.parameter-output {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  border-color: rgba(226, 168, 109, 0.56);
+  border-right-width: 0;
+  border-radius: 999px 0 0 999px;
+  background: rgba(226, 168, 109, 0.15);
 }
 
 .node-param-port:hover {

@@ -312,6 +312,31 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.nodeOutputs.get(nodeId) || 0;
   }
 
+  parameterOutputExists(node, port) {
+    return Boolean(node?.params && Object.hasOwn(node.params, port));
+  }
+
+  normalizeParameterOutputValue(value, metadata = {}) {
+    const min = Number(metadata.min);
+    const max = Number(metadata.max);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+      return 0;
+    }
+    const bounded = metadata.wraparound
+      ? this.wrapValue(Number(value) || 0, min, max)
+      : this.clampValue(Number(value) || 0, min, max);
+    return this.clampValue((bounded - min) / (max - min), 0, 1);
+  }
+
+  readRuntimePortOutput(frameValues, nodeId, port = "Out", frame = 0, frames = 1) {
+    const node = this.nodes.get(nodeId);
+    if (!this.parameterOutputExists(node, port)) {
+      return this.readRuntimeOutput(frameValues, nodeId);
+    }
+    const value = this.readSmoothedParameter(node, port, 0, frame, frames);
+    return this.normalizeParameterOutputValue(value, node?.paramMeta?.[port] || {});
+  }
+
   readEffectiveParameter(node, key, fallback, frame, frames, frameValues) {
     const base = this.readSmoothedParameter(node, key, fallback, frame, frames);
     const metadata = node?.paramMeta?.[key] || {};
@@ -320,7 +345,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const depth = Number.isFinite(min) && Number.isFinite(max) ? (max - min) * 0.5 : 0;
     const modulations = this.modulationConnections.get(this.parameterKey(node?.id, key)) || [];
     const modulationValue = modulations.reduce(
-      (sum, modulation) => sum + this.readRuntimeOutput(frameValues, modulation.sourceNode) * depth,
+      (sum, modulation) => sum + this.readRuntimePortOutput(
+        frameValues,
+        modulation.sourceNode,
+        modulation.sourcePort,
+        frame,
+        frames,
+      ) * depth,
       0,
     );
     return this.applyParameterBounds(base + modulationValue, metadata);
@@ -357,7 +388,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const frameValues = new Map();
     const mixInput = (nodeId, port = "In") => (
       this.inputConnections.get(this.inputKey(nodeId, port)) || []
-    ).reduce((sum, connection) => sum + this.readRuntimeOutput(frameValues, connection.sourceNode), 0);
+    ).reduce((sum, connection) => sum + this.readRuntimePortOutput(
+      frameValues,
+      connection.sourceNode,
+      connection.sourcePort,
+      frame,
+      frames,
+    ), 0);
 
     for (const nodeId of this.order) {
       const node = this.nodes.get(nodeId);

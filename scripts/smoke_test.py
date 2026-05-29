@@ -3282,10 +3282,14 @@ def require_node_graph_mvp_contract() -> None:
         "patch.modulations || []",
         "nodeGraphMvp.patch.modulations.map",
         "function createNodeParameterModulationPort(node, type, parameter)",
+        "function createNodeParameterOutputPort(node, type, parameter)",
         "function createNodeGraphIoColumn(node, type, ports, io)",
         "node-param-port modulation-input",
+        "node-param-port parameter-output node-port output",
         "dataset.io = \"modulation\"",
+        "dataset.io = \"output\"",
         "button.dataset.alias = nodeGraphLabel(node, port)",
+        "button.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${parameter.key} slider`",
         "button.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${parameter.key} mod`",
         "function ensureNodeGraphDragHandle(node)",
         "function attachNodeGraphNodeEvents(node)",
@@ -3415,6 +3419,8 @@ def require_node_graph_mvp_contract() -> None:
         "readout.style.setProperty(\"--value-end\"",
         "readout.style.setProperty(\"--choice-divider-width\"",
         "function nodeGraphValidate()",
+        "function nodeGraphModuleOutputPorts(type)",
+        "function nodeGraphParameterOutputPort(type, port)",
         "function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch)",
         "function compileValidatedNodeGraphExecutionPlan(patch = nodeGraphMvp.patch)",
         "function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch)",
@@ -3436,6 +3442,8 @@ def require_node_graph_mvp_contract() -> None:
         "schedulingEdges.sort(nodeGraphCompareSchedulingEdges)",
         "nodeGraphTopologicalOrder(graph.nodes, scheduling.orderDependencies, reachableNodes)",
         "function readNodeGraphRuntimeOutput(runtime, frameValues, nodeId)",
+        "function readNodeGraphRuntimePortOutput(runtime, frameValues, nodeId, port = \"Out\"",
+        "function normalizeNodeGraphParameterOutputValue(value, metadata = {})",
         "function nodeGraphSignalWireIdentity(connection)",
         "function nodeGraphModulationWireIdentity(modulation)",
         "function nodeGraphFeedbackIdentitySets(plan)",
@@ -3876,7 +3884,8 @@ def require_node_graph_mvp_contract() -> None:
         "document.addEventListener(\"keydown\", handleNodeGraphKeydown)",
         "missing Output speaker input",
         "const mixInput = (nodeId, port = \"In\")",
-        "readNodeGraphRuntimeOutput(runtime, frameValues, modulation.sourceNode)",
+        "readNodeGraphRuntimePortOutput(",
+        "modulation.sourcePort",
         "\"waveform\"",
         "nodeGraphOscillatorWaveformSample(",
         "sourceNodes",
@@ -4025,7 +4034,7 @@ def require_node_graph_mvp_contract() -> None:
         ".node-parameter-row",
         "grid-template-columns: 14px minmax(0, 1fr)",
         "grid-template-rows: minmax(0, 1fr)",
-        "padding: 2px 12px 2px 0",
+        "padding: 2px 0",
         ".node-slider-readout-label",
         "font-family: \"Cascadia Mono\", \"Cascadia Code\", Consolas, \"Courier New\", monospace",
         ".node-parameter-control",
@@ -4060,6 +4069,8 @@ def require_node_graph_mvp_contract() -> None:
         "grid-row: 1",
         "align-self: center",
         ".node-param-port.modulation-input",
+        ".node-param-port.parameter-output",
+        "grid-column: 3",
         "border-left-width: 0",
         "rgba(177, 132, 255",
         ".node-palette",
@@ -4153,10 +4164,12 @@ def require_node_graph_mvp_contract() -> None:
         "buildModulationConnectionMap(modulations, ids)",
         "this.nodeOutputs = new Map()",
         "readRuntimeOutput(frameValues, nodeId)",
+        "readRuntimePortOutput(frameValues, nodeId, port = \"Out\"",
+        "normalizeParameterOutputValue(value, metadata = {})",
         "readEffectiveParameter(node, key, fallback, frame, frames, frameValues)",
         "evaluateFrame(frame, frames)",
         'mixInput(this.outputNode || "output", "Left")',
-        "this.readRuntimeOutput(frameValues, modulation.sourceNode)",
+        "modulation.sourcePort",
         "this.clampValue(frameOutput.left, -0.95, 0.95)",
         "for (const channel of output)",
     ]:
@@ -4280,20 +4293,25 @@ def require_node_metadata_kinds_transport(base_url: str) -> None:
         "waveform choices mismatch",
     )
     require(waveform.get("displayChoices") is True, "waveform displayChoices mismatch")
+    require(waveform.get("divideChoicesVisibly") is True, "waveform divideChoicesVisibly mismatch")
     require(waveform.get("linearSmoothing") is False, "waveform linearSmoothing mismatch")
     require(waveform.get("min") == 0, "waveform metadata min mismatch")
     require(waveform.get("max") == 4, "waveform metadata max mismatch")
     require(waveform.get("mid") == 2, "waveform metadata mid mismatch")
     require(bypass.get("choices") == ["active", "BYPASSED"], "bypass choices mismatch")
     require(bypass.get("displayChoices") is True, "bypass displayChoices mismatch")
+    require(bypass.get("divideChoicesVisibly") is True, "bypass divideChoicesVisibly mismatch")
     require(bypass.get("linearSmoothing") is False, "bypass linearSmoothing mismatch")
     require(plusminus.get("choices") == ["-", "+"], "plusminus choices mismatch")
     require(plusminus.get("displayChoices") is True, "plusminus displayChoices mismatch")
+    require(plusminus.get("divideChoicesVisibly") is True, "plusminus divideChoicesVisibly mismatch")
     require(plusminus.get("showPlusMinus") is True, "plusminus showPlusMinus mismatch")
     require(onoff.get("choices") == ["off", "on"], "onoff choices mismatch")
     require(onoff.get("displayChoices") is True, "onoff displayChoices mismatch")
+    require(onoff.get("divideChoicesVisibly") is True, "onoff divideChoicesVisibly mismatch")
     require(momentary.get("choices") == ["idle", "on"], "momentary choices mismatch")
     require(momentary.get("displayChoices") is True, "momentary displayChoices mismatch")
+    require(momentary.get("divideChoicesVisibly") is True, "momentary divideChoicesVisibly mismatch")
 
 
 def require_manifest_contracts(payload: dict[str, object]) -> None:
