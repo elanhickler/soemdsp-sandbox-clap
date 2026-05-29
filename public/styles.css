@@ -207,6 +207,7 @@ audio {
 
 .node-help-stack {
   display: grid;
+  grid-template-rows: 72px 18px;
   flex: 1 1 180px;
   min-width: 140px;
   gap: 4px;
@@ -249,7 +250,8 @@ audio {
 }
 
 .node-selection-count[hidden] {
-  display: none;
+  display: block;
+  visibility: hidden;
 }
 
 .node-view-tabs button.active {
