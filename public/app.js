@@ -8290,6 +8290,30 @@ function setNodeSliderValue(slider, value) {
   scheduleNodeGraphLiveParameterSync();
 }
 
+function nodeSliderSegmentValueFromPointer(slider, surface, clientX) {
+  const choices = parseNodeMetadataChoices(slider.dataset.choices);
+  if (!choices.length) {
+    return null;
+  }
+  const rect = surface.getBoundingClientRect();
+  const progress = clampNodeSliderValue((clientX - rect.left) / Math.max(1, rect.width), 0, 0.999999);
+  const index = Math.min(choices.length - 1, Math.floor(progress * choices.length));
+  return Number(slider.min) + index;
+}
+
+function setNodeChoiceSliderFromPointer(slider, surface, clientX) {
+  const value = nodeSliderSegmentValueFromPointer(slider, surface, clientX);
+  if (!Number.isFinite(value)) {
+    return false;
+  }
+  setNodeSliderValue(slider, value);
+  syncNodeGraphPatchParameterFromSlider(slider, {
+    record: true,
+    status: "parameter changed",
+  });
+  return true;
+}
+
 function beginNodeSliderDrag(event) {
   if (nodeGraphMvp.sliderDragging || event.button > 0 || event.detail > 1) {
     return;
@@ -8298,6 +8322,14 @@ function beginNodeSliderDrag(event) {
   const surface = event.currentTarget;
   const slider = document.getElementById(surface.dataset.sliderTarget);
   if (!slider) {
+    return;
+  }
+
+  if (nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
+    if (setNodeChoiceSliderFromPointer(slider, surface, event.clientX)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     return;
   }
 
@@ -11505,6 +11537,10 @@ function nodeInteractionMouseHint(element) {
     return `Compiled order ${order}: ${nodeName}\nSelection only happens from move handles or marquee.`;
   }
   if (element.classList.contains("node-slider-readout")) {
+    const slider = document.getElementById(element.dataset.sliderTarget);
+    if (slider && nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
+      return "Mouse: click a segment to choose, double-click types, right-click edits metadata.";
+    }
     return "Mouse: drag adjusts, double-click types, right-click edits metadata.";
   }
   if (element.classList.contains("node-port")) {
