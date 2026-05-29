@@ -8324,10 +8324,6 @@ function setNodeChoiceSliderFromPointer(slider, surface, clientX) {
     return false;
   }
   setNodeSliderValue(slider, value);
-  syncNodeGraphPatchParameterFromSlider(slider, {
-    record: true,
-    status: "parameter changed",
-  });
   return true;
 }
 
@@ -8379,20 +8375,17 @@ function beginNodeSliderDrag(event) {
     return;
   }
 
-  if (nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
-    if (setNodeChoiceSliderFromPointer(slider, surface, event.clientX)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    return;
-  }
-
   const rect = surface.getBoundingClientRect();
+  let startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
+  if (nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
+    setNodeChoiceSliderFromPointer(slider, surface, event.clientX);
+    startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
+  }
   nodeGraphMvp.sliderDragging = {
     pointerId: event.pointerId ?? null,
     slider,
     surface,
-    startTravel: nodeSliderTravelFromValue(slider, Number(slider.value)),
+    startTravel,
     startX: event.clientX,
     startY: event.clientY,
     fineScale: nodeSliderFineTuneScale(event),
@@ -8582,6 +8575,9 @@ function attachNodeGraphNodeEvents(node) {
   for (const port of node.querySelectorAll(".node-port")) {
     port.addEventListener("pointerdown", beginNodeGraphWireDrag);
   }
+  for (const port of node.querySelectorAll(".node-param-port.modulation-input")) {
+    port.addEventListener("pointerdown", beginNodeGraphWireDrag);
+  }
   for (const slider of node.querySelectorAll('input[type="range"]')) {
     createNodeSliderReadout(slider);
     slider.addEventListener("input", () => {
@@ -8712,7 +8708,7 @@ function nodeGraphModuleGridWidthUnits(type) {
 }
 
 function nodeGraphModuleGridHeightUnits(type) {
-  return 4 + Math.max(1, nodeGraphModuleBodyRowCount(type)) * 1.5;
+  return 4 + Math.max(1, nodeGraphModuleBodyRowCount(type));
 }
 
 function createNodeGraphModuleElement(type, node) {
@@ -8796,12 +8792,6 @@ function createNodeGraphModuleElement(type, node) {
 
   for (const parameter of definition.parameters) {
     body.append(createNodeGraphParameter(node, type, parameter));
-  }
-  if (definition.output) {
-    const summary = document.createElement("p");
-    summary.id = "nodeOutputSummary";
-    summary.textContent = "waiting for render";
-    body.append(summary);
   }
   article.append(body);
 
@@ -10677,10 +10667,12 @@ function burstNodeGraphZap(point) {
 function beginNodeGraphWireDrag(event) {
   const port = event.currentTarget;
   const endpoint = nodeGraphWireEndpointFromElement(port);
-  if (!endpoint || endpoint.io === "modulation") {
+  if (!endpoint) {
     return;
   }
-  const from = nodeGraphPortCenter(port.dataset.node, port.dataset.port, endpoint.io);
+  const from = endpoint.io === "modulation"
+    ? nodeGraphModulationPortCenter(port.dataset.node, port.dataset.param || port.dataset.port)
+    : nodeGraphPortCenter(port.dataset.node, port.dataset.port, endpoint.io);
   const to = nodeGraphClientPoint(event);
   nodeGraphMvp.dragging = {
     endpoint,
@@ -10714,7 +10706,9 @@ function endNodeGraphWireDrag(event) {
     ?.closest?.(".node-port, .node-param-port.modulation-input");
   const targetEndpoint = nodeGraphWireEndpointFromElement(target);
   document
-    .querySelector(nodeGraphPortSelector(dragging.endpoint.node, dragging.endpoint.port, dragging.endpoint.io))
+    .querySelector(dragging.endpoint.io === "modulation"
+      ? nodeGraphModulationPortSelector(dragging.endpoint.node, dragging.endpoint.param)
+      : nodeGraphPortSelector(dragging.endpoint.node, dragging.endpoint.port, dragging.endpoint.io))
     ?.classList.remove("dragging");
   nodeGraphMvp.dragging = null;
 
@@ -13036,7 +13030,10 @@ function renderNodeGraphAudio() {
     renderStatus.textContent = "render blocked";
     renderStatus.className = "pill warn";
     setNodeGraphAudioStats();
-    document.getElementById("nodeOutputSummary").textContent = validation.scheduleText;
+    const outputSummary = document.getElementById("nodeOutputSummary");
+    if (outputSummary) {
+      outputSummary.textContent = validation.scheduleText;
+    }
     renderNodeGraphExecutionPlanDebug();
     drawNodeRenderedAudio();
     return;
@@ -13114,7 +13111,10 @@ function renderNodeGraphAudio() {
     stateReadCount,
   });
   renderNodeGraphExecutionPlanDebug();
-  document.getElementById("nodeOutputSummary").textContent = validation.scheduleText;
+  const outputSummary = document.getElementById("nodeOutputSummary");
+  if (outputSummary) {
+    outputSummary.textContent = validation.scheduleText;
+  }
   drawNodeRenderedAudio();
 }
 
