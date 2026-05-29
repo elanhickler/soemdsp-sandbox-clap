@@ -6044,13 +6044,13 @@ const nodeGraphGrid = Object.freeze({
 });
 
 const nodeGraphModuleLayout = Object.freeze({
-  bodyRowGapGu: 3 / 28,
+  bodyRowGapGu: 1 / 28,
   fitCushionGu: 2 / 28,
   headerHeightGu: 76 / 28,
-  ioPaddingYGu: 8 / 28,
-  ioRowGapGu: 3 / 28,
+  ioPaddingYGu: 4 / 28,
+  ioRowGapGu: 1 / 28,
   ioRowHeightGu: 16 / 28,
-  ioSectionMinHeightGu: 34 / 28,
+  ioSectionMinHeightGu: 24 / 28,
   moduleGridInsetGu: 6 / 28,
   sliderRowHeightGu: 30 / 28,
 });

@@ -266,7 +266,7 @@ audio {
   --node-graph-pan-x: 0px;
   --node-graph-pan-y: 0px;
   --node-grid-size: 28px;
-  --node-body-row-gap: calc(var(--node-grid-size) * 0.1071429);
+  --node-body-row-gap: calc(var(--node-grid-size) * 0.0357143);
   --node-body-row-height: calc(var(--node-grid-size) * 1.0714286);
   --node-header-button-overflow: calc(var(--node-grid-size) * 0.5);
   --node-header-gap: calc(var(--node-grid-size) * 0.0714286);
@@ -275,11 +275,11 @@ audio {
   --node-header-padding-block-start: calc(var(--node-grid-size) * 0.1428571);
   --node-header-padding-inline: calc(var(--node-grid-size) * 0.5);
   --node-header-title-row-height: calc(var(--node-grid-size) * 0.7857143);
-  --node-io-column-padding: calc(var(--node-grid-size) * 0.2142857);
-  --node-io-gap: calc(var(--node-grid-size) * 0.1071429);
-  --node-io-label-gap: calc(var(--node-grid-size) * 0.1785714);
-  --node-io-section-min-height: calc(var(--node-grid-size) * 1.2142857);
-  --node-io-section-padding-block: calc(var(--node-grid-size) * 0.1428571);
+  --node-io-column-padding: calc(var(--node-grid-size) * 0.1428571);
+  --node-io-gap: calc(var(--node-grid-size) * 0.0357143);
+  --node-io-label-gap: calc(var(--node-grid-size) * 0.1071429);
+  --node-io-section-min-height: calc(var(--node-grid-size) * 0.8571429);
+  --node-io-section-padding-block: calc(var(--node-grid-size) * 0.0714286);
   --node-module-grid-inset: calc(var(--node-grid-size) * 0.2142857);
   --node-port-column-gap: calc(var(--node-grid-size) * 0.2857143);
   --node-port-column-width: calc(var(--node-grid-size) * 0.5);
