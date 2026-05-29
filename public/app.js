@@ -8778,7 +8778,7 @@ function nodeGraphModuleGridWidthUnits(type) {
 }
 
 function nodeGraphModuleGridHeightUnits(type) {
-  return 4 + Math.max(1, nodeGraphModuleBodyRowCount(type));
+  return 4 + Math.max(1, nodeGraphModuleBodyRowCount(type)) * 1.25;
 }
 
 function createNodeGraphModuleElement(type, node) {
