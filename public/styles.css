@@ -649,6 +649,7 @@ audio {
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
   font-size: 0.86rem;
   font-weight: 400;
+  color: rgba(243, 241, 236, 0.68);
   letter-spacing: 0;
   text-align: center;
   text-overflow: ellipsis;
