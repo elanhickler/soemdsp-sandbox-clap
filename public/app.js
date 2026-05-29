@@ -11005,7 +11005,7 @@ function configureNodeSceneContextMenu(mode) {
   const targetNode = nodeGraphPatchNode(nodeGraphMvp.sceneContextTargetNode);
   const canCopy = moduleMode && targetNode?.type !== "output";
   const canDelete = moduleMode && targetNode && targetNode.type !== "output";
-  title.textContent = moduleMode ? "Module" : "Add Module";
+  title.textContent = moduleMode ? "MODULE ACTIONS" : "Add Module";
   menu.setAttribute("aria-label", moduleMode ? "Module actions" : "Add module");
   addGroup.hidden = moduleMode;
   copyButton.hidden = !moduleMode;

@@ -1014,10 +1014,14 @@ audio {
 }
 
 .scene-context-title {
+  display: flex;
+  align-items: center;
   min-width: 0;
+  min-height: 2.1em;
   padding: 4px 6px;
   color: var(--muted);
   font-size: 0.7rem;
+  line-height: 1.05;
   text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
