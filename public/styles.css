@@ -580,7 +580,7 @@ audio {
   min-width: 0;
   height: var(--node-header-height);
   display: grid;
-  grid-template-rows: minmax(0, 1fr) var(--node-header-title-row-height);
+  grid-template-rows: var(--node-header-title-row-height) minmax(0, 1fr);
   gap: var(--node-header-gap);
   padding:
     var(--node-header-padding-block-start)
@@ -619,17 +619,26 @@ audio {
   height: 100%;
   max-width: none;
   margin:
-    calc(var(--node-header-padding-block-start) * -1)
+    0
     calc(var(--node-header-button-overflow) * -1)
-    0;
+    calc(var(--node-header-padding-block-end) * -1);
   overflow: hidden;
   background: rgba(17, 20, 24, 0.88);
 }
 
 .node-header-title-row {
   display: flex;
+  align-self: stretch;
   justify-content: center;
+  width: calc(100% + (var(--node-header-button-overflow) * 2));
+  height: 100%;
+  margin:
+    calc(var(--node-header-padding-block-start) * -1)
+    calc(var(--node-header-button-overflow) * -1)
+    0;
   padding: 0 calc(var(--node-grid-size) * 0.1428571);
+  background:
+    linear-gradient(180deg, rgba(2, 4, 7, 0.98), rgba(8, 10, 13, 0.92));
 }
 
 .node-header-title {
