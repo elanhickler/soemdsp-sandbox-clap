@@ -491,7 +491,7 @@ audio {
 }
 
 .dsp-node.connected {
-  outline-color: rgba(113, 212, 155, 0.46);
+  outline-color: rgba(243, 241, 236, 0.16);
 }
 
 .dsp-node.dragging {
