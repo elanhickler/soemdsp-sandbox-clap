@@ -8314,6 +8314,29 @@ function setNodeChoiceSliderFromPointer(slider, surface, clientX) {
   return true;
 }
 
+function nodeSliderValueFromPointer(slider, surface, clientX) {
+  const rect = surface.getBoundingClientRect();
+  const travel = clampNodeSliderValue(
+    (clientX - rect.left) / Math.max(1, rect.width),
+    0,
+    1,
+  );
+  return nodeSliderValueFromTravel(slider, travel);
+}
+
+function nodeSliderFineTuneScale(event) {
+  if (event.ctrlKey && event.shiftKey) {
+    return 0.001;
+  }
+  if (event.shiftKey) {
+    return 0.01;
+  }
+  if (event.ctrlKey) {
+    return 0.1;
+  }
+  return 1;
+}
+
 function beginNodeSliderDrag(event) {
   if (nodeGraphMvp.sliderDragging || event.button > 0 || event.detail > 1) {
     return;
@@ -8322,6 +8345,20 @@ function beginNodeSliderDrag(event) {
   const surface = event.currentTarget;
   const slider = document.getElementById(surface.dataset.sliderTarget);
   if (!slider) {
+    return;
+  }
+
+  if (event.altKey) {
+    setNodeSliderValue(
+      slider,
+      quantizeNodeSliderDragValue(slider, nodeSliderValueFromPointer(slider, surface, event.clientX)),
+    );
+    syncNodeGraphPatchParameterFromSlider(slider, {
+      record: true,
+      status: "parameter changed",
+    });
+    event.preventDefault();
+    event.stopPropagation();
     return;
   }
 
@@ -8341,6 +8378,7 @@ function beginNodeSliderDrag(event) {
     startTravel: nodeSliderTravelFromValue(slider, Number(slider.value)),
     startX: event.clientX,
     startY: event.clientY,
+    fineScale: nodeSliderFineTuneScale(event),
     width: Math.max(1, rect.width),
   };
   surface.classList.add("value-dragging");
@@ -8361,7 +8399,7 @@ function dragNodeSlider(event) {
 
   const horizontalDelta = event.clientX - drag.startX;
   const verticalDelta = drag.startY - event.clientY;
-  const travelDelta = (horizontalDelta + verticalDelta) / drag.width;
+  const travelDelta = ((horizontalDelta + verticalDelta) / drag.width) * drag.fineScale;
   setNodeSliderValue(
     drag.slider,
     quantizeNodeSliderDragValue(
@@ -11559,9 +11597,9 @@ function nodeInteractionMouseHint(element) {
   if (element.classList.contains("node-slider-readout")) {
     const slider = document.getElementById(element.dataset.sliderTarget);
     if (slider && nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
-      return "Mouse: click a segment to choose, double-click types, right-click edits metadata.";
+      return "Mouse: click a segment to choose, Alt+click jumps, double-click types, right-click edits metadata.";
     }
-    return "Mouse: drag adjusts, double-click types, right-click edits metadata.";
+    return "Mouse: drag adjusts, Alt+click jumps, Ctrl/Shift drag fine tunes, double-click types, right-click edits metadata.";
   }
   if (element.classList.contains("node-port")) {
     const action = element.classList.contains("parameter-output")
