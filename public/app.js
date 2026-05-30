@@ -57,6 +57,8 @@ const phaseAudioFrequencyToleranceHz = 0.5;
 const phaseAudioAmplitudeTolerance = 0.001;
 const phaseAudioRmsTolerance = 0.001;
 const signalPlotSettingsKey = "soemdsp-sandbox.signalPlotSettings";
+const nodeSliderHandleHalfWidthPx = 8;
+const nodeGraphDefaultPatchPointSizeRatio = 0.36;
 const inspectionSources = Object.freeze({
   waveform: "waveform",
   scrubber: "scrubber",
@@ -173,8 +175,12 @@ function setSourceText(id, key, value, expected = "present", ok = true) {
   element.setAttribute("aria-label", `${key}: ${valueText}`);
   element.title =
     expected === "none" || expected === "present"
-      ? `${key}: ${valueText}`
-      : `${key}: ${valueText} / expected ${expectedText}`;
+      ? nodeGraphTooltipText("legacyEvidence.sourceValue", { key, value: valueText })
+      : nodeGraphTooltipText("legacyEvidence.sourceValueExpected", {
+        expected: expectedText,
+        key,
+        value: valueText,
+      });
 }
 
 function clearElement(id) {
@@ -191,6 +197,82 @@ function setStatus(id, value, ok) {
   }
 }
 
+function clearNodeGraphConfirmDefaultButton(button = nodeGraphMvp.confirmDefaultButton) {
+  if (!button) {
+    return;
+  }
+  if (nodeGraphMvp.confirmDefaultButtonTimer) {
+    window.clearTimeout(nodeGraphMvp.confirmDefaultButtonTimer);
+    nodeGraphMvp.confirmDefaultButtonTimer = 0;
+  }
+  button.classList.remove("confirming-default");
+  button.removeAttribute("aria-pressed");
+  if (button.dataset.confirmDefaultHtml) {
+    button.innerHTML = button.dataset.confirmDefaultHtml;
+    delete button.dataset.confirmDefaultHtml;
+  }
+  if (button.dataset.confirmDefaultText) {
+    delete button.dataset.confirmDefaultText;
+  }
+  if (nodeGraphMvp.confirmDefaultButton === button) {
+    nodeGraphMvp.confirmDefaultButton = null;
+  }
+}
+
+function nodeGraphDefaultButtonLabel(button) {
+  const spanText = button
+    ? [...button.querySelectorAll(":scope > span")]
+      .map((span) => span.textContent.trim())
+      .filter(Boolean)
+      .join(" ")
+    : "";
+  return button?.dataset.defaultButtonLabel || spanText || button?.textContent.trim() || "Update Default";
+}
+
+function nodeGraphDefaultButtonHtml(button) {
+  return button?.dataset.defaultButtonHtml || button?.innerHTML || nodeGraphDefaultButtonLabel(button);
+}
+
+function confirmNodeGraphDefaultButtonClick(button, statusCallback) {
+  if (!button) {
+    return false;
+  }
+  button.dataset.defaultButtonLabel = nodeGraphDefaultButtonLabel(button);
+  button.dataset.defaultButtonHtml = nodeGraphDefaultButtonHtml(button);
+  if (nodeGraphMvp.confirmDefaultButton === button && button.classList.contains("confirming-default")) {
+    clearNodeGraphConfirmDefaultButton(button);
+    return true;
+  }
+  clearNodeGraphConfirmDefaultButton();
+  button.dataset.confirmDefaultText = nodeGraphDefaultButtonLabel(button);
+  button.dataset.confirmDefaultHtml = nodeGraphDefaultButtonHtml(button);
+  button.textContent = "Confirm Default";
+  button.classList.add("confirming-default");
+  button.setAttribute("aria-pressed", "true");
+  nodeGraphMvp.confirmDefaultButton = button;
+  nodeGraphMvp.confirmDefaultButtonTimer = window.setTimeout(() => {
+    clearNodeGraphConfirmDefaultButton(button);
+  }, 4500);
+  statusCallback?.();
+  return false;
+}
+
+function flashNodeGraphDefaultButtonSaved(button) {
+  if (!button) {
+    return;
+  }
+  const originalText = nodeGraphDefaultButtonLabel(button);
+  const originalHtml = nodeGraphDefaultButtonHtml(button);
+  button.classList.remove("saved-default");
+  void button.offsetWidth;
+  button.textContent = "Saved";
+  button.classList.add("saved-default");
+  window.setTimeout(() => {
+    button.classList.remove("saved-default");
+    button.innerHTML = originalHtml || originalText;
+  }, 1000);
+}
+
 function labelStatusStripValue(element, label, value, ok) {
   const valueText = String(value);
   const stateName = ok ? "ok" : "check";
@@ -199,30 +281,42 @@ function labelStatusStripValue(element, label, value, ok) {
   element.dataset.statusState = stateName;
   element.setAttribute("role", "status");
   element.setAttribute("aria-label", `${label}: ${valueText}`);
-  element.title = `${label}: ${valueText} / ${stateName}`;
+  element.title = nodeGraphTooltipText("legacyEvidence.labeledState", {
+    label,
+    state: stateName,
+    value: valueText,
+  });
 }
 
 function labelPrimaryAudio(path, ok) {
   const audio = document.getElementById("audioPlayer");
   const pathText = path || "unavailable";
+  const displayText = path || "Render Sample preview audio";
   const stateName = ok ? "ok" : "check";
   audio.dataset.audioLabel = "Primary Audio";
   audio.dataset.audioPath = pathText;
   audio.dataset.audioState = stateName;
-  audio.setAttribute("aria-label", `Primary Audio: ${pathText}`);
-  audio.title = `Primary Audio: ${pathText} / ${stateName}`;
+  audio.setAttribute("aria-label", `Sample preview: ${displayText}`);
+  audio.title = nodeGraphTooltipText("legacyEvidence.samplePreview", {
+    state: stateName,
+    text: displayText,
+  });
 }
 
 function labelPrimaryAudioTitle(path, ok) {
   const title = document.getElementById("audioTitle");
   const pathText = path || "unavailable";
+  const displayText = path || "";
   const stateName = ok ? "ok" : "check";
-  title.textContent = pathText;
+  title.textContent = displayText;
   title.dataset.audioTitleLabel = "Primary Audio";
   title.dataset.audioTitlePath = pathText;
   title.dataset.audioTitleState = stateName;
-  title.setAttribute("aria-label", `Primary Audio title: ${pathText}`);
-  title.title = `Primary Audio title: ${pathText} / ${stateName}`;
+  title.setAttribute("aria-label", `Sample preview title: ${displayText}`);
+  title.title = nodeGraphTooltipText("legacyEvidence.samplePreviewTitle", {
+    state: stateName,
+    text: displayText,
+  });
 }
 
 function labelWaveformHeaderPill(element, label, value, ok) {
@@ -233,7 +327,11 @@ function labelWaveformHeaderPill(element, label, value, ok) {
   element.dataset.waveformHeaderValue = valueText;
   element.dataset.waveformHeaderState = stateName;
   element.setAttribute("aria-label", `${label}: ${valueText}`);
-  element.title = `${label}: ${valueText} / ${stateName}`;
+  element.title = nodeGraphTooltipText("legacyEvidence.labeledState", {
+    label,
+    state: stateName,
+    value: valueText,
+  });
 }
 
 function labelWaveformControlButton(button, label, value, stateName) {
@@ -242,12 +340,16 @@ function labelWaveformControlButton(button, label, value, stateName) {
   button.dataset.waveformControlValue = valueText;
   button.dataset.waveformControlState = stateName;
   button.setAttribute("aria-label", `${label}: ${valueText}`);
-  button.title = `${label}: ${valueText} / ${stateName}`;
+  button.title = nodeGraphTooltipText("legacyEvidence.labeledState", {
+    label,
+    state: stateName,
+    value: valueText,
+  });
 }
 
 function labelInspectionCursorPill(element, label, value, stateName) {
   element.setAttribute("aria-label", `${label}: ${value}`);
-  element.title = `${label}: ${value}`;
+  element.title = nodeGraphTooltipText("legacyEvidence.sourceValue", { key: label, value });
   element.dataset.inspectionPill = label;
   element.dataset.inspectionValue = value;
   element.dataset.inspectionState = stateName;
@@ -259,7 +361,10 @@ function labelInspectionCursorSurface(cursor, value, stateName) {
   cursor.dataset.inspectionCursorState = stateName;
   cursor.setAttribute("role", "group");
   cursor.setAttribute("aria-label", `inspection cursor: ${value}`);
-  cursor.title = `inspection cursor: ${value} / ${stateName}`;
+  cursor.title = nodeGraphTooltipText("legacyEvidence.inspectionCursor", {
+    state: stateName,
+    value,
+  });
 }
 
 function setInspectionCursorSource(sourceName, mode) {
@@ -486,6 +591,47 @@ function readAscii(view, offset, length) {
     value += String.fromCharCode(view.getUint8(offset + index));
   }
   return value;
+}
+
+function writeAscii(view, offset, text) {
+  for (let index = 0; index < text.length; index += 1) {
+    view.setUint8(offset + index, text.charCodeAt(index));
+  }
+}
+
+function renderedNodeGraphWavBlob(rendered) {
+  const sampleRate = Number(rendered?.sampleRate) || nodeGraphMvp.sampleRate;
+  const leftSamples = rendered?.leftSamples || rendered?.samples;
+  const rightSamples = rendered?.rightSamples || leftSamples;
+  const frames = Math.max(leftSamples?.length || 0, rightSamples?.length || 0);
+  const channels = 2;
+  const bytesPerSample = 2;
+  const dataSize = frames * channels * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  writeAscii(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeAscii(view, 8, "WAVE");
+  writeAscii(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeAscii(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+  let offset = 44;
+  for (let frame = 0; frame < frames; frame += 1) {
+    const left = Math.max(-1, Math.min(1, leftSamples?.[frame] || 0));
+    const right = Math.max(-1, Math.min(1, rightSamples?.[frame] || 0));
+    view.setInt16(offset, left < 0 ? left * 0x8000 : left * 0x7fff, true);
+    offset += bytesPerSample;
+    view.setInt16(offset, right < 0 ? right * 0x8000 : right * 0x7fff, true);
+    offset += bytesPerSample;
+  }
+  return new Blob([buffer], { type: "audio/wav" });
 }
 
 function parsePcm16Wav(buffer) {
@@ -1053,7 +1199,7 @@ function renderLevelEnvelope() {
     canvas.dataset.envelopePeak = "unavailable";
     canvas.dataset.envelopeRms = "unavailable";
     canvas.dataset.envelopeFrames = "unavailable";
-    canvas.title = "Primary WAV level envelope unavailable";
+    canvas.title = nodeGraphTooltipText("legacyEvidence.levelEnvelopeUnavailable");
     peak.textContent = "peak 0";
     rms.textContent = "rms 0";
     renderLevelEnvelopeProbe();
@@ -1349,7 +1495,7 @@ function renderUnavailablePhaseAudioStats() {
   item.dataset.producerMatch = "false";
   item.setAttribute("aria-label", "Phase audio stats unavailable: manifest required");
   item.setAttribute("role", "group");
-  item.title = "Phase audio stats unavailable: manifest required";
+  item.title = nodeGraphTooltipText("legacyEvidence.phaseAudioStatsUnavailable");
 
   const name = document.createElement("h3");
   name.textContent = "Phase audio stats unavailable";
@@ -1772,7 +1918,7 @@ function renderSignalPlot() {
     canvas.dataset.signalLagMs = String(state.signalLagMs);
     canvas.dataset.signalLagFrames = "unavailable";
     canvas.dataset.signalPoints = "unavailable";
-    canvas.title = "Primary WAV signal plot unavailable";
+    canvas.title = nodeGraphTooltipText("legacyEvidence.signalPlotUnavailable");
     status.textContent = "Check";
     status.className = "pill warn";
     renderUnavailableSignalPlotMeta();
@@ -2440,7 +2586,7 @@ async function renderWaveform(path) {
     canvas.dataset.waveformFileBytes = "unavailable";
     canvas.dataset.waveformPeak = "unavailable";
     canvas.dataset.waveformRms = "unavailable";
-    canvas.title = "Primary WAV waveform unavailable";
+    canvas.title = nodeGraphTooltipText("legacyEvidence.waveformUnavailable");
     renderUnavailableWaveformMeta();
     renderWaveformPhaseControls();
     renderLevelEnvelope();
@@ -2533,7 +2679,12 @@ function updateWaveformScrubberLabel(scrubber, waveform, activeRegion) {
   if (!waveform) {
     scrubber.setAttribute("aria-valuetext", `0.000s / unknown / phase unknown / ${followText}`);
     scrubber.dataset.followMode = followText;
-    scrubber.title = `Waveform position 0.000s / unknown / phase unknown / ${followTitle}`;
+    scrubber.title = nodeGraphTooltipText("legacyEvidence.waveformPosition", {
+      follow: followTitle,
+      frame: "unknown",
+      phase: "phase unknown",
+      time: "0.000s",
+    });
     return;
   }
 
@@ -2545,7 +2696,12 @@ function updateWaveformScrubberLabel(scrubber, waveform, activeRegion) {
     `${timeText} / ${durationText} / frame ${state.playheadFrame} / ${phaseText} / ${followText}`,
   );
   scrubber.dataset.followMode = followText;
-  scrubber.title = `Waveform position ${timeText} / frame ${state.playheadFrame} / ${phaseText} / ${followTitle}`;
+  scrubber.title = nodeGraphTooltipText("legacyEvidence.waveformPosition", {
+    follow: followTitle,
+    frame: state.playheadFrame,
+    phase: phaseText,
+    time: timeText,
+  });
 }
 
 function renderWaveformProbe() {
@@ -3109,7 +3265,7 @@ function renderActiveReport() {
     viewer.dataset.reportState = "unavailable";
     viewer.setAttribute("role", "region");
     viewer.setAttribute("aria-label", "Report viewer unavailable");
-    viewer.title = "Report viewer unavailable";
+    viewer.title = nodeGraphTooltipText("legacyEvidence.reportViewerUnavailable");
     return;
   }
 
@@ -3120,9 +3276,12 @@ function renderActiveReport() {
   viewer.dataset.reportState = stateName;
   viewer.setAttribute("role", "region");
   viewer.setAttribute("aria-label", `Report viewer ${report.label}: ${stateName}`);
-  viewer.title = `Report viewer ${report.label} / ${report.kind} / ${
-    report.path || "missing"
-  } / ${stateName}`;
+  viewer.title = nodeGraphTooltipText("legacyEvidence.reportViewer", {
+    kind: report.kind,
+    label: report.label,
+    path: report.path || "missing",
+    state: stateName,
+  });
   viewer.textContent = report.ok
     ? report.text
     : `${report.label}\n${report.error || "Report unavailable"}`;
@@ -3285,7 +3444,11 @@ function renderParameterSummaryCards(pairs) {
     item.dataset.summaryState = stateName;
     item.setAttribute("role", "group");
     item.setAttribute("aria-label", `${label}: ${valueText}`);
-    item.title = `${label}: ${valueText} / ${stateName}`;
+    item.title = nodeGraphTooltipText("legacyEvidence.labeledState", {
+      label,
+      state: stateName,
+      value: valueText,
+    });
 
     const title = document.createElement("span");
     title.textContent = label.toUpperCase();
@@ -3503,7 +3666,11 @@ function renderParameterTimeline(manifest) {
       segment.dataset.endTime = endTime;
       segment.setAttribute("aria-label", segmentLabel);
       segment.setAttribute("role", "group");
-      segment.title = `${segmentLabel} / ${startTime} to ${endTime}`;
+      segment.title = nodeGraphTooltipText("legacyEvidence.timelineSegment", {
+        end: endTime,
+        label: segmentLabel,
+        start: startTime,
+      });
       segment.style.flexBasis = `${Math.max(1, (frames / totalFrames) * 100)}%`;
       segment.addEventListener("pointermove", probeParameterTimelineSegment);
       segment.addEventListener("pointerleave", clearParameterTimelineProbe);
@@ -3562,7 +3729,7 @@ function renderUnavailableParameterTimeline() {
   segment.dataset.endTime = "unavailable";
   segment.setAttribute("aria-label", "Parameter resync unavailable: manifest required");
   segment.setAttribute("role", "group");
-  segment.title = "Parameter resync unavailable: manifest required";
+  segment.title = nodeGraphTooltipText("legacyEvidence.parameterResyncUnavailable");
 
   const phase = document.createElement("span");
   phase.textContent = "unavailable";
@@ -3776,7 +3943,7 @@ function renderCheckRows(container, rows) {
     item.dataset.checkState = stateName;
     item.setAttribute("role", "group");
     item.setAttribute("aria-label", `${label}: ${stateName}`);
-    item.title = `${label}: ${stateName}`;
+    item.title = nodeGraphTooltipText("legacyEvidence.sourceValue", { key: label, value: stateName });
 
     const marker = document.createElement("strong");
     marker.textContent = ok ? "OK" : "Check";
@@ -3975,6 +4142,9 @@ function primaryAudioPositionLabeled() {
 
 function reloadManifestControlLabeled() {
   const button = document.getElementById("refreshButton");
+  if (!button) {
+    return true;
+  }
   const label = button?.getAttribute("aria-label") || "";
   return (
     button?.dataset.loading !== undefined &&
@@ -4663,7 +4833,7 @@ function renderCircuitChain(manifest) {
     row.dataset.chainState = "check";
     row.setAttribute("role", "group");
     row.setAttribute("aria-label", "Circuit chain unavailable");
-    row.title = "Circuit chain unavailable";
+    row.title = nodeGraphTooltipText("legacyEvidence.circuitChainUnavailable");
     row.textContent = issue || "circuit chain unavailable";
     list.append(row);
   }
@@ -4682,7 +4852,7 @@ function renderUnavailableCircuitChain() {
   row.dataset.chainState = "unavailable";
   row.setAttribute("role", "group");
   row.setAttribute("aria-label", "Circuit chain unavailable");
-  row.title = "Circuit chain unavailable";
+  row.title = nodeGraphTooltipText("legacyEvidence.circuitChainUnavailable");
   row.textContent = "manifest required";
   list.append(row);
 }
@@ -4713,7 +4883,11 @@ function renderSandboxContract(manifest) {
     item.dataset.contractState = rowOk ? "ok" : "check";
     item.setAttribute("role", "group");
     item.setAttribute("aria-label", `${kind}: ${label} / ${item.dataset.contractState}`);
-    item.title = `${kind}: ${label} / ${item.dataset.contractState}`;
+    item.title = nodeGraphTooltipText("legacyEvidence.contractRow", {
+      kind,
+      label,
+      state: item.dataset.contractState,
+    });
 
     const marker = document.createElement("strong");
     marker.textContent = rowOk ? kind : "check";
@@ -4745,7 +4919,11 @@ function renderUnavailableSandboxContract() {
     item.dataset.contractState = "unavailable";
     item.setAttribute("role", "group");
     item.setAttribute("aria-label", `${kind}: ${label} / unavailable`);
-    item.title = `${kind}: ${label} / unavailable`;
+    item.title = nodeGraphTooltipText("legacyEvidence.contractRow", {
+      kind,
+      label,
+      state: "unavailable",
+    });
 
     const marker = document.createElement("strong");
     marker.textContent = kind;
@@ -4943,7 +5121,7 @@ function renderUnavailableArtifacts() {
   row.dataset.artifactLabel = "Artifact packet";
   row.setAttribute("aria-label", "Missing artifact packet (unavailable)");
   row.setAttribute("role", "group");
-  row.title = "Missing artifact packet (unavailable)";
+  row.title = nodeGraphTooltipText("legacyEvidence.missingArtifactPacket");
 
   const label = document.createElement("span");
   label.textContent = "Artifact packet";
@@ -5154,7 +5332,12 @@ function renderPhases(phases, wav) {
     item.dataset.wavShare = share;
     item.setAttribute("aria-label", itemLabel);
     item.setAttribute("role", "group");
-    item.title = `${itemLabel} / ${startTime} to ${endTime} / ${duration}`;
+    item.title = nodeGraphTooltipText("legacyEvidence.phaseListItem", {
+      duration,
+      end: endTime,
+      label: itemLabel,
+      start: startTime,
+    });
     item.addEventListener("pointermove", probePhaseList);
     item.addEventListener("pointerleave", clearPhaseListProbe);
 
@@ -5197,7 +5380,7 @@ function renderUnavailablePhases() {
   item.dataset.wavShare = "unavailable";
   item.setAttribute("aria-label", "Phase list unavailable: manifest required");
   item.setAttribute("role", "group");
-  item.title = "Phase list unavailable: manifest required";
+  item.title = nodeGraphTooltipText("legacyEvidence.phaseListUnavailable");
 
   const name = document.createElement("h3");
   name.textContent = "Phases unavailable";
@@ -5749,13 +5932,18 @@ function renderError(message, details = {}) {
 
 function renderRefreshButton(loading = state.manifestLoading) {
   const button = document.getElementById("refreshButton");
+  if (!button) {
+    return;
+  }
   const label = loading ? "Loading manifest" : "Reload manifest";
   button.disabled = loading;
   button.textContent = loading ? "Loading Manifest" : "Reload Manifest";
   button.setAttribute("aria-label", label);
   button.setAttribute("aria-busy", String(loading));
   button.dataset.loading = String(loading);
-  button.title = loading ? "Manifest reload in progress" : "Reload manifest and artifacts";
+  button.title = nodeGraphTooltipText(
+    loading ? "legacyEvidence.manifestReloading" : "legacyEvidence.manifestReload",
+  );
 }
 
 async function loadManifest() {
@@ -5795,7 +5983,7 @@ async function loadManifest() {
 
 document
   .getElementById("refreshButton")
-  .addEventListener("click", loadManifest);
+  ?.addEventListener("click", loadManifest);
 
 document
   .getElementById("waveformCanvas")
@@ -5901,15 +6089,31 @@ window.addEventListener("resize", () => {
 });
 
 const nodeGraphNodeLabels = Object.freeze({
+  audioInput: "Input",
   osc: "Osc",
   spiral: "Spiral",
   noise: "Noise",
   gain: "Gain",
   bias: "Bias",
+  textBox: "Text Box",
   output: "Output",
 });
 
 const nodeGraphModuleDefinitions = Object.freeze({
+  audioInput: {
+    outputs: ["Left", "Right"],
+    parameters: [
+      {
+        defaultValue: "0.35",
+        key: "level",
+        label: "Amplitude",
+        max: "1",
+        mid: "0.35",
+        min: "0",
+        step: "0.01",
+      },
+    ],
+  },
   osc: {
     outputs: ["Out"],
     parameters: [
@@ -5928,14 +6132,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
-        defaultValue: "1000",
+        defaultValue: "440",
         key: "frequency",
         kind: "frequency",
         label: "Frequency",
         max: "20000",
-        mid: "1000",
+        mid: "440",
         min: "0",
-        step: "1",
+        step: "any",
         unit: "Hz",
       },
       {
@@ -5953,7 +6157,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       {
         defaultValue: "0.35",
         key: "level",
-        label: "Level",
+        label: "Amplitude",
         max: "0.8",
         mid: "0.35",
         min: "0",
@@ -5964,7 +6168,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
   spiral: {
     outputs: ["X", "Y", "Z"],
     parameters: [
-      { key: "frequency", label: "Frequency", defaultValue: "440", min: "40", mid: "440", max: "2000", step: "1", unit: "Hz" },
+      { key: "frequency", label: "Frequency", defaultValue: "440", min: "40", mid: "440", max: "2000", step: "any", unit: "Hz" },
       { key: "density", label: "Density", defaultValue: "1", min: "0.1", mid: "1", max: "16", step: "0.01" },
       { key: "size", label: "Size", defaultValue: "0.5", min: "0.1", mid: "0.5", max: "4", step: "0.01" },
       { key: "sharp", label: "Sharp", defaultValue: "0.5", min: "0.01", mid: "0.5", max: "0.99", step: "0.01" },
@@ -5989,7 +6193,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       {
         defaultValue: "0.12",
         key: "level",
-        label: "Level",
+        label: "Amplitude",
         max: "0.5",
         mid: "0.12",
         min: "0",
@@ -6027,10 +6231,25 @@ const nodeGraphModuleDefinitions = Object.freeze({
       },
     ],
   },
+  textBox: {
+    layout: "textBox",
+    layoutOnly: true,
+    parameters: [],
+  },
   output: {
     inputs: ["Left", "Right"],
     output: true,
-    parameters: [],
+    parameters: [
+      {
+        defaultValue: "1",
+        key: "volume",
+        label: "Volume",
+        max: "2",
+        mid: "1",
+        min: "0",
+        step: "0.01",
+      },
+    ],
   },
 });
 
@@ -6042,19 +6261,23 @@ const nodeGraphPiOver2 = Math.PI / 2;
 const nodeGraphPiOver4 = Math.PI / 4;
 
 const nodeGraphGrid = Object.freeze({
+  heightPx: 28,
   sizePx: 28,
+  widthPx: 28,
 });
 
 const nodeGraphModuleLayout = Object.freeze({
   bodyRowGapGu: 1 / 28,
   fitCushionGu: 2 / 28,
   headerHeightGu: 76 / 28,
+  headerTitleRowHeightGu: 22 / 28,
   ioPaddingYGu: 4 / 28,
   ioRowGapGu: 1 / 28,
   ioRowHeightGu: 16 / 28,
   ioSectionMinHeightGu: 24 / 28,
   moduleGridInsetGu: 6 / 28,
   sliderRowHeightGu: 30 / 28,
+  textBoxBodyMinGu: 4,
 });
 
 const nodeGraphPatchFormat = Object.freeze({
@@ -6171,6 +6394,22 @@ function createNodeGraphPatchNode(type, options = {}) {
   if (Object.hasOwn(options, "widthGu")) {
     node.widthGu = normalizeNodeGraphModuleWidthUnits(type, options.widthGu);
   }
+  const alias = normalizeNodeGraphPatchNodeAlias(options.alias);
+  if (alias) {
+    node.alias = alias;
+  }
+  if (Object.hasOwn(options, "heightGu")) {
+    node.heightGu = normalizeNodeGraphModuleHeightUnits(type, options.heightGu, options.ui);
+  }
+  const ui = nodeGraphModuleDefinitions[type]?.layout === "textBox" && !Object.hasOwn(options, "ui")
+    ? { buttonsHidden: true }
+    : normalizeNodeGraphPatchNodeUi(options.ui);
+  if (ui.buttonsHidden || ui.titleHidden) {
+    node.ui = ui;
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
+    node.layout = normalizeNodeGraphTextBoxLayout(options.layout);
+  }
   return node;
 }
 
@@ -6233,18 +6472,22 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
 }
 
 const nodeGraphDefaultNodeConfigs = Object.freeze([
-  createNodeGraphPatchNode("osc", { id: "osc", gx: 2, gy: 1 }),
-  createNodeGraphPatchNode("noise", { id: "noise", gx: 2, gy: 12 }),
-  createNodeGraphPatchNode("gain", { id: "gain", gx: 16, gy: 7 }),
-  createNodeGraphPatchNode("bias", { id: "bias", gx: 27, gy: 7 }),
-  createNodeGraphPatchNode("output", { id: "output", gx: 36, gy: 8 }),
+  createNodeGraphPatchNode("osc", { id: "osc", gx: 1, gy: 1 }),
+  createNodeGraphPatchNode("noise", { id: "noise", gx: 0, gy: 11 }),
+  {
+    ...createNodeGraphPatchNode("gain", { id: "gain", gx: 11, gy: 2 }),
+    params: { ...nodeGraphDefaultParamsForType("gain"), amount: 1 },
+  },
+  {
+    ...createNodeGraphPatchNode("output", { id: "output", gx: 22, gy: 9 }),
+    params: { ...nodeGraphDefaultParamsForType("output"), volume: 0.1 },
+  },
 ]);
 
 const nodeGraphDefaultConnections = Object.freeze([
   { sourceNode: "osc", sourcePort: "Out", destinationNode: "gain", destinationPort: "In" },
-  { sourceNode: "gain", sourcePort: "Out", destinationNode: "bias", destinationPort: "In" },
-  { sourceNode: "bias", sourcePort: "Out", destinationNode: "output", destinationPort: "Left" },
-  { sourceNode: "bias", sourcePort: "Out", destinationNode: "output", destinationPort: "Right" },
+  { sourceNode: "gain", sourcePort: "Out", destinationNode: "output", destinationPort: "Left" },
+  { sourceNode: "gain", sourcePort: "Out", destinationNode: "output", destinationPort: "Right" },
 ]);
 
 const nodeGraphDefaultPatch = Object.freeze({
@@ -6259,6 +6502,11 @@ const nodeGraphDefaultPatch = Object.freeze({
     tags: "tags",
   },
   visual: {
+    background: {
+      h: 210,
+      l: 5,
+      s: 0,
+    },
     mode: "auto",
     scale: 1,
     style: "glow",
@@ -6270,11 +6518,96 @@ const nodeGraphDefaultPatch = Object.freeze({
     moduleActions: { left: null, top: null },
   },
   grid: { ...nodeGraphGrid },
-  view: { widthGu: 0, heightGu: 0 },
+  view: { widthGu: 31, heightGu: 20 },
   nodes: nodeGraphDefaultNodeConfigs.map((node) => ({ ...node })),
   connections: nodeGraphDefaultConnections.map((connection) => ({ ...connection })),
   modulations: [],
 });
+
+const nodeGraphDefaultPresetUrl = "./public/presets/default.json";
+const nodeGraphDefaultPresetStorageKey = "soemdsp-sandbox.defaultPatch";
+const nodeUiDevDefaultSettingsUrl = "./public/presets/useruisettings.json";
+const nodeUiDevDefaultSettingsStorageKey = "soemdsp-sandbox.userUiSettings";
+
+const nodeUiDevFontFamilyOptions = Object.freeze([
+  {
+    label: "Cascadia",
+    value: "cascadia",
+    css: "\"Cascadia Mono\", \"Cascadia Code\", Consolas, \"Courier New\", monospace",
+  },
+  {
+    label: "Consolas",
+    value: "consolas",
+    css: "Consolas, \"Courier New\", monospace",
+  },
+  {
+    label: "Courier",
+    value: "courier",
+    css: "\"Courier New\", Courier, monospace",
+  },
+  {
+    label: "Segoe",
+    value: "segoe",
+    css: "\"Segoe UI\", Arial, sans-serif",
+  },
+  {
+    label: "Arial",
+    value: "arial",
+    css: "Arial, Helvetica, sans-serif",
+  },
+  {
+    label: "Symbols",
+    value: "symbols",
+    css: "\"Noto Sans Symbols 2\", \"Noto Sans Symbols\", \"Segoe UI Symbol\", sans-serif",
+  },
+]);
+
+const nodeUiDevSettingControls = Object.freeze([
+  { defaultValue: 100, id: "nodeUiDevSettingsHeaderTextSize", key: "settingsHeaderTextSize", max: 100, min: 0, type: "number" },
+  { defaultValue: 50, id: "nodeUiDevButtonTextSize", key: "uiDevButtonTextSize", max: 100, min: 0, type: "number" },
+  { defaultValue: 76, id: "nodeUiDevLiveToggleTextSize", key: "liveToggleTextSize", max: 100, min: 0, type: "number" },
+  { defaultValue: 62, id: "nodeUiDevModularHeaderButtonBackground", key: "modularHeaderButtonBackground", max: 100, min: 0, type: "number" },
+  { defaultValue: 14, id: "nodeUiDevTooltipTextSize", key: "tooltipTextSize", max: 28, min: 8, type: "number" },
+  { defaultValue: 5, id: "nodeUiDevMinimumGridBrightness", key: "minimumGridBrightness", max: 100, min: 0, type: "number" },
+  { defaultValue: 100, exposeDefault: true, id: "nodeUiDevModuleLightSpread", key: "moduleLightSpread", max: 220, min: 40, type: "number" },
+  { defaultValue: 6, exposeDefault: true, id: "nodeUiDevModuleGridInset", key: "moduleGridInset", max: 20, min: 0, type: "number" },
+  { defaultValue: 10, exposeDefault: true, id: "nodeUiDevModuleRoundness", key: "moduleRoundness", max: 100, min: 0, type: "number" },
+  { defaultValue: "#ffffff", id: "nodeUiDevGridColor", key: "gridColor", type: "color" },
+  {
+    defaultValue: "#0d0d0d",
+    exposeDefault: true,
+    id: "nodeUiDevWorkspaceBackgroundColor",
+    key: "workspaceBackgroundColor",
+    type: "color",
+  },
+  { defaultValue: 62, id: "nodeUiDevSettingsHeaderTopRatio", key: "settingsHeaderTopRatio", max: 100, min: 0, type: "number" },
+  { defaultValue: 2, id: "nodeUiDevSettingsHeaderPadding", key: "settingsHeaderPadding", max: 20, min: 0, type: "number" },
+  { defaultValue: 4, id: "nodeUiDevSliderDotSize", key: "sliderDotSize", max: 28, min: 0, type: "number" },
+  {
+    defaultValue: "cascadia",
+    exposeDefault: true,
+    id: "nodeUiDevModuleTitleFont",
+    key: "moduleTitleFont",
+    options: nodeUiDevFontFamilyOptions,
+    type: "select",
+  },
+  { defaultValue: 26, id: "nodeUiDevModuleTitleHeight", key: "moduleTitleHeight", max: 44, min: 12, type: "number" },
+  { defaultValue: 62, id: "nodeUiDevModuleTitleTextFill", key: "moduleTitleTextFill", max: 100, min: 0, type: "number" },
+  { defaultValue: 24, id: "nodeUiDevModuleIoSectionHeight", key: "moduleIoSectionHeight", max: 44, min: 12, type: "number" },
+  { defaultValue: 16, id: "nodeUiDevModuleNodeSize", key: "moduleNodeSize", max: 28, min: 8, type: "number" },
+  { defaultValue: 50, exposeDefault: true, id: "nodeUiDevNodeGlowSize", key: "nodeGlowSize", max: 200, min: 0, type: "number" },
+  { defaultValue: 36, id: "nodeUiDevWirePatchPointSize", key: "wirePatchPointSize", max: 200, min: 0, type: "number" },
+  { defaultValue: 19, exposeDefault: true, id: "nodeUiDevWireThickness", key: "wireThickness", max: 100, min: 0, type: "number" },
+  { defaultValue: 36, id: "nodeUiDevBypassIconSize", key: "bypassIconSize", max: 100, min: 0, type: "number" },
+  { defaultValue: 40, id: "nodeUiDevBypassIconGlowSpread", key: "bypassIconGlowSpread", max: 200, min: 0, type: "number" },
+  { defaultValue: "#f25d5d", id: "nodeUiDevBypassIconGlowColor", key: "bypassIconGlowColor", type: "color" },
+  { defaultValue: "#f7b758", id: "nodeUiDevBypassIconOnColor", key: "bypassIconOnColor", type: "color" },
+  { defaultValue: "#5c1818", id: "nodeUiDevBypassOnBackgroundColor", key: "bypassOnBackgroundColor", type: "color" },
+  { defaultValue: "#000000", id: "nodeUiDevBypassOffBackgroundColor", key: "bypassOffBackgroundColor", type: "color" },
+  { defaultValue: 60, id: "nodeUiDevMoveSymbolSize", key: "moveSymbolSize", max: 100, min: 0, type: "number" },
+  { defaultValue: 50, id: "nodeUiDevCloseIconSize", key: "closeIconSize", max: 100, min: 0, type: "number" },
+  { defaultValue: false, id: "nodeUiDevSettingsHeaderHighlights", key: "settingsHeaderHighlights", type: "boolean" },
+]);
 
 const fallbackNodeMetadataKindTemplates = Object.freeze({
   decimal: { def: 0, label: "Decimal", linearSmoothing: true, max: 1, mid: 0.5, min: 0, step: 0.01, unit: "" },
@@ -6300,7 +6633,7 @@ const fallbackNodeMetadataKindTemplates = Object.freeze({
     step: 0.1,
     unit: "dB",
   },
-  frequency: { def: 1000, label: "Frequency", linearSmoothing: true, max: 20000, mid: 1000, min: 0, step: 1, unit: "Hz" },
+  frequency: { def: 440, label: "Frequency", linearSmoothing: true, max: 20000, mid: 440, min: 0, step: 0, unit: "Hz" },
   phase: {
     def: 0,
     label: "Phase",
@@ -6418,6 +6751,68 @@ function nodeGraphOneLineText(value) {
   return String(value ?? "").replace(/[\r\n]+/g, " ").trim();
 }
 
+function nodeGraphTextBoxOneLineText(value) {
+  return String(value ?? "").replace(/[\r\n]+/g, " ");
+}
+
+function normalizeNodeGraphTextBoxMode(value) {
+  return String(value || "").toLowerCase() === "multiline" ? "multiline" : "singleLine";
+}
+
+function normalizeNodeGraphTextBoxHorizontalAlign(value) {
+  const align = String(value || "").toLowerCase();
+  return ["left", "center", "right"].includes(align) ? align : "center";
+}
+
+function normalizeNodeGraphTextBoxVerticalAlignPercent(value) {
+  const numeric = Math.round(Number(value));
+  if (Number.isFinite(numeric)) {
+    return Math.max(0, Math.min(100, numeric));
+  }
+  const align = String(value || "").toLowerCase();
+  if (align === "top") {
+    return 0;
+  }
+  if (align === "bottom") {
+    return 100;
+  }
+  return 50;
+}
+
+const nodeGraphTextBoxTextSizeLimits = Object.freeze({
+  maxPercent: 200,
+  minPercent: 50,
+  stepPercent: 10,
+});
+
+function normalizeNodeGraphTextBoxTextSizePercent(value) {
+  const textSizePercent = Math.round(Number(value));
+  return Number.isFinite(textSizePercent)
+    ? Math.max(
+      nodeGraphTextBoxTextSizeLimits.minPercent,
+      Math.min(nodeGraphTextBoxTextSizeLimits.maxPercent, textSizePercent),
+    )
+    : 100;
+}
+
+function normalizeNodeGraphTextBoxLayout(layout = {}) {
+  const source = layout && typeof layout === "object" ? layout : {};
+  const textMode = normalizeNodeGraphTextBoxMode(source.textMode || source.mode);
+  const text = textMode === "singleLine"
+    ? nodeGraphTextBoxOneLineText(source.text)
+    : String(source.text ?? "");
+  return {
+    horizontalAlign: normalizeNodeGraphTextBoxHorizontalAlign(source.horizontalAlign || source.textAlign),
+    kind: "textBox",
+    text,
+    textSizePercent: normalizeNodeGraphTextBoxTextSizePercent(source.textSizePercent),
+    textMode,
+    verticalAlignPercent: normalizeNodeGraphTextBoxVerticalAlignPercent(
+      source.verticalAlignPercent ?? source.verticalAlign,
+    ),
+  };
+}
+
 function normalizeNodeGraphPatchInfo(info = {}) {
   return {
     author: nodeGraphOneLineText(info.author),
@@ -6433,6 +6828,22 @@ function normalizeNodeGraphPatchAudio(audio = {}) {
     targetSampleRate: Number.isFinite(targetSampleRate)
       ? Math.max(8000, Math.min(768000, targetSampleRate))
       : 88200,
+  };
+}
+
+function normalizeNodeGraphPatchGrid(grid = {}) {
+  const fallbackSize = Number(grid?.sizePx);
+  const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0
+    ? fallbackSize
+    : nodeGraphGrid.sizePx;
+  const width = Number(grid?.widthPx);
+  const height = Number(grid?.heightPx);
+  const widthPx = Number.isFinite(width) && width > 0 ? width : fallback;
+  const heightPx = Number.isFinite(height) && height > 0 ? height : fallback;
+  return {
+    heightPx: Math.max(8, Math.min(96, heightPx)),
+    sizePx: Math.max(8, Math.min(96, Math.min(widthPx, heightPx))),
+    widthPx: Math.max(8, Math.min(96, widthPx)),
   };
 }
 
@@ -6496,12 +6907,23 @@ function nodeGraphAudioDerivation(patch = nodeGraphMvp.patch) {
 }
 
 function normalizeNodeGraphPatchVisual(visual = {}) {
+  const sourceBackground = visual.background && typeof visual.background === "object"
+    ? visual.background
+    : {};
+  const backgroundH = Number(sourceBackground.h ?? visual.backgroundH ?? 210);
+  const backgroundS = Number(sourceBackground.s ?? visual.backgroundS ?? 0);
+  const backgroundL = Number(sourceBackground.l ?? visual.backgroundL ?? 5);
   const mode = String(visual.mode || "auto").trim();
   const scale = Number(visual.scale);
   const style = String(visual.style || "glow").trim();
   const theme = String(visual.theme || "cyan-violet").trim();
   const trail = Number(visual.trail);
   return {
+    background: {
+      h: Number.isFinite(backgroundH) ? Math.max(0, Math.min(360, backgroundH)) : 210,
+      l: Number.isFinite(backgroundL) ? Math.max(0, Math.min(100, backgroundL)) : 5,
+      s: Number.isFinite(backgroundS) ? Math.max(0, Math.min(100, backgroundS)) : 0,
+    },
     mode: ["auto", "stereo-xy", "mono-lag-xy"].includes(mode) ? mode : "auto",
     scale: Number.isFinite(scale) ? Math.max(0.1, Math.min(4, scale)) : 1,
     style: ["glow", "trace", "points"].includes(style) ? style : "glow",
@@ -6528,8 +6950,8 @@ function normalizeNodeGraphPatchWindows(windows = {}) {
 }
 
 const nodeGraphWorkspaceViewLimits = Object.freeze({
-  minHeightGu: 18,
-  minWidthGu: 24,
+  minHeightGu: 4,
+  minWidthGu: 4,
 });
 
 function normalizeNodeGraphPatchView(view = {}) {
@@ -6580,20 +7002,58 @@ function cloneNodeGraphParamMeta(paramMeta = {}) {
   );
 }
 
+function normalizeNodeGraphPatchNodeUi(ui = {}) {
+  const source = ui && typeof ui === "object" ? ui : {};
+  return {
+    buttonsHidden: Boolean(source.buttonsHidden),
+    titleHidden: Boolean(source.titleHidden),
+  };
+}
+
+function normalizeNodeGraphPatchNodeAlias(alias) {
+  return String(alias ?? "").trim().slice(0, 64);
+}
+
+function nodeGraphDefaultNodeTitle(type, id) {
+  return id === type
+    ? nodeGraphNodeLabels[type]
+    : `${nodeGraphNodeLabels[type]} ${String(id).split("-").at(-1)}`;
+}
+
+function nodeGraphPatchNodeTitle(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  if (!patchNode) {
+    return nodeGraphNodeLabels[nodeGraphNodeType(node)] || String(node || "");
+  }
+  return normalizeNodeGraphPatchNodeAlias(patchNode.alias) || nodeGraphDefaultNodeTitle(patchNode.type, patchNode.id);
+}
+
 function cloneNodeGraphPatch(patch) {
   return {
     audio: normalizeNodeGraphPatchAudio(patch.audio),
     bypassedNodes: Array.isArray(patch.bypassedNodes) ? [...patch.bypassedNodes] : [],
     connections: (patch.connections || []).map((connection) => ({ ...connection })),
     format: { ...(patch.format || nodeGraphPatchFormat) },
-    grid: { sizePx: Number(patch.grid?.sizePx) || nodeGraphGrid.sizePx },
+    grid: normalizeNodeGraphPatchGrid(patch.grid),
     info: normalizeNodeGraphPatchInfo(patch.info),
     modulations: (patch.modulations || []).map((modulation) => ({ ...modulation })),
-    nodes: (patch.nodes || []).map((node) => ({
-      ...node,
-      paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
-      params: { ...(node.params || {}) },
-    })),
+    nodes: (patch.nodes || []).map((node) => {
+      const ui = nodeGraphModuleDefinitions[node.type]?.layout === "textBox" && !Object.hasOwn(node, "ui")
+        ? { buttonsHidden: true }
+        : normalizeNodeGraphPatchNodeUi(node.ui);
+      return {
+        ...node,
+        ...(normalizeNodeGraphPatchNodeAlias(node.alias)
+          ? { alias: normalizeNodeGraphPatchNodeAlias(node.alias) }
+          : {}),
+        ...(nodeGraphModuleDefinitions[node.type]?.layout === "textBox"
+          ? { layout: normalizeNodeGraphTextBoxLayout(node.layout) }
+          : {}),
+        paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
+        params: { ...(node.params || {}) },
+        ...(ui.buttonsHidden || ui.titleHidden ? { ui } : {}),
+      };
+    }),
     view: normalizeNodeGraphPatchView(patch.view),
     visual: normalizeNodeGraphPatchVisual(patch.visual),
     windows: normalizeNodeGraphPatchWindows(patch.windows),
@@ -6605,20 +7065,41 @@ const nodeGraphMvp = {
   audioContext: null,
   bufferSource: null,
   connections: nodeGraphDefaultPatch.connections.map((connection) => ({ ...connection })),
+  defaultPatch: cloneNodeGraphPatch(nodeGraphDefaultPatch),
   dragging: null,
   historyIndex: -1,
   historyLimit: 100,
   historySnapshots: [],
   pan: { x: 0, y: 0 },
+  gridVisible: false,
+  sliderLabelsVisible: true,
+  sliderValuesVisible: true,
+  sliderHandlesVisible: true,
   live: {
     context: null,
     inputActive: false,
+    inputDeviceId: "",
+    inputMeterPeak: 0,
+    inputMeterRms: 0,
+    inputMeterSamples: 0,
+    inputMeterSquareSum: 0,
+    inputPermissionStatus: "unknown",
+    micStatus: "off",
+    inputStreamFactory: null,
+    inputSource: null,
+    inputStatus: "off",
+    inputStream: null,
     lastEvidence: null,
     meterGain: null,
+    mockInputDestination: null,
+    mockInputGain: null,
+    mockInputOscillator: null,
     node: null,
+    outputEnabled: false,
     outputGain: null,
     planEvidence: null,
     activeNodeIds: new Set(),
+    outputToggleSerial: 0,
     planSerial: 0,
     runtime: null,
     sessionId: 0,
@@ -6629,6 +7110,7 @@ const nodeGraphMvp = {
     usesWorklet: false,
   },
   marqueeSelection: null,
+  marqueeSelectionEntryPointer: null,
   metadataDragging: null,
   metadataEditorTarget: null,
   metadataPopoverPosition: null,
@@ -6637,6 +7119,7 @@ const nodeGraphMvp = {
   modulations: nodeGraphDefaultPatch.modulations.map((modulation) => ({ ...modulation })),
   nodeDragging: null,
   nodeTypeCounts: {
+    audioInput: 0,
     bias: 1,
     gain: 1,
     noise: 1,
@@ -6645,6 +7128,7 @@ const nodeGraphMvp = {
   },
   patch: cloneNodeGraphPatch(nodeGraphDefaultPatch),
   rendered: null,
+  renderedAudioUrl: "",
   renderedPlayback: {
     durationSeconds: 0,
     frame: null,
@@ -6657,6 +7141,9 @@ const nodeGraphMvp = {
   },
   sceneContextPoint: null,
   sceneContextTargetNode: null,
+  sceneContextTargetWire: null,
+  confirmDefaultButton: null,
+  confirmDefaultButtonTimer: 0,
   scriptCommitDelayMs: 250,
   scriptDirty: false,
   scriptCommitTimer: 0,
@@ -6664,23 +7151,224 @@ const nodeGraphMvp = {
   sampleRate: 44100,
   seconds: 2,
   sliderDragging: null,
+  smoothZoomDragging: null,
+  snapGridWhilePanning: false,
+  tooltipVisible: true,
+  tooltips: {},
   workspaceResizing: null,
   zoom: 1,
 };
 
-const nodeGraphZoomLimits = Object.freeze({
-  max: 1.8,
-  min: 0.55,
-  step: 0.08,
+const nodeGraphWireHelpers = window.createNodeGraphWireHelpers({
+  clonePatch: cloneNodeGraphPatch,
+  commitPatch: commitNodeGraphPatch,
+  connectModulation: connectNodeGraphModulation,
+  connectPorts: connectNodeGraphPorts,
+  drawWires: drawNodeGraphWires,
+  elementCenter: nodeGraphElementCenter,
+  modulationPortCenter: nodeGraphModulationPortCenter,
+  modulationPortSelector: nodeGraphModulationPortSelector,
+  patch: () => nodeGraphMvp.patch,
+  portCenter: nodeGraphPortCenter,
+  portSelector: nodeGraphPortSelector,
+  setSelection: setNodeGraphSelection,
+  wireFromSelection: nodeGraphWireFromSelection,
+  zoomSurface: nodeGraphZoomSurface,
 });
 
-function nodeGraphGridSize() {
-  const size = Number(nodeGraphMvp.patch?.grid?.sizePx);
-  return Number.isFinite(size) && size > 0 ? size : nodeGraphGrid.sizePx;
+const nodeGraphZoomLimits = Object.freeze({
+  max: 6,
+  min: 0.25,
+  step: 0.08,
+  wheelRatio: 1.12,
+});
+
+const nodeGraphTooltipSourceUrl = "./public/tooltips.json?v=tooltip-master";
+
+function nodeGraphTooltipTemplate(key) {
+  if (!key) {
+    return "";
+  }
+  const parts = String(key).split(".");
+  let value = nodeGraphMvp.tooltips;
+  for (const part of parts) {
+    value = value?.[part];
+  }
+  return typeof value === "string" ? value : "";
 }
 
-function nodeGraphWorkspaceViewUnitPx() {
-  return nodeGraphGridSize() * nodeGraphZoom();
+function nodeGraphTooltipText(key, context = {}) {
+  const template = nodeGraphTooltipTemplate(key);
+  if (!template) {
+    return "";
+  }
+  return template.replace(/\{([A-Za-z0-9_]+)\}/g, (match, name) =>
+    Object.prototype.hasOwnProperty.call(context, name) ? String(context[name]) : match,
+  );
+}
+
+function nodeGraphApplyTooltip(element, key, context = {}, options = {}) {
+  if (!element || !key) {
+    return "";
+  }
+  const text = nodeGraphTooltipText(key, context);
+  if (!text) {
+    return "";
+  }
+  if (options.title !== false) {
+    element.title = text;
+  }
+  if (options.interaction !== false) {
+    element.dataset.interactionHelp = text;
+  }
+  element.dataset.tooltipKey = key;
+  return text;
+}
+
+function nodeGraphElementTooltipText(element) {
+  if (!element) {
+    return "";
+  }
+  const key = element.dataset.tooltipKey;
+  return key ? nodeGraphTooltipText(key) : "";
+}
+
+function applyNodeGraphStaticTooltips(root = document) {
+  for (const element of root.querySelectorAll("[data-tooltip-key]")) {
+    const text = nodeGraphTooltipText(element.dataset.tooltipKey);
+    if (!text) {
+      continue;
+    }
+    if (element.dataset.tooltipTitle !== "false") {
+      element.title = text;
+    }
+    if (element.dataset.tooltipInteraction !== "false") {
+      element.dataset.interactionHelp = text;
+    }
+  }
+}
+
+async function loadNodeGraphTooltips() {
+  try {
+    const response = await fetch(nodeGraphTooltipSourceUrl, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`tooltip document HTTP ${response.status}`);
+    }
+    nodeGraphMvp.tooltips = await response.json();
+  } catch (error) {
+    console.warn("Unable to load tooltip document", error);
+    nodeGraphMvp.tooltips = {};
+  }
+  applyNodeGraphStaticTooltips();
+}
+
+function nodeGraphBypassGlyph(bypassed) {
+  return "🗲";
+}
+
+async function loadNodeGraphDefaultPresetPatch() {
+  const storedPatch = loadNodeGraphLocalDefaultPresetPatch();
+  if (storedPatch) {
+    return storedPatch;
+  }
+  try {
+    const response = await fetch(nodeGraphDefaultPresetUrl, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return loadNodeGraphPatchFromScript(await response.text());
+  } catch {
+    return cloneNodeGraphPatch(nodeGraphDefaultPatch);
+  }
+}
+
+function nodeGraphLocalDefaultPresetAllowed() {
+  return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
+}
+
+function loadNodeGraphLocalDefaultPresetPatch() {
+  if (!nodeGraphLocalDefaultPresetAllowed()) {
+    return null;
+  }
+  try {
+    const text = window.localStorage.getItem(nodeGraphDefaultPresetStorageKey);
+    return text ? loadNodeGraphPatchFromScript(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveNodeGraphLocalDefaultPreset(text) {
+  if (!nodeGraphLocalDefaultPresetAllowed()) {
+    return false;
+  }
+  try {
+    window.localStorage.setItem(nodeGraphDefaultPresetStorageKey, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function configureNodeGraphDefaultPresetButton() {
+  const button = document.getElementById("updateDefaultPresetButton");
+  if (!button || !nodeGraphLocalDefaultPresetAllowed()) {
+    return;
+  }
+  button.hidden = false;
+}
+
+function nodeGraphGridSize() {
+  return normalizeNodeGraphPatchGrid(nodeGraphMvp.patch?.grid).sizePx;
+}
+
+function nodeGraphGridWidth() {
+  return normalizeNodeGraphPatchGrid(nodeGraphMvp.patch?.grid).widthPx;
+}
+
+function nodeGraphGridHeight() {
+  return normalizeNodeGraphPatchGrid(nodeGraphMvp.patch?.grid).heightPx;
+}
+
+function withNodeGraphWorkspaceContentAnchored(workspace, update) {
+  const before = workspace.getBoundingClientRect();
+  update();
+  const after = workspace.getBoundingClientRect();
+  const deltaX = before.left - after.left;
+  const deltaY = before.top - after.top;
+  if (
+    !Number.isFinite(deltaX) ||
+    !Number.isFinite(deltaY) ||
+    (Math.abs(deltaX) < 0.001 && Math.abs(deltaY) < 0.001)
+  ) {
+    return;
+  }
+  const pan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  nodeGraphMvp.pan = {
+    x: (Number(pan.x) || 0) + deltaX,
+    y: (Number(pan.y) || 0) + deltaY,
+  };
+  applyNodeGraphPan();
+}
+
+function nodeGraphWorkspaceChromeSize(axis) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return 0;
+  }
+  const styles = getComputedStyle(workspace);
+  const keys = axis === "y"
+    ? ["borderTopWidth", "borderBottomWidth", "paddingTop", "paddingBottom"]
+    : ["borderLeftWidth", "borderRightWidth", "paddingLeft", "paddingRight"];
+  return keys.reduce((total, key) => total + (Number.parseFloat(styles[key]) || 0), 0);
+}
+
+function nodeGraphWorkspaceWidthCss(widthPx) {
+  return `${Math.round(widthPx + nodeGraphWorkspaceChromeSize("x"))}px`;
+}
+
+function nodeGraphWorkspaceHeightCss(heightPx) {
+  return `${Math.round(heightPx + nodeGraphWorkspaceChromeSize("y"))}px`;
 }
 
 function applyNodeGraphWorkspaceView() {
@@ -6689,16 +7377,17 @@ function applyNodeGraphWorkspaceView() {
     return;
   }
 
+  workspace.style.setProperty("--node-grid-height", `${nodeGraphGridHeight()}px`);
   workspace.style.setProperty("--node-grid-size", `${nodeGraphGridSize()}px`);
+  workspace.style.setProperty("--node-grid-width", `${nodeGraphGridWidth()}px`);
   const view = normalizeNodeGraphPatchView(nodeGraphMvp.patch.view);
-  const unitPx = nodeGraphWorkspaceViewUnitPx();
   if (view.widthGu > 0) {
-    workspace.style.width = `${view.widthGu * unitPx}px`;
+    workspace.style.width = nodeGraphWorkspaceWidthCss(view.widthGu * nodeGraphGridWidth());
   } else {
     workspace.style.removeProperty("width");
   }
   if (view.heightGu > 0) {
-    workspace.style.height = `${view.heightGu * unitPx}px`;
+    workspace.style.height = nodeGraphWorkspaceHeightCss(view.heightGu * nodeGraphGridHeight());
     workspace.style.removeProperty("aspect-ratio");
   } else {
     workspace.style.removeProperty("height");
@@ -6708,25 +7397,35 @@ function applyNodeGraphWorkspaceView() {
   workspace.dataset.heightGu = String(view.heightGu);
 }
 
-function nodeGraphGridSnapOffset() {
+function defaultNodeGraphModuleGridInsetPx() {
   return 6;
 }
 
+function nodeGraphModuleGridInsetPx() {
+  const inputValue = Number(document.getElementById("nodeUiDevModuleGridInset")?.value);
+  if (Number.isFinite(inputValue)) {
+    return Math.max(0, Math.min(20, inputValue));
+  }
+  return defaultNodeGraphModuleGridInsetPx();
+}
+
+function nodeGraphGridSnapOffset() {
+  return nodeGraphModuleGridInsetPx();
+}
+
 function nodeGraphGridToPixel(point) {
-  const size = nodeGraphGridSize();
   const offset = nodeGraphGridSnapOffset();
   return {
-    x: point.gx * size + offset,
-    y: point.gy * size + offset,
+    x: point.gx * nodeGraphGridWidth() + offset,
+    y: point.gy * nodeGraphGridHeight() + offset,
   };
 }
 
 function nodeGraphPixelToGrid(point) {
-  const size = nodeGraphGridSize();
   const offset = nodeGraphGridSnapOffset();
   return {
-    gx: Math.round((point.x - offset) / size),
-    gy: Math.round((point.y - offset) / size),
+    gx: Math.round((point.x - offset) / nodeGraphGridWidth()),
+    gy: Math.round((point.y - offset) / nodeGraphGridHeight()),
   };
 }
 
@@ -6746,6 +7445,18 @@ function nodeGraphBypassedNodeIds(patch = nodeGraphMvp.patch) {
   return new Set(Array.isArray(patch.bypassedNodes) ? patch.bypassedNodes : []);
 }
 
+function nodeGraphRuntimeBypassedNodeIds(patch = nodeGraphMvp.patch) {
+  const bypassed = nodeGraphBypassedNodeIds(patch);
+  if (!nodeGraphMvp.live.inputActive) {
+    for (const node of patch.nodes || []) {
+      if (node.type === "audioInput") {
+        bypassed.add(node.id);
+      }
+    }
+  }
+  return bypassed;
+}
+
 function nodeGraphNodeIsBypassed(nodeId, patch = nodeGraphMvp.patch) {
   return nodeGraphBypassedNodeIds(patch).has(nodeId);
 }
@@ -6758,11 +7469,13 @@ function nextNodeGraphTypeCounts(nodes = nodeGraphMvp.patch.nodes) {
     counts[node.type] = Math.max(counts[node.type] || 0, count);
   }
   return {
+    audioInput: counts.audioInput || 0,
     bias: counts.bias || 0,
     gain: counts.gain || 0,
     noise: counts.noise || 0,
     osc: counts.osc || 0,
     spiral: counts.spiral || 0,
+    textBox: counts.textBox || 0,
   };
 }
 
@@ -6770,12 +7483,6 @@ function syncNodeGraphRuntimeFromPatch() {
   nodeGraphMvp.activeNodes = new Set(nodeGraphMvp.patch.nodes.map((node) => node.id));
   nodeGraphMvp.connections = nodeGraphMvp.patch.connections.map((connection) => ({ ...connection }));
   nodeGraphMvp.modulations = nodeGraphMvp.patch.modulations.map((modulation) => ({ ...modulation }));
-  nodeGraphMvp.metadataPopoverPosition = normalizeNodeGraphWindowPosition(
-    nodeGraphMvp.patch.windows?.metadata,
-  );
-  nodeGraphMvp.moduleActionWindowPosition = normalizeNodeGraphWindowPosition(
-    nodeGraphMvp.patch.windows?.moduleActions,
-  );
   nodeGraphMvp.nodeTypeCounts = nextNodeGraphTypeCounts();
 }
 
@@ -6792,7 +7499,6 @@ function serializeNodeGraphPatch(patch = nodeGraphMvp.patch) {
       nodes: patch.nodes,
       view: normalizeNodeGraphPatchView(patch.view),
       visual: normalizeNodeGraphPatchVisual(patch.visual),
-      windows: normalizeNodeGraphPatchWindows(patch.windows),
     },
     null,
     2,
@@ -6847,9 +7553,12 @@ function validateNodeGraphPatch(patch) {
     }
   }
 
-  const gridSize = Number(patch.grid?.sizePx);
-  if (!Number.isFinite(gridSize) || gridSize <= 0) {
-    throw new Error("grid.sizePx must be a positive number");
+  const grid = normalizeNodeGraphPatchGrid(patch.grid);
+  if (!Number.isFinite(grid.widthPx) || grid.widthPx <= 0) {
+    throw new Error("grid.widthPx must be a positive number");
+  }
+  if (!Number.isFinite(grid.heightPx) || grid.heightPx <= 0) {
+    throw new Error("grid.heightPx must be a positive number");
   }
 
   if (!Array.isArray(patch.nodes) || patch.nodes.length === 0) {
@@ -6882,6 +7591,11 @@ function validateNodeGraphPatch(patch) {
     if (hasCustomWidth && !Number.isFinite(Number(node.widthGu))) {
       throw new Error(`node ${id} widthGu invalid`);
     }
+    const hasCustomHeight = Object.hasOwn(node, "heightGu");
+    const heightGu = normalizeNodeGraphModuleHeightUnits(type, node.heightGu, node.ui);
+    if (hasCustomHeight && !Number.isFinite(Number(node.heightGu))) {
+      throw new Error(`node ${id} heightGu invalid`);
+    }
     const params = {};
     const paramMeta = {};
     for (const parameter of nodeGraphModuleDefinitions[type].parameters || []) {
@@ -6902,15 +7616,29 @@ function validateNodeGraphPatch(patch) {
       );
     }
     ids.add(id);
-    return {
+    const normalizedNode = {
       gx,
       gy,
       id,
       paramMeta,
       params,
       type,
+      ...(normalizeNodeGraphPatchNodeAlias(node.alias)
+        ? { alias: normalizeNodeGraphPatchNodeAlias(node.alias) }
+        : {}),
       ...(hasCustomWidth ? { widthGu } : {}),
+      ...(hasCustomHeight ? { heightGu } : {}),
     };
+    if (nodeGraphModuleDefinitions[type].layout === "textBox") {
+      normalizedNode.layout = normalizeNodeGraphTextBoxLayout(node.layout);
+    }
+    const ui = nodeGraphModuleDefinitions[type].layout === "textBox" && !Object.hasOwn(node, "ui")
+      ? { buttonsHidden: true }
+      : normalizeNodeGraphPatchNodeUi(node.ui);
+    if (ui.buttonsHidden || ui.titleHidden) {
+      normalizedNode.ui = ui;
+    }
+    return normalizedNode;
   });
 
   if (!ids.has("output")) {
@@ -7008,7 +7736,7 @@ function validateNodeGraphPatch(patch) {
     bypassedNodes,
     connections,
     format: { ...nodeGraphPatchFormat },
-    grid: { sizePx: gridSize },
+    grid,
     info: normalizeNodeGraphPatchInfo(patch.info),
     modulations,
     nodes,
@@ -7064,6 +7792,107 @@ function setNodeGraphSettingsField(id, value) {
   }
 }
 
+function nodeGraphSyncedFieldValue(ids) {
+  const activeId = document.activeElement?.id || "";
+  if (ids.includes(activeId)) {
+    return document.getElementById(activeId)?.value;
+  }
+  for (const id of ids) {
+    const field = document.getElementById(id);
+    if (field) {
+      return field.value;
+    }
+  }
+  return "";
+}
+
+function nodeGraphWorkspaceBackgroundCss(background = {}) {
+  const h = Number(background.h);
+  const s = Number(background.s);
+  const l = Number(background.l);
+  return `hsl(${Number.isFinite(h) ? h : 210}deg ${Number.isFinite(s) ? s : 0}% ${Number.isFinite(l) ? l : 5}%)`;
+}
+
+function nodeGraphHslToHex(background = {}) {
+  const h = ((Number(background.h) || 0) % 360 + 360) % 360;
+  const s = clampNodeSliderValue((Number(background.s) || 0) / 100, 0, 1);
+  const l = clampNodeSliderValue((Number(background.l) || 0) / 100, 0, 1);
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const huePrime = h / 60;
+  const x = chroma * (1 - Math.abs((huePrime % 2) - 1));
+  const match = l - chroma / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (huePrime < 1) {
+    r = chroma;
+    g = x;
+  } else if (huePrime < 2) {
+    r = x;
+    g = chroma;
+  } else if (huePrime < 3) {
+    g = chroma;
+    b = x;
+  } else if (huePrime < 4) {
+    g = x;
+    b = chroma;
+  } else if (huePrime < 5) {
+    r = x;
+    b = chroma;
+  } else {
+    r = chroma;
+    b = x;
+  }
+  return [r, g, b]
+    .map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, "0"))
+    .join("")
+    .padStart(6, "0")
+    .replace(/^/, "#");
+}
+
+function nodeGraphHexToHsl(hex) {
+  const value = String(hex || "").trim().replace(/^#/, "");
+  if (!/^[\da-f]{6}$/i.test(value)) {
+    return null;
+  }
+  const r = Number.parseInt(value.slice(0, 2), 16) / 255;
+  const g = Number.parseInt(value.slice(2, 4), 16) / 255;
+  const b = Number.parseInt(value.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const l = (max + min) / 2;
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (delta !== 0) {
+    if (max === r) {
+      h = 60 * (((g - b) / delta) % 6);
+    } else if (max === g) {
+      h = 60 * ((b - r) / delta + 2);
+    } else {
+      h = 60 * ((r - g) / delta + 4);
+    }
+  }
+  return {
+    h: Math.round((h + 360) % 360),
+    l: Math.round(l * 100),
+    s: Math.round(s * 100),
+  };
+}
+
+function renderNodeGraphVisualSettings() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  const visual = normalizeNodeGraphPatchVisual(nodeGraphMvp.patch.visual);
+  const uiBackground = document.getElementById("nodeUiDevWorkspaceBackgroundColor")?.value;
+  workspace.style.setProperty(
+    "--node-workspace-bg",
+    uiBackground ? normalizeNodeUiDevColor(uiBackground, nodeGraphWorkspaceBackgroundCss(visual.background)) : nodeGraphWorkspaceBackgroundCss(visual.background),
+  );
+}
+
 function syncNodeGraphSettingsView() {
   const info = normalizeNodeGraphPatchInfo(nodeGraphMvp.patch.info);
   setNodeGraphSettingsField("nodePatchNameHeader", info.name);
@@ -7078,7 +7907,15 @@ function syncNodeGraphSettingsView() {
   setNodeGraphSettingsField("patchResultingSampleRateValue", nodeGraphFormatSampleRate(audio.resultingSampleRate));
   setNodeGraphSettingsField("patchResultingOversamplingValue", nodeGraphFormatOversamplingRatio(audio.oversamplingRatio));
   setNodeGraphSettingsField("patchOutputSampleRateValue", nodeGraphFormatSampleRate(audio.outputSampleRate));
+  const grid = normalizeNodeGraphPatchGrid(nodeGraphMvp.patch.grid);
+  setNodeGraphSettingsField("patchGridWidthPxValue", grid.widthPx);
+  setNodeGraphSettingsField("patchGridHeightPxValue", grid.heightPx);
+  setNodeGraphSettingsField("nodeScriptGridWidthPxValue", grid.widthPx);
+  setNodeGraphSettingsField("nodeScriptGridHeightPxValue", grid.heightPx);
   const visual = normalizeNodeGraphPatchVisual(nodeGraphMvp.patch.visual);
+  setNodeGraphSettingsField("patchWorkspaceHueValue", visual.background.h);
+  setNodeGraphSettingsField("patchWorkspaceSaturationValue", visual.background.s);
+  setNodeGraphSettingsField("patchWorkspaceLightnessValue", visual.background.l);
   setNodeGraphSettingsField("patchVisualModeValue", visual.mode);
   setNodeGraphSettingsField("patchVisualScaleValue", visual.scale);
   setNodeGraphSettingsField("patchVisualStyleValue", visual.style);
@@ -7097,6 +7934,11 @@ function readNodeGraphSettingsView() {
 
 function readNodeGraphVisualSettingsView() {
   return normalizeNodeGraphPatchVisual({
+    background: {
+      h: nodeGraphSyncedFieldValue(["patchWorkspaceHueValue"]),
+      s: nodeGraphSyncedFieldValue(["patchWorkspaceSaturationValue"]),
+      l: nodeGraphSyncedFieldValue(["patchWorkspaceLightnessValue"]),
+    },
     mode: document.getElementById("patchVisualModeValue")?.value,
     scale: document.getElementById("patchVisualScaleValue")?.value,
     style: document.getElementById("patchVisualStyleValue")?.value,
@@ -7111,9 +7953,17 @@ function readNodeGraphAudioSettingsView() {
   });
 }
 
+function readNodeGraphGridSettingsView() {
+  return normalizeNodeGraphPatchGrid({
+    heightPx: nodeGraphSyncedFieldValue(["patchGridHeightPxValue", "nodeScriptGridHeightPxValue"]),
+    widthPx: nodeGraphSyncedFieldValue(["patchGridWidthPxValue", "nodeScriptGridWidthPxValue"]),
+  });
+}
+
 function handleNodeGraphSettingsInput() {
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
   patch.audio = readNodeGraphAudioSettingsView();
+  patch.grid = readNodeGraphGridSettingsView();
   patch.info = readNodeGraphSettingsView();
   patch.visual = readNodeGraphVisualSettingsView();
   commitNodeGraphPatch(patch, {
@@ -7157,8 +8007,90 @@ function renderNodeGraphHistoryControls() {
   const canRedo = nodeGraphMvp.historyIndex < nodeGraphMvp.historySnapshots.length - 1;
   undo.disabled = !canUndo;
   redo.disabled = !canRedo;
-  undo.title = canUndo ? "Undo patch edit" : "Undo unavailable";
-  redo.title = canRedo ? "Redo patch edit" : "Redo unavailable";
+  undo.title = nodeGraphTooltipText(canUndo ? "history.undo" : "history.undoUnavailable");
+  redo.title = nodeGraphTooltipText(canRedo ? "history.redo" : "history.redoUnavailable");
+}
+
+function renderNodeGraphGridToggle() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const button = document.getElementById("nodeGridToggleButton");
+  const visible = Boolean(nodeGraphMvp.gridVisible);
+  workspace?.classList.toggle("grid-visible", visible);
+  if (button) {
+    button.textContent = visible ? "Hide Grid" : "Show Grid";
+    button.setAttribute("aria-pressed", visible ? "true" : "false");
+    button.title = nodeGraphTooltipText(visible ? "view.gridHide" : "view.gridShow");
+  }
+  syncNodeUserUiSettingsViewControls();
+}
+
+function renderNodeGraphSliderTextToggles() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const labelsButton = document.getElementById("nodeSliderLabelsToggleButton");
+  const valuesButton = document.getElementById("nodeSliderValuesToggleButton");
+  const handlesButton = document.getElementById("nodeSliderHandlesToggleButton");
+  const labelsVisible = Boolean(nodeGraphMvp.sliderLabelsVisible);
+  const valuesVisible = Boolean(nodeGraphMvp.sliderValuesVisible);
+  const handlesVisible = Boolean(nodeGraphMvp.sliderHandlesVisible);
+  workspace?.classList.toggle("hide-slider-labels", !labelsVisible);
+  workspace?.classList.toggle("hide-slider-values", !valuesVisible);
+  workspace?.classList.toggle("hide-slider-handles", !handlesVisible);
+  if (labelsButton) {
+    labelsButton.textContent = labelsVisible ? "Hide Labels" : "Show Labels";
+    labelsButton.setAttribute("aria-pressed", labelsVisible ? "true" : "false");
+    labelsButton.title = nodeGraphTooltipText(labelsVisible ? "view.sliderLabelsHide" : "view.sliderLabelsShow");
+  }
+  if (valuesButton) {
+    valuesButton.textContent = valuesVisible ? "Hide Values" : "Show Values";
+    valuesButton.setAttribute("aria-pressed", valuesVisible ? "true" : "false");
+    valuesButton.title = nodeGraphTooltipText(valuesVisible ? "view.sliderValuesHide" : "view.sliderValuesShow");
+  }
+  if (handlesButton) {
+    handlesButton.textContent = handlesVisible ? "Hide Slider" : "Show Slider";
+    handlesButton.setAttribute("aria-pressed", handlesVisible ? "true" : "false");
+    handlesButton.title = nodeGraphTooltipText(handlesVisible ? "view.sliderHandlesHide" : "view.sliderHandlesShow");
+  }
+}
+
+function renderNodeGraphTooltipToggle() {
+  const helpStack = document.querySelector(".node-help-stack");
+  const help = document.getElementById("nodeInteractionHelp");
+  const button = document.getElementById("nodeTooltipToggleButton");
+  const visible = Boolean(nodeGraphMvp.tooltipVisible);
+  helpStack?.classList.toggle("tips-hidden", !visible);
+  if (!visible && help) {
+    help.textContent = "";
+  }
+  if (button) {
+    button.textContent = visible ? "Hide Tips" : "Show Tips";
+    button.setAttribute("aria-pressed", visible ? "true" : "false");
+    button.title = nodeGraphTooltipText(visible ? "view.tipsHide" : "view.tipsShow");
+  }
+}
+
+function toggleNodeGraphGridVisibility() {
+  nodeGraphMvp.gridVisible = !nodeGraphMvp.gridVisible;
+  renderNodeGraphGridToggle();
+}
+
+function toggleNodeGraphTooltipVisibility() {
+  nodeGraphMvp.tooltipVisible = !nodeGraphMvp.tooltipVisible;
+  renderNodeGraphTooltipToggle();
+}
+
+function toggleNodeGraphSliderLabels() {
+  nodeGraphMvp.sliderLabelsVisible = !nodeGraphMvp.sliderLabelsVisible;
+  renderNodeGraphSliderTextToggles();
+}
+
+function toggleNodeGraphSliderValues() {
+  nodeGraphMvp.sliderValuesVisible = !nodeGraphMvp.sliderValuesVisible;
+  renderNodeGraphSliderTextToggles();
+}
+
+function toggleNodeGraphSliderHandles() {
+  nodeGraphMvp.sliderHandlesVisible = !nodeGraphMvp.sliderHandlesVisible;
+  renderNodeGraphSliderTextToggles();
 }
 
 function recordNodeGraphHistory() {
@@ -7174,6 +8106,16 @@ function recordNodeGraphHistory() {
   }
   nodeGraphMvp.historyIndex = nodeGraphMvp.historySnapshots.length - 1;
   renderNodeGraphHistoryControls();
+}
+
+function nodeGraphModuleShouldBeVisible(node) {
+  const type = typeof node === "string" ? nodeGraphPatchNodeType(node) : node?.type;
+  return type !== "audioInput" || Boolean(nodeGraphMvp.live.inputActive);
+}
+
+function nodeGraphPatchNodeIsVisible(nodeId) {
+  const node = nodeGraphPatchNode(nodeId);
+  return Boolean(node && nodeGraphModuleShouldBeVisible(node));
 }
 
 function applyNodeGraphPatchToDom() {
@@ -7201,19 +8143,31 @@ function applyNodeGraphPatchToDom() {
       container.append(element);
     }
     element.style.setProperty("--node-grid-width-units", String(nodeGraphPatchNodeGridWidthUnits(patchNode)));
+    element.style.setProperty("--node-grid-height-units", String(nodeGraphPatchNodeGridHeightUnits(patchNode)));
     const point = nodeGraphGridToPixel(patchNode);
     positionNodeGraphNode(element, point, { clamp: false, snap: false });
+    element.hidden = !nodeGraphModuleShouldBeVisible(patchNode);
     element.dataset.gridX = String(patchNode.gx);
     element.dataset.gridY = String(patchNode.gy);
-    const bypassed = nodeGraphNodeIsBypassed(patchNode.id);
+    const titleText = element.querySelector(".node-header-title");
+    if (titleText) {
+      titleText.textContent = nodeGraphPatchNodeTitle(patchNode);
+    }
+    const patchNodeUi = normalizeNodeGraphPatchNodeUi(patchNode.ui);
+    element.classList.toggle("buttons-hidden", patchNodeUi.buttonsHidden);
+    element.classList.toggle("title-hidden", patchNodeUi.titleHidden);
+    const bypassed = nodeGraphNodeDisplaysBypassed(patchNode.id);
     element.classList.toggle("bypassed", bypassed);
     const bypassButton = element.querySelector(".node-bypass-button");
     if (bypassButton) {
       bypassButton.setAttribute("aria-pressed", bypassed ? "true" : "false");
-      bypassButton.textContent = "⌽";
-      bypassButton.title = bypassed
-        ? "Mouse: click to include this module in the compiled engine."
-        : "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.";
+      bypassButton.textContent = nodeGraphBypassGlyph(bypassed);
+      nodeGraphApplyTooltip(
+        bypassButton,
+        patchNode.id === "output"
+          ? (bypassed ? "module.outputOn" : "module.outputOff")
+          : (bypassed ? "module.include" : "module.bypass"),
+      );
     }
     for (const parameter of nodeGraphModuleDefinitions[patchNode.type]?.parameters || []) {
       const input = element.querySelector(`input[data-param="${CSS.escape(parameter.key)}"]`);
@@ -7231,7 +8185,12 @@ function applyNodeGraphPatchToDom() {
       );
       syncNodeSliderReadout(input);
     }
+    if (nodeGraphModuleDefinitions[patchNode.type]?.layout === "textBox") {
+      syncNodeGraphTextBoxElement(element, patchNode);
+    }
   }
+  syncNodeGraphInputModuleLiveState();
+  updateNodeGraphGridHeatmap();
 }
 
 function commitNodeGraphPatch(patch, options = {}) {
@@ -7241,6 +8200,8 @@ function commitNodeGraphPatch(patch, options = {}) {
   pruneNodeGraphSelectionAfterPatch();
   renderNodePalette();
   renderNodeGraphConnectionList();
+  syncNodeGraphGhostSliders();
+  renderNodeGraphVisualSettings();
   syncNodeGraphSettingsView();
   const scriptStatus = nodeGraphPatchScriptStatus(
     options.status || "script synced",
@@ -7310,11 +8271,10 @@ function nodeGraphScriptReadyForGraphAction(action = "graph action") {
 
 function markNodeGraphRenderScriptBlocked() {
   const renderStatus = document.getElementById("nodeGraphRenderStatus");
-  const playButton = document.getElementById("nodePlayButton");
   renderStatus.textContent = "render blocked";
   renderStatus.className = "pill warn";
-  playButton.disabled = true;
-  playButton.title = "Play blocked: fix script before render";
+  clearNodeGraphRenderedAudioElement();
+  labelPrimaryAudioTitle("Fix script before rendering", false);
 }
 
 function markNodeGraphLiveScriptBlocked() {
@@ -7333,11 +8293,7 @@ function markNodeGraphLiveScriptBlocked() {
 
 function clearNodeGraphRenderScriptBlock() {
   const renderStatus = document.getElementById("nodeGraphRenderStatus");
-  const playButton = document.getElementById("nodePlayButton");
-  if (
-    renderStatus?.textContent === "render blocked" &&
-    playButton?.title === "Play blocked: fix script before render"
-  ) {
+  if (renderStatus?.textContent === "render blocked") {
     markNodeGraphRenderPending();
   }
 }
@@ -7416,9 +8372,7 @@ function nodeGraphNodeType(node) {
 }
 
 function nodeGraphNodeDisplayName(node) {
-  const element = nodeGraphNodeElement(node);
-  const title = element?.querySelector(".node-header-title")?.textContent?.trim();
-  return title || nodeGraphNodeLabels[nodeGraphNodeType(node)] || node;
+  return nodeGraphPatchNodeTitle(node);
 }
 
 function nodeGraphReadNodeNumber(node, key) {
@@ -7830,6 +8784,30 @@ function quantizeNodeSliderDragValue(slider, value) {
   return origin + Math.round((value - origin) / step) * step;
 }
 
+function syncNodeSliderPortalHandle(readout, slider, position, enabled) {
+  readout.classList.toggle("wraparound-slider", enabled);
+  if (!enabled) {
+    readout.style.removeProperty("--portal-left-width");
+    readout.style.removeProperty("--portal-right-width");
+    return;
+  }
+
+  const width = readout.getBoundingClientRect().width;
+  if (!Number.isFinite(width) || width <= 0) {
+    readout.style.setProperty("--portal-left-width", "0px");
+    readout.style.setProperty("--portal-right-width", "0px");
+    return;
+  }
+
+  const boundedPosition = Math.max(0, Math.min(100, position));
+  const center = (boundedPosition / 100) * width;
+  const handleHalfWidth = nodeSliderHandleHalfWidthPx;
+  const leftOverflow = Math.max(0, handleHalfWidth - center);
+  const rightOverflow = Math.max(0, center + handleHalfWidth - width);
+  readout.style.setProperty("--portal-left-width", `${rightOverflow}px`);
+  readout.style.setProperty("--portal-right-width", `${leftOverflow}px`);
+}
+
 function syncNodeSliderReadout(slider) {
   const readout = slider.closest("label")?.querySelector(".node-slider-readout");
   if (!readout) {
@@ -7850,10 +8828,11 @@ function syncNodeSliderReadout(slider) {
   const usesChoices = nodeSliderShouldDisplayChoices(slider) && choices.length > 0;
   const dividesChoices = usesChoices && nodeSliderShouldDivideChoicesVisibly(slider);
   const usesNumericReadout = !choiceLabel;
+  const usesPortalWrap = nodeSliderShouldWraparound(slider) && !usesChoices;
   if (labelText) {
     labelText.textContent = readout.dataset.paramLabel || nodeSliderLabelText(slider);
   }
-  valueText.textContent = choiceLabel ?? formatNodeSliderNumber(slider.value, {
+  valueText.textContent = choiceLabel ? ` ${choiceLabel}` : formatNodeSliderNumber(slider.value, {
     reserveSignSpace: true,
     showSign: nodeSliderShouldShowSign(slider),
   });
@@ -7864,20 +8843,104 @@ function syncNodeSliderReadout(slider) {
   readout.dataset.unit = unit;
   readout.dataset.choiceCount = usesChoices ? String(choices.length) : "0";
   readout.classList.toggle("choices-divided", dividesChoices);
-  readout.classList.toggle("reserves-sign-column", usesNumericReadout);
+  readout.classList.toggle("reserves-sign-column", usesNumericReadout || usesChoices);
   readout.removeAttribute("title");
   if (dividesChoices) {
     const choiceIndex = Math.max(0, Math.min(choices.length - 1, Math.round(Number(slider.value))));
     readout.style.setProperty("--value-start", `${(choiceIndex / choices.length) * 100}%`);
     readout.style.setProperty("--value-end", `${((choiceIndex + 1) / choices.length) * 100}%`);
     readout.style.setProperty("--choice-divider-width", `${100 / choices.length}%`);
+    syncNodeSliderPortalHandle(readout, slider, position, false);
   } else {
     const boundedPosition = Math.max(0, Math.min(100, position));
-    readout.style.setProperty("--value-start", `calc(${boundedPosition}% - 4px)`);
-    readout.style.setProperty("--value-end", `calc(${boundedPosition}% + 4px)`);
+    readout.style.setProperty(
+      "--value-start",
+      `calc(${boundedPosition}% - ${nodeSliderHandleHalfWidthPx}px)`,
+    );
+    readout.style.setProperty(
+      "--value-end",
+      `calc(${boundedPosition}% + ${nodeSliderHandleHalfWidthPx}px)`,
+    );
     readout.style.setProperty("--choice-divider-width", "100%");
+    syncNodeSliderPortalHandle(readout, slider, boundedPosition, usesPortalWrap);
   }
   syncNodeSliderMetadataTooltip(slider);
+}
+
+function nodeGraphSliderForParameter(node, key) {
+  return nodeGraphNodeElement(node)?.querySelector(
+    `input[data-param="${CSS.escape(key)}"]`,
+  );
+}
+
+function nodeGraphNormalizedParameterSignalBounds(signal, metadata = {}) {
+  return metadata.wraparound
+    ? wrapNodeSliderValue(Number(signal) || 0, 0, 1)
+    : clampNodeSliderValue(Number(signal) || 0, 0, 1);
+}
+
+function nodeGraphParameterGhostSignal(node, key) {
+  const patchNode = nodeGraphPatchNode(node);
+  if (!patchNode) {
+    return null;
+  }
+  const metadata = nodeGraphReadPatchParameterMetadata(patchNode, key);
+  const targetSlider = nodeGraphSliderForParameter(node, key);
+  const baseSignal = nodeGraphParameterValueToNormalizedSignal(
+    targetSlider ? Number(targetSlider.value) : nodeGraphReadPatchParameterValue(patchNode, key),
+    metadata,
+  );
+  let contribution = 0;
+  let parameterSourceCount = 0;
+  for (const modulation of nodeGraphMvp.patch.modulations || []) {
+    if (modulation.destinationNode !== node || modulation.destinationParam !== key) {
+      continue;
+    }
+    const sourceType = nodeGraphPatchNodeType(modulation.sourceNode);
+    const sourceParameter = nodeGraphParameterOutputPort(sourceType, modulation.sourcePort);
+    if (!sourceParameter) {
+      continue;
+    }
+    const sourceSlider = nodeGraphSliderForParameter(modulation.sourceNode, modulation.sourcePort);
+    contribution += nodeGraphParameterValueToNormalizedSignal(
+      sourceSlider
+        ? Number(sourceSlider.value)
+        : nodeGraphReadPatchParameterValue(modulation.sourceNode, modulation.sourcePort),
+      nodeGraphReadPatchParameterMetadata(modulation.sourceNode, modulation.sourcePort),
+    );
+    parameterSourceCount += 1;
+  }
+  if (!parameterSourceCount) {
+    return null;
+  }
+  return nodeGraphNormalizedParameterSignalBounds(baseSignal + contribution, metadata);
+}
+
+function syncNodeGraphGhostSliders() {
+  for (const slider of document.querySelectorAll(".dsp-node input[data-param]")) {
+    const node = slider.closest(".dsp-node")?.dataset.node;
+    const key = slider.dataset.param;
+    const readout = slider.closest("label")?.querySelector(".node-slider-readout");
+    if (!node || !key || !readout) {
+      continue;
+    }
+    const ghostSignal = nodeGraphParameterGhostSignal(node, key);
+    readout.classList.toggle("has-ghost-slider", ghostSignal !== null);
+    if (ghostSignal === null) {
+      readout.style.removeProperty("--ghost-start");
+      readout.style.removeProperty("--ghost-end");
+      continue;
+    }
+    const position = clampNodeSliderValue(ghostSignal, 0, 1) * 100;
+    readout.style.setProperty(
+      "--ghost-start",
+      `calc(${position}% - ${nodeSliderHandleHalfWidthPx}px)`,
+    );
+    readout.style.setProperty(
+      "--ghost-end",
+      `calc(${position}% + ${nodeSliderHandleHalfWidthPx}px)`,
+    );
+  }
 }
 
 function nodeSliderLabelText(slider) {
@@ -7921,14 +8984,12 @@ function positionNodeMetadataPopover(popover, x, y, remember = false) {
 }
 
 function syncNodeGraphPatchWindowPosition(key, position) {
-  if (!nodeGraphMvp.patch) {
-    return;
+  const normalizedPosition = normalizeNodeGraphWindowPosition(position);
+  if (key === "metadata") {
+    nodeGraphMvp.metadataPopoverPosition = normalizedPosition;
+  } else if (key === "moduleActions") {
+    nodeGraphMvp.moduleActionWindowPosition = normalizedPosition;
   }
-  nodeGraphMvp.patch.windows = {
-    ...normalizeNodeGraphPatchWindows(nodeGraphMvp.patch.windows),
-    [key]: normalizeNodeGraphWindowPosition(position),
-  };
-  syncNodeGraphScriptView("window moved", true);
 }
 
 function beginNodeMetadataPopoverDrag(event) {
@@ -7953,6 +9014,7 @@ function beginNodeMetadataPopoverDrag(event) {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   event.preventDefault();
+  event.stopPropagation();
 }
 
 function dragNodeMetadataPopover(event) {
@@ -8119,6 +9181,36 @@ function closeNodeSceneContextMenu() {
   nodeGraphMvp.moduleActionDragging = null;
   nodeGraphMvp.sceneContextPoint = null;
   nodeGraphMvp.sceneContextTargetNode = null;
+  nodeGraphMvp.sceneContextTargetWire = null;
+}
+
+function clearNodeGraphRenderedAudioElement() {
+  const audio = document.getElementById("audioPlayer");
+  if (audio) {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  }
+  if (nodeGraphMvp.renderedAudioUrl) {
+    URL.revokeObjectURL(nodeGraphMvp.renderedAudioUrl);
+    nodeGraphMvp.renderedAudioUrl = "";
+  }
+}
+
+function syncNodeGraphRenderedAudioElement() {
+  const audio = document.getElementById("audioPlayer");
+  if (!audio || !nodeGraphMvp.rendered?.samples?.length) {
+    clearNodeGraphRenderedAudioElement();
+    return;
+  }
+  if (nodeGraphMvp.renderedAudioUrl) {
+    URL.revokeObjectURL(nodeGraphMvp.renderedAudioUrl);
+  }
+  nodeGraphMvp.renderedAudioUrl = URL.createObjectURL(renderedNodeGraphWavBlob(nodeGraphMvp.rendered));
+  audio.src = nodeGraphMvp.renderedAudioUrl;
+  audio.load();
+  labelPrimaryAudio("rendered-sample.wav", true);
+  labelPrimaryAudioTitle("Rendered sample ready", true);
 }
 
 function resetNodeGraphRenderedPlaybackCursor(redraw = true) {
@@ -8212,17 +9304,6 @@ function nodeGraphRenderPendingSummary() {
     return nodeGraphValidate().scheduleText;
   } catch (_error) {
     return "waiting for render";
-  }
-}
-
-function nodeGraphPlayBlockedTitle() {
-  try {
-    const validation = nodeGraphValidate();
-    return validation.valid
-      ? "Play blocked: render a sample first"
-      : `Play blocked: ${validation.issues.join(", ")}`;
-  } catch (_error) {
-    return "Play blocked: render a sample first";
   }
 }
 
@@ -8321,9 +9402,8 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
 function markNodeGraphRenderPending(summary = "") {
   stopNodeGraphRenderedPlayback();
   nodeGraphMvp.rendered = null;
-  const playButton = document.getElementById("nodePlayButton");
-  playButton.disabled = true;
-  playButton.title = nodeGraphPlayBlockedTitle();
+  clearNodeGraphRenderedAudioElement();
+  labelPrimaryAudioTitle("Render Sample creates preview audio here", false);
   document.getElementById("nodeGraphRenderStatus").textContent = "render pending";
   document.getElementById("nodeGraphRenderStatus").className = "pill warn";
   setNodeGraphAudioStats();
@@ -8333,6 +9413,33 @@ function markNodeGraphRenderPending(summary = "") {
   }
   renderNodeGraphExecutionPlanDebug();
   drawNodeRenderedAudio();
+}
+
+function clampNodeGraphRenderSeconds(value) {
+  const seconds = Number(value);
+  return Number.isFinite(seconds)
+    ? Math.max(0.05, Math.min(60, seconds))
+    : 2;
+}
+
+function syncNodeGraphRenderSecondsFromInput(options = {}) {
+  const input = document.getElementById("nodeRenderSecondsValue");
+  if (!input) {
+    return nodeGraphMvp.seconds;
+  }
+  const seconds = clampNodeGraphRenderSeconds(input.value);
+  nodeGraphMvp.seconds = seconds;
+  if (String(input.value).trim() === "" || options.normalize) {
+    input.value = formatNodeSliderCompactNumber(seconds);
+  }
+  return seconds;
+}
+
+function handleNodeGraphRenderSecondsInput(event) {
+  syncNodeGraphRenderSecondsFromInput();
+  markNodeGraphRenderPending(`Render length set to ${formatNodeSliderCompactNumber(nodeGraphMvp.seconds)} seconds.`);
+  scheduleNodeGraphLiveParameterSync();
+  event.stopPropagation();
 }
 
 function readNodeMetadataEditorValues(slider) {
@@ -8384,17 +9491,15 @@ function setNodeMetadataDefaultsFromKind() {
   const kind = normalizeNodeMetadataKind(document.getElementById("metadataKindValue").value);
   const template = nodeMetadataKindTemplates[kind] || nodeMetadataKindTemplates.decimal;
   const choices = template.choices || [];
-  const hasChoices = choices.length > 0;
-  const min = hasChoices ? 0 : template.min;
-  const max = hasChoices ? choices.length - 1 : template.max;
-  const mid = hasChoices ? (min + max) / 2 : template.mid;
-  const def = clampNodeSliderValue(template.def, min, max);
-  document.getElementById("metadataMinValue").value = formatNodeSliderCompactNumber(min);
-  document.getElementById("metadataMidValue").value = formatNodeSliderCompactNumber(mid);
-  document.getElementById("metadataMaxValue").value = formatNodeSliderCompactNumber(max);
-  document.getElementById("metadataDefaultValue").value =
-    formatNodeSliderCompactNumber(def);
-  document.getElementById("metadataStepValue").value = formatNodeMetadataStep(template.step);
+  if (Number.isFinite(Number(template.min))) {
+    document.getElementById("metadataMinValue").value = String(template.min);
+  }
+  if (Number.isFinite(Number(template.mid))) {
+    document.getElementById("metadataMidValue").value = String(template.mid);
+  }
+  if (Number.isFinite(Number(template.max))) {
+    document.getElementById("metadataMaxValue").value = String(template.max);
+  }
   document.getElementById("metadataUnitValue").value = template.unit;
   document.getElementById("metadataChoicesValue").value = formatNodeMetadataChoices(choices);
   document.getElementById("metadataDisplayChoicesValue").checked = Boolean(template.displayChoices);
@@ -8490,6 +9595,7 @@ function syncNodeGraphPatchParameterFromSlider(slider, options = {}) {
   }
   syncNodeGraphScriptView(options.status || "parameter synced", true);
   renderNodeGraphExecutionPlanDebug();
+  syncNodeGraphGhostSliders();
   if (options.record) {
     recordNodeGraphHistory();
   } else {
@@ -8529,6 +9635,7 @@ function setNodeSliderValue(slider, value) {
   );
   syncNodeSliderReadout(slider);
   syncNodeGraphPatchParameterFromSlider(slider, { deferUi: true });
+  syncNodeGraphGhostSliders();
   markNodeGraphRenderPending();
   scheduleNodeGraphLiveParameterSync();
 }
@@ -8551,6 +9658,20 @@ function setNodeChoiceSliderFromPointer(slider, surface, clientX) {
   }
   setNodeSliderValue(slider, value);
   return true;
+}
+
+function updateNodeSliderDotCursor(event) {
+  if (!event) {
+    return;
+  }
+  document.body.style.setProperty("--node-slider-cursor-x", `${event.clientX}px`);
+  document.body.style.setProperty("--node-slider-cursor-y", `${event.clientY}px`);
+}
+
+function clearNodeSliderDotCursor() {
+  document.body.classList.remove("node-slider-dragging");
+  document.body.style.removeProperty("--node-slider-cursor-x");
+  document.body.style.removeProperty("--node-slider-cursor-y");
 }
 
 function nodeSliderValueFromPointer(slider, surface, clientX) {
@@ -8588,6 +9709,7 @@ function beginNodeSliderDrag(event) {
   }
 
   const rect = surface.getBoundingClientRect();
+  const resetToDefaultOnClick = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
   const pointerMode = event.altKey ? "absolute" : "relative";
   let startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
   if (pointerMode === "absolute") {
@@ -8596,13 +9718,15 @@ function beginNodeSliderDrag(event) {
       quantizeNodeSliderDragValue(slider, nodeSliderValueFromPointer(slider, surface, event.clientX)),
     );
     startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
-  } else if (nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
+  } else if (!resetToDefaultOnClick && nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
     setNodeChoiceSliderFromPointer(slider, surface, event.clientX);
     startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
   }
   nodeGraphMvp.sliderDragging = {
+    moved: false,
     pointerId: event.pointerId ?? null,
     pointerMode,
+    resetToDefaultOnClick,
     slider,
     surface,
     startTravel,
@@ -8612,6 +9736,8 @@ function beginNodeSliderDrag(event) {
     width: Math.max(1, rect.width),
   };
   surface.classList.add("value-dragging");
+  document.body.classList.add("node-slider-dragging");
+  updateNodeSliderDotCursor(event);
   if (event.pointerId !== undefined) {
     surface.setPointerCapture(event.pointerId);
   }
@@ -8638,6 +9764,9 @@ function dragNodeSlider(event) {
   } else {
     const horizontalDelta = event.clientX - drag.startX;
     const verticalDelta = drag.startY - event.clientY;
+    if (Math.abs(horizontalDelta) > 1 || Math.abs(verticalDelta) > 1) {
+      drag.moved = true;
+    }
     const travelDelta = ((horizontalDelta + verticalDelta) / drag.width) * drag.fineScale;
     setNodeSliderValue(
       drag.slider,
@@ -8647,6 +9776,7 @@ function dragNodeSlider(event) {
       ),
     );
   }
+  updateNodeSliderDotCursor(event);
   event.preventDefault();
 }
 
@@ -8660,27 +9790,41 @@ function endNodeSliderDrag(event) {
   }
 
   drag.surface.classList.remove("value-dragging");
+  clearNodeSliderDotCursor();
   if (event.pointerId !== undefined && drag.surface.hasPointerCapture?.(event.pointerId)) {
     drag.surface.releasePointerCapture(event.pointerId);
   }
+  if (drag.resetToDefaultOnClick && !drag.moved) {
+    setNodeSliderValue(drag.slider, Number(drag.slider.dataset.default));
+  }
   syncNodeGraphPatchParameterFromSlider(drag.slider, {
     record: true,
-    status: "parameter changed",
+    status: drag.resetToDefaultOnClick && !drag.moved ? "parameter reset to default" : "parameter changed",
   });
   nodeGraphMvp.sliderDragging = null;
 }
 
 function populateNodeSliderReadoutShell(readout) {
+  const portalLeft = document.createElement("span");
+  portalLeft.className = "node-slider-readout-portal node-slider-readout-portal-left";
+  portalLeft.setAttribute("aria-hidden", "true");
+  const portalRight = document.createElement("span");
+  portalRight.className = "node-slider-readout-portal node-slider-readout-portal-right";
+  portalRight.setAttribute("aria-hidden", "true");
   const labelText = document.createElement("span");
   labelText.className = "node-slider-readout-label";
   const valueText = document.createElement("span");
   valueText.className = "node-slider-readout-value";
   const unitText = document.createElement("span");
   unitText.className = "node-slider-readout-unit";
-  readout.append(labelText, valueText, unitText);
+  readout.append(portalLeft, portalRight, labelText, valueText, unitText);
 }
 
 function commitNodeSliderReadoutEdit(input) {
+  if (input.dataset.editCanceled === "true" || input.dataset.editCommitted === "true") {
+    return;
+  }
+  input.dataset.editCommitted = "true";
   updateNodeSliderCurrentValue(document.getElementById(input.dataset.sliderTarget), input.value);
   const readout = document.createElement("button");
   readout.type = "button";
@@ -8695,6 +9839,10 @@ function commitNodeSliderReadoutEdit(input) {
 }
 
 function cancelNodeSliderReadoutEdit(input) {
+  if (input.dataset.editCommitted === "true" || input.dataset.editCanceled === "true") {
+    return;
+  }
+  input.dataset.editCanceled = "true";
   const slider = document.getElementById(input.dataset.sliderTarget);
   const readout = document.createElement("button");
   readout.type = "button";
@@ -8730,18 +9878,59 @@ function beginNodeSliderReadoutEdit(readout) {
       commitNodeSliderReadoutEdit(input);
     }
     if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
       cancelNodeSliderReadoutEdit(input);
     }
   });
-  input.addEventListener("blur", () => commitNodeSliderReadoutEdit(input));
+  input.addEventListener("blur", () => {
+    if (input.dataset.editCanceled !== "true") {
+      commitNodeSliderReadoutEdit(input);
+    }
+  });
   readout.replaceWith(input);
   input.focus();
   input.select();
 }
 
+function updateNodeSliderValueHover(readout, event) {
+  const slider = document.getElementById(readout.dataset.sliderTarget);
+  if (!slider) {
+    readout.classList.remove("value-hovering");
+    return;
+  }
+
+  const rect = readout.getBoundingClientRect();
+  const width = Math.max(1, rect.width);
+  const x = event.clientX - rect.left;
+  const choices = parseNodeMetadataChoices(slider.dataset.choices || "");
+  const usesChoiceSegment = (
+    nodeSliderShouldDisplayChoices(slider) &&
+    nodeSliderShouldDivideChoicesVisibly(slider) &&
+    choices.length > 0
+  );
+
+  let start = 0;
+  let end = 0;
+  if (usesChoiceSegment) {
+    const choiceIndex = Math.max(0, Math.min(choices.length - 1, Math.round(Number(slider.value))));
+    start = (choiceIndex / choices.length) * width;
+    end = ((choiceIndex + 1) / choices.length) * width;
+  } else {
+    const center = nodeSliderTravelFromValue(slider, Number(slider.value)) * width;
+    const markerHalfWidth = Math.max(8, width * 0.0234);
+    start = center - markerHalfWidth;
+    end = center + markerHalfWidth;
+  }
+
+  readout.classList.toggle("value-hovering", x >= start && x <= end);
+}
+
 function attachNodeSliderReadoutEvents(readout) {
   readout.addEventListener("dblclick", () => beginNodeSliderReadoutEdit(readout));
   readout.addEventListener("contextmenu", (event) => openNodeMetadataPopover(event, readout));
+  readout.addEventListener("pointermove", (event) => updateNodeSliderValueHover(readout, event));
+  readout.addEventListener("pointerleave", () => readout.classList.remove("value-hovering"));
   readout.addEventListener("pointerdown", beginNodeSliderDrag);
   readout.addEventListener("lostpointercapture", endNodeSliderDrag);
   readout.addEventListener("mousedown", beginNodeSliderDrag);
@@ -8788,7 +9977,7 @@ function ensureNodeGraphDragHandle(node) {
   handle.className = "node-drag-handle";
   handle.type = "button";
   handle.setAttribute("aria-label", `Move ${nodeGraphNodeDisplayName(node.dataset.node)} module`);
-  handle.setAttribute("title", "Move module");
+  nodeGraphApplyTooltip(handle, "module.move");
   handle.innerHTML = "&#x2725;";
   actions.prepend(handle);
 }
@@ -8796,6 +9985,7 @@ function ensureNodeGraphDragHandle(node) {
 function attachNodeGraphNodeEvents(node) {
   ensureNodeGraphDragHandle(node);
   node.querySelector(".node-drag-handle")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
+  node.querySelector(".node-header-title-row")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-bypass-button")?.addEventListener("click", toggleNodeGraphModuleBypass);
   node.querySelector(".node-action-button")?.addEventListener("click", openNodeModuleActionMenu);
   node.addEventListener("pointermove", dragNodeGraphNode);
@@ -8813,6 +10003,7 @@ function attachNodeGraphNodeEvents(node) {
     slider.addEventListener("input", () => {
       syncNodeSliderReadout(slider);
       syncNodeGraphPatchParameterFromSlider(slider);
+      syncNodeGraphGhostSliders();
       markNodeGraphRenderPending();
       scheduleNodeGraphLiveParameterSync();
     });
@@ -8842,6 +10033,14 @@ function createNodeGraphIoColumn(node, type, ports, io) {
   for (const port of ports) {
     const row = document.createElement("div");
     row.className = `node-io-row ${io}`;
+    row.dataset.node = node;
+    row.dataset.port = port;
+    row.dataset.io = io;
+    row.dataset.alias = nodeGraphLabel(node, port);
+    row.setAttribute(
+      "aria-label",
+      `${nodeGraphNodeLabels[type]} ${io} port ${port} interaction area`,
+    );
     const label = document.createElement("span");
     label.className = "node-io-label";
     label.textContent = port;
@@ -8931,14 +10130,11 @@ function createNodeGraphParameter(node, type, parameter) {
 
 function nodeGraphModuleBodyRowCount(type) {
   const definition = nodeGraphModuleDefinitions[type];
-  return (definition?.parameters?.length || 0) + (definition?.output ? 1 : 0);
+  return definition?.parameters?.length || 0;
 }
 
 function nodeGraphModuleVisibleBodyRowCount(type) {
-  const rows = nodeGraphModuleBodyRowCount(type);
-  return nodeGraphModuleDefinitions[type]?.output
-    ? rows
-    : Math.max(rows, 4);
+  return nodeGraphModuleBodyRowCount(type);
 }
 
 const nodeGraphModuleWidthLimits = Object.freeze({
@@ -8946,7 +10142,20 @@ const nodeGraphModuleWidthLimits = Object.freeze({
   minGu: 4,
 });
 
+const nodeGraphModuleHeightLimits = Object.freeze({
+  maxGu: 24,
+  minGu: 1,
+});
+
+const nodeGraphTextBoxHeightLimits = Object.freeze({
+  maxGu: 24,
+  minGu: 1,
+});
+
 function nodeGraphDefaultModuleGridWidthUnits(type) {
+  if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
+    return 8;
+  }
   return nodeGraphModuleDefinitions[type]?.output ? 6 : 7;
 }
 
@@ -8966,8 +10175,23 @@ function nodeGraphPatchNodeGridWidthUnits(node) {
   return normalizeNodeGraphModuleWidthUnits(node?.type, node?.widthGu);
 }
 
+function normalizeNodeGraphModuleHeightUnits(type, heightGu, ui = {}) {
+  const fallback = nodeGraphModuleGridHeightUnitsForUi(type, ui);
+  const value = Math.round(Number(heightGu));
+  return Number.isFinite(value)
+    ? Math.max(nodeGraphModuleHeightLimits.minGu, Math.min(nodeGraphModuleHeightLimits.maxGu, value))
+    : fallback;
+}
+
+function normalizeNodeGraphTextBoxHeightUnits(heightGu) {
+  return normalizeNodeGraphModuleHeightUnits("textBox", heightGu);
+}
+
 function nodeGraphModuleSliderBodyHeightGu(type) {
-  const rows = Math.max(1, nodeGraphModuleVisibleBodyRowCount(type));
+  const rows = nodeGraphModuleVisibleBodyRowCount(type);
+  if (rows <= 0) {
+    return 0;
+  }
   return (
     rows * nodeGraphModuleLayout.sliderRowHeightGu +
     Math.max(0, rows - 1) * nodeGraphModuleLayout.bodyRowGapGu
@@ -8994,8 +10218,29 @@ function nodeGraphModuleIoSectionHeightGu(type) {
 }
 
 function nodeGraphModuleRequiredHeightUnits(type) {
+  return nodeGraphModuleRequiredHeightUnitsForUi(type);
+}
+
+function nodeGraphModuleHeaderHeightUnits(ui = {}) {
+  const normalizedUi = normalizeNodeGraphPatchNodeUi(ui);
+  if (normalizedUi.buttonsHidden && normalizedUi.titleHidden) {
+    return 0;
+  }
+  if (normalizedUi.buttonsHidden) {
+    return nodeGraphModuleLayout.headerTitleRowHeightGu;
+  }
+  if (normalizedUi.titleHidden) {
+    return nodeGraphModuleLayout.headerHeightGu - nodeGraphModuleLayout.headerTitleRowHeightGu;
+  }
+  return nodeGraphModuleLayout.headerHeightGu;
+}
+
+function nodeGraphModuleRequiredHeightUnitsForUi(type, ui = {}) {
+  if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
+    return nodeGraphModuleHeaderHeightUnits(ui) + nodeGraphModuleLayout.textBoxBodyMinGu;
+  }
   return (
-    nodeGraphModuleLayout.headerHeightGu +
+    nodeGraphModuleHeaderHeightUnits(ui) +
     nodeGraphModuleIoSectionHeightGu(type) +
     nodeGraphModuleSliderBodyHeightGu(type) +
     nodeGraphModuleLayout.fitCushionGu +
@@ -9004,15 +10249,156 @@ function nodeGraphModuleRequiredHeightUnits(type) {
 }
 
 function nodeGraphModuleGridHeightUnits(type) {
-  const roughGridUnits = 4 + Math.max(1, nodeGraphModuleVisibleBodyRowCount(type)) * 1.25;
-  const requiredGridUnits = nodeGraphModuleRequiredHeightUnits(type);
+  return nodeGraphModuleGridHeightUnitsForUi(type);
+}
+
+function nodeGraphModuleGridHeightUnitsForUi(type, ui = {}) {
+  if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
+    return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
+  }
+  const headerReduction = nodeGraphModuleLayout.headerHeightGu - nodeGraphModuleHeaderHeightUnits(ui);
+  const roughGridUnits = 4 + nodeGraphModuleVisibleBodyRowCount(type) * 1.25 - headerReduction;
+  const requiredGridUnits = nodeGraphModuleRequiredHeightUnitsForUi(type, ui);
   return Math.ceil(Math.max(roughGridUnits, requiredGridUnits));
+}
+
+function nodeGraphPatchNodeGridHeightUnits(node) {
+  if (Object.hasOwn(node || {}, "heightGu")) {
+    return normalizeNodeGraphModuleHeightUnits(node.type, node.heightGu, node.ui);
+  }
+  return nodeGraphModuleGridHeightUnitsForUi(node?.type, node?.ui);
+}
+
+function createNodeGraphTextBoxBody(node) {
+  const body = document.createElement("div");
+  body.className = "node-text-box-body";
+  body.dataset.node = node;
+  return body;
+}
+
+function syncNodeGraphTextBoxContentAlignment(field, layout = normalizeNodeGraphTextBoxLayout()) {
+  if (!field) {
+    return;
+  }
+  field.style.setProperty("--node-text-box-content-offset", "0px");
+  const style = window.getComputedStyle(field);
+  const fontSize = Number.parseFloat(style.fontSize) || 14;
+  const lineHeight = Number.parseFloat(style.lineHeight) || fontSize * 1.2;
+  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+  const text = String(field.value || "");
+  const lineCount = layout.textMode === "multiline"
+    ? Math.max(1, text.split(/\r\n|\r|\n/).length)
+    : 1;
+  const contentHeight = lineCount * lineHeight;
+  const availableHeight = Math.max(0, field.clientHeight - paddingTop - paddingBottom);
+  const remainingHeight = Math.max(0, availableHeight - contentHeight);
+  const offset = remainingHeight * normalizeNodeGraphTextBoxVerticalAlignPercent(layout.verticalAlignPercent) / 100;
+  field.style.setProperty("--node-text-box-content-offset", `${offset.toFixed(2)}px`);
+}
+
+function nodeGraphTextBoxWidthFitScale(field, layout = normalizeNodeGraphTextBoxLayout()) {
+  if (!field) {
+    return 1;
+  }
+  const style = window.getComputedStyle(field);
+  const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+  const availableWidth = Math.max(1, field.clientWidth - paddingLeft - paddingRight);
+  const text = String(field.value || "");
+  const lines = text.split(/\r\n|\r|\n/);
+  const measuredText = layout.textMode === "multiline"
+    ? lines.flatMap((line) => line.trim().split(/\s+/).filter(Boolean))
+    : lines;
+  const samples = measuredText.length ? measuredText : [text || " "];
+  const canvas = nodeGraphTextBoxWidthFitScale.canvas ||= document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return 1;
+  }
+  context.font = style.font;
+  const maxWidth = samples.reduce((width, sample) =>
+    Math.max(width, context.measureText(sample || " ").width), 0);
+  return maxWidth > availableWidth
+    ? Math.max(0.4, availableWidth / maxWidth)
+    : 1;
+}
+
+function syncNodeGraphTextBoxVisualFit(field, layout = normalizeNodeGraphTextBoxLayout()) {
+  if (!field) {
+    return;
+  }
+  field.scrollLeft = 0;
+  field.scrollTop = 0;
+  field.style.setProperty("--node-text-box-font-fit-scale", "1");
+  field.style.setProperty(
+    "--node-text-box-font-fit-scale",
+    String(nodeGraphTextBoxWidthFitScale(field, layout)),
+  );
+  syncNodeGraphTextBoxContentAlignment(field, layout);
+}
+
+function handleNodeGraphTextBoxWheel(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.deltaY) {
+    zoomNodeGraphAt(
+      -Math.sign(event.deltaY),
+      event.clientX,
+      event.clientY,
+    );
+  }
+}
+
+function syncNodeGraphTextBoxElement(element, patchNode) {
+  if (!element || !patchNode) {
+    return;
+  }
+  const layout = normalizeNodeGraphTextBoxLayout(patchNode.layout);
+  const body = element.querySelector(".node-text-box-body");
+  if (!body) {
+    return;
+  }
+  body.dataset.textHorizontalAlign = layout.horizontalAlign;
+  body.dataset.textVerticalAlignPercent = String(layout.verticalAlignPercent);
+  const desiredTag = "TEXTAREA";
+  let field = body.querySelector(".node-text-box-input");
+  if (!field || field.tagName !== desiredTag) {
+    const replacement = document.createElement("textarea");
+    replacement.className = "node-text-box-input";
+    replacement.dataset.node = patchNode.id;
+    replacement.dataset.textBoxMode = layout.textMode;
+    replacement.setAttribute("aria-label", `${nodeGraphNodeDisplayName(patchNode.id)} text display`);
+    replacement.readOnly = true;
+    replacement.spellcheck = false;
+    replacement.tabIndex = -1;
+    replacement.rows = 1;
+    replacement.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    replacement.addEventListener("click", (event) => event.stopPropagation());
+    replacement.addEventListener("wheel", handleNodeGraphTextBoxWheel, { passive: false });
+    field?.replaceWith(replacement);
+    if (!field) {
+      body.replaceChildren(replacement);
+    }
+    field = replacement;
+  }
+  field.dataset.textAlign = layout.horizontalAlign;
+  field.dataset.textBoxMode = layout.textMode;
+  field.style.textAlign = layout.horizontalAlign;
+  field.style.setProperty("--node-text-box-font-scale", String(layout.textSizePercent / 100));
+  if (field.value !== layout.text) {
+    field.value = layout.text;
+  }
+  syncNodeGraphTextBoxVisualFit(field, layout);
 }
 
 function createNodeGraphModuleElement(type, node) {
   const definition = nodeGraphModuleDefinitions[type];
   const article = document.createElement("article");
-  article.className = `dsp-node${definition.output ? " output-node" : ""}`;
+  article.className = `dsp-node${definition.output ? " output-node" : ""}${definition.layout === "textBox" ? " text-box-layout" : ""}`;
   article.dataset.node = node;
   article.dataset.nodeType = type;
   article.style.setProperty("--node-grid-width-units", String(nodeGraphModuleGridWidthUnits(type)));
@@ -9022,11 +10408,10 @@ function createNodeGraphModuleElement(type, node) {
   header.className = "dsp-node-header";
   const titleRow = document.createElement("div");
   titleRow.className = "node-header-title-row";
+  nodeGraphApplyTooltip(titleRow, "module.move");
   const titleText = document.createElement("span");
   titleText.className = "node-header-title";
-  titleText.textContent = node === type
-    ? nodeGraphNodeLabels[type]
-    : `${nodeGraphNodeLabels[type]} ${node.split("-").at(-1)}`;
+  titleText.textContent = nodeGraphPatchNodeTitle({ id: node, type });
   titleRow.append(titleText);
   header.append(titleRow);
 
@@ -9036,7 +10421,7 @@ function createNodeGraphModuleElement(type, node) {
   handle.className = "node-drag-handle";
   handle.type = "button";
   handle.setAttribute("aria-label", `Move ${nodeGraphNodeLabels[type]} module`);
-  handle.setAttribute("title", "Move module");
+  nodeGraphApplyTooltip(handle, "module.move");
   handle.innerHTML = "&#x2725;";
   actionRow.append(handle);
   const orderBadge = document.createElement("span");
@@ -9044,17 +10429,28 @@ function createNodeGraphModuleElement(type, node) {
   orderBadge.dataset.executionState = "inactive";
   orderBadge.textContent = "--";
   orderBadge.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} execution order inactive`);
-  orderBadge.setAttribute("title", "Not in compiled execution order");
+  nodeGraphApplyTooltip(orderBadge, "module.executionTitleInactive");
   actionRow.append(orderBadge);
-  if (!definition.output) {
+  if (definition.output) {
     const bypassButton = document.createElement("button");
     bypassButton.className = "node-bypass-button";
     bypassButton.type = "button";
     bypassButton.dataset.node = node;
-    bypassButton.textContent = "⌽";
+    bypassButton.textContent = nodeGraphBypassGlyph(false);
+    bypassButton.setAttribute("aria-label", "Toggle live OUTPUT from Output module");
+    bypassButton.setAttribute("aria-pressed", "true");
+    nodeGraphApplyTooltip(bypassButton, "module.outputToggle");
+    actionRow.append(bypassButton);
+  }
+  if (!definition.output && !definition.layoutOnly) {
+    const bypassButton = document.createElement("button");
+    bypassButton.className = "node-bypass-button";
+    bypassButton.type = "button";
+    bypassButton.dataset.node = node;
+    bypassButton.textContent = nodeGraphBypassGlyph(false);
     bypassButton.setAttribute("aria-label", `Bypass ${nodeGraphNodeLabels[type]} module`);
     bypassButton.setAttribute("aria-pressed", "false");
-    bypassButton.setAttribute("title", "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.");
+    nodeGraphApplyTooltip(bypassButton, "module.bypass");
     actionRow.append(bypassButton);
   }
   const actionButton = document.createElement("button");
@@ -9062,46 +10458,50 @@ function createNodeGraphModuleElement(type, node) {
   actionButton.type = "button";
   actionButton.dataset.node = node;
   actionButton.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} module actions`);
-  actionButton.setAttribute("title", "Module actions");
-  actionButton.textContent = "⚙";
+  nodeGraphApplyTooltip(actionButton, "module.actionsTitle");
+  actionButton.textContent = "\u2699";
   actionRow.append(actionButton);
   header.append(actionRow);
 
   article.append(header);
 
-  const ioSection = document.createElement("div");
-  ioSection.className = "dsp-node-io-section";
-  const inputColumn = createNodeGraphIoColumn(node, type, definition.inputs, "input");
-  const outputColumn = createNodeGraphIoColumn(node, type, definition.outputs, "output");
-  if (inputColumn) {
-    ioSection.append(inputColumn);
+  if (definition.layout === "textBox") {
+    article.append(createNodeGraphTextBoxBody(node));
   } else {
-    ioSection.append(document.createElement("div"));
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, definition.inputs, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, definition.outputs, "output");
+    if (inputColumn) {
+      ioSection.append(inputColumn);
+    } else {
+      ioSection.append(document.createElement("div"));
+    }
+    if (outputColumn) {
+      ioSection.append(outputColumn);
+    } else {
+      ioSection.append(document.createElement("div"));
+    }
+    article.append(ioSection);
   }
-  if (outputColumn) {
-    ioSection.append(outputColumn);
-  } else {
-    ioSection.append(document.createElement("div"));
-  }
-  article.append(ioSection);
 
-  const body = document.createElement("div");
-  body.className = "dsp-node-body";
+  if (type === "audioInput") {
+    const stateBadge = document.createElement("div");
+    stateBadge.className = "node-live-input-state-badge";
+    stateBadge.dataset.micState = "off";
+    stateBadge.textContent = "mic off";
+    article.append(stateBadge);
+  }
 
-  for (const parameter of definition.parameters) {
-    body.append(createNodeGraphParameter(node, type, parameter));
+  if (definition.parameters?.length) {
+    const body = document.createElement("div");
+    body.className = "dsp-node-body";
+
+    for (const parameter of definition.parameters) {
+      body.append(createNodeGraphParameter(node, type, parameter));
+    }
+    article.append(body);
   }
-  const placeholderRows = Math.max(
-    0,
-    nodeGraphModuleVisibleBodyRowCount(type) - nodeGraphModuleBodyRowCount(type),
-  );
-  for (let index = 0; index < placeholderRows; index += 1) {
-    const placeholder = document.createElement("div");
-    placeholder.className = "node-parameter-row node-parameter-row-placeholder";
-    placeholder.setAttribute("aria-hidden", "true");
-    body.append(placeholder);
-  }
-  article.append(body);
 
   attachNodeGraphNodeEvents(article);
   return article;
@@ -9133,7 +10533,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
   const issues = [];
   const nodeList = Array.isArray(patch.nodes) ? patch.nodes.map((node) => ({ ...node })) : [];
   const nodeMap = new Map(nodeList.map((node) => [node.id, node]));
-  const bypassedNodes = nodeGraphBypassedNodeIds(patch);
+  const bypassedNodes = nodeGraphRuntimeBypassedNodeIds(patch);
   const dependencies = new Map(nodeList.map((node) => [node.id, new Set()]));
   const inputConnections = new Map();
   const modulationConnections = new Map();
@@ -9409,7 +10809,13 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       if (!inputCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} input`);
       }
-    } else if (type !== "osc" && type !== "spiral" && type !== "noise" && type !== "output") {
+    } else if (
+      type !== "audioInput" &&
+      type !== "osc" &&
+      type !== "spiral" &&
+      type !== "noise" &&
+      type !== "output"
+    ) {
       issues.push(`unsupported source ${nodeId}`);
     }
   }
@@ -9419,7 +10825,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const order = topology.order.filter((nodeId) => reachableNodes.has(nodeId));
   const sourceNodes = order.filter((nodeId) => {
     const type = graph.nodeMap.get(nodeId)?.type;
-    return type === "osc" || type === "spiral" || type === "noise";
+    return type === "audioInput" || type === "osc" || type === "spiral" || type === "noise";
   });
   const inactiveNodes = graph.nodes
     .filter((node) => !reachableNodes.has(node.id))
@@ -9509,6 +10915,16 @@ function nodeGraphActiveNodeIds(plan) {
 
 function nodeGraphPlanBypassedNodeIds(plan) {
   return new Set(plan.bypassedNodes || []);
+}
+
+function nodeGraphNodeDisplaysBypassed(nodeId, plan = null) {
+  if (nodeId === "output") {
+    return !nodeGraphMvp.live.outputEnabled;
+  }
+  const bypassedNodes = plan
+    ? nodeGraphPlanBypassedNodeIds(plan)
+    : nodeGraphBypassedNodeIds(nodeGraphMvp.patch);
+  return bypassedNodes.has(nodeId);
 }
 
 function nodeGraphWireTouchesBypassed(wire, plan) {
@@ -9969,6 +11385,13 @@ function installNodeGraphDebugApi() {
     live() {
       return nodeGraphLiveDebug();
     },
+    async startMockInput(options = {}) {
+      return startNodeGraphMockInput(options);
+    },
+    stopMockInput() {
+      stopNodeGraphMockInput();
+      return nodeGraphLiveDebug();
+    },
     soemdspMapping(patch = nodeGraphMvp.patch) {
       return nodeGraphSoemdspRuntimeMapping(compileValidatedNodeGraphExecutionPlan(patch));
     },
@@ -9976,6 +11399,28 @@ function installNodeGraphDebugApi() {
       return nodeGraphSoemdspRuntimeSketch(compileValidatedNodeGraphExecutionPlan(patch));
     },
   });
+}
+
+async function startNodeGraphMockInputDebug(options = {}) {
+  document.documentElement.dataset.soemdspMockInput = "starting";
+  document.documentElement.dataset.soemdspMockInputError = "";
+  try {
+    await startNodeGraphMockInput(options);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    document.documentElement.dataset.soemdspMockInput = "running";
+    document.documentElement.dataset.soemdspMockInputMeter =
+      document.getElementById("nodeLiveInputMeter")?.textContent || "";
+  } catch (error) {
+    document.documentElement.dataset.soemdspMockInput = "error";
+    document.documentElement.dataset.soemdspMockInputError = error?.message || String(error);
+  }
+}
+
+function stopNodeGraphMockInputDebug() {
+  stopNodeGraphMockInput();
+  document.documentElement.dataset.soemdspMockInput = "stopped";
+  document.documentElement.dataset.soemdspMockInputMeter =
+    document.getElementById("nodeLiveInputMeter")?.textContent || "";
 }
 
 function renderNodeGraphExecutionPlanDebug(plan = compileNodeGraphExecutionPlan()) {
@@ -10110,7 +11555,6 @@ async function copyNodeGraphExecutionJson() {
 
 function renderNodeGraphExecutionOrderBadges(plan) {
   const orderIndex = new Map((plan.order || []).map((nodeId, index) => [nodeId, index + 1]));
-  const bypassedNodes = nodeGraphPlanBypassedNodeIds(plan);
   for (const node of document.querySelectorAll(".dsp-node")) {
     const badge = node.querySelector(".node-execution-order-badge");
     if (!badge) {
@@ -10118,7 +11562,14 @@ function renderNodeGraphExecutionOrderBadges(plan) {
     }
     const nodeId = node.dataset.node;
     const order = orderIndex.get(nodeId);
-    if (order) {
+    if (nodeGraphNodeDisplaysBypassed(nodeId, plan)) {
+      badge.textContent = "off";
+      badge.dataset.executionState = "bypassed";
+      badge.setAttribute("aria-label", `${nodeGraphNodeDisplayName(nodeId)} bypassed`);
+      badge.setAttribute("title", nodeId === "output"
+        ? "Output off: the live output module is muted from the UI"
+        : "Bypassed: removed from compiled engine");
+    } else if (order) {
       badge.textContent = String(order);
       badge.dataset.executionState = "active";
       badge.setAttribute("aria-label", `${nodeGraphNodeDisplayName(nodeId)} compiled order ${order}`);
@@ -10126,11 +11577,6 @@ function renderNodeGraphExecutionOrderBadges(plan) {
         "title",
         `Compiled order ${order}: this module runs at step ${order} in the current execution plan.`,
       );
-    } else if (bypassedNodes.has(nodeId)) {
-      badge.textContent = "off";
-      badge.dataset.executionState = "bypassed";
-      badge.setAttribute("aria-label", `${nodeGraphNodeDisplayName(nodeId)} bypassed`);
-      badge.setAttribute("title", "Bypassed: removed from compiled engine");
     } else {
       badge.textContent = "--";
       badge.dataset.executionState = "inactive";
@@ -10224,6 +11670,18 @@ function nodeGraphModulationPortSelector(node, parameter) {
   return `.node-param-port.modulation-input[data-node="${CSS.escape(node)}"][data-param="${CSS.escape(parameter)}"]`;
 }
 
+function markNodeGraphPortConnected(node, port, io) {
+  nodeGraphZoomSurface()
+    ?.querySelector(nodeGraphPortSelector(node, port, io))
+    ?.classList.add("connected-port");
+}
+
+function markNodeGraphModulationPortConnected(node, parameter) {
+  nodeGraphZoomSurface()
+    ?.querySelector(nodeGraphModulationPortSelector(node, parameter))
+    ?.classList.add("connected-port");
+}
+
 function nodeGraphZoom() {
   return Number.isFinite(nodeGraphMvp.zoom) ? nodeGraphMvp.zoom : 1;
 }
@@ -10250,6 +11708,7 @@ function applyNodeGraphZoom() {
   workspace.style.setProperty("--node-graph-zoom", String(nodeGraphZoom()));
   workspace.dataset.zoom = nodeGraphZoom().toFixed(2);
   applyNodeGraphWorkspaceView();
+  updateNodeGraphGridHeatmap();
   const zoomOutButton = document.getElementById("nodeZoomOutButton");
   const zoomInButton = document.getElementById("nodeZoomInButton");
   if (zoomOutButton) {
@@ -10261,20 +11720,129 @@ function applyNodeGraphZoom() {
   drawNodeGraphWires();
 }
 
-function setNodeGraphZoom(nextZoom) {
+function setNodeGraphZoom(nextZoom, anchor = null) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const workspaceRect = workspace?.getBoundingClientRect();
+  const oldZoom = nodeGraphZoom();
+  const oldPan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  const anchorPoint = workspaceRect
+    ? (anchor || {
+      x: workspaceRect.left + workspaceRect.width / 2,
+      y: workspaceRect.top + workspaceRect.height / 2,
+    })
+    : null;
+  const anchoredContentPoint = workspaceRect && anchorPoint
+    ? {
+      x: (anchorPoint.x - workspaceRect.left - (Number(oldPan.x) || 0)) / oldZoom,
+      y: (anchorPoint.y - workspaceRect.top - (Number(oldPan.y) || 0)) / oldZoom,
+    }
+    : null;
   const zoom = Math.max(
     nodeGraphZoomLimits.min,
-    Math.min(nodeGraphZoomLimits.max, nextZoom),
+    Math.min(nodeGraphZoomLimits.max, Number(nextZoom) || 1),
   );
-  if (Math.abs(zoom - nodeGraphZoom()) < 0.001) {
+  if (Math.abs(zoom - oldZoom) < 0.001) {
     return;
   }
   nodeGraphMvp.zoom = zoom;
+  const nextPan = workspaceRect && anchorPoint && anchoredContentPoint
+    ? {
+      x: anchorPoint.x - workspaceRect.left - anchoredContentPoint.x * zoom,
+      y: anchorPoint.y - workspaceRect.top - anchoredContentPoint.y * zoom,
+    }
+    : oldPan;
+  nodeGraphMvp.pan = {
+    x: Number(nextPan.x) || 0,
+    y: Number(nextPan.y) || 0,
+  };
   applyNodeGraphZoom();
+  applyNodeGraphPan();
+}
+
+function nodeGraphZoomByRatio(ratio) {
+  const value = Number(ratio);
+  return Number.isFinite(value) && value > 0
+    ? nodeGraphZoom() * value
+    : nodeGraphZoom();
 }
 
 function zoomNodeGraphBy(delta) {
-  setNodeGraphZoom(nodeGraphZoom() + delta);
+  const ratio = delta > 0
+    ? nodeGraphZoomLimits.wheelRatio
+    : 1 / nodeGraphZoomLimits.wheelRatio;
+  setNodeGraphZoom(nodeGraphZoomByRatio(ratio));
+}
+
+function zoomNodeGraphAt(delta, clientX, clientY) {
+  const ratio = delta > 0
+    ? nodeGraphZoomLimits.wheelRatio
+    : 1 / nodeGraphZoomLimits.wheelRatio;
+  setNodeGraphZoom(nodeGraphZoomByRatio(ratio), { x: clientX, y: clientY });
+}
+
+function handleNodeGraphWorkspaceWheel(event) {
+  if (!event.deltaY) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  zoomNodeGraphAt(
+    -Math.sign(event.deltaY),
+    event.clientX,
+    event.clientY,
+  );
+}
+
+function beginNodeGraphSmoothZoomDrag(event) {
+  const ctrlZoom = event.ctrlKey;
+  const altZoom = event.altKey;
+  if (
+    event.button !== 1 ||
+    (!ctrlZoom && !altZoom)
+  ) {
+    return;
+  }
+
+  const workspace = event.currentTarget;
+  nodeGraphMvp.smoothZoomDragging = {
+    anchor: { x: event.clientX, y: event.clientY },
+    pointerId: event.pointerId,
+    startClientY: event.clientY,
+    startZoom: nodeGraphZoom(),
+  };
+  workspace.classList.add("smooth-zooming");
+  workspace.setPointerCapture(event.pointerId);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeGraphSmoothZoom(event) {
+  const drag = nodeGraphMvp.smoothZoomDragging;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const deltaY = drag.startClientY - event.clientY;
+  const ratio = Math.exp(deltaY * 0.0045);
+  setNodeGraphZoom(drag.startZoom * ratio, drag.anchor);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function endNodeGraphSmoothZoomDrag(event) {
+  const drag = nodeGraphMvp.smoothZoomDragging;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (workspace?.hasPointerCapture?.(event.pointerId)) {
+    workspace.releasePointerCapture(event.pointerId);
+  }
+  workspace?.classList.remove("smooth-zooming");
+  nodeGraphMvp.smoothZoomDragging = null;
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function applyNodeGraphPan() {
@@ -10287,6 +11855,7 @@ function applyNodeGraphPan() {
   workspace.style.setProperty("--node-graph-pan-y", `${pan.y}px`);
   workspace.dataset.panX = String(Math.round(pan.x));
   workspace.dataset.panY = String(Math.round(pan.y));
+  updateNodeGraphGridHeatmap();
   drawNodeGraphWires();
 }
 
@@ -10298,19 +11867,152 @@ function setNodeGraphPan(x, y) {
   applyNodeGraphPan();
 }
 
+function snapNodeGraphWorkspaceEdgesToGrid(zoom = nodeGraphZoom()) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  const rect = workspace.getBoundingClientRect();
+  const chromeWidth = nodeGraphWorkspaceChromeSize("x");
+  const chromeHeight = nodeGraphWorkspaceChromeSize("y");
+  const contentWidth = Math.max(0, rect.width - chromeWidth);
+  const contentHeight = Math.max(0, rect.height - chromeHeight);
+  const renderedGridWidth = nodeGraphGridWidth() * zoom;
+  const renderedGridHeight = nodeGraphGridHeight() * zoom;
+  const snapContentSize = (value, step, minGridUnits) => {
+    if (!Number.isFinite(step) || step <= 0) {
+      return value;
+    }
+    const min = step * minGridUnits;
+    return Math.max(min, Math.round(value / step) * step);
+  };
+  const snappedContentWidth = snapContentSize(
+    contentWidth,
+    renderedGridWidth,
+    nodeGraphWorkspaceViewLimits.minWidthGu,
+  );
+  const snappedContentHeight = snapContentSize(
+    contentHeight,
+    renderedGridHeight,
+    nodeGraphWorkspaceViewLimits.minHeightGu,
+  );
+  withNodeGraphWorkspaceContentAnchored(workspace, () => {
+    const widthCss = nodeGraphWorkspaceWidthCss(snappedContentWidth);
+    const heightCss = nodeGraphWorkspaceHeightCss(snappedContentHeight);
+    if (document.getElementById("nodeWiringPanel")?.classList.contains("modular-only-view")) {
+      workspace.style.setProperty("--node-modular-only-view-width", widthCss);
+      workspace.style.setProperty("--node-modular-only-view-height", heightCss);
+    } else {
+      workspace.style.width = widthCss;
+      workspace.style.height = heightCss;
+      workspace.style.removeProperty("aspect-ratio");
+    }
+  });
+  drawNodeGraphWires();
+}
+
+function snapNodeGraphPanValueToGrid(value, gridSize, zoom = nodeGraphZoom()) {
+  const step = gridSize * zoom;
+  return Number.isFinite(step) && step > 0
+    ? Math.round((Number(value) || 0) / step) * step
+    : Number(value) || 0;
+}
+
+function renderNodeGraphSnapGridButton() {
+  const button = document.getElementById("nodeSnapGridViewButton");
+  if (!button) {
+    return;
+  }
+  const active = Boolean(nodeGraphMvp.snapGridWhilePanning);
+  button.classList.toggle("active", active);
+  button.setAttribute("aria-pressed", String(active));
+  button.title = nodeGraphTooltipText("view.snapGrid");
+}
+
+function alignNodeGraphViewToGridWithOptions(options = {}) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const rect = workspace?.getBoundingClientRect();
+  const oldZoom = nodeGraphZoom();
+  const oldPan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  const zoomStep = 1 / Math.max(1, nodeGraphGridSize());
+  const nextZoom = Math.max(
+    nodeGraphZoomLimits.min,
+    Math.min(nodeGraphZoomLimits.max, Math.round(oldZoom / zoomStep) * zoomStep),
+  );
+  const anchor = rect
+    ? {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    }
+    : null;
+  const anchoredContentPoint = rect && anchor
+    ? {
+      x: (anchor.x - rect.left - (Number(oldPan.x) || 0)) / oldZoom,
+      y: (anchor.y - rect.top - (Number(oldPan.y) || 0)) / oldZoom,
+    }
+    : null;
+  nodeGraphMvp.zoom = nextZoom;
+  applyNodeGraphZoom();
+  if (options.snapWorkspaceEdges) {
+    snapNodeGraphWorkspaceEdgesToGrid(nextZoom);
+  }
+  const nextRect = workspace?.getBoundingClientRect();
+  const nextAnchor = nextRect
+    ? {
+      x: nextRect.left + nextRect.width / 2,
+      y: nextRect.top + nextRect.height / 2,
+    }
+    : anchor;
+  const unsnappedPan = nextRect && nextAnchor && anchoredContentPoint
+    ? {
+      x: nextAnchor.x - nextRect.left - anchoredContentPoint.x * nextZoom,
+      y: nextAnchor.y - nextRect.top - anchoredContentPoint.y * nextZoom,
+    }
+    : oldPan;
+  const snapPan = (value, gridSize) => snapNodeGraphPanValueToGrid(value, gridSize, nextZoom);
+  nodeGraphMvp.pan = {
+    x: snapPan(unsnappedPan.x, nodeGraphGridWidth()),
+    y: snapPan(unsnappedPan.y, nodeGraphGridHeight()),
+  };
+  applyNodeGraphPan();
+  setNodeInteractionHelp(options.snapWorkspaceEdges
+    ? "View snapped to complete grid cells."
+    : "View aligned to grid. Hotkey: Ctrl+Shift+G.");
+}
+
+function alignNodeGraphViewToGrid() {
+  alignNodeGraphViewToGridWithOptions();
+}
+
+function snapNodeGraphViewToGrid() {
+  alignNodeGraphViewToGridWithOptions({ snapWorkspaceEdges: true });
+}
+
+function handleNodeGraphSnapGridButtonClick(event) {
+  if (event.shiftKey) {
+    nodeGraphMvp.snapGridWhilePanning = !nodeGraphMvp.snapGridWhilePanning;
+    renderNodeGraphSnapGridButton();
+    setNodeInteractionHelp(nodeGraphMvp.snapGridWhilePanning
+      ? "Grid snap while moving is on."
+      : "Grid snap while moving is off.");
+    return;
+  }
+  snapNodeGraphViewToGrid();
+}
+
 function nodeGraphPortCenter(node, port, io) {
   const surface = nodeGraphZoomSurface();
   const element = surface.querySelector(nodeGraphPortSelector(node, port, io));
-  return nodeGraphElementCenter(element);
+  return nodeGraphElementCenter(element, io);
 }
 
 function nodeGraphModulationPortCenter(node, parameter) {
   const surface = nodeGraphZoomSurface();
   const element = surface.querySelector(nodeGraphModulationPortSelector(node, parameter));
-  return nodeGraphElementCenter(element);
+  return nodeGraphElementCenter(element, "modulation");
 }
 
-function nodeGraphElementCenter(element) {
+function nodeGraphElementCenter(element, io = null) {
   const surface = nodeGraphZoomSurface();
   if (!element) {
     return { x: 0, y: 0 };
@@ -10319,8 +12021,23 @@ function nodeGraphElementCenter(element) {
   const surfaceRect = surface.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
   const zoom = nodeGraphZoom();
+  const centerX = elementRect.left + elementRect.width / 2;
+  const elementStyle = getComputedStyle(element);
+  const patchPointRatio = Math.max(
+    0,
+    Number.parseFloat(elementStyle.getPropertyValue("--node-wire-patch-point-size-ratio")) ||
+      nodeGraphDefaultPatchPointSizeRatio,
+  );
+  const portDiameter = Number.parseFloat(elementStyle.getPropertyValue("--node-port-diameter"))
+    || Math.max(elementRect.width, elementRect.height);
+  const patchPointOverlap = (portDiameter * patchPointRatio) / 2;
+  const anchorX = io === "output"
+    ? elementRect.right - patchPointOverlap
+    : io === "input" || io === "modulation"
+      ? elementRect.left + patchPointOverlap
+      : centerX;
   return {
-    x: (elementRect.left + elementRect.width / 2 - surfaceRect.left) / zoom,
+    x: (anchorX - surfaceRect.left) / zoom,
     y: (elementRect.top + elementRect.height / 2 - surfaceRect.top) / zoom,
   };
 }
@@ -10328,6 +12045,36 @@ function nodeGraphElementCenter(element) {
 function setNodeGraphSelection(selection) {
   nodeGraphMvp.selected = selection;
   renderNodeGraphSelection();
+}
+
+function clearNodeGraphSelection() {
+  setNodeGraphSelection(null);
+}
+
+function handleNodeGraphEnvironmentCommand(event) {
+  if (event.detail?.command === "clear-selection") {
+    clearNodeGraphSelection();
+  }
+}
+
+function sendNodeGraphEnvironmentCommand(command) {
+  document.getElementById("nodeGraphWorkspace")?.dispatchEvent(
+    new CustomEvent("nodegraph:environment-command", {
+      bubbles: false,
+      detail: { command },
+    }),
+  );
+}
+
+function handleNodeGraphDocumentClick(event) {
+  const target = event.target;
+  if (
+    !(target instanceof Element) ||
+    target.closest("#nodeGraphWorkspace, #nodeSceneContextMenu, #nodeParameterMetadataPopover")
+  ) {
+    return;
+  }
+  sendNodeGraphEnvironmentCommand("clear-selection");
 }
 
 function nodeGraphSelectedNodeIds(selection = nodeGraphMvp.selected) {
@@ -10338,6 +12085,53 @@ function nodeGraphSelectedNodeIds(selection = nodeGraphMvp.selected) {
     return new Set(selection.ids);
   }
   return new Set();
+}
+
+function nodeGraphSingleSelectedNodeId(selection = nodeGraphMvp.selected) {
+  const selectedNodeIds = [...nodeGraphSelectedNodeIds(selection)];
+  return selectedNodeIds.length === 1 ? selectedNodeIds[0] : null;
+}
+
+function nodeGraphModuleActionTargetNodeId() {
+  const contextNode = nodeGraphMvp.sceneContextTargetNode;
+  if (contextNode && nodeGraphPatchNode(contextNode)) {
+    return contextNode;
+  }
+  const selectedNode = nodeGraphSingleSelectedNodeId();
+  if (selectedNode && nodeGraphPatchNode(selectedNode)) {
+    return selectedNode;
+  }
+  return null;
+}
+
+function syncNodeGraphModuleActionTargetFromSelection() {
+  const menu = document.getElementById("nodeSceneContextMenu");
+  if (!menu || menu.hidden || menu.dataset.mode === "add") {
+    return;
+  }
+  const selectedWire = nodeGraphWireFromSelection();
+  if (selectedWire) {
+    nodeGraphMvp.sceneContextTargetWire = {
+      index: selectedWire.index,
+      kind: selectedWire.kind,
+    };
+    nodeGraphMvp.sceneContextTargetNode = null;
+    configureNodeSceneContextMenu("wire");
+    return;
+  }
+  const selectedNode = nodeGraphSingleSelectedNodeId();
+  if (selectedNode && nodeGraphPatchNode(selectedNode)) {
+    nodeGraphMvp.sceneContextTargetNode = selectedNode;
+    nodeGraphMvp.sceneContextTargetWire = null;
+    configureNodeSceneContextMenu("module");
+  } else {
+    const selectedNodeIds = nodeGraphSelectedNodeIds();
+    if (selectedNodeIds.size > 1) {
+      nodeGraphMvp.sceneContextTargetNode = null;
+      nodeGraphMvp.sceneContextTargetWire = null;
+      configureNodeSceneContextMenu("module");
+    }
+  }
 }
 
 function setNodeGraphNodeSelection(ids) {
@@ -10351,6 +12145,10 @@ function setNodeGraphNodeSelection(ids) {
     return;
   }
   setNodeGraphSelection({ type: "nodes", ids: uniqueIds });
+}
+
+function selectAllNodeGraphModules() {
+  setNodeGraphNodeSelection(nodeGraphMvp.patch.nodes.map((node) => node.id));
 }
 
 function toggleNodeGraphNodeSelection(id, additive = false) {
@@ -10407,6 +12205,43 @@ function nodeGraphWireSelectionExists(selection = nodeGraphMvp.selected) {
   return Number.isInteger(index) && index >= 0 && index < wires.length;
 }
 
+function nodeGraphWireFromSelection(selection = nodeGraphMvp.selected) {
+  if (!nodeGraphWireSelectionExists(selection)) {
+    return null;
+  }
+  const kind = selection.kind || "signal";
+  const wire = kind === "modulation"
+    ? nodeGraphMvp.modulations[selection.index]
+    : nodeGraphMvp.connections[selection.index];
+  return { kind, index: selection.index, wire };
+}
+
+function nodeGraphWireSelectionLabel(selection = nodeGraphMvp.selected) {
+  const selectedWire = nodeGraphWireFromSelection(selection);
+  if (!selectedWire) {
+    return "none";
+  }
+  const { kind, wire } = selectedWire;
+  if (kind === "modulation") {
+    return `${nodeGraphLabel(wire.sourceNode, wire.sourcePort)} -> ${nodeGraphLabel(
+      wire.destinationNode,
+      wire.destinationParam,
+    )} mod`;
+  }
+  return `${nodeGraphLabel(wire.sourceNode, wire.sourcePort)} -> ${nodeGraphLabel(
+    wire.destinationNode,
+    wire.destinationPort,
+  )}`;
+}
+
+function nodeGraphNodeCanBeDeleted(node) {
+  return Boolean(node && node.type !== "output");
+}
+
+function nodeGraphNodeDeleteHidesOnly(node) {
+  return node?.type === "audioInput";
+}
+
 function nodeGraphSelectionCanDelete(selection = nodeGraphMvp.selected) {
   if (!selection) {
     return false;
@@ -10414,30 +12249,31 @@ function nodeGraphSelectionCanDelete(selection = nodeGraphMvp.selected) {
   if (selection.type === "wire") {
     return nodeGraphWireSelectionExists(selection);
   }
-  return [...nodeGraphSelectedNodeIds(selection)].some((id) =>
-    id !== "output" && nodeGraphMvp.activeNodes.has(id),
-  );
+  return [...nodeGraphSelectedNodeIds(selection)].some((id) => {
+    const node = nodeGraphPatchNode(id);
+    return nodeGraphMvp.activeNodes.has(id) && nodeGraphNodeCanBeDeleted(node);
+  });
 }
 
 function nodeGraphDeleteTitle(selection = nodeGraphMvp.selected) {
   if (!selection) {
-    return "Delete unavailable: nothing selected";
+    return nodeGraphTooltipText("actions.deleteNothing");
   }
   if (selection.type === "wire") {
     return nodeGraphWireSelectionExists(selection)
-      ? "Delete selected wire"
-      : "Delete unavailable: selected wire no longer exists";
+      ? nodeGraphTooltipText("actions.deleteWireShort")
+      : nodeGraphTooltipText("actions.deleteWireMissing");
   }
   const selectedNodeIds = nodeGraphSelectedNodeIds(selection);
   if (!selectedNodeIds.size) {
-    return "Delete unavailable: nothing selected";
+    return nodeGraphTooltipText("actions.deleteNothing");
   }
   if ([...selectedNodeIds].every((id) => id === "output")) {
-    return "Delete unavailable: Output module is required";
+    return nodeGraphTooltipText("actions.deleteUnavailableOutput");
   }
   return selectedNodeIds.size === 1
-    ? "Delete selected module"
-    : "Delete selected modules";
+    ? nodeGraphTooltipText("actions.deleteModuleShort")
+    : nodeGraphTooltipText("actions.deleteModulesShort");
 }
 
 function pruneNodeGraphSelectionAfterPatch() {
@@ -10498,13 +12334,8 @@ function renderNodeGraphSelection() {
   button.disabled = !nodeGraphSelectionCanDelete();
   button.title = nodeGraphDeleteTitle();
 
-  const selectionCount = document.getElementById("nodeSelectionCount");
-  if (selectionCount) {
-    selectionCount.hidden = selectedNodeIds.size <= 0;
-    selectionCount.textContent = selectedNodeIds.size === 1
-      ? "1 module selected"
-      : `${selectedNodeIds.size} modules selected`;
-  }
+  syncNodeGraphModuleActionTargetFromSelection();
+  setNodeInteractionHelp(nodeInteractionHelpText(document.activeElement));
 }
 
 function nodeGraphPath(from, to) {
@@ -10514,7 +12345,34 @@ function nodeGraphPath(from, to) {
   return `M ${from.x} ${from.y} C ${from.x + span} ${from.y}, ${to.x - span} ${to.y}, ${to.x} ${to.y}`;
 }
 
-function createNodeGraphWireGradient(svg, id, from, to, stopClass = "node-wire-gradient-stop") {
+function nodeGraphStraightPath(from, to) {
+  return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+}
+
+function nodeGraphHexToRgb(color) {
+  const match = String(color || "").trim().match(/^#([0-9a-f]{6})$/i);
+  if (!match) {
+    return null;
+  }
+  const value = Number.parseInt(match[1], 16);
+  return {
+    b: value & 255,
+    g: (value >> 8) & 255,
+    r: (value >> 16) & 255,
+  };
+}
+
+function nodeGraphMixWireColor(fromColor, toColor) {
+  const fromRgb = nodeGraphHexToRgb(fromColor);
+  const toRgb = nodeGraphHexToRgb(toColor);
+  if (!fromRgb || !toRgb) {
+    return `color-mix(in srgb, ${fromColor} 50%, ${toColor})`;
+  }
+  const channel = (key) => Math.round((fromRgb[key] + toRgb[key]) / 2);
+  return `rgb(${channel("r")} ${channel("g")} ${channel("b")})`;
+}
+
+function createNodeGraphWireGradient(svg, id, from, to, stopClass = "node-wire-gradient-stop", colors = null) {
   const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
   gradient.id = id;
   gradient.setAttribute("gradientUnits", "userSpaceOnUse");
@@ -10523,15 +12381,24 @@ function createNodeGraphWireGradient(svg, id, from, to, stopClass = "node-wire-g
   gradient.setAttribute("x2", String(to.x));
   gradient.setAttribute("y2", String(to.y));
 
-  for (const [offset, opacity] of [
-    ["0%", "1"],
-    ["50%", "0.16"],
-    ["100%", "1"],
+  const [fromColor, toColor] = colors || [null, null];
+  const middleColor = fromColor && toColor ? nodeGraphMixWireColor(fromColor, toColor) : null;
+  // Legacy smoke contract strings: ["48%", "0.36", fromColor], ["52%", "0.36", toColor].
+  for (const [offset, opacity, color] of [
+    ["0%", "1", fromColor],
+    ["48%", "0.36", fromColor],
+    ["50%", "0.34", middleColor],
+    ["52%", "0.36", toColor],
+    ["100%", "1", toColor],
   ]) {
     const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
     stop.setAttribute("class", stopClass);
     stop.setAttribute("offset", offset);
     stop.setAttribute("stop-opacity", opacity);
+    if (color) {
+      stop.setAttribute("stop-color", color);
+      stop.style.setProperty("stop-color", color);
+    }
     gradient.append(stop);
   }
 
@@ -10542,6 +12409,27 @@ function createNodeGraphWireGradient(svg, id, from, to, stopClass = "node-wire-g
 function selectNodeGraphWire(event, index, kind = "signal") {
   event.stopPropagation();
   setNodeGraphSelection({ type: "wire", kind, index });
+}
+
+function nodeGraphCssColor(property, fallback) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const value = workspace
+    ? getComputedStyle(workspace).getPropertyValue(property).trim()
+    : "";
+  return value || fallback;
+}
+
+function nodeGraphPortWireColor(node, port, io) {
+  if (io === "input") {
+    return nodeGraphCssColor("--node-input-fill", "#7fc7d9");
+  }
+  if (io === "modulation") {
+    return nodeGraphCssColor("--node-mod-input-fill", "#b184ff");
+  }
+  if (nodeGraphParameterOutputPort(nodeGraphPatchNodeType(node), port)) {
+    return nodeGraphCssColor("--node-param-output-fill", "#66e0a3");
+  }
+  return nodeGraphCssColor("--node-output-fill", "#e2a86d");
 }
 
 function drawNodeGraphWirePath(svg, options) {
@@ -10555,9 +12443,10 @@ function drawNodeGraphWirePath(svg, options) {
     mode = "same-pass",
     pathClass = "node-wire-path",
     to,
+    wireColors = null,
   } = options;
   const pathData = nodeGraphPath(from, to);
-  const stroke = createNodeGraphWireGradient(svg, gradientId, from, to, gradientClass);
+  const stroke = createNodeGraphWireGradient(svg, gradientId, from, to, gradientClass, wireColors);
   const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   hitPath.setAttribute("class", "node-wire-hit-path");
   hitPath.dataset.alias = alias;
@@ -10585,6 +12474,7 @@ function drawNodeGraphWires() {
   if (!workspace || !svg) {
     return;
   }
+  updateNodeGraphGridHeatmap();
   const plan = compileNodeGraphExecutionPlan();
   const feedbackSets = nodeGraphFeedbackIdentitySets(plan);
   const activeNodeIds = nodeGraphActiveNodeIds(plan);
@@ -10598,11 +12488,22 @@ function drawNodeGraphWires() {
   for (const node of workspace.querySelectorAll(".dsp-node")) {
     node.classList.remove("connected");
   }
+  for (const port of workspace.querySelectorAll(".node-port, .node-param-port")) {
+    port.classList.remove("connected-port");
+  }
 
   for (const [index, connection] of nodeGraphMvp.connections.entries()) {
     if (
+      nodeGraphMvp.dragging?.pickup?.kind === "signal" &&
+      nodeGraphMvp.dragging.pickup.index === index
+    ) {
+      continue;
+    }
+    if (
       !nodeGraphMvp.activeNodes.has(connection.sourceNode) ||
-      !nodeGraphMvp.activeNodes.has(connection.destinationNode)
+      !nodeGraphMvp.activeNodes.has(connection.destinationNode) ||
+      !nodeGraphPatchNodeIsVisible(connection.sourceNode) ||
+      !nodeGraphPatchNodeIsVisible(connection.destinationNode)
     ) {
       continue;
     }
@@ -10633,16 +12534,30 @@ function drawNodeGraphWires() {
         isInactive ? "inactive-wire" : "",
       ].filter(Boolean).join(" "),
       to,
+      wireColors: [
+        nodeGraphPortWireColor(connection.sourceNode, connection.sourcePort, "output"),
+        nodeGraphPortWireColor(connection.destinationNode, connection.destinationPort, "input"),
+      ],
     });
 
     nodeGraphNodeElement(connection.sourceNode)?.classList.add("connected");
     nodeGraphNodeElement(connection.destinationNode)?.classList.add("connected");
+    markNodeGraphPortConnected(connection.sourceNode, connection.sourcePort, "output");
+    markNodeGraphPortConnected(connection.destinationNode, connection.destinationPort, "input");
   }
 
   for (const [index, modulation] of nodeGraphMvp.modulations.entries()) {
     if (
+      nodeGraphMvp.dragging?.pickup?.kind === "modulation" &&
+      nodeGraphMvp.dragging.pickup.index === index
+    ) {
+      continue;
+    }
+    if (
       !nodeGraphMvp.activeNodes.has(modulation.sourceNode) ||
-      !nodeGraphMvp.activeNodes.has(modulation.destinationNode)
+      !nodeGraphMvp.activeNodes.has(modulation.destinationNode) ||
+      !nodeGraphPatchNodeIsVisible(modulation.sourceNode) ||
+      !nodeGraphPatchNodeIsVisible(modulation.destinationNode)
     ) {
       continue;
     }
@@ -10669,14 +12584,19 @@ function drawNodeGraphWires() {
       pathClass: [
         "node-wire-path",
         "node-modulation-wire-path",
-        isFeedback ? "state-read" : "",
         isInactive ? "inactive-wire" : "",
       ].filter(Boolean).join(" "),
       to,
+      wireColors: [
+        nodeGraphPortWireColor(modulation.sourceNode, modulation.sourcePort, "output"),
+        nodeGraphPortWireColor(modulation.destinationNode, modulation.destinationParam, "modulation"),
+      ],
     });
 
     nodeGraphNodeElement(modulation.sourceNode)?.classList.add("connected");
     nodeGraphNodeElement(modulation.destinationNode)?.classList.add("connected");
+    markNodeGraphPortConnected(modulation.sourceNode, modulation.sourcePort, "output");
+    markNodeGraphModulationPortConnected(modulation.destinationNode, modulation.destinationParam);
   }
 
   if (nodeGraphMvp.dragging) {
@@ -10686,6 +12606,15 @@ function drawNodeGraphWires() {
       "node-wire-gradient-temp",
       nodeGraphMvp.dragging.from,
       nodeGraphMvp.dragging.to,
+      "node-wire-gradient-stop",
+      [
+        nodeGraphPortWireColor(
+          nodeGraphMvp.dragging.endpoint.node,
+          nodeGraphMvp.dragging.endpoint.port,
+          nodeGraphMvp.dragging.endpoint.io,
+        ),
+        "rgba(243, 241, 236, 0.44)",
+      ],
     );
     path.setAttribute("class", "node-wire-path temp");
     path.setAttribute("stroke", stroke);
@@ -10697,6 +12626,21 @@ function drawNodeGraphWires() {
   }
 
   renderNodeGraphSelection();
+}
+
+function clearNodeGraphWireDragClass(dragging) {
+  dragging?.visualElement?.classList?.remove("dragging");
+  const endpoints = [dragging?.endpoint, dragging?.pickup?.pickedEndpoint];
+  for (const endpoint of endpoints) {
+    if (!endpoint) {
+      continue;
+    }
+    document
+      .querySelector(endpoint.io === "modulation"
+        ? nodeGraphModulationPortSelector(endpoint.node, endpoint.param)
+        : nodeGraphPortSelector(endpoint.node, endpoint.port, endpoint.io))
+      ?.classList.remove("dragging");
+  }
 }
 
 function renderNodeGraphConnectionList() {
@@ -10855,7 +12799,13 @@ function toggleNodeGraphModuleBypass(event) {
   const button = event.currentTarget;
   const node = button.closest(".dsp-node");
   const nodeId = node?.dataset.node;
-  if (!nodeId || nodeId === "output" || !nodeGraphMvp.activeNodes.has(nodeId)) {
+  if (nodeId === "output") {
+    toggleNodeGraphLiveOutput();
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  if (!nodeId || !nodeGraphMvp.activeNodes.has(nodeId)) {
     return;
   }
 
@@ -10935,65 +12885,18 @@ function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, des
   return true;
 }
 
-function nodeGraphWireEndpointFromElement(element) {
-  if (!element) {
-    return null;
-  }
-  if (element.classList?.contains("modulation-input")) {
-    return {
-      io: "modulation",
-      node: element.dataset.node,
-      param: element.dataset.param,
-      port: element.dataset.port || element.dataset.param,
-    };
-  }
-  if (element.classList?.contains("node-port")) {
-    return {
-      io: element.dataset.io,
-      node: element.dataset.node,
-      parameterOutput: element.classList.contains("parameter-output"),
-      port: element.dataset.port,
-    };
-  }
-  return null;
-}
-
-function nodeGraphConnectWireEndpoints(a, b) {
-  if (!a || !b || a.node === b.node && a.port === b.port && a.io === b.io) {
-    return false;
-  }
-  if (a.io === "output" && b.io === "input") {
-    return connectNodeGraphPorts(a.node, a.port, b.node, b.port);
-  }
-  if (a.io === "input" && b.io === "output") {
-    return connectNodeGraphPorts(b.node, b.port, a.node, a.port);
-  }
-  if (a.io === "output" && b.io === "modulation") {
-    if (a.parameterOutput) {
-      return false;
-    }
-    return connectNodeGraphModulation(a.node, a.port, b.node, b.param);
-  }
-  if (a.io === "modulation" && b.io === "output") {
-    if (b.parameterOutput) {
-      return false;
-    }
-    return connectNodeGraphModulation(b.node, b.port, a.node, a.param);
-  }
-  return false;
-}
-
-function nodeGraphWireEndpointsShouldBurst(a, b) {
-  return Boolean(
-    a &&
-    b &&
-    ((a.io === "output" && b.io === "output") ||
-      (a.io === "input" && b.io === "input") ||
-      (a.io === "output" && a.parameterOutput && b.io === "modulation") ||
-      (a.io === "modulation" && b.io === "output" && b.parameterOutput)),
-  );
-}
-
+const nodeGraphWireEndpointFromElement = nodeGraphWireHelpers.endpointFromElement;
+const nodeGraphWireEndpointsMatch = nodeGraphWireHelpers.endpointsMatch;
+const nodeGraphFindWirePickup = nodeGraphWireHelpers.findPickup;
+const nodeGraphWireDragVisualElement = nodeGraphWireHelpers.dragVisualElement;
+const nodeGraphPointInEndpointPatchPointHitbox = nodeGraphWireHelpers.pointInEndpointHitbox;
+const nodeGraphPatchPointTargetFromPoint = nodeGraphWireHelpers.patchPointTargetFromPoint;
+const nodeGraphConnectWireEndpoints = nodeGraphWireHelpers.connectEndpoints;
+const dropNodeGraphPickedWire = nodeGraphWireHelpers.dropPickedWire;
+const nodeGraphWireEndpointsAreParameterAudioMismatch = nodeGraphWireHelpers.endpointsAreParameterAudioMismatch;
+const nodeGraphWireEndpointsShouldBurst = nodeGraphWireHelpers.endpointsShouldBurst;
+const nodeGraphWireDropTargetFromPoint = nodeGraphWireHelpers.dropTargetFromPoint;
+const nodeGraphWireEndpointPoint = nodeGraphWireHelpers.endpointPoint;
 function burstNodeGraphZap(point) {
   const surface = nodeGraphZoomSurface();
   if (!surface || !point) {
@@ -11008,7 +12911,7 @@ function burstNodeGraphZap(point) {
     const [color, glow] = colors[index % colors.length];
     const particle = document.createElement("span");
     particle.className = "node-zap-particle";
-    particle.textContent = "⌁";
+    particle.textContent = "\u2301";
     particle.style.left = `${point.x}px`;
     particle.style.top = `${point.y}px`;
     particle.style.setProperty("--zap-color", color);
@@ -11023,26 +12926,84 @@ function burstNodeGraphZap(point) {
   }
 }
 
-function beginNodeGraphWireDrag(event) {
-  const port = event.currentTarget;
+function animateNodeGraphDestroyedWire(from, to) {
+  const svg = document.getElementById("nodeWireSvg");
+  if (!svg || !from || !to) {
+    return;
+  }
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("class", "node-wire-path destroyed");
+  path.setAttribute("d", nodeGraphStraightPath(from, to));
+  path.addEventListener("animationend", () => path.remove(), { once: true });
+  svg.append(path);
+}
+
+function beginNodeGraphWireDragFromElement(event, port, options = {}) {
+  if (event.button !== 0) {
+    return;
+  }
+  if (event.altKey) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const endpoint = nodeGraphWireEndpointFromElement(port);
   if (!endpoint) {
     return;
   }
-  const from = endpoint.io === "modulation"
-    ? nodeGraphModulationPortCenter(port.dataset.node, port.dataset.param || port.dataset.port)
-    : nodeGraphPortCenter(port.dataset.node, port.dataset.port, endpoint.io);
+  const visualPort = nodeGraphWireDragVisualElement(port);
+  const pickup = nodeGraphFindWirePickup(endpoint);
+  if (
+    options.requirePatchPointHit !== false &&
+    !nodeGraphPointInEndpointPatchPointHitbox(endpoint, event.clientX, event.clientY)
+  ) {
+    return;
+  }
+  const dragEndpoint = pickup?.anchorEndpoint || endpoint;
+  const from = pickup
+    ? nodeGraphWireEndpointPoint(pickup.anchorEndpoint)
+    : endpoint.io === "modulation"
+      ? nodeGraphModulationPortCenter(port.dataset.node, port.dataset.param || port.dataset.port)
+      : nodeGraphPortCenter(port.dataset.node, port.dataset.port, endpoint.io);
   const to = nodeGraphClientPoint(event);
   nodeGraphMvp.dragging = {
-    endpoint,
+    endpoint: dragEndpoint,
     from,
+    pickup,
     to,
+    visualElement: visualPort,
   };
-  port.classList.add("dragging");
+  visualPort?.classList.add("dragging");
   port.setPointerCapture(event.pointerId);
   event.preventDefault();
   event.stopPropagation();
   drawNodeGraphWires();
+}
+
+function beginNodeGraphWireDrag(event) {
+  beginNodeGraphWireDragFromElement(event, event.currentTarget);
+}
+
+function beginNodeGraphPatchPointWireDrag(event) {
+  if (
+    event.button !== 0 ||
+    nodeGraphMvp.dragging
+  ) {
+    return;
+  }
+  if (event.target.closest?.(".node-port, .node-param-port.modulation-input")) {
+    return;
+  }
+  const target = nodeGraphPatchPointTargetFromPoint(event.clientX, event.clientY);
+  if (!target) {
+    return;
+  }
+  if (event.altKey) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  beginNodeGraphWireDragFromElement(event, target, { requirePatchPointHit: false });
 }
 
 function dragNodeGraphWire(event) {
@@ -11060,22 +13021,31 @@ function endNodeGraphWireDrag(event) {
   }
 
   const dragging = nodeGraphMvp.dragging;
-  const target = document
-    .elementFromPoint(event.clientX, event.clientY)
-    ?.closest?.(".node-port, .node-param-port.modulation-input");
+  const target = nodeGraphWireDropTargetFromPoint(event.clientX, event.clientY);
   const targetEndpoint = nodeGraphWireEndpointFromElement(target);
-  document
-    .querySelector(dragging.endpoint.io === "modulation"
-      ? nodeGraphModulationPortSelector(dragging.endpoint.node, dragging.endpoint.param)
-      : nodeGraphPortSelector(dragging.endpoint.node, dragging.endpoint.port, dragging.endpoint.io))
-    ?.classList.remove("dragging");
+  clearNodeGraphWireDragClass(dragging);
   nodeGraphMvp.dragging = null;
+
+  if (dropNodeGraphPickedWire(dragging, targetEndpoint)) {
+    return;
+  }
 
   const connected = nodeGraphConnectWireEndpoints(dragging.endpoint, targetEndpoint);
 
   if (!connected) {
     if (nodeGraphWireEndpointsShouldBurst(dragging.endpoint, targetEndpoint)) {
-      burstNodeGraphZap(nodeGraphClientPoint(event));
+      const from = dragging.from;
+      const to =
+        nodeGraphWireEndpointPoint(targetEndpoint, target) ||
+        nodeGraphClientPoint(event);
+      drawNodeGraphWires();
+      animateNodeGraphDestroyedWire(from, to);
+      burstNodeGraphZap(from);
+      burstNodeGraphZap(to);
+      if (nodeGraphWireEndpointsAreParameterAudioMismatch(dragging.endpoint, targetEndpoint)) {
+        setNodeInteractionHelp("Audio inputs take signal wires. Drop parameter wires on parameter modulation inputs.");
+      }
+      return;
     }
     drawNodeGraphWires();
   }
@@ -11132,6 +13102,54 @@ function nodeGraphNodeBounds(node) {
   };
 }
 
+function updateNodeGraphGridHeatmap() {
+  const heatmap = document.getElementById("nodeGridHeatmap");
+  const surface = nodeGraphZoomSurface();
+  if (!heatmap || !surface) {
+    return;
+  }
+
+  const visibleNodes = [...surface.querySelectorAll(".dsp-node:not(.removed):not([hidden])")];
+  if (!visibleNodes.length) {
+    heatmap.style.setProperty("--node-grid-heatmap", "none");
+    heatmap.style.setProperty("--node-grid-heatmap-mask", "none");
+    return;
+  }
+
+  const glowLayers = [];
+  const maskLayers = [];
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const zoom = nodeGraphZoom();
+  const pan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  heatmap.style.setProperty("--node-grid-heatmap-grid-position", `${Number(pan.x) || 0}px ${Number(pan.y) || 0}px`);
+  heatmap.style.setProperty(
+    "--node-grid-heatmap-grid-size",
+    `${(nodeGraphGridWidth() * zoom).toFixed(2)}px ${(nodeGraphGridHeight() * zoom).toFixed(2)}px`,
+  );
+  const spread = Math.max(
+    0.4,
+    Math.min(
+      2.2,
+      (Number.parseFloat(getComputedStyle(workspace).getPropertyValue("--node-module-light-spread")) || 1),
+    ),
+  );
+  for (const node of visibleNodes) {
+    const bounds = nodeGraphNodeBounds(node);
+    const centerX = (bounds.left + (bounds.right - bounds.left) / 2) * zoom + (Number(pan.x) || 0);
+    const centerY = (bounds.top + (bounds.bottom - bounds.top) / 2) * zoom + (Number(pan.y) || 0);
+    const radiusX = Math.max(nodeGraphGridWidth() * 5, (bounds.right - bounds.left) * 1.18) * spread * zoom;
+    const radiusY = Math.max(nodeGraphGridHeight() * 5, (bounds.bottom - bounds.top) * 1.35) * spread * zoom;
+    glowLayers.push(
+      `radial-gradient(ellipse ${radiusX.toFixed(2)}px ${radiusY.toFixed(2)}px at ${centerX.toFixed(2)}px ${centerY.toFixed(2)}px, rgba(127, 199, 217, 0.18) 0%, rgba(127, 199, 217, 0.15) 18%, rgba(226, 168, 109, 0.1) 38%, rgba(226, 168, 109, 0.045) 62%, transparent 92%)`,
+    );
+    maskLayers.push(
+      `radial-gradient(ellipse ${radiusX.toFixed(2)}px ${radiusY.toFixed(2)}px at ${centerX.toFixed(2)}px ${centerY.toFixed(2)}px, black 0%, rgb(0 0 0 / 0.95) 22%, rgb(0 0 0 / 0.72) 48%, rgb(0 0 0 / 0.28) 74%, transparent 94%)`,
+    );
+  }
+  heatmap.style.setProperty("--node-grid-heatmap", glowLayers.join(", "));
+  heatmap.style.setProperty("--node-grid-heatmap-mask", maskLayers.join(", "));
+}
+
 function nodeGraphRectsIntersect(a, b) {
   return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top;
 }
@@ -11139,25 +13157,27 @@ function nodeGraphRectsIntersect(a, b) {
 function nodeGraphWorkspaceCurrentGridSize() {
   const workspace = document.getElementById("nodeGraphWorkspace");
   const rect = workspace.getBoundingClientRect();
-  const unitPx = nodeGraphWorkspaceViewUnitPx();
+  const contentWidth = Math.max(0, rect.width - nodeGraphWorkspaceChromeSize("x"));
+  const contentHeight = Math.max(0, rect.height - nodeGraphWorkspaceChromeSize("y"));
   return {
     heightGu: Math.max(
       nodeGraphWorkspaceViewLimits.minHeightGu,
-      Math.round(rect.height / unitPx),
+      Math.round(contentHeight / nodeGraphGridHeight()),
     ),
     widthGu: Math.max(
       nodeGraphWorkspaceViewLimits.minWidthGu,
-      Math.round(rect.width / unitPx),
+      Math.round(contentWidth / nodeGraphGridWidth()),
     ),
   };
 }
 
 function setNodeGraphWorkspacePreviewSize(widthGu, heightGu) {
   const workspace = document.getElementById("nodeGraphWorkspace");
-  const unitPx = nodeGraphWorkspaceViewUnitPx();
-  workspace.style.width = `${widthGu * unitPx}px`;
-  workspace.style.height = `${heightGu * unitPx}px`;
-  workspace.style.removeProperty("aspect-ratio");
+  withNodeGraphWorkspaceContentAnchored(workspace, () => {
+    workspace.style.width = nodeGraphWorkspaceWidthCss(widthGu * nodeGraphGridWidth());
+    workspace.style.height = nodeGraphWorkspaceHeightCss(heightGu * nodeGraphGridHeight());
+    workspace.style.removeProperty("aspect-ratio");
+  });
   workspace.dataset.widthGu = String(widthGu);
   workspace.dataset.heightGu = String(heightGu);
   drawNodeGraphWires();
@@ -11192,14 +13212,13 @@ function dragNodeGraphWorkspaceResize(event) {
   if (!drag || drag.pointerId !== event.pointerId) {
     return;
   }
-  const unitPx = nodeGraphWorkspaceViewUnitPx();
   const widthGu = Math.max(
     nodeGraphWorkspaceViewLimits.minWidthGu,
-    drag.startWidthGu + Math.round((event.clientX - drag.startClientX) / unitPx),
+    drag.startWidthGu + Math.round((event.clientX - drag.startClientX) / nodeGraphGridWidth()) * 2,
   );
   const heightGu = Math.max(
     nodeGraphWorkspaceViewLimits.minHeightGu,
-    drag.startHeightGu + Math.round((event.clientY - drag.startClientY) / unitPx),
+    drag.startHeightGu + Math.round((event.clientY - drag.startClientY) / nodeGraphGridHeight()),
   );
   if (widthGu === drag.widthGu && heightGu === drag.heightGu) {
     return;
@@ -11235,8 +13254,13 @@ function endNodeGraphWorkspaceResize(event) {
   });
 }
 
+function handleNodeGraphWindowResize() {
+  applyNodeGraphWorkspaceView();
+  drawNodeGraphWires();
+}
+
 function beginNodeGraphWorkspacePan(event) {
-  if (event.button !== 1) {
+  if (event.button !== 1 || event.ctrlKey || event.altKey) {
     return;
   }
 
@@ -11261,9 +13285,15 @@ function dragNodeGraphWorkspacePan(event) {
     return;
   }
 
+  const nextX = drag.startPanX + event.clientX - drag.startClientX;
+  const nextY = drag.startPanY + event.clientY - drag.startClientY;
   setNodeGraphPan(
-    drag.startPanX + event.clientX - drag.startClientX,
-    drag.startPanY + event.clientY - drag.startClientY,
+    nodeGraphMvp.snapGridWhilePanning
+      ? snapNodeGraphPanValueToGrid(nextX, nodeGraphGridWidth())
+      : nextX,
+    nodeGraphMvp.snapGridWhilePanning
+      ? snapNodeGraphPanValueToGrid(nextY, nodeGraphGridHeight())
+      : nextY,
   );
   event.preventDefault();
   event.stopPropagation();
@@ -11290,6 +13320,12 @@ function preventNodeGraphMiddleMouseAuxClick(event) {
   if (event.button === 1 && event.target.closest("#nodeGraphWorkspace")) {
     event.preventDefault();
     event.stopPropagation();
+  }
+}
+
+function preventNodeGraphMiddleMouseDefault(event) {
+  if (event.button === 1 && event.target.closest("#nodeGraphWorkspace")) {
+    event.preventDefault();
   }
 }
 
@@ -11328,34 +13364,95 @@ function updateNodeGraphMarqueeSelection() {
   }
 
   const rect = nodeGraphRectFromPoints(drag.start, drag.current);
-  const ids = nodeGraphNodesInsideRect(rect);
+  const ids = drag.additive
+    ? [...new Set([...(drag.startSelectedIds || []), ...nodeGraphNodesInsideRect(rect)])]
+    : nodeGraphNodesInsideRect(rect);
   setNodeGraphNodeSelection(ids);
   renderNodeGraphMarqueeSelection();
+}
+
+function nodeGraphMarqueeTargetIsBlocked(target) {
+  return Boolean(target?.closest?.(
+    ".dsp-node, .node-port, .node-param-port, .node-slider-readout, .node-wire-hit-path, button, input, textarea, select",
+  ));
+}
+
+function startNodeGraphMarqueeSelection(event, workspace) {
+  const point = nodeGraphClientPoint(event);
+  const additive = event.shiftKey || event.ctrlKey || event.metaKey;
+  nodeGraphMvp.marqueeSelection = {
+    additive,
+    current: point,
+    moved: false,
+    pointerId: event.pointerId,
+    start: point,
+    startSelectedIds: [...nodeGraphSelectedNodeIds()],
+  };
+  if (!additive) {
+    setNodeGraphSelection(null);
+  }
+  renderNodeGraphMarqueeSelection();
+  workspace.setPointerCapture(event.pointerId);
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function beginNodeGraphMarqueeSelection(event) {
   if (
     event.button !== 0 ||
-    event.target.closest(
-      ".dsp-node, .node-port, .node-slider-readout, .node-wire-hit-path, button, input, textarea, select",
-    )
+    event.ctrlKey ||
+    nodeGraphMarqueeTargetIsBlocked(event.target)
   ) {
     return;
   }
 
-  const workspace = event.currentTarget;
-  const point = nodeGraphClientPoint(event);
-  nodeGraphMvp.marqueeSelection = {
-    current: point,
-    moved: false,
+  startNodeGraphMarqueeSelection(event, event.currentTarget);
+}
+
+function nodeGraphOutsideMarqueeStartIsBlocked(target) {
+  return Boolean(target?.closest?.(
+    "#nodeGraphWorkspace, #nodeSceneContextMenu, #nodeParameterMetadataPopover, #nodeUiDevHelper, #nodeUserUiSettingsPanel, button, input, textarea, select",
+  ));
+}
+
+function trackNodeGraphOutsideMarqueePointer(event) {
+  if (event.button !== 0 || nodeGraphOutsideMarqueeStartIsBlocked(event.target)) {
+    nodeGraphMvp.marqueeSelectionEntryPointer = null;
+    return;
+  }
+  nodeGraphMvp.marqueeSelectionEntryPointer = {
+    additive: event.shiftKey || event.ctrlKey || event.metaKey,
     pointerId: event.pointerId,
-    start: point,
   };
-  setNodeGraphSelection(null);
-  renderNodeGraphMarqueeSelection();
-  workspace.setPointerCapture(event.pointerId);
-  event.preventDefault();
-  event.stopPropagation();
+}
+
+function clearNodeGraphOutsideMarqueePointer(event) {
+  if (
+    !nodeGraphMvp.marqueeSelectionEntryPointer ||
+    nodeGraphMvp.marqueeSelectionEntryPointer.pointerId === event.pointerId
+  ) {
+    nodeGraphMvp.marqueeSelectionEntryPointer = null;
+  }
+}
+
+function beginNodeGraphMarqueeSelectionOnEntry(event) {
+  const entry = nodeGraphMvp.marqueeSelectionEntryPointer;
+  if (
+    !entry ||
+    entry.pointerId !== event.pointerId ||
+    !(event.buttons & 1) ||
+    event.ctrlKey ||
+    nodeGraphMvp.marqueeSelection ||
+    nodeGraphMvp.dragging ||
+    nodeGraphMvp.nodeDragging ||
+    nodeGraphMvp.workspacePanning ||
+    nodeGraphMvp.smoothZoomDragging ||
+    nodeGraphMvp.workspaceResizing
+  ) {
+    return;
+  }
+  startNodeGraphMarqueeSelection(event, event.currentTarget);
+  nodeGraphMvp.marqueeSelectionEntryPointer = null;
 }
 
 function dragNodeGraphMarqueeSelection(event) {
@@ -11385,7 +13482,7 @@ function endNodeGraphMarqueeSelection(event) {
 
   if (drag.moved) {
     updateNodeGraphMarqueeSelection();
-  } else {
+  } else if (!drag.additive) {
     setNodeGraphSelection(null);
   }
   nodeGraphMvp.marqueeSelection = null;
@@ -11409,6 +13506,19 @@ function positionNodeSceneContextMenu(menu, x, y, remember = false) {
     nodeGraphMvp.moduleActionWindowPosition = { left, top };
     syncNodeGraphPatchWindowPosition("moduleActions", { left, top });
   }
+}
+
+function positionNodeSceneContextMenuAtSavedOr(menu, x, y) {
+  const savedPosition = nodeGraphMvp.moduleActionWindowPosition;
+  const hasSavedPosition =
+    Number.isFinite(Number(savedPosition?.left)) &&
+    Number.isFinite(Number(savedPosition?.top));
+  positionNodeSceneContextMenu(
+    menu,
+    hasSavedPosition ? savedPosition.left : x,
+    hasSavedPosition ? savedPosition.top : y,
+    !hasSavedPosition,
+  );
 }
 
 function beginNodeSceneContextMenuDrag(event) {
@@ -11476,40 +13586,199 @@ function configureNodeSceneContextMenu(mode) {
   const copyButton = document.getElementById("nodeSceneCopyModule");
   const deleteButton = document.getElementById("nodeSceneDeleteModule");
   const closeButton = document.getElementById("nodeSceneCloseMenu");
+  const selectedModule = document.getElementById("nodeSceneSelectedModule");
+  const aliasControl = document.getElementById("nodeSceneAliasControl");
+  const aliasInput = document.getElementById("nodeSceneAliasInput");
   const widthControls = document.getElementById("nodeSceneWidthControls");
   const widthDecrease = document.getElementById("nodeSceneWidthDecrease");
   const widthIncrease = document.getElementById("nodeSceneWidthIncrease");
   const widthValue = document.getElementById("nodeSceneWidthValue");
+  const textBoxHeightControls = document.getElementById("nodeSceneTextBoxHeightControls");
+  const textBoxHeightDecrease = document.getElementById("nodeSceneTextBoxHeightDecrease");
+  const textBoxHeightIncrease = document.getElementById("nodeSceneTextBoxHeightIncrease");
+  const textBoxHeightValue = document.getElementById("nodeSceneTextBoxHeightValue");
+  const textBoxTextSizeControls = document.getElementById("nodeSceneTextBoxTextSizeControls");
+  const textBoxTextSizeDecrease = document.getElementById("nodeSceneTextBoxTextSizeDecrease");
+  const textBoxTextSizeIncrease = document.getElementById("nodeSceneTextBoxTextSizeIncrease");
+  const textBoxTextSizeValue = document.getElementById("nodeSceneTextBoxTextSizeValue");
+  const textBoxTextControls = document.getElementById("nodeSceneTextBoxTextControls");
+  const textBoxTextInput = document.getElementById("nodeSceneTextBoxTextInput");
+  const toggleButtonsButton = document.getElementById("nodeSceneToggleButtons");
+  const toggleTitleButton = document.getElementById("nodeSceneToggleTitle");
+  const textBoxControls = document.getElementById("nodeSceneTextBoxControls");
+  const textBoxSingleLine = document.getElementById("nodeSceneTextBoxSingleLine");
+  const textBoxMultiline = document.getElementById("nodeSceneTextBoxMultiline");
+  const textBoxHorizontalAlignControls = document.getElementById("nodeSceneTextBoxHorizontalAlignControls");
+  const textBoxAlignLeft = document.getElementById("nodeSceneTextBoxAlignLeft");
+  const textBoxAlignCenter = document.getElementById("nodeSceneTextBoxAlignCenter");
+  const textBoxAlignRight = document.getElementById("nodeSceneTextBoxAlignRight");
+  const textBoxVerticalAlignControls = document.getElementById("nodeSceneTextBoxVerticalAlignControls");
+  const textBoxVerticalAlign = document.getElementById("nodeSceneTextBoxVerticalAlign");
+  const textBoxVerticalAlignValue = document.getElementById("nodeSceneTextBoxVerticalAlignValue");
   const moduleMode = mode === "module";
-  const targetNode = nodeGraphPatchNode(nodeGraphMvp.sceneContextTargetNode);
+  const wireMode = mode === "wire";
+  menu.dataset.mode = mode;
+  const targetNodeId = moduleMode ? nodeGraphModuleActionTargetNodeId() : null;
+  if (targetNodeId) {
+    nodeGraphMvp.sceneContextTargetNode = targetNodeId;
+  }
+  const targetNode = targetNodeId ? nodeGraphPatchNode(targetNodeId) : null;
+  const selectedNodeIds = nodeGraphSelectedNodeIds();
+  const selectedWire = wireMode ? nodeGraphWireFromSelection(nodeGraphMvp.selected) : null;
+  const canDelete = wireMode
+    ? Boolean(selectedWire)
+    : moduleMode && (
+      targetNode
+        ? nodeGraphNodeCanBeDeleted(targetNode)
+        : [...selectedNodeIds].some((id) => {
+          const node = nodeGraphPatchNode(id);
+          return nodeGraphMvp.activeNodes.has(id) && nodeGraphNodeCanBeDeleted(node);
+        })
+    );
   const canCopy = moduleMode && targetNode?.type !== "output";
-  const canDelete = moduleMode && targetNode && targetNode.type !== "output";
   const widthGu = targetNode ? nodeGraphPatchNodeGridWidthUnits(targetNode) : 0;
-  title.textContent = moduleMode ? "MODULE ACTIONS" : "Add Module";
-  menu.setAttribute("aria-label", moduleMode ? "Module actions" : "Add module");
-  addGroup.hidden = moduleMode;
+  const heightGu = targetNode ? nodeGraphPatchNodeGridHeightUnits(targetNode) : 0;
+  const targetNodeUi = normalizeNodeGraphPatchNodeUi(targetNode?.ui);
+  const buttonsHidden = targetNodeUi.buttonsHidden;
+  const titleHidden = targetNodeUi.titleHidden;
+  const textBoxLayout = normalizeNodeGraphTextBoxLayout(targetNode?.layout);
+  const textBoxMode = textBoxLayout.textMode;
+  title.textContent = wireMode ? "WIRE ACTIONS" : moduleMode ? "ACTIONS" : "circuits:";
+  menu.setAttribute("aria-label", wireMode ? "Wire actions" : moduleMode ? "Module actions" : "Add module");
+  addGroup.hidden = moduleMode || wireMode;
   copyButton.hidden = !moduleMode;
-  deleteButton.hidden = !moduleMode;
+  deleteButton.hidden = !(moduleMode || wireMode);
+  selectedModule.hidden = !(moduleMode || wireMode);
+  aliasControl.hidden = !moduleMode;
   widthControls.hidden = !moduleMode;
+  textBoxHeightControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  textBoxTextSizeControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  textBoxTextControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  toggleButtonsButton.hidden = !moduleMode;
+  toggleTitleButton.hidden = !moduleMode;
+  textBoxControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  textBoxHorizontalAlignControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  textBoxVerticalAlignControls.hidden = !(moduleMode && targetNode?.type === "textBox");
   closeButton.hidden = false;
   if (moduleMode) {
+    selectedModule.querySelector("span").textContent = selectedNodeIds.size > 1 ? "selected modules" : "selected module";
+    selectedModule.querySelector("strong").textContent = targetNode
+      ? `${nodeGraphNodeDisplayName(targetNode.id)} (${targetNode.id})`
+      : selectedNodeIds.size > 1
+        ? `${selectedNodeIds.size} modules`
+        : "none";
+    aliasInput.disabled = !targetNode;
+    aliasInput.value = targetNode ? normalizeNodeGraphPatchNodeAlias(targetNode.alias) : "";
+    aliasInput.placeholder = targetNode ? nodeGraphDefaultNodeTitle(targetNode.type, targetNode.id) : "module title alias";
+    aliasInput.title = nodeGraphTooltipText("actions.moduleAlias");
     copyButton.disabled = !canCopy;
-    copyButton.title = canCopy ? "Copy module (Ctrl+C)" : "Copy unavailable: Output module is required";
+    copyButton.title = canCopy
+      ? nodeGraphTooltipText("actions.copyModule")
+      : targetNode
+        ? nodeGraphTooltipText("actions.copyUnavailableOutput")
+        : nodeGraphTooltipText("actions.copyUnavailableOneModule");
     deleteButton.disabled = !canDelete;
-    deleteButton.title = canDelete ? "Delete module (Delete)" : "Delete unavailable: Output module is required";
+    deleteButton.title = canDelete
+      ? nodeGraphTooltipText("actions.deleteModule")
+      : targetNode
+        ? nodeGraphTooltipText("actions.deleteUnavailableOutput")
+        : nodeGraphTooltipText("actions.deleteUnavailableOneModule");
     widthValue.textContent = `${widthGu} gu`;
-    widthDecrease.disabled = widthGu <= nodeGraphModuleWidthLimits.minGu;
-    widthDecrease.title = "Decrease this module width by one grid unit";
-    widthIncrease.disabled = widthGu >= nodeGraphModuleWidthLimits.maxGu;
-    widthIncrease.title = "Increase this module width by one grid unit";
-  } else {
+    widthDecrease.disabled = !targetNode || widthGu <= nodeGraphModuleWidthLimits.minGu;
+    widthDecrease.title = nodeGraphTooltipText("actions.widthDecrease");
+    widthIncrease.disabled = !targetNode || widthGu >= nodeGraphModuleWidthLimits.maxGu;
+    widthIncrease.title = nodeGraphTooltipText("actions.widthIncrease");
+    textBoxHeightValue.textContent = `${heightGu} gu high`;
+    textBoxHeightDecrease.disabled = !targetNode || targetNode.type !== "textBox" || heightGu <= nodeGraphTextBoxHeightLimits.minGu;
+    textBoxHeightDecrease.title = nodeGraphTooltipText("actions.textBoxHeightDecrease");
+    textBoxHeightIncrease.disabled = !targetNode || targetNode.type !== "textBox" || heightGu >= nodeGraphTextBoxHeightLimits.maxGu;
+    textBoxHeightIncrease.title = nodeGraphTooltipText("actions.textBoxHeightIncrease");
+    textBoxTextSizeValue.textContent = `${textBoxLayout.textSizePercent}% text`;
+    textBoxTextSizeDecrease.disabled =
+      !targetNode ||
+      targetNode.type !== "textBox" ||
+      textBoxLayout.textSizePercent <= nodeGraphTextBoxTextSizeLimits.minPercent;
+    textBoxTextSizeDecrease.title = nodeGraphTooltipText("actions.textBoxTextSizeDecrease");
+    textBoxTextSizeIncrease.disabled =
+      !targetNode ||
+      targetNode.type !== "textBox" ||
+      textBoxLayout.textSizePercent >= nodeGraphTextBoxTextSizeLimits.maxPercent;
+    textBoxTextSizeIncrease.title = nodeGraphTooltipText("actions.textBoxTextSizeIncrease");
+    toggleButtonsButton.disabled = !targetNode;
+    toggleButtonsButton.querySelector("span").textContent = buttonsHidden ? "Show buttons" : "Hide buttons";
+    toggleButtonsButton.setAttribute("aria-pressed", buttonsHidden ? "true" : "false");
+    toggleButtonsButton.title = nodeGraphTooltipText(buttonsHidden ? "actions.showModuleButtons" : "actions.hideModuleButtons");
+    toggleTitleButton.disabled = !targetNode;
+    toggleTitleButton.querySelector("span").textContent = titleHidden ? "Show title" : "Hide title";
+    toggleTitleButton.setAttribute("aria-pressed", titleHidden ? "true" : "false");
+    toggleTitleButton.title = nodeGraphTooltipText(titleHidden ? "actions.showModuleTitle" : "actions.hideModuleTitle");
+    textBoxSingleLine.setAttribute("aria-pressed", textBoxMode === "singleLine" ? "true" : "false");
+    textBoxMultiline.setAttribute("aria-pressed", textBoxMode === "multiline" ? "true" : "false");
+    textBoxSingleLine.title = nodeGraphTooltipText("actions.textBoxSingleLine");
+    textBoxMultiline.title = nodeGraphTooltipText("actions.textBoxMultiline");
+    textBoxTextInput.disabled = !targetNode || targetNode.type !== "textBox";
+    textBoxTextInput.value = targetNode?.type === "textBox" ? textBoxLayout.text : "";
+    textBoxTextInput.title = nodeGraphTooltipText("actions.textBoxContent");
+    textBoxAlignLeft.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "left" ? "true" : "false");
+    textBoxAlignCenter.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "center" ? "true" : "false");
+    textBoxAlignRight.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "right" ? "true" : "false");
+    textBoxVerticalAlign.disabled = !targetNode || targetNode.type !== "textBox";
+    textBoxVerticalAlign.value = String(textBoxLayout.verticalAlignPercent);
+    textBoxVerticalAlignValue.textContent = `${textBoxLayout.verticalAlignPercent}%`;
+    textBoxVerticalAlign.title = nodeGraphTooltipText("actions.textBoxVerticalPosition");
+    textBoxAlignLeft.title = nodeGraphTooltipText("actions.textBoxAlignLeft");
+    textBoxAlignCenter.title = nodeGraphTooltipText("actions.textBoxAlignCenter");
+    textBoxAlignRight.title = nodeGraphTooltipText("actions.textBoxAlignRight");
+  } else if (wireMode) {
+    selectedModule.querySelector("span").textContent = selectedWire?.kind === "modulation"
+      ? "selected modulation"
+      : "selected wire";
+    selectedModule.querySelector("strong").textContent = nodeGraphWireSelectionLabel(nodeGraphMvp.selected);
+    deleteButton.disabled = !canDelete;
+    deleteButton.title = canDelete
+      ? nodeGraphTooltipText("actions.deleteWire")
+      : nodeGraphTooltipText("actions.deleteWireMissing");
     copyButton.disabled = true;
-    copyButton.title = "Copy unavailable: select a module";
-    deleteButton.disabled = true;
-    deleteButton.title = "Delete unavailable: select a module";
+    copyButton.title = nodeGraphTooltipText("actions.copyUnavailableWire");
     widthValue.textContent = "";
     widthDecrease.disabled = true;
     widthIncrease.disabled = true;
+    textBoxHeightValue.textContent = "";
+    textBoxHeightDecrease.disabled = true;
+    textBoxHeightIncrease.disabled = true;
+    textBoxTextSizeValue.textContent = "";
+    textBoxTextSizeDecrease.disabled = true;
+    textBoxTextSizeIncrease.disabled = true;
+    textBoxTextInput.value = "";
+    textBoxTextInput.disabled = true;
+    textBoxVerticalAlign.value = "50";
+    textBoxVerticalAlignValue.textContent = "";
+    textBoxVerticalAlign.disabled = true;
+    toggleButtonsButton.disabled = true;
+    toggleTitleButton.disabled = true;
+  } else {
+    selectedModule.querySelector("span").textContent = "selected";
+    selectedModule.querySelector("strong").textContent = "none";
+    copyButton.disabled = true;
+    copyButton.title = nodeGraphTooltipText("actions.copyUnavailableModule");
+    deleteButton.disabled = true;
+    deleteButton.title = nodeGraphTooltipText("actions.deleteTitle");
+    widthValue.textContent = "";
+    widthDecrease.disabled = true;
+    widthIncrease.disabled = true;
+    textBoxHeightValue.textContent = "";
+    textBoxHeightDecrease.disabled = true;
+    textBoxHeightIncrease.disabled = true;
+    textBoxTextSizeValue.textContent = "";
+    textBoxTextSizeDecrease.disabled = true;
+    textBoxTextSizeIncrease.disabled = true;
+    textBoxTextInput.value = "";
+    textBoxTextInput.disabled = true;
+    textBoxVerticalAlign.value = "50";
+    textBoxVerticalAlignValue.textContent = "";
+    textBoxVerticalAlign.disabled = true;
+    toggleButtonsButton.disabled = true;
+    toggleTitleButton.disabled = true;
   }
 }
 
@@ -11522,22 +13791,32 @@ function openNodeModuleActionMenu(event) {
 
   nodeGraphMvp.sceneContextPoint = null;
   nodeGraphMvp.sceneContextTargetNode = node.dataset.node;
+  nodeGraphMvp.sceneContextTargetWire = null;
   configureNodeSceneContextMenu("module");
-  const savedPosition = nodeGraphMvp.moduleActionWindowPosition;
   const rect = button.getBoundingClientRect();
-  positionNodeSceneContextMenu(
+  positionNodeSceneContextMenuAtSavedOr(
     document.getElementById("nodeSceneContextMenu"),
-    savedPosition?.left ?? rect.right,
-    savedPosition?.top ?? rect.bottom,
+    rect.right,
+    rect.bottom,
   );
   event.preventDefault();
   event.stopPropagation();
 }
 
 function openNodeSceneContextMenu(event) {
-  if (event.target.closest(".dsp-node")) {
+  const contextNode = event.target.closest(".dsp-node");
+  if (contextNode) {
     event.preventDefault();
     event.stopPropagation();
+    nodeGraphMvp.sceneContextPoint = null;
+    nodeGraphMvp.sceneContextTargetNode = contextNode.dataset.node;
+    nodeGraphMvp.sceneContextTargetWire = null;
+    configureNodeSceneContextMenu("module");
+    positionNodeSceneContextMenuAtSavedOr(
+      document.getElementById("nodeSceneContextMenu"),
+      event.clientX,
+      event.clientY,
+    );
     return;
   }
   if (event.target.closest(".node-port, .node-param-port, .node-slider-readout")) {
@@ -11548,8 +13827,9 @@ function openNodeSceneContextMenu(event) {
   event.stopPropagation();
   nodeGraphMvp.sceneContextPoint = nodeGraphClientPoint(event);
   nodeGraphMvp.sceneContextTargetNode = null;
+  nodeGraphMvp.sceneContextTargetWire = null;
   configureNodeSceneContextMenu("add");
-  positionNodeSceneContextMenu(
+  positionNodeSceneContextMenuAtSavedOr(
     document.getElementById("nodeSceneContextMenu"),
     event.clientX,
     event.clientY,
@@ -11557,7 +13837,12 @@ function openNodeSceneContextMenu(event) {
 }
 
 function beginNodeGraphNodeDrag(event) {
-  const handle = event.currentTarget.closest(".node-drag-handle");
+  if (event.button !== undefined && event.button !== 0) {
+    return;
+  }
+  const handle = event.currentTarget.closest(
+    ".node-drag-handle, .node-header-title-row",
+  );
   if (!handle) {
     return;
   }
@@ -11567,12 +13852,24 @@ function beginNodeGraphNodeDrag(event) {
     return;
   }
 
+  const additiveSelection = event.ctrlKey || event.metaKey || event.shiftKey;
+  if (!event.altKey) {
+    toggleNodeGraphNodeSelection(node.dataset.node, additiveSelection);
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
   const selectedNodeIds = nodeGraphSelectedNodeIds();
   const wasSelectedAtStart = selectedNodeIds.has(node.dataset.node);
   const point = nodeGraphClientPoint(event);
-  const additiveSelection = event.ctrlKey || event.metaKey || event.shiftKey;
-  const draggedNodeIds = wasSelectedAtStart
-    ? selectedNodeIds
+  const additiveDragSelection = additiveSelection || event.altKey;
+  const pendingSelectionIds = new Set(selectedNodeIds);
+  if (additiveDragSelection) {
+    pendingSelectionIds.add(node.dataset.node);
+  }
+  const draggedNodeIds = wasSelectedAtStart || additiveDragSelection
+    ? pendingSelectionIds
     : new Set([node.dataset.node]);
   const draggedNodes = [...draggedNodeIds]
     .map((id) => nodeGraphNodeElement(id))
@@ -11589,12 +13886,15 @@ function beginNodeGraphNodeDrag(event) {
     });
 
   nodeGraphMvp.nodeDragging = {
+    altStarted: event.altKey,
     draggedNodes,
     handle,
     moved: false,
     node,
     startPoint: point,
     additiveSelection,
+    additiveDragSelection,
+    pendingSelectionIds: [...pendingSelectionIds],
     wasSelectedAtStart,
   };
   for (const dragged of draggedNodes) {
@@ -11611,7 +13911,10 @@ function dragNodeGraphNode(event) {
     return;
   }
 
-  const { draggedNodes, startPoint } = nodeGraphMvp.nodeDragging;
+  const { altStarted, draggedNodes, startPoint } = nodeGraphMvp.nodeDragging;
+  if (!altStarted) {
+    return;
+  }
   const point = nodeGraphClientPoint(event);
   const deltaX = point.x - startPoint.x;
   const deltaY = point.y - startPoint.y;
@@ -11622,7 +13925,7 @@ function dragNodeGraphNode(event) {
     positionNodeGraphNode(dragged.element, {
       x: dragged.startX + deltaX,
       y: dragged.startY + deltaY,
-    });
+    }, { clamp: false });
   }
   drawNodeGraphWires();
 }
@@ -11632,7 +13935,16 @@ function endNodeGraphNodeDrag(event) {
     return;
   }
 
-  const { additiveSelection, draggedNodes, handle, moved, node } = nodeGraphMvp.nodeDragging;
+  const {
+    additiveSelection,
+    additiveDragSelection,
+    altStarted,
+    draggedNodes,
+    handle,
+    moved,
+    node,
+    pendingSelectionIds,
+  } = nodeGraphMvp.nodeDragging;
   for (const dragged of draggedNodes) {
     dragged.element.classList.remove("dragging");
   }
@@ -11641,9 +13953,15 @@ function endNodeGraphNodeDrag(event) {
     handle.releasePointerCapture(event.pointerId);
   }
   nodeGraphMvp.nodeDragging = null;
+  if (!altStarted) {
+    return;
+  }
   if (!moved) {
     toggleNodeGraphNodeSelection(node.dataset.node, additiveSelection);
     return;
+  }
+  if (additiveDragSelection) {
+    setNodeGraphNodeSelection(pendingSelectionIds);
   }
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
   for (const dragged of draggedNodes) {
@@ -11657,17 +13975,6 @@ function endNodeGraphNodeDrag(event) {
     }
   }
   commitNodeGraphPatch(patch, { status: "layout snapped" });
-}
-
-function restoreDefaultNodeGraph() {
-  if (!nodeGraphScriptReadyForGraphAction("default chain")) {
-    return;
-  }
-  setNodeGraphSelection(null);
-  commitNodeGraphPatch(cloneNodeGraphPatch(nodeGraphDefaultPatch), {
-    status: "default chain",
-  });
-  loadNodeMetadataKindTemplates();
 }
 
 function clearNodeGraphWires() {
@@ -11701,9 +14008,44 @@ function defaultNodeGraphModuleGridPoint(type) {
   };
 }
 
+function ensureNodeGraphLiveInputModule() {
+  if (nodeGraphMvp.patch.nodes.some((node) => node.type === "audioInput")) {
+    return false;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const counts = nextNodeGraphTypeCounts(patch.nodes);
+  const id = counts.audioInput > 0 ? `audioInput-${counts.audioInput + 1}` : "audioInput";
+  const gridPoint = nodeGraphFindFreeModuleGridPoint("audioInput", patch.nodes, { gx: 0, gy: 1 });
+  patch.nodes.push(createNodeGraphPatchNode("audioInput", {
+    id,
+    gx: gridPoint.gx,
+    gy: gridPoint.gy,
+  }));
+  commitNodeGraphPatch(patch, { status: "input module shown" });
+  return true;
+}
+
+function nodeGraphFindFreeModuleGridPoint(type, nodes = nodeGraphMvp.patch.nodes, preferred = null) {
+  const start = preferred || defaultNodeGraphModuleGridPoint(type);
+  for (let rowOffset = 0; rowOffset < 200; rowOffset += 1) {
+    const candidate = {
+      gx: start.gx,
+      gy: start.gy + rowOffset,
+      type,
+    };
+    const rect = nodeGraphPatchNodeGridRect(candidate);
+    const overlaps = nodes.some((node) => nodeGraphGridRectsOverlap(rect, nodeGraphPatchNodeGridRect(node)));
+    if (!overlaps) {
+      return { gx: candidate.gx, gy: candidate.gy };
+    }
+  }
+  return { gx: start.gx, gy: start.gy + 200 };
+}
+
 function nodeGraphPatchNodeGridRect(node) {
   return {
-    bottom: node.gy + nodeGraphModuleGridHeightUnits(node.type),
+    bottom: node.gy + nodeGraphPatchNodeGridHeightUnits(node),
     left: node.gx,
     right: node.gx + nodeGraphPatchNodeGridWidthUnits(node),
     top: node.gy,
@@ -11773,11 +14115,16 @@ function copyNodeGraphModule(sourceNode) {
   const gridPoint = nodeGraphFindCopiedModuleGridPoint(sourceNode, patch.nodes);
   patch.nodes.push({
     ...createNodeGraphPatchNode(sourceNode.type, {
+      alias: sourceNode.alias,
       gx: gridPoint.gx,
       gy: gridPoint.gy,
       id,
+      layout: sourceNode.layout,
+      ui: sourceNode.ui,
       ...(Object.hasOwn(sourceNode, "widthGu") ? { widthGu: sourceNode.widthGu } : {}),
+      ...(Object.hasOwn(sourceNode, "heightGu") ? { heightGu: sourceNode.heightGu } : {}),
     }),
+    ...(sourceNode.layout ? { layout: normalizeNodeGraphTextBoxLayout(sourceNode.layout) } : {}),
     paramMeta: cloneNodeGraphParamMeta(sourceNode.paramMeta),
     params: { ...(sourceNode.params || {}) },
   });
@@ -11786,15 +14133,34 @@ function copyNodeGraphModule(sourceNode) {
 }
 
 function copyNodeGraphModuleFromContext() {
-  const sourceNode = nodeGraphPatchNode(nodeGraphMvp.sceneContextTargetNode);
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
   if (sourceNode && sourceNode.type !== "output") {
-    copyNodeGraphModule(sourceNode);
+    const copiedNodeId = copyNodeGraphModule(sourceNode);
+    if (copiedNodeId) {
+      nodeGraphMvp.sceneContextTargetNode = copiedNodeId;
+      setNodeGraphNodeSelection([copiedNodeId]);
+    }
   }
-  closeNodeSceneContextMenu();
+  configureNodeSceneContextMenu("module");
+}
+
+function deleteNodeGraphSelectionFromContext() {
+  deleteSelectedNodeGraphItem();
+  const menu = document.getElementById("nodeSceneContextMenu");
+  if (!menu || menu.hidden) {
+    return;
+  }
+  if (nodeGraphMvp.selected?.type === "wire") {
+    configureNodeSceneContextMenu("wire");
+  } else if (nodeGraphSelectedNodeIds().size) {
+    configureNodeSceneContextMenu("module");
+  } else {
+    configureNodeSceneContextMenu(menu.dataset.mode === "wire" ? "wire" : "module");
+  }
 }
 
 function adjustNodeGraphModuleWidthFromContext(delta) {
-  const sourceNode = nodeGraphPatchNode(nodeGraphMvp.sceneContextTargetNode);
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
   if (!sourceNode) {
     return;
   }
@@ -11821,6 +14187,227 @@ function adjustNodeGraphModuleWidthFromContext(delta) {
   configureNodeSceneContextMenu("module");
 }
 
+function adjustNodeGraphTextBoxHeightFromContext(delta) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(targetNode);
+  const nextHeightGu = normalizeNodeGraphTextBoxHeightUnits(currentHeightGu + delta);
+  if (nextHeightGu === currentHeightGu) {
+    configureNodeSceneContextMenu("module");
+    return;
+  }
+
+  const defaultHeightGu = nodeGraphModuleGridHeightUnitsForUi("textBox", targetNode.ui);
+  if (nextHeightGu === defaultHeightGu) {
+    delete targetNode.heightGu;
+  } else {
+    targetNode.heightGu = nextHeightGu;
+  }
+  commitNodeGraphPatch(patch, { status: "text box height changed" });
+  configureNodeSceneContextMenu("module");
+}
+
+function adjustNodeGraphTextBoxTextSizeFromContext(delta) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const currentLayout = normalizeNodeGraphTextBoxLayout(targetNode.layout);
+  const nextTextSizePercent = normalizeNodeGraphTextBoxTextSizePercent(
+    currentLayout.textSizePercent + delta,
+  );
+  if (nextTextSizePercent === currentLayout.textSizePercent) {
+    configureNodeSceneContextMenu("module");
+    return;
+  }
+  targetNode.layout = normalizeNodeGraphTextBoxLayout({
+    ...currentLayout,
+    textSizePercent: nextTextSizePercent,
+  });
+  commitNodeGraphPatch(patch, { status: "text box text size changed" });
+  configureNodeSceneContextMenu("module");
+}
+
+function setNodeGraphModuleAliasFromContext({ record = true } = {}) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode) {
+    return;
+  }
+  const input = document.getElementById("nodeSceneAliasInput");
+  const alias = normalizeNodeGraphPatchNodeAlias(input?.value);
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  if (alias) {
+    targetNode.alias = alias;
+  } else {
+    delete targetNode.alias;
+  }
+  commitNodeGraphPatch(patch, {
+    record,
+    status: alias ? "module alias changed" : "module alias cleared",
+  });
+  if (document.activeElement === input) {
+    input.focus();
+    input.setSelectionRange?.(input.value.length, input.value.length);
+  }
+}
+
+function setNodeGraphTextBoxModeFromContext(textMode) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  targetNode.layout = normalizeNodeGraphTextBoxLayout({
+    ...(targetNode.layout || {}),
+    textMode,
+  });
+  commitNodeGraphPatch(patch, { status: "text box mode changed" });
+  configureNodeSceneContextMenu("module");
+}
+
+function setNodeGraphTextBoxTextFromContext({ record = true } = {}) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+  const input = document.getElementById("nodeSceneTextBoxTextInput");
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const currentLayout = normalizeNodeGraphTextBoxLayout(targetNode.layout);
+  targetNode.layout = normalizeNodeGraphTextBoxLayout({
+    ...currentLayout,
+    text: input?.value ?? "",
+  });
+  commitNodeGraphPatch(patch, {
+    record,
+    status: "text box text changed",
+  });
+  if (document.activeElement === input) {
+    input.focus();
+  }
+}
+
+function setNodeGraphTextBoxHorizontalAlignFromContext(value) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const currentLayout = normalizeNodeGraphTextBoxLayout(targetNode.layout);
+  targetNode.layout = normalizeNodeGraphTextBoxLayout({
+    ...currentLayout,
+    horizontalAlign: value,
+  });
+  commitNodeGraphPatch(patch, { status: "text box alignment changed" });
+  configureNodeSceneContextMenu("module");
+}
+
+function setNodeGraphTextBoxVerticalAlignFromContext({ record = true } = {}) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+  const input = document.getElementById("nodeSceneTextBoxVerticalAlign");
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const currentLayout = normalizeNodeGraphTextBoxLayout(targetNode.layout);
+  const verticalAlignPercent = normalizeNodeGraphTextBoxVerticalAlignPercent(input?.value);
+  targetNode.layout = normalizeNodeGraphTextBoxLayout({
+    ...currentLayout,
+    verticalAlignPercent,
+  });
+  commitNodeGraphPatch(patch, {
+    record,
+    status: "text box vertical position changed",
+  });
+  document.getElementById("nodeSceneTextBoxVerticalAlignValue").textContent = `${verticalAlignPercent}%`;
+  if (document.activeElement === input) {
+    input.focus();
+  }
+}
+
+function toggleNodeGraphModuleButtonsFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode) {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const ui = normalizeNodeGraphPatchNodeUi(targetNode.ui);
+  ui.buttonsHidden = !ui.buttonsHidden;
+  if (ui.buttonsHidden || ui.titleHidden) {
+    targetNode.ui = ui;
+  } else {
+    delete targetNode.ui;
+  }
+  commitNodeGraphPatch(patch, {
+    status: ui.buttonsHidden ? "module buttons hidden" : "module buttons shown",
+  });
+  configureNodeSceneContextMenu("module");
+}
+
+function toggleNodeGraphModuleTitleFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode) {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const ui = normalizeNodeGraphPatchNodeUi(targetNode.ui);
+  ui.titleHidden = !ui.titleHidden;
+  if (ui.buttonsHidden || ui.titleHidden) {
+    targetNode.ui = ui;
+  } else {
+    delete targetNode.ui;
+  }
+  commitNodeGraphPatch(patch, {
+    status: ui.titleHidden ? "module title hidden" : "module title shown",
+  });
+  configureNodeSceneContextMenu("module");
+}
+
 function copySelectedNodeGraphModule() {
   const selectedNodeIds = [...nodeGraphSelectedNodeIds()];
   if (selectedNodeIds.length !== 1) {
@@ -11835,7 +14422,7 @@ function copySelectedNodeGraphModule() {
 }
 
 function deleteNodeGraphModuleFromContext() {
-  const targetNode = nodeGraphPatchNode(nodeGraphMvp.sceneContextTargetNode);
+  const targetNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
   if (targetNode && targetNode.type !== "output") {
     const targetNodeIds = new Set([targetNode.id]);
     const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
@@ -11851,12 +14438,16 @@ function deleteNodeGraphModuleFromContext() {
         !targetNodeIds.has(modulation.sourceNode) &&
         !targetNodeIds.has(modulation.destinationNode),
     );
+    commitNodeGraphPatch(patch, { status: "module deleted" });
+    nodeGraphMvp.sceneContextTargetNode = null;
     if (nodeGraphSelectedNodeIds().has(targetNode.id)) {
       setNodeGraphSelection(null);
+    } else {
+      configureNodeSceneContextMenu("module");
     }
-    commitNodeGraphPatch(patch, { status: "module deleted" });
+    return;
   }
-  closeNodeSceneContextMenu();
+  configureNodeSceneContextMenu("module");
 }
 
 function setNodeGraphViewMode(mode) {
@@ -11865,20 +14456,25 @@ function setNodeGraphViewMode(mode) {
   }
   const settingsMode = mode === "settings";
   const scriptMode = mode === "script";
-  const modularMode = !settingsMode && !scriptMode;
+  const modularOnlyMode = mode === "modular-only";
+  const modularMode = modularOnlyMode || (!settingsMode && !scriptMode);
+  document.getElementById("nodeWiringPanel")?.classList.toggle("modular-only-view", modularOnlyMode);
   document.getElementById("nodeGraphWorkspace").hidden = !modularMode;
   document.getElementById("nodeScriptView").hidden = !scriptMode;
   document.getElementById("nodeSettingsView").hidden = !settingsMode;
   document.getElementById("nodeSettingsViewButton").classList.toggle("active", settingsMode);
-  document.getElementById("nodeModularViewButton").classList.toggle("active", modularMode);
-  document.getElementById("nodeScriptViewButton").classList.toggle("active", scriptMode);
+  document.getElementById("nodeModularViewButton").classList.toggle("active", modularMode && !modularOnlyMode);
+  document.getElementById("nodeModularOnlyViewButton").classList.toggle("active", modularOnlyMode);
+  document.getElementById("nodeSettingsScriptViewButton").classList.toggle("active", scriptMode);
   document.getElementById("nodeSettingsViewButton").setAttribute("aria-pressed", String(settingsMode));
-  document.getElementById("nodeModularViewButton").setAttribute("aria-pressed", String(modularMode));
-  document.getElementById("nodeScriptViewButton").setAttribute("aria-pressed", String(scriptMode));
+  document.getElementById("nodeModularViewButton").setAttribute("aria-pressed", String(modularMode && !modularOnlyMode));
+  document.getElementById("nodeModularOnlyViewButton").setAttribute("aria-pressed", String(modularOnlyMode));
+  document.getElementById("nodeSettingsScriptViewButton").setAttribute("aria-pressed", String(scriptMode));
   if (scriptMode) {
     syncNodeGraphScriptView();
   } else if (settingsMode) {
     syncNodeGraphSettingsView();
+    scheduleNodeSettingsHeaderTextFit();
   } else {
     drawNodeGraphWires();
   }
@@ -11886,6 +14482,73 @@ function setNodeGraphViewMode(mode) {
 
 function handleNodePatchScriptInput(event) {
   scheduleNodeGraphScriptCommit(event.currentTarget.value);
+}
+
+async function copyNodeGraphScriptToClipboard() {
+  const script = document.getElementById("nodePatchScript");
+  const text = script?.value || serializeNodeGraphPatch();
+  try {
+    await navigator.clipboard.writeText(text);
+    setNodeGraphScriptStatus("script copied", true);
+  } catch {
+    script?.focus();
+    script?.select();
+    setNodeGraphScriptStatus("copy blocked: select text manually", false);
+  }
+}
+
+async function pasteNodeGraphScriptFromClipboard() {
+  const script = document.getElementById("nodePatchScript");
+  try {
+    const text = await navigator.clipboard.readText();
+    if (script) {
+      script.value = text;
+    }
+    commitNodeGraphScript(text);
+  } catch {
+    setNodeGraphScriptStatus("paste blocked: use keyboard paste", false);
+  }
+}
+
+async function updateDefaultNodeGraphPreset() {
+  if (!nodeGraphScriptReadyForGraphAction("update default")) {
+    return false;
+  }
+  const text = serializeNodeGraphPatch();
+  try {
+    const response = await fetch("/api/presets/default", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: text,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error || `HTTP ${response.status}`);
+    }
+    nodeGraphMvp.defaultPatch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+    setNodeGraphScriptStatus("default preset updated", true);
+    return true;
+  } catch (error) {
+    if (saveNodeGraphLocalDefaultPreset(text)) {
+      nodeGraphMvp.defaultPatch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+      setNodeGraphScriptStatus("local default preset updated", true);
+      return true;
+    }
+    setNodeGraphScriptStatus(`default update failed: ${error.message}`, false);
+    return false;
+  }
+}
+
+async function handleUpdateDefaultNodeGraphPresetClick(event) {
+  if (!confirmNodeGraphDefaultButtonClick(event.currentTarget, () => {
+    setNodeGraphScriptStatus("click Confirm Default to update default preset", true);
+  })) {
+    return;
+  }
+  flashNodeGraphDefaultButtonSaved(event.currentTarget);
+  await updateDefaultNodeGraphPreset();
 }
 
 function nodeGraphPatchFileName() {
@@ -11970,27 +14633,54 @@ function deleteSelectedNodeGraphItem() {
   }
 
   const selectedNodeIds = nodeGraphSelectedNodeIds(selection);
-  if (selectedNodeIds.size) {
-    selectedNodeIds.delete("output");
+  const hideOnlyNodeIds = new Set();
+  const removableNodeIds = new Set();
+  for (const nodeId of selectedNodeIds) {
+    const node = nodeGraphPatchNode(nodeId);
+    if (!nodeGraphNodeCanBeDeleted(node)) {
+      continue;
+    }
+    if (nodeGraphNodeDeleteHidesOnly(node)) {
+      hideOnlyNodeIds.add(nodeId);
+    } else {
+      removableNodeIds.add(nodeId);
+    }
   }
-  if (selectedNodeIds.size) {
+
+  if (hideOnlyNodeIds.size) {
+    nodeGraphMvp.live.inputActive = false;
+    stopNodeGraphLiveInputSource();
+  }
+
+  if (removableNodeIds.size) {
     const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
-    patch.nodes = patch.nodes.filter((node) => !selectedNodeIds.has(node.id));
-    patch.bypassedNodes = patch.bypassedNodes.filter((nodeId) => !selectedNodeIds.has(nodeId));
+    patch.nodes = patch.nodes.filter((node) => !removableNodeIds.has(node.id));
+    patch.bypassedNodes = patch.bypassedNodes.filter((nodeId) => !removableNodeIds.has(nodeId));
     patch.connections = patch.connections.filter(
       (connection) =>
-        !selectedNodeIds.has(connection.sourceNode) &&
-        !selectedNodeIds.has(connection.destinationNode),
+        !removableNodeIds.has(connection.sourceNode) &&
+        !removableNodeIds.has(connection.destinationNode),
     );
     patch.modulations = patch.modulations.filter(
       (modulation) =>
-        !selectedNodeIds.has(modulation.sourceNode) &&
-        !selectedNodeIds.has(modulation.destinationNode),
+        !removableNodeIds.has(modulation.sourceNode) &&
+        !removableNodeIds.has(modulation.destinationNode),
     );
     setNodeGraphSelection(null);
     commitNodeGraphPatch(patch, {
-      status: selectedNodeIds.size === 1 ? "module deleted" : "modules deleted",
+      status: removableNodeIds.size === 1 ? "module deleted" : "modules deleted",
     });
+    renderNodeGraphLiveControls();
+    return;
+  }
+
+  if (hideOnlyNodeIds.size) {
+    setNodeGraphSelection(null);
+    applyNodeGraphPatchToDom();
+    drawNodeGraphWires();
+    scheduleNodeGraphLivePlanSync();
+    renderNodeGraphLiveControls();
+    setNodeGraphScriptStatus("input module hidden; script preserved", true);
   }
 }
 
@@ -11999,7 +14689,97 @@ function nodeGraphEventTargetIsEditable(target) {
     Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
+function nudgeSelectedNodeGraphModulesOnGrid(axis, direction) {
+  const selectedNodeIds = new Set([...nodeGraphSelectedNodeIds()].filter((id) =>
+    nodeGraphMvp.activeNodes.has(id),
+  ));
+  if (!selectedNodeIds.size) {
+    return false;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  let movedCount = 0;
+  for (const patchNode of patch.nodes) {
+    if (!selectedNodeIds.has(patchNode.id)) {
+      continue;
+    }
+    const gridKey = axis === "x" ? "gx" : "gy";
+    const gridValue = Number(patchNode[gridKey]);
+    patchNode[gridKey] = (Number.isFinite(gridValue) ? gridValue : 0) + direction;
+    movedCount += 1;
+  }
+  if (!movedCount) {
+    return false;
+  }
+
+  commitNodeGraphPatch(patch, {
+    status: movedCount === 1 ? "module moved" : "modules moved",
+  });
+  return true;
+}
+
+function resizeSelectedNodeGraphModulesOnGrid(axis, delta) {
+  const selectedNodeIds = new Set([...nodeGraphSelectedNodeIds()].filter((id) =>
+    nodeGraphMvp.activeNodes.has(id),
+  ));
+  if (!selectedNodeIds.size) {
+    return false;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  let changedCount = 0;
+  for (const patchNode of patch.nodes) {
+    if (!selectedNodeIds.has(patchNode.id)) {
+      continue;
+    }
+
+    if (axis === "width") {
+      const currentWidthGu = nodeGraphPatchNodeGridWidthUnits(patchNode);
+      const nextWidthGu = normalizeNodeGraphModuleWidthUnits(patchNode.type, currentWidthGu + delta);
+      if (nextWidthGu === currentWidthGu) {
+        continue;
+      }
+      if (nextWidthGu === nodeGraphDefaultModuleGridWidthUnits(patchNode.type)) {
+        delete patchNode.widthGu;
+      } else {
+        patchNode.widthGu = nextWidthGu;
+      }
+      changedCount += 1;
+      continue;
+    }
+
+    const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(patchNode);
+    const nextHeightGu = normalizeNodeGraphModuleHeightUnits(
+      patchNode.type,
+      currentHeightGu + delta,
+      patchNode.ui,
+    );
+    if (nextHeightGu === currentHeightGu) {
+      continue;
+    }
+    if (nextHeightGu === nodeGraphModuleGridHeightUnitsForUi(patchNode.type, patchNode.ui)) {
+      delete patchNode.heightGu;
+    } else {
+      patchNode.heightGu = nextHeightGu;
+    }
+    changedCount += 1;
+  }
+
+  if (!changedCount) {
+    return false;
+  }
+  commitNodeGraphPatch(patch, {
+    status: axis === "width" ? "module width changed" : "module height changed",
+  });
+  configureNodeSceneContextMenu("module");
+  return true;
+}
+
 function handleNodeGraphKeydown(event) {
+  if (event.key === "Escape" && document.getElementById("nodeWiringPanel")?.classList.contains("modular-only-view")) {
+    setNodeGraphViewMode("modular");
+    return;
+  }
   if (event.key === "Escape" && !document.getElementById("nodeSceneContextMenu").hidden) {
     closeNodeSceneContextMenu();
     return;
@@ -12020,11 +14800,51 @@ function handleNodeGraphKeydown(event) {
     redoNodeGraphPatch();
     return;
   }
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "g") {
+    event.preventDefault();
+    alignNodeGraphViewToGrid();
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    selectAllNodeGraphModules();
+    return;
+  }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
     if (copySelectedNodeGraphModule()) {
       event.preventDefault();
     }
     return;
+  }
+  if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    const shiftArrowSizeActions = {
+      ArrowDown: ["height", 1],
+      ArrowLeft: ["width", -1],
+      ArrowRight: ["width", 1],
+      ArrowUp: ["height", -1],
+    };
+    const action = shiftArrowSizeActions[event.key];
+    if (action) {
+      if (resizeSelectedNodeGraphModulesOnGrid(action[0], action[1])) {
+        event.preventDefault();
+      }
+      return;
+    }
+  }
+  if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+    const arrowMoveActions = {
+      ArrowDown: ["y", 1],
+      ArrowLeft: ["x", -1],
+      ArrowRight: ["x", 1],
+      ArrowUp: ["y", -1],
+    };
+    const action = arrowMoveActions[event.key];
+    if (action) {
+      if (nudgeSelectedNodeGraphModulesOnGrid(action[0], action[1])) {
+        event.preventDefault();
+      }
+      return;
+    }
   }
   if (event.key !== "Delete" && event.key !== "Backspace") {
     return;
@@ -12037,8 +14857,19 @@ function nodeInteractionHelpText(target) {
   if (!(target instanceof Element)) {
     return "";
   }
+  if (
+    target.closest(".node-parameter-row") &&
+    !target.closest(".node-param-port.parameter-output")
+  ) {
+    const modulationInput = target
+      .closest(".node-parameter-row")
+      ?.querySelector(".node-param-port.modulation-input");
+    if (modulationInput) {
+      return nodeInteractionMouseHint(modulationInput);
+    }
+  }
   const helpTarget = target.closest(
-    "[data-interaction-help], button, input, textarea, select, .node-slider-readout, .node-port, .node-param-port, .node-wire-hit-path, .node-wire-path, .node-execution-order-badge, .node-execution-order li[data-node], #nodeGraphZoomSurface, #nodeGraphWorkspace",
+    "[data-interaction-help], button, input, textarea, select, .node-slider-readout, .node-io-row, .node-port, .node-param-port, .node-wire-hit-path, .node-wire-path, .node-execution-order-badge, .node-execution-order li[data-node], .dsp-node, #nodeGraphZoomSurface, #nodeGraphWorkspace",
   );
   if (!helpTarget) {
     return "";
@@ -12046,109 +14877,160 @@ function nodeInteractionHelpText(target) {
   return nodeInteractionMouseHint(helpTarget);
 }
 
+function nodeGraphSelectionHelpText() {
+  const selectedNodeIds = nodeGraphSelectedNodeIds();
+  if (!selectedNodeIds.size) {
+    return "";
+  }
+  return selectedNodeIds.size === 1
+    ? "1 module selected"
+    : `${selectedNodeIds.size} modules selected`;
+}
+
+function composeNodeInteractionHelpText(text = "") {
+  const selectionText = nodeGraphSelectionHelpText();
+  if (!selectionText) {
+    return text;
+  }
+  return text ? `${text}\n${selectionText}` : selectionText;
+}
+
 function nodeInteractionMouseHint(element) {
+  if (element.dataset.interactionHelp) {
+    return element.dataset.interactionHelp;
+  }
+  const tooltipText = nodeGraphElementTooltipText(element);
+  if (tooltipText) {
+    return tooltipText;
+  }
   const alias = element.dataset.alias || "";
   if (element.id === "nodeGraphWorkspace" || element.id === "nodeGraphZoomSurface") {
-    return "Mouse: middle-drag to move the modular view.";
+    return nodeGraphTooltipText("workspace.pan");
   }
   if (element.classList.contains("node-drag-handle")) {
-    return "Mouse: click to select. Ctrl/Shift+click adds or removes from selection. Drag to move selected module(s).";
+    return nodeGraphTooltipText("module.drag");
+  }
+  if (element.classList.contains("dsp-node")) {
+    return nodeGraphTooltipText("module.drag");
   }
   if (element.classList.contains("node-action-button")) {
-    return "Mouse: click to open module actions.";
+    return nodeGraphTooltipText("module.actions");
   }
   if (element.classList.contains("node-bypass-button")) {
-    return "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.";
+    return nodeGraphTooltipText("module.bypass");
   }
   if (element.classList.contains("node-execution-order-badge")) {
     const state = element.dataset.executionState || "inactive";
     if (state === "active") {
-      return `Compiled order: ${element.textContent}\nThis module runs at this step in the current execution plan.`;
+      return nodeGraphTooltipText("module.executionActive", { order: element.textContent });
     }
     if (state === "bypassed") {
-      return "Compiled order: bypassed\nThis module is ignored by the compiled engine.";
+      return nodeGraphTooltipText("module.executionBypassed");
     }
-    return "Compiled order: inactive\nThis module is not reachable from Output.";
+    return nodeGraphTooltipText("module.executionInactive");
   }
   if (element.matches(".node-execution-order li[data-node]")) {
     const order = element.dataset.executionOrder || "?";
     const nodeName = nodeGraphNodeDisplayName(element.dataset.node);
-    return `Compiled order ${order}: ${nodeName}\nSelection only happens from move handles or marquee.`;
+    return nodeGraphTooltipText("module.executionListItem", { order, nodeName });
   }
   if (element.classList.contains("node-slider-readout")) {
     const slider = document.getElementById(element.dataset.sliderTarget);
     if (slider && nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
-      return "Mouse: click a segment to choose, Alt+click jumps, double-click types, right-click edits metadata.";
+      return nodeGraphTooltipText("slider.choices");
     }
-    return "Mouse: drag adjusts, Alt+click jumps, Ctrl/Shift drag fine tunes, double-click types, right-click edits metadata.";
+    return nodeGraphTooltipText("slider.numeric");
+  }
+  if (element.classList.contains("node-port") && !element.classList.contains("node-param-port")) {
+    const row = element.closest(".node-io-row");
+    if (row) {
+      const rowAlias = row.dataset.alias || alias;
+      const action = row.classList.contains("output")
+        ? nodeGraphTooltipText("wire.outputRow")
+        : nodeGraphTooltipText("wire.inputRow");
+      return rowAlias ? `Alias: ${rowAlias}\n${action}` : action;
+    }
   }
   if (element.classList.contains("node-port")) {
     const action = element.classList.contains("parameter-output")
-      ? "Mouse: drag normalized 0..1 slider output to a signal input or modulation input."
+      ? nodeGraphTooltipText("wire.parameterOutput")
       : element.classList.contains("output")
-      ? "Mouse: drag to a signal input or modulation input."
-      : "Mouse: drag to or from this signal input.";
+      ? nodeGraphTooltipText("wire.output")
+      : nodeGraphTooltipText("wire.input");
+    return alias ? `Alias: ${alias}\n${action}` : action;
+  }
+  if (element.classList.contains("node-io-row")) {
+    const action = element.classList.contains("output")
+      ? nodeGraphTooltipText("wire.outputRow")
+      : nodeGraphTooltipText("wire.inputRow");
     return alias ? `Alias: ${alias}\n${action}` : action;
   }
   if (element.classList.contains("node-param-port")) {
-    const action = "Mouse: drop an output here to modulate this parameter.";
+    const action = nodeGraphTooltipText("wire.modulationInput");
     return alias ? `Alias: ${alias}\n${action}` : action;
   }
   if (element.classList.contains("node-wire-hit-path") || element.classList.contains("node-wire-path")) {
-    const mode = element.dataset.interactionMode || "same-pass";
-    const action = "Mouse: click to select this wire. Delete removes selected wire.";
-    return alias ? `Alias: ${alias}\nMode: ${mode}\n${action}` : action;
+    const action = nodeGraphTooltipText("wire.selected");
+    return alias ? `Alias: ${alias}\n${action}` : action;
+  }
+  if (element.classList.contains("node-text-box-input")) {
+    return nodeGraphTooltipText("module.textBoxEdit");
   }
   if (element.matches("input, textarea, select")) {
-    return "Mouse: click to edit, drag to select text.";
+    return nodeGraphTooltipText("common.editText");
   }
   if (element.id === "nodeZoomOutButton" || element.id === "nodeZoomInButton") {
-    return "Mouse: click to zoom modular view.";
+    return nodeGraphTooltipText("view.zoomHelp");
   }
   if (element.id === "nodeGraphResizeHandle") {
-    return "Mouse: drag to resize workspace by grid units.";
+    return nodeGraphTooltipText("workspace.resize");
   }
   if (
     element.id === "nodeSettingsViewButton" ||
     element.id === "nodeModularViewButton" ||
-    element.id === "nodeScriptViewButton"
+    element.id === "nodeModularOnlyViewButton" ||
+    element.id === "nodeSettingsScriptViewButton"
   ) {
-    return "Mouse: click to switch view.";
+    return nodeGraphTooltipText("view.switchView");
   }
   if (element.id === "nodeUndoButton" || element.id === "nodeRedoButton") {
-    return "Mouse: click to step patch history.";
+    return nodeGraphTooltipText("history.help");
+  }
+  if (element.id === "nodeGridToggleButton") {
+    return nodeGraphTooltipText("view.gridHelp");
   }
   if (element.dataset.paletteNode) {
-    return "Mouse: click to add or show module.";
+    return nodeGraphTooltipText("actions.addModule");
   }
   if (element.id === "nodeRenderButton") {
-    return "Mouse: click to render sample.";
-  }
-  if (element.id === "nodePlayButton") {
-    return "Mouse: click to play rendered sample.";
+    return nodeGraphTooltipText("audio.render");
   }
   if (element.id === "nodeCopyRuntimeSketchButton") {
-    return "Mouse: click to copy the caller-owned C++ runtime sketch.";
+    return nodeGraphTooltipText("actions.copyRuntimeSketch");
   }
   if (element.id === "nodeCopyExecutionJsonButton") {
-    return "Mouse: click to copy the full compiled execution JSON.";
+    return nodeGraphTooltipText("actions.copyExecutionJson");
   }
   if (element.id === "nodeDeleteButton") {
-    return "Mouse: click to delete selected item.";
+    return nodeGraphTooltipText("actions.deleteSelection");
   }
   if (element.matches("button")) {
-    return "Mouse: click to activate.";
+    return nodeGraphTooltipText("common.activate");
   }
-  return "Mouse: interact for details.";
+  return nodeGraphTooltipText("common.interact");
 }
 
 function setNodeInteractionHelp(text = "") {
+  if (!nodeGraphMvp.tooltipVisible) {
+    return;
+  }
   const help = document.getElementById("nodeInteractionHelp");
   if (help) {
-    if (help.textContent === text) {
+    const composedText = composeNodeInteractionHelpText(text);
+    if (help.textContent === composedText) {
       return;
     }
-    help.textContent = text;
+    help.textContent = composedText;
   }
 }
 
@@ -12164,6 +15046,1385 @@ function attachNodeInteractionHelpTarget(element) {
   element.addEventListener("pointerdown", showHelp);
   element.addEventListener("click", showHelp);
   element.addEventListener("focus", showHelp);
+}
+
+function setNodeUiDevHelperVisible(visible) {
+  const helper = document.getElementById("nodeUiDevHelper");
+  const button = document.getElementById("nodeUiDevButton");
+  if (!helper || !button) {
+    return;
+  }
+  helper.hidden = !visible;
+  button.classList.toggle("active", visible);
+  button.setAttribute("aria-pressed", String(visible));
+  setNodeInteractionHelp(
+    visible
+      ? "UIDEV helper open. Future UI tuning controls can live in this floating window."
+      : "UIDEV helper closed.",
+  );
+}
+
+function toggleNodeUiDevHelper() {
+  const helper = document.getElementById("nodeUiDevHelper");
+  setNodeUiDevHelperVisible(Boolean(helper?.hidden));
+}
+
+function setNodeUserUiSettingsVisible(visible) {
+  const panel = document.getElementById("nodeUserUiSettingsPanel");
+  const button = document.getElementById("nodeUserUiSettingsButton");
+  if (!panel || !button) {
+    return;
+  }
+  panel.hidden = !visible;
+  button.classList.toggle("active", visible);
+  button.setAttribute("aria-pressed", String(visible));
+  if (visible) {
+    renderNodeUserUiSettingsControls();
+  }
+}
+
+function toggleNodeUserUiSettings() {
+  const panel = document.getElementById("nodeUserUiSettingsPanel");
+  setNodeUserUiSettingsVisible(Boolean(panel?.hidden));
+}
+
+function installNodeUiDevExposeControls() {
+  for (const definition of nodeUiDevSettingControls) {
+    const input = document.getElementById(definition.id);
+    const row = input?.closest?.(".node-ui-dev-control, .node-ui-dev-color-control, .node-ui-dev-check");
+    if (!row || row.querySelector("[data-node-ui-dev-expose]")) {
+      continue;
+    }
+    row.classList.add("has-expose");
+    const label = document.createElement("label");
+    label.className = "node-ui-dev-expose";
+    label.title = "Show this control in the user UI settings panel.";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.id = nodeUiDevExposeCheckboxId(definition.key);
+    checkbox.dataset.nodeUiDevExpose = definition.key;
+    checkbox.checked = Boolean(definition.exposeDefault);
+    checkbox.setAttribute("aria-label", `Expose ${nodeUiDevControlLabel(definition)} in UI settings`);
+    label.append(checkbox);
+    row.append(label);
+    checkbox.addEventListener("change", () => {
+      renderNodeUserUiSettingsControls();
+      setNodeUiDevSettingsStatus(
+        checkbox.checked ? "control exposed to ui settings" : "control hidden from ui settings",
+        true,
+      );
+    });
+  }
+}
+
+function organizeNodeUiDevSections() {
+  const helperBody = document.querySelector(".node-ui-dev-helper-body");
+  if (!helperBody || helperBody.dataset.sectionsOrganized === "true") {
+    return;
+  }
+  const sections = [
+    {
+      title: "workspace",
+      ids: [
+        "nodeUiDevModularHeaderButtonBackground",
+        "nodeUiDevTooltipTextSize",
+        "nodeUiDevMinimumGridBrightness",
+        "nodeUiDevModuleLightSpread",
+        "nodeUiDevModuleGridInset",
+        "nodeUiDevModuleRoundness",
+        "nodeUiDevGridColor",
+        "nodeUiDevWorkspaceBackgroundColor",
+      ],
+    },
+    {
+      title: "settings header",
+      ids: [
+        "nodeUiDevSettingsHeaderTextSize",
+        "nodeUiDevButtonTextSize",
+        "nodeUiDevSettingsHeaderTopRatio",
+        "nodeUiDevSettingsHeaderPadding",
+        "nodeUiDevSettingsHeaderHighlights",
+      ],
+    },
+    {
+      title: "modules and nodes",
+      ids: [
+        "nodeUiDevModuleTitleFont",
+        "nodeUiDevModuleTitleHeight",
+        "nodeUiDevModuleTitleTextFill",
+        "nodeUiDevModuleIoSectionHeight",
+        "nodeUiDevLiveToggleTextSize",
+        "nodeUiDevModuleNodeSize",
+        "nodeUiDevNodeGlowSize",
+        "nodeUiDevSliderDotSize",
+        "nodeUiDevWirePatchPointSize",
+        "nodeUiDevWireThickness",
+      ],
+    },
+    {
+      title: "bypass",
+      ids: [
+        "nodeUiDevBypassIconSize",
+        "nodeUiDevBypassIconGlowSpread",
+        "nodeUiDevBypassIconGlowColor",
+        "nodeUiDevBypassIconOnColor",
+        "nodeUiDevBypassOnBackgroundColor",
+        "nodeUiDevBypassOffBackgroundColor",
+      ],
+    },
+    {
+      title: "icons",
+      ids: [
+        "nodeUiDevMoveSymbolSize",
+        "nodeUiDevCloseIconSize",
+      ],
+    },
+  ];
+  const rowForId = (id) => document
+    .getElementById(id)
+    ?.closest(".node-ui-dev-control, .node-ui-dev-color-control, .node-ui-dev-check");
+  for (const section of sections) {
+    const rows = section.ids.map(rowForId).filter(Boolean);
+    if (!rows.length) {
+      continue;
+    }
+    const details = document.createElement("details");
+    details.className = "node-ui-dev-section";
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.textContent = section.title;
+    const body = document.createElement("div");
+    body.className = "node-ui-dev-section-body";
+    rows[0].before(details);
+    details.append(summary, body);
+    for (const row of rows) {
+      body.append(row);
+    }
+  }
+  helperBody.dataset.sectionsOrganized = "true";
+}
+
+function nodeUserUiSettingsMirrorValue(definition) {
+  const input = document.getElementById(definition.id);
+  if (!input) {
+    return definition.defaultValue;
+  }
+  return definition.type === "boolean" ? input.checked : input.value;
+}
+
+let nodeUserUiSettingsActiveMirrorKey = null;
+
+function dispatchNodeUiDevControlInput(source, commit = false) {
+  source.dispatchEvent(new Event("input", { bubbles: true }));
+  if (commit) {
+    source.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+function createNodeUserUiSettingsControl(definition) {
+  const source = document.getElementById(definition.id);
+  if (!source) {
+    return null;
+  }
+  const row = document.createElement("label");
+  row.className = `node-user-ui-setting-control ${definition.type}`;
+  const title = document.createElement("span");
+  title.textContent = nodeUiDevControlLabel(definition);
+  row.append(title);
+
+  if (definition.type === "boolean") {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.nodeUiDevMirror = definition.key;
+    input.checked = Boolean(nodeUserUiSettingsMirrorValue(definition));
+    input.addEventListener("change", () => {
+      source.checked = input.checked;
+      dispatchNodeUiDevControlInput(source, true);
+    });
+    row.append(input);
+    return row;
+  }
+
+  const input = definition.type === "select"
+    ? document.createElement("select")
+    : document.createElement("input");
+  if (definition.type === "select") {
+    for (const optionDefinition of definition.options || []) {
+      const option = document.createElement("option");
+      option.value = optionDefinition.value;
+      option.textContent = optionDefinition.label;
+      input.append(option);
+    }
+  } else {
+    input.type = definition.type === "color" ? "color" : "range";
+  }
+  input.value = String(nodeUserUiSettingsMirrorValue(definition));
+  input.dataset.nodeUiDevMirror = definition.key;
+  if (definition.type === "number") {
+    input.min = String(definition.min);
+    input.max = String(definition.max);
+    input.step = "1";
+  }
+  const output = definition.type === "number"
+    ? document.createElement("input")
+    : document.createElement("output");
+  if (definition.type === "number") {
+    output.type = "number";
+    output.min = String(definition.min);
+    output.max = String(definition.max);
+    output.step = "1";
+    output.dataset.nodeUiDevMirrorValue = definition.key;
+    output.value = input.value;
+  } else {
+    output.textContent = definition.type === "select"
+      ? nodeUiDevSelectLabel(definition, input.value)
+      : input.value;
+  }
+  const syncOutput = () => {
+    if (definition.type === "number") {
+      output.value = input.value;
+      return;
+    }
+    output.textContent = definition.type === "select"
+        ? nodeUiDevSelectLabel(definition, input.value)
+        : `${input.value}`;
+  };
+  const claimControl = () => {
+    nodeUserUiSettingsActiveMirrorKey = definition.key;
+  };
+  const releaseControl = () => {
+    window.setTimeout(() => {
+      if (nodeUserUiSettingsActiveMirrorKey === definition.key) {
+        nodeUserUiSettingsActiveMirrorKey = null;
+      }
+    }, 0);
+  };
+  input.addEventListener("pointerdown", claimControl);
+  input.addEventListener("focus", claimControl);
+  input.addEventListener("pointerup", releaseControl);
+  input.addEventListener("pointercancel", releaseControl);
+  input.addEventListener("blur", releaseControl);
+  input.addEventListener("input", () => {
+    claimControl();
+    source.value = input.value;
+    dispatchNodeUiDevControlInput(source, false);
+    syncOutput();
+  });
+  input.addEventListener("change", () => {
+    source.value = input.value;
+    dispatchNodeUiDevControlInput(source, true);
+    syncOutput();
+  });
+  if (definition.type === "number") {
+    output.addEventListener("pointerdown", claimControl);
+    output.addEventListener("focus", claimControl);
+    output.addEventListener("blur", releaseControl);
+    output.addEventListener("input", () => {
+      claimControl();
+      const value = normalizeNodeUiDevControlValue(definition, output.value);
+      input.value = String(value);
+      source.value = String(value);
+      dispatchNodeUiDevControlInput(source, false);
+    });
+    output.addEventListener("change", () => {
+      const value = normalizeNodeUiDevControlValue(definition, output.value);
+      output.value = String(value);
+      input.value = String(value);
+      source.value = String(value);
+      dispatchNodeUiDevControlInput(source, true);
+    });
+  }
+  row.append(input, output);
+  return row;
+}
+
+function createNodeUserUiSettingsViewControl() {
+  const row = document.createElement("label");
+  row.className = "node-user-ui-setting-control boolean";
+  const title = document.createElement("span");
+  title.textContent = "Show grid";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.dataset.nodeUiViewSetting = "gridVisible";
+  input.checked = Boolean(nodeGraphMvp.gridVisible);
+  input.addEventListener("change", () => {
+    nodeGraphMvp.gridVisible = Boolean(input.checked);
+    renderNodeGraphGridToggle();
+  });
+  row.append(title, input);
+  return row;
+}
+
+function renderNodeUserUiSettingsControls() {
+  const container = document.getElementById("nodeUserUiSettingsControls");
+  if (!container) {
+    return;
+  }
+  container.textContent = "";
+  container.append(createNodeUserUiSettingsViewControl());
+  const exposedDefinitions = nodeUiDevSettingControls.filter((definition) => nodeUiDevControlIsExposed(definition.key));
+  if (!exposedDefinitions.length) {
+    return;
+  }
+  for (const definition of exposedDefinitions) {
+    const control = createNodeUserUiSettingsControl(definition);
+    if (control) {
+      container.append(control);
+    }
+  }
+}
+
+function syncNodeUserUiSettingsViewControls() {
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='gridVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = Boolean(nodeGraphMvp.gridVisible);
+  }
+}
+
+function syncNodeUserUiSettingsMirrorControls() {
+  syncNodeUserUiSettingsViewControls();
+  for (const input of document.querySelectorAll("[data-node-ui-dev-mirror]")) {
+    if (
+      document.activeElement === input ||
+      (nodeUserUiSettingsActiveMirrorKey && nodeUserUiSettingsActiveMirrorKey === input.dataset.nodeUiDevMirror)
+    ) {
+      continue;
+    }
+    const definition = nodeUiDevSettingControls.find((candidate) => candidate.key === input.dataset.nodeUiDevMirror);
+    if (!definition) {
+      continue;
+    }
+    const source = document.getElementById(definition.id);
+    if (!source) {
+      continue;
+    }
+    if (definition.type === "boolean") {
+      input.checked = Boolean(source.checked);
+    } else {
+      input.value = String(source.value);
+      const output = input.parentElement?.querySelector("output, [data-node-ui-dev-mirror-value]");
+      if (output) {
+        if (definition.type === "number") {
+          output.value = input.value;
+        } else {
+          output.textContent = definition.type === "select"
+            ? nodeUiDevSelectLabel(definition, input.value)
+            : input.value;
+        }
+      }
+    }
+  }
+}
+
+let nodeUserUiSettingsDragging = null;
+
+function positionNodeUserUiSettingsPanel(panel, x, y) {
+  if (!panel) {
+    return;
+  }
+  const margin = 8;
+  panel.hidden = false;
+  const rect = panel.getBoundingClientRect();
+  const left = Math.max(margin, Math.min(window.innerWidth - rect.width - margin, x));
+  const top = Math.max(margin, Math.min(window.innerHeight - rect.height - margin, y));
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+  panel.style.right = "auto";
+}
+
+function beginNodeUserUiSettingsDrag(event) {
+  if (event.button > 0 || event.target.closest(".panel-close-button")) {
+    return;
+  }
+  const panel = document.getElementById("nodeUserUiSettingsPanel");
+  if (!panel || panel.hidden) {
+    return;
+  }
+  const rect = panel.getBoundingClientRect();
+  const handle =
+    event.currentTarget.id === "nodeUserUiSettingsHeading"
+      ? document.getElementById("nodeUserUiSettingsDragHandle")
+      : event.currentTarget;
+  nodeUserUiSettingsDragging = {
+    handle,
+    heading: document.getElementById("nodeUserUiSettingsHeading"),
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    pointerId: event.pointerId ?? null,
+  };
+  handle?.classList.add("dragging");
+  nodeUserUiSettingsDragging.heading?.classList.add("dragging");
+  if (event.pointerId !== undefined) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeUserUiSettings(event) {
+  const drag = nodeUserUiSettingsDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  positionNodeUserUiSettingsPanel(
+    document.getElementById("nodeUserUiSettingsPanel"),
+    event.clientX - drag.offsetX,
+    event.clientY - drag.offsetY,
+  );
+  event.preventDefault();
+}
+
+function endNodeUserUiSettingsDrag(event) {
+  const drag = nodeUserUiSettingsDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  drag.handle?.classList.remove("dragging");
+  drag.heading?.classList.remove("dragging");
+  if (event.pointerId !== undefined) {
+    const heading = document.getElementById("nodeUserUiSettingsHeading");
+    const handle = document.getElementById("nodeUserUiSettingsDragHandle");
+    if (heading?.hasPointerCapture?.(event.pointerId)) {
+      heading.releasePointerCapture(event.pointerId);
+    }
+    if (handle?.hasPointerCapture?.(event.pointerId)) {
+      handle.releasePointerCapture(event.pointerId);
+    }
+  }
+  nodeUserUiSettingsDragging = null;
+}
+
+let nodeUiDevHelperDragging = null;
+
+function positionNodeUiDevHelper(helper, x, y) {
+  if (!helper) {
+    return;
+  }
+  const margin = 12;
+  helper.hidden = false;
+  const rect = helper.getBoundingClientRect();
+  const left = Math.max(margin, Math.min(window.innerWidth - rect.width - margin, x));
+  const top = Math.max(margin, Math.min(window.innerHeight - rect.height - margin, y));
+  helper.style.left = `${left}px`;
+  helper.style.top = `${top}px`;
+  helper.style.right = "auto";
+}
+
+function beginNodeUiDevHelperDrag(event) {
+  if (event.button > 0 || event.target.closest(".panel-close-button")) {
+    return;
+  }
+
+  const helper = document.getElementById("nodeUiDevHelper");
+  if (!helper || helper.hidden) {
+    return;
+  }
+
+  const rect = helper.getBoundingClientRect();
+  const handle =
+    event.currentTarget.id === "nodeUiDevHelperHeading"
+      ? document.getElementById("nodeUiDevHelperDragHandle")
+      : event.currentTarget;
+  nodeUiDevHelperDragging = {
+    handle,
+    heading: document.getElementById("nodeUiDevHelperHeading"),
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    pointerId: event.pointerId ?? null,
+  };
+  handle?.classList.add("dragging");
+  nodeUiDevHelperDragging.heading?.classList.add("dragging");
+  if (event.pointerId !== undefined) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeUiDevHelper(event) {
+  const drag = nodeUiDevHelperDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  positionNodeUiDevHelper(
+    document.getElementById("nodeUiDevHelper"),
+    event.clientX - drag.offsetX,
+    event.clientY - drag.offsetY,
+  );
+  event.preventDefault();
+}
+
+function endNodeUiDevHelperDrag(event) {
+  const drag = nodeUiDevHelperDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+
+  drag.handle?.classList.remove("dragging");
+  drag.heading?.classList.remove("dragging");
+  if (event.pointerId !== undefined) {
+    const heading = document.getElementById("nodeUiDevHelperHeading");
+    const handle = document.getElementById("nodeUiDevHelperDragHandle");
+    if (heading?.hasPointerCapture?.(event.pointerId)) {
+      heading.releasePointerCapture(event.pointerId);
+    }
+    if (handle?.hasPointerCapture?.(event.pointerId)) {
+      handle.releasePointerCapture(event.pointerId);
+    }
+  }
+  nodeUiDevHelperDragging = null;
+}
+
+let nodeSettingsHeaderTextFitFrame = 0;
+let nodeSettingsHeaderTextFitCanvas = null;
+let nodeSettingsHeaderTextResizeObserver = null;
+let nodeLiveToggleTextFitFrame = 0;
+let nodeLiveToggleTextResizeObserver = null;
+
+function nodeSettingsHeaderTextMeasureContext() {
+  if (!nodeSettingsHeaderTextFitCanvas) {
+    nodeSettingsHeaderTextFitCanvas = document.createElement("canvas");
+  }
+  return nodeSettingsHeaderTextFitCanvas.getContext("2d");
+}
+
+function nodeSettingsHeaderSpanFits(span, fontSize, context) {
+  const text = span.textContent || "";
+  if (!text) {
+    return true;
+  }
+  const styles = getComputedStyle(span);
+  const width = Math.max(0, span.clientWidth - 1);
+  const height = Math.max(0, span.clientHeight - 1);
+  if (width <= 0 || height <= 0) {
+    return false;
+  }
+  context.font = `${styles.fontStyle} ${styles.fontVariant} ${styles.fontWeight} ${fontSize}px ${styles.fontFamily}`;
+  return context.measureText(text).width <= width && fontSize <= height;
+}
+
+function fitNodeSettingsHeaderText() {
+  nodeSettingsHeaderTextFitFrame = 0;
+  const settingsView = document.getElementById("nodeSettingsView");
+  const textSizeInput = document.getElementById("nodeUiDevSettingsHeaderTextSize");
+  const uiDevTextSizeInput = document.getElementById("nodeUiDevButtonTextSize");
+  if (!settingsView || settingsView.hidden || !textSizeInput) {
+    return;
+  }
+  const textScale = Math.max(0, Math.min(1, Number(textSizeInput.value) / 100 || 0));
+  const uiDevTextScale = Math.max(0, Math.min(1, Number(uiDevTextSizeInput?.value) / 100 || 0));
+  const context = nodeSettingsHeaderTextMeasureContext();
+  if (!context) {
+    return;
+  }
+
+  for (const span of document.querySelectorAll(".node-settings-actions button > span, .node-settings-actions a > span")) {
+    span.style.fontSize = "1px";
+  }
+
+  for (const span of document.querySelectorAll(".node-settings-actions button > span, .node-settings-actions a > span")) {
+    const maxSize = Math.max(0, span.clientHeight - 1);
+    if (maxSize <= 0 || textScale <= 0) {
+      span.style.fontSize = "0px";
+      continue;
+    }
+
+    let low = 0;
+    let high = maxSize;
+    for (let i = 0; i < 12; ++i) {
+      const mid = (low + high) * 0.5;
+      if (nodeSettingsHeaderSpanFits(span, mid, context)) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+    const scale = span.closest("#nodeUiDevButton") ? uiDevTextScale : textScale;
+    span.style.fontSize = `${Math.max(0, low * scale).toFixed(3)}px`;
+  }
+}
+
+function scheduleNodeSettingsHeaderTextFit() {
+  if (nodeSettingsHeaderTextFitFrame) {
+    return;
+  }
+  nodeSettingsHeaderTextFitFrame = requestAnimationFrame(fitNodeSettingsHeaderText);
+}
+
+function fitNodeLiveToggleText() {
+  nodeLiveToggleTextFitFrame = 0;
+  const textSizeInput = document.getElementById("nodeUiDevLiveToggleTextSize");
+  const textScale = Math.max(0, Math.min(1, Number(textSizeInput?.value) / 100 || 0));
+  const context = nodeSettingsHeaderTextMeasureContext();
+  if (!context) {
+    return;
+  }
+
+  const spans = document.querySelectorAll(".node-live-toggle-palette .node-live-toggle span");
+  for (const span of spans) {
+    span.style.fontSize = "1px";
+  }
+
+  for (const span of spans) {
+    const maxSize = Math.max(0, span.clientHeight - 1);
+    if (maxSize <= 0 || textScale <= 0) {
+      span.style.fontSize = "0px";
+      continue;
+    }
+
+    let low = 0;
+    let high = maxSize;
+    for (let i = 0; i < 12; ++i) {
+      const mid = (low + high) * 0.5;
+      if (nodeSettingsHeaderSpanFits(span, mid, context)) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+    span.style.fontSize = `${Math.max(0, low * textScale).toFixed(3)}px`;
+  }
+}
+
+function scheduleNodeLiveToggleTextFit() {
+  if (nodeLiveToggleTextFitFrame) {
+    return;
+  }
+  nodeLiveToggleTextFitFrame = requestAnimationFrame(fitNodeLiveToggleText);
+}
+
+function installNodeSettingsHeaderTextFitObserver() {
+  if (nodeSettingsHeaderTextResizeObserver || !window.ResizeObserver) {
+    return;
+  }
+  const settingsActions = document.querySelector(".node-settings-actions");
+  if (!settingsActions) {
+    return;
+  }
+  nodeSettingsHeaderTextResizeObserver = new ResizeObserver(scheduleNodeSettingsHeaderTextFit);
+  nodeSettingsHeaderTextResizeObserver.observe(settingsActions);
+}
+
+function installNodeLiveToggleTextFitObserver() {
+  if (nodeLiveToggleTextResizeObserver || !window.ResizeObserver) {
+    return;
+  }
+  const palette = document.querySelector(".node-live-toggle-palette");
+  if (!palette) {
+    return;
+  }
+  nodeLiveToggleTextResizeObserver = new ResizeObserver(scheduleNodeLiveToggleTextFit);
+  nodeLiveToggleTextResizeObserver.observe(palette);
+  for (const button of palette.querySelectorAll(".node-live-toggle")) {
+    nodeLiveToggleTextResizeObserver.observe(button);
+  }
+}
+
+function normalizeNodeUiDevColor(value, fallback = "#000000") {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : fallback;
+}
+
+function nodeUiDevHexColorToRgbTriplet(value, fallback = "#ffffff") {
+  const color = normalizeNodeUiDevColor(value, fallback);
+  return [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ].join(" ");
+}
+
+function normalizeNodeUiDevControlValue(definition, value) {
+  if (definition.type === "boolean") {
+    return Boolean(value);
+  }
+  if (definition.type === "color") {
+    return normalizeNodeUiDevColor(value, definition.defaultValue);
+  }
+  if (definition.type === "select") {
+    const text = String(value || "");
+    return definition.options?.some((option) => option.value === text)
+      ? text
+      : definition.defaultValue;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return definition.defaultValue;
+  }
+  return Math.max(definition.min, Math.min(definition.max, numeric));
+}
+
+function nodeUiDevSelectOption(definition, value) {
+  return definition.options?.find((option) => option.value === value)
+    || definition.options?.find((option) => option.value === definition.defaultValue)
+    || null;
+}
+
+function nodeUiDevSelectLabel(definition, value) {
+  return nodeUiDevSelectOption(definition, value)?.label || String(value || "");
+}
+
+function nodeUiDevSelectCssValue(definition, value) {
+  return nodeUiDevSelectOption(definition, value)?.css || String(value || "inherit");
+}
+
+function nodeUiDevExposeCheckboxId(key) {
+  return `nodeUiDevExpose${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
+function nodeUiDevControlLabel(definition) {
+  const input = document.getElementById(definition.id);
+  const row = input?.closest?.(".node-ui-dev-control, .node-ui-dev-color-control, .node-ui-dev-check");
+  return row?.querySelector?.(":scope > span")?.textContent?.trim() || definition.key;
+}
+
+function nodeUiDevControlIsExposed(key) {
+  return Boolean(document.getElementById(nodeUiDevExposeCheckboxId(key))?.checked);
+}
+
+function normalizeNodeUiDevSettings(settings = {}) {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    throw new Error("UI settings must be a JSON object");
+  }
+  const controls = settings.controls && typeof settings.controls === "object"
+    ? settings.controls
+    : {};
+  const exposedControls = settings.exposedControls && typeof settings.exposedControls === "object"
+    ? settings.exposedControls
+    : {};
+  const nodeColors = settings.nodeColors && typeof settings.nodeColors === "object"
+    ? settings.nodeColors
+    : {};
+  const view = settings.view && typeof settings.view === "object"
+    ? settings.view
+    : {};
+  const normalizedColors = {};
+  for (const [property, value] of Object.entries(nodeColors)) {
+    if (property.startsWith("--")) {
+      normalizedColors[property] = normalizeNodeUiDevColor(value);
+    }
+  }
+  return {
+    format: {
+      kind: "soemdsp-sandbox-user-ui-settings",
+      version: 2,
+    },
+    controls: Object.fromEntries(
+      nodeUiDevSettingControls.map((definition) => [
+        definition.key,
+        normalizeNodeUiDevControlValue(definition, controls[definition.key]),
+      ]),
+    ),
+    exposedControls: Object.fromEntries(
+      nodeUiDevSettingControls.map((definition) => [
+        definition.key,
+        Boolean(exposedControls[definition.key] ?? definition.exposeDefault),
+      ]),
+    ),
+    nodeColors: normalizedColors,
+    view: {
+      gridVisible: Boolean(view.gridVisible ?? nodeGraphMvp.gridVisible),
+    },
+  };
+}
+
+function readNodeUiDevSettingsFromControls() {
+  const controls = {};
+  for (const definition of nodeUiDevSettingControls) {
+    const input = document.getElementById(definition.id);
+    if (!input) {
+      controls[definition.key] = definition.defaultValue;
+    } else if (definition.type === "boolean") {
+      controls[definition.key] = input.checked;
+    } else {
+      controls[definition.key] = input.value;
+    }
+  }
+  const exposedControls = Object.fromEntries(
+    nodeUiDevSettingControls.map((definition) => [
+      definition.key,
+      nodeUiDevControlIsExposed(definition.key),
+    ]),
+  );
+  const nodeColors = {};
+  for (const input of document.querySelectorAll("[data-node-color-var]")) {
+    nodeColors[input.dataset.nodeColorVar] = input.value;
+  }
+  return normalizeNodeUiDevSettings({
+    controls,
+    exposedControls,
+    nodeColors,
+    view: {
+      gridVisible: Boolean(nodeGraphMvp.gridVisible),
+    },
+  });
+}
+
+function serializeNodeUiDevSettings() {
+  return JSON.stringify(readNodeUiDevSettingsFromControls(), null, 2);
+}
+
+function loadNodeUiDevSettingsFromScript(text) {
+  const payload = JSON.parse(text);
+  const format = payload?.format;
+  if (!format || typeof format !== "object") {
+    throw new Error("UI settings missing format object");
+  }
+  if (format.kind !== "soemdsp-sandbox-user-ui-settings") {
+    throw new Error("UI settings format kind mismatch");
+  }
+  if (format.version !== 1 && format.version !== 2) {
+    throw new Error("UI settings format version mismatch");
+  }
+  if (format.version === 1) {
+    payload.controls = { ...(payload.controls || {}) };
+    const legacyWireThickness = Number(payload.controls.wireThickness);
+    if (Number.isFinite(legacyWireThickness) && legacyWireThickness > 0 && legacyWireThickness <= 10) {
+      payload.controls.wireThickness = Math.round((legacyWireThickness / 16) * 100);
+    }
+  }
+  return normalizeNodeUiDevSettings(payload);
+}
+
+function applyNodeUiDevSettings(settings) {
+  const normalized = normalizeNodeUiDevSettings(settings);
+  for (const definition of nodeUiDevSettingControls) {
+    const input = document.getElementById(definition.id);
+    if (!input) {
+      continue;
+    }
+    const value = normalized.controls[definition.key];
+    if (definition.type === "boolean") {
+      input.checked = Boolean(value);
+    } else {
+      input.value = String(value);
+    }
+    const exposeInput = document.getElementById(nodeUiDevExposeCheckboxId(definition.key));
+    if (exposeInput) {
+      exposeInput.checked = Boolean(normalized.exposedControls[definition.key]);
+    }
+  }
+  for (const input of document.querySelectorAll("[data-node-color-var]")) {
+    const color = normalized.nodeColors[input.dataset.nodeColorVar];
+    if (color) {
+      input.value = color;
+    }
+  }
+  nodeGraphMvp.gridVisible = Boolean(normalized.view.gridVisible);
+  renderNodeGraphGridToggle();
+  syncNodeUiDevSettingsHeaderControls();
+  if (!document.activeElement?.dataset?.nodeUiDevMirror) {
+    renderNodeUserUiSettingsControls();
+  }
+  setNodeUiDevSettingsStatus("ui settings applied", true);
+}
+
+function setNodeUiDevSettingsStatus(message, ok = true) {
+  for (const status of [
+    document.getElementById("nodeUiDevSettingsStatus"),
+    document.getElementById("nodeUserUiSettingsStatus"),
+  ]) {
+    if (!status) {
+      continue;
+    }
+    status.textContent = message;
+    status.className = `pill ${ok ? "good" : "warn"}`;
+  }
+}
+
+function loadNodeUiDevLocalDefaultSettings() {
+  if (!nodeGraphLocalDefaultPresetAllowed()) {
+    return null;
+  }
+  try {
+    const text = window.localStorage.getItem(nodeUiDevDefaultSettingsStorageKey);
+    return text ? loadNodeUiDevSettingsFromScript(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveNodeUiDevLocalDefaultSettings(text) {
+  if (!nodeGraphLocalDefaultPresetAllowed()) {
+    return false;
+  }
+  try {
+    window.localStorage.setItem(nodeUiDevDefaultSettingsStorageKey, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadNodeUiDevDefaultSettings() {
+  const storedSettings = loadNodeUiDevLocalDefaultSettings();
+  if (storedSettings) {
+    applyNodeUiDevSettings(storedSettings);
+    return;
+  }
+  try {
+    const response = await fetch(nodeUiDevDefaultSettingsUrl, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    applyNodeUiDevSettings(loadNodeUiDevSettingsFromScript(await response.text()));
+  } catch {
+    applyNodeUiDevSettings(readNodeUiDevSettingsFromControls());
+  }
+}
+
+async function copyNodeUiDevSettingsToClipboard() {
+  try {
+    await copyTextToClipboard(serializeNodeUiDevSettings());
+    setNodeUiDevSettingsStatus("ui settings copied", true);
+  } catch (error) {
+    setNodeUiDevSettingsStatus(`copy failed: ${error.message}`, false);
+  }
+}
+
+function saveNodeUiDevSettingsFile() {
+  const blob = new Blob([`${serializeNodeUiDevSettings()}\n`], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "useruisettings.json";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  setNodeUiDevSettingsStatus("ui settings saved", true);
+}
+
+function loadNodeUiDevSettingsFile() {
+  document.getElementById("nodeUiDevSettingsFileInput")?.click();
+}
+
+function handleNodeUiDevSettingsFileLoad(event) {
+  const [file] = event.currentTarget.files || [];
+  if (!file) {
+    return;
+  }
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      applyNodeUiDevSettings(loadNodeUiDevSettingsFromScript(String(reader.result || "")));
+      setNodeUiDevSettingsStatus("ui settings loaded", true);
+    } catch (error) {
+      setNodeUiDevSettingsStatus(error.message, false);
+    } finally {
+      event.currentTarget.value = "";
+    }
+  });
+  reader.addEventListener("error", () => {
+    setNodeUiDevSettingsStatus("ui settings file read failed", false);
+    event.currentTarget.value = "";
+  });
+  reader.readAsText(file);
+}
+
+async function updateDefaultNodeUiDevSettingsPreset() {
+  const text = serializeNodeUiDevSettings();
+  try {
+    const response = await fetch("/api/presets/useruisettings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: text,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error || `HTTP ${response.status}`);
+    }
+    setNodeUiDevSettingsStatus("default ui settings updated", true);
+    return true;
+  } catch (error) {
+    if (saveNodeUiDevLocalDefaultSettings(text)) {
+      setNodeUiDevSettingsStatus("local ui settings updated", true);
+      return true;
+    }
+    setNodeUiDevSettingsStatus(`default update failed: ${error.message}`, false);
+    return false;
+  }
+}
+
+async function handleUpdateDefaultNodeUiDevSettingsPresetClick(event) {
+  if (!confirmNodeGraphDefaultButtonClick(event.currentTarget, () => {
+    setNodeUiDevSettingsStatus("click Confirm Default to update default ui settings", true);
+  })) {
+    return;
+  }
+  flashNodeGraphDefaultButtonSaved(event.currentTarget);
+  await updateDefaultNodeUiDevSettingsPreset();
+}
+
+function syncNodeUiDevNodeColorControls() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  for (const input of document.querySelectorAll("[data-node-color-var]")) {
+    const property = input.dataset.nodeColorVar;
+    if (!property?.startsWith("--")) {
+      continue;
+    }
+    const fallback = input.getAttribute("value") || "#000000";
+    const color = normalizeNodeUiDevColor(input.value, fallback);
+    input.value = color;
+    workspace.style.setProperty(property, color);
+    const output = document.getElementById(`${input.id}Value`);
+    if (output) {
+      output.textContent = color;
+    }
+  }
+}
+
+function syncNodeUiDevSettingsHeaderControls() {
+  const settingsView = document.getElementById("nodeSettingsView");
+  const textSizeInput = document.getElementById("nodeUiDevSettingsHeaderTextSize");
+  const textSizeValue = document.getElementById("nodeUiDevSettingsHeaderTextSizeValue");
+  const uiDevTextSizeInput = document.getElementById("nodeUiDevButtonTextSize");
+  const uiDevTextSizeValue = document.getElementById("nodeUiDevButtonTextSizeValue");
+  const liveToggleTextSizeInput = document.getElementById("nodeUiDevLiveToggleTextSize");
+  const liveToggleTextSizeValue = document.getElementById("nodeUiDevLiveToggleTextSizeValue");
+  const modularHeaderButtonBackgroundInput = document.getElementById("nodeUiDevModularHeaderButtonBackground");
+  const modularHeaderButtonBackgroundValue = document.getElementById("nodeUiDevModularHeaderButtonBackgroundValue");
+  const tooltipTextSizeInput = document.getElementById("nodeUiDevTooltipTextSize");
+  const tooltipTextSizeValue = document.getElementById("nodeUiDevTooltipTextSizeValue");
+  const minimumGridBrightnessInput = document.getElementById("nodeUiDevMinimumGridBrightness");
+  const minimumGridBrightnessValue = document.getElementById("nodeUiDevMinimumGridBrightnessValue");
+  const moduleLightSpreadInput = document.getElementById("nodeUiDevModuleLightSpread");
+  const moduleLightSpreadValue = document.getElementById("nodeUiDevModuleLightSpreadValue");
+  const moduleGridInsetInput = document.getElementById("nodeUiDevModuleGridInset");
+  const moduleGridInsetValue = document.getElementById("nodeUiDevModuleGridInsetValue");
+  const moduleRoundnessInput = document.getElementById("nodeUiDevModuleRoundness");
+  const moduleRoundnessValue = document.getElementById("nodeUiDevModuleRoundnessValue");
+  const gridColorInput = document.getElementById("nodeUiDevGridColor");
+  const gridColorValue = document.getElementById("nodeUiDevGridColorValue");
+  const workspaceBackgroundColorInput = document.getElementById("nodeUiDevWorkspaceBackgroundColor");
+  const workspaceBackgroundColorValue = document.getElementById("nodeUiDevWorkspaceBackgroundColorValue");
+  const topRatioInput = document.getElementById("nodeUiDevSettingsHeaderTopRatio");
+  const topRatioValue = document.getElementById("nodeUiDevSettingsHeaderTopRatioValue");
+  const paddingInput = document.getElementById("nodeUiDevSettingsHeaderPadding");
+  const paddingValue = document.getElementById("nodeUiDevSettingsHeaderPaddingValue");
+  const dotSizeInput = document.getElementById("nodeUiDevSliderDotSize");
+  const dotSizeValue = document.getElementById("nodeUiDevSliderDotSizeValue");
+  const dotPreview = document.getElementById("nodeUiDevSliderDotPreview");
+  const moduleTitleFontInput = document.getElementById("nodeUiDevModuleTitleFont");
+  const moduleTitleFontValue = document.getElementById("nodeUiDevModuleTitleFontValue");
+  const moduleTitleHeightInput = document.getElementById("nodeUiDevModuleTitleHeight");
+  const moduleTitleHeightValue = document.getElementById("nodeUiDevModuleTitleHeightValue");
+  const moduleTitleTextFillInput = document.getElementById("nodeUiDevModuleTitleTextFill");
+  const moduleTitleTextFillValue = document.getElementById("nodeUiDevModuleTitleTextFillValue");
+  const moduleIoSectionHeightInput = document.getElementById("nodeUiDevModuleIoSectionHeight");
+  const moduleIoSectionHeightValue = document.getElementById("nodeUiDevModuleIoSectionHeightValue");
+  const moduleNodeSizeInput = document.getElementById("nodeUiDevModuleNodeSize");
+  const moduleNodeSizeValue = document.getElementById("nodeUiDevModuleNodeSizeValue");
+  const nodeGlowSizeInput = document.getElementById("nodeUiDevNodeGlowSize");
+  const nodeGlowSizeValue = document.getElementById("nodeUiDevNodeGlowSizeValue");
+  const wirePatchPointSizeInput = document.getElementById("nodeUiDevWirePatchPointSize");
+  const wirePatchPointSizeValue = document.getElementById("nodeUiDevWirePatchPointSizeValue");
+  const wireThicknessInput = document.getElementById("nodeUiDevWireThickness");
+  const wireThicknessValue = document.getElementById("nodeUiDevWireThicknessValue");
+  const bypassIconSizeInput = document.getElementById("nodeUiDevBypassIconSize");
+  const bypassIconSizeValue = document.getElementById("nodeUiDevBypassIconSizeValue");
+  const bypassIconPreview = document.getElementById("nodeUiDevBypassIconPreview");
+  const bypassIconGlowSpreadInput = document.getElementById("nodeUiDevBypassIconGlowSpread");
+  const bypassIconGlowSpreadValue = document.getElementById("nodeUiDevBypassIconGlowSpreadValue");
+  const bypassIconGlowColorInput = document.getElementById("nodeUiDevBypassIconGlowColor");
+  const bypassIconGlowColorValue = document.getElementById("nodeUiDevBypassIconGlowColorValue");
+  const bypassIconOnColorInput = document.getElementById("nodeUiDevBypassIconOnColor");
+  const bypassIconOnColorValue = document.getElementById("nodeUiDevBypassIconOnColorValue");
+  const bypassOnBackgroundColorInput = document.getElementById("nodeUiDevBypassOnBackgroundColor");
+  const bypassOnBackgroundColorValue = document.getElementById("nodeUiDevBypassOnBackgroundColorValue");
+  const bypassOffBackgroundColorInput = document.getElementById("nodeUiDevBypassOffBackgroundColor");
+  const bypassOffBackgroundColorValue = document.getElementById("nodeUiDevBypassOffBackgroundColorValue");
+  const moveSymbolSizeInput = document.getElementById("nodeUiDevMoveSymbolSize");
+  const moveSymbolSizeValue = document.getElementById("nodeUiDevMoveSymbolSizeValue");
+  const moveSymbolPreview = document.getElementById("nodeUiDevMoveSymbolPreview");
+  const closeIconSizeInput = document.getElementById("nodeUiDevCloseIconSize");
+  const closeIconSizeValue = document.getElementById("nodeUiDevCloseIconSizeValue");
+  const closeIconPreview = document.getElementById("nodeUiDevCloseIconPreview");
+  const highlightInput = document.getElementById("nodeUiDevSettingsHeaderHighlights");
+  if (
+    !settingsView ||
+    !textSizeInput ||
+    !textSizeValue ||
+    !uiDevTextSizeInput ||
+    !uiDevTextSizeValue ||
+    !liveToggleTextSizeInput ||
+    !liveToggleTextSizeValue ||
+    !modularHeaderButtonBackgroundInput ||
+    !modularHeaderButtonBackgroundValue ||
+    !tooltipTextSizeInput ||
+    !tooltipTextSizeValue ||
+    !minimumGridBrightnessInput ||
+    !minimumGridBrightnessValue ||
+    !moduleLightSpreadInput ||
+    !moduleLightSpreadValue ||
+    !moduleGridInsetInput ||
+    !moduleGridInsetValue ||
+    !moduleRoundnessInput ||
+    !moduleRoundnessValue ||
+    !gridColorInput ||
+    !gridColorValue ||
+    !workspaceBackgroundColorInput ||
+    !workspaceBackgroundColorValue ||
+    !topRatioInput ||
+    !topRatioValue ||
+    !paddingInput ||
+    !paddingValue ||
+    !dotSizeInput ||
+    !dotSizeValue ||
+    !dotPreview ||
+    !moduleTitleFontInput ||
+    !moduleTitleFontValue ||
+    !moduleTitleHeightInput ||
+    !moduleTitleHeightValue ||
+    !moduleTitleTextFillInput ||
+    !moduleTitleTextFillValue ||
+    !moduleIoSectionHeightInput ||
+    !moduleIoSectionHeightValue ||
+    !moduleNodeSizeInput ||
+    !moduleNodeSizeValue ||
+    !nodeGlowSizeInput ||
+    !nodeGlowSizeValue ||
+    !wirePatchPointSizeInput ||
+    !wirePatchPointSizeValue ||
+    !wireThicknessInput ||
+    !wireThicknessValue ||
+    !bypassIconSizeInput ||
+    !bypassIconSizeValue ||
+    !bypassIconPreview ||
+    !bypassIconGlowSpreadInput ||
+    !bypassIconGlowSpreadValue ||
+    !bypassIconGlowColorInput ||
+    !bypassIconGlowColorValue ||
+    !bypassIconOnColorInput ||
+    !bypassIconOnColorValue ||
+    !bypassOnBackgroundColorInput ||
+    !bypassOnBackgroundColorValue ||
+    !bypassOffBackgroundColorInput ||
+    !bypassOffBackgroundColorValue ||
+    !moveSymbolSizeInput ||
+    !moveSymbolSizeValue ||
+    !moveSymbolPreview ||
+    !closeIconSizeInput ||
+    !closeIconSizeValue ||
+    !closeIconPreview ||
+    !highlightInput
+  ) {
+    return;
+  }
+
+  const textPercent = Math.max(0, Math.min(100, Number(textSizeInput.value) || 0));
+  const uiDevTextPercent = Math.max(0, Math.min(100, Number(uiDevTextSizeInput.value) || 0));
+  const liveToggleTextPercent = Math.max(0, Math.min(100, Number(liveToggleTextSizeInput.value) || 0));
+  const modularHeaderButtonBackgroundPercent = Math.max(
+    0,
+    Math.min(100, Number(modularHeaderButtonBackgroundInput.value) || 0),
+  );
+  const tooltipTextSizePx = Math.max(8, Math.min(28, Number(tooltipTextSizeInput.value) || 14));
+  const minimumGridBrightnessPercent = Math.max(
+    0,
+    Math.min(100, Number(minimumGridBrightnessInput.value) || 0),
+  );
+  const moduleLightSpreadPercent = Math.max(40, Math.min(220, Number(moduleLightSpreadInput.value) || 100));
+  const moduleGridInsetPx = Math.max(0, Math.min(20, Number(moduleGridInsetInput.value) || 0));
+  const moduleRoundnessPercent = Math.max(0, Math.min(100, Number(moduleRoundnessInput.value) || 0));
+  const gridColor = normalizeNodeUiDevColor(gridColorInput.value, "#ffffff");
+  const workspaceBackgroundColor = normalizeNodeUiDevColor(workspaceBackgroundColorInput.value, "#0d0d0d");
+  const topPercent = Math.max(0, Math.min(100, Number(topRatioInput.value) || 0));
+  const paddingPx = Math.max(0, Math.min(20, Number(paddingInput.value) || 0));
+  const dotSizePx = Math.max(0, Math.min(28, Number(dotSizeInput.value) || 0));
+  const moduleTitleFont = normalizeNodeUiDevControlValue(
+    nodeUiDevSettingControls.find((definition) => definition.key === "moduleTitleFont"),
+    moduleTitleFontInput.value,
+  );
+  const moduleTitleHeightPx = Math.max(12, Math.min(44, Number(moduleTitleHeightInput.value) || 26));
+  const moduleTitleTextFillPercent = Math.max(0, Math.min(100, Number(moduleTitleTextFillInput.value) || 0));
+  const moduleIoSectionHeightPx = Math.max(12, Math.min(44, Number(moduleIoSectionHeightInput.value) || 24));
+  const moduleNodeSizePx = Math.max(8, Math.min(28, Number(moduleNodeSizeInput.value) || 16));
+  const nodeGlowSizePercent = Math.max(0, Math.min(200, Number(nodeGlowSizeInput.value) || 0));
+  const wirePatchPointSizePercent = Math.max(0, Math.min(200, Number(wirePatchPointSizeInput.value) || 0));
+  const wireThicknessPercent = Math.max(0, Math.min(100, Number(wireThicknessInput.value) || 0));
+  const bypassIconSizePercent = Math.max(0, Math.min(100, Number(bypassIconSizeInput.value) || 0));
+  const bypassIconGlowSpreadPercent = Math.max(
+    0,
+    Math.min(200, Number(bypassIconGlowSpreadInput.value) || 0),
+  );
+  const bypassIconGlowColor = normalizeNodeUiDevColor(bypassIconGlowColorInput.value, "#f25d5d");
+  const bypassIconOnColor = normalizeNodeUiDevColor(bypassIconOnColorInput.value, "#f7b758");
+  const bypassOnBackgroundColor = normalizeNodeUiDevColor(bypassOnBackgroundColorInput.value, "#5c1818");
+  const bypassOffBackgroundColor = normalizeNodeUiDevColor(bypassOffBackgroundColorInput.value, "#000000");
+  const moveSymbolSizePercent = Math.max(0, Math.min(100, Number(moveSymbolSizeInput.value) || 0));
+  const closeIconSizePercent = Math.max(0, Math.min(100, Number(closeIconSizeInput.value) || 0));
+  const moduleTitleHeightGu = moduleTitleHeightPx / nodeGraphGrid.heightPx;
+  settingsView.style.setProperty("--node-settings-knob-text-ratio", String(textPercent / 100));
+  settingsView.style.setProperty("--node-settings-knob-top-ratio", String(topPercent / 100));
+  settingsView.style.setProperty("--node-settings-knob-extra-padding", `${paddingPx}px`);
+  document
+    .getElementById("nodeWiringPanel")
+    ?.style.setProperty(
+      "--node-toolbar-button-bg-alpha",
+      String(modularHeaderButtonBackgroundPercent / 100),
+    );
+  document
+    .getElementById("nodeWiringPanel")
+    ?.style.setProperty("--node-tooltip-text-size", `${tooltipTextSizePx}px`);
+  document
+    .getElementById("nodeWiringPanel")
+    ?.style.setProperty("--node-min-grid-brightness-alpha", String(minimumGridBrightnessPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-module-light-spread", String(moduleLightSpreadPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-module-grid-inset", `${moduleGridInsetPx}px`);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-module-roundness-ratio", String(moduleRoundnessPercent / 100));
+  gridColorInput.value = gridColor;
+  workspaceBackgroundColorInput.value = workspaceBackgroundColor;
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-grid-color-rgb", nodeUiDevHexColorToRgbTriplet(gridColor));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-workspace-bg", workspaceBackgroundColor);
+  document.body.style.setProperty("--node-slider-dot-size", `${dotSizePx}px`);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty(
+      "--node-header-title-font-family",
+      nodeUiDevSelectCssValue(
+        nodeUiDevSettingControls.find((definition) => definition.key === "moduleTitleFont"),
+        moduleTitleFont,
+      ),
+    );
+  moduleTitleFontInput.value = moduleTitleFont;
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-header-title-row-height", `calc(var(--node-grid-height) * ${moduleTitleHeightGu})`);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-header-title-text-ratio", String(moduleTitleTextFillPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-io-section-min-height", `${moduleIoSectionHeightPx}px`);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-port-diameter", `${moduleNodeSizePx}px`);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-hover-glow-size-ratio", String(nodeGlowSizePercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-wire-patch-point-size-ratio", String(wirePatchPointSizePercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-wire-thickness-ratio", String(wireThicknessPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-bypass-icon-size-ratio", String(bypassIconSizePercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-bypass-icon-glow-spread-ratio", String(bypassIconGlowSpreadPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-bypass-icon-glow-color", bypassIconGlowColor);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-bypass-icon-on-color", bypassIconOnColor);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-bypass-on-bg", bypassOnBackgroundColor);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-bypass-off-bg", bypassOffBackgroundColor);
+  document.body.style.setProperty("--node-move-symbol-size-ratio", String(moveSymbolSizePercent / 100));
+  document.body.style.setProperty("--panel-close-glyph-size-ratio", String(closeIconSizePercent / 100));
+  textSizeValue.textContent = `${textPercent}%`;
+  uiDevTextSizeValue.textContent = `${uiDevTextPercent}%`;
+  liveToggleTextSizeValue.textContent = `${liveToggleTextPercent}%`;
+  modularHeaderButtonBackgroundValue.textContent = `${modularHeaderButtonBackgroundPercent}%`;
+  tooltipTextSizeValue.textContent = `${tooltipTextSizePx}px`;
+  minimumGridBrightnessValue.textContent = `${minimumGridBrightnessPercent}%`;
+  moduleLightSpreadValue.textContent = `${moduleLightSpreadPercent}%`;
+  moduleGridInsetValue.textContent = `${moduleGridInsetPx}px`;
+  moduleRoundnessValue.textContent = `${moduleRoundnessPercent}%`;
+  gridColorValue.textContent = gridColor;
+  workspaceBackgroundColorValue.textContent = workspaceBackgroundColor;
+  topRatioValue.textContent = `${topPercent}%`;
+  paddingValue.textContent = `${paddingPx}px`;
+  dotSizeValue.textContent = `${dotSizePx}px`;
+  moduleTitleFontValue.textContent = nodeUiDevSelectLabel(
+    nodeUiDevSettingControls.find((definition) => definition.key === "moduleTitleFont"),
+    moduleTitleFont,
+  );
+  moduleTitleHeightValue.textContent = `${moduleTitleHeightPx}px`;
+  moduleTitleTextFillValue.textContent = `${moduleTitleTextFillPercent}%`;
+  moduleIoSectionHeightValue.textContent = `${moduleIoSectionHeightPx}px`;
+  moduleNodeSizeValue.textContent = `${moduleNodeSizePx}px`;
+  nodeGlowSizeValue.textContent = `${nodeGlowSizePercent}%`;
+  wirePatchPointSizeValue.textContent = `${wirePatchPointSizePercent}%`;
+  wireThicknessValue.textContent = `${wireThicknessPercent}%`;
+  bypassIconSizeValue.textContent = `${bypassIconSizePercent}%`;
+  bypassIconGlowSpreadValue.textContent = `${bypassIconGlowSpreadPercent}%`;
+  bypassIconGlowColorInput.value = bypassIconGlowColor;
+  bypassIconGlowColorValue.textContent = bypassIconGlowColor;
+  bypassIconOnColorInput.value = bypassIconOnColor;
+  bypassIconOnColorValue.textContent = bypassIconOnColor;
+  bypassOnBackgroundColorInput.value = bypassOnBackgroundColor;
+  bypassOnBackgroundColorValue.textContent = bypassOnBackgroundColor;
+  bypassOffBackgroundColorInput.value = bypassOffBackgroundColor;
+  bypassOffBackgroundColorValue.textContent = bypassOffBackgroundColor;
+  moveSymbolSizeValue.textContent = `${moveSymbolSizePercent}%`;
+  closeIconSizeValue.textContent = `${closeIconSizePercent}%`;
+  dotPreview.style.setProperty("--node-slider-dot-size", `${dotSizePx}px`);
+  bypassIconPreview.style.setProperty(
+    "--node-ui-dev-symbol-preview-size",
+    String(bypassIconSizePercent / 100),
+  );
+  bypassIconPreview.style.setProperty(
+    "--node-ui-dev-bypass-preview-size",
+    String(bypassIconSizePercent / 100),
+  );
+  bypassIconPreview.style.setProperty(
+    "--node-ui-dev-bypass-preview-glow-spread",
+    String(bypassIconGlowSpreadPercent / 100),
+  );
+  bypassIconPreview.style.setProperty("--node-ui-dev-bypass-preview-glow-color", bypassIconGlowColor);
+  bypassIconPreview.style.setProperty("--node-ui-dev-bypass-preview-on-color", bypassIconOnColor);
+  bypassIconPreview.style.setProperty("--node-ui-dev-bypass-preview-bg", bypassOnBackgroundColor);
+  moveSymbolPreview.style.setProperty("--node-ui-dev-symbol-preview-size", String(moveSymbolSizePercent / 100));
+  closeIconPreview.style.setProperty("--node-ui-dev-symbol-preview-size", String(closeIconSizePercent / 100));
+  document
+    .getElementById("nodeWiringPanel")
+    ?.classList.toggle("settings-header-layout-debug", highlightInput.checked);
+  syncNodeUiDevNodeColorControls();
+  syncNodeUserUiSettingsMirrorControls();
+  applyNodeGraphPatchToDom();
+  updateNodeGraphGridHeatmap();
+  drawNodeGraphWires();
+  scheduleNodeSettingsHeaderTextFit();
+  scheduleNodeLiveToggleTextFit();
 }
 
 function toggleDebugSections() {
@@ -12227,6 +16488,7 @@ function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error"
   setNodeGraphLiveEngineStatus("engine error", "warn");
   setNodeGraphLiveEngineTitle(message);
   setNodeGraphLivePlanStatus("plan blocked", "warn");
+  setNodeGraphLiveInputMeter();
   setNodeGraphLiveMeter();
   setNodeGraphLiveScheduleStatus(`processor error: ${message}`, "warn");
   document.getElementById("nodeLiveStatus").title = message;
@@ -12287,7 +16549,13 @@ function setNodeGraphLiveEvidence(kind = "idle", details = {}) {
 function nodeGraphLiveDebug() {
   return {
     evidence: nodeGraphMvp.live.lastEvidence,
+    hasContext: Boolean(nodeGraphMvp.live.context),
+    hasNode: Boolean(nodeGraphMvp.live.node),
+    inputMeter: document.getElementById("nodeLiveInputMeter")?.textContent || "",
     meter: document.getElementById("nodeLiveMeter")?.textContent || "",
+    outputEnabled: Boolean(nodeGraphMvp.live.outputEnabled),
+    outputToggleSerial: nodeGraphMvp.live.outputToggleSerial,
+    contextState: nodeGraphMvp.live.context?.state || "",
     planStatus: document.getElementById("nodeLivePlanStatus")?.textContent || "",
     routeStatus: document.getElementById("nodeLiveRouteStatus")?.textContent || "",
     status: document.getElementById("nodeLiveStatus")?.textContent || "",
@@ -12317,6 +16585,7 @@ function setNodeGraphLiveBlockedError(kind, error, options = {}) {
   });
   setNodeGraphLivePlanStatus(nodeGraphLiveBlockedStatusText(kind, error), "warn");
   setNodeGraphLivePlanTitle(message);
+  setNodeGraphLiveInputMeter();
   setNodeGraphLiveMeter();
   if (options.schedule !== false) {
     setNodeGraphLiveScheduleStatus(`schedule blocked: ${message}`, "warn");
@@ -12396,6 +16665,22 @@ function setNodeGraphLiveMeter(peak = 0, rms = 0, clipCount = 0) {
   meter.className = `pill ${clipCount ? "warn" : peak > 0.001 ? "good" : ""}`.trim();
 }
 
+function setNodeGraphLiveInputMeter(peak = 0, rms = 0) {
+  const meter = document.getElementById("nodeLiveInputMeter");
+  const safePeak = Number.isFinite(Number(peak)) ? Math.max(0, Math.min(1, Number(peak))) : 0;
+  const safeRms = Number.isFinite(Number(rms)) ? Math.max(0, Math.min(1, Number(rms))) : 0;
+  nodeGraphMvp.live.inputMeterPeak = safePeak;
+  nodeGraphMvp.live.inputMeterRms = safeRms;
+  if (!meter) {
+    syncNodeGraphInputModuleLiveState();
+    return;
+  }
+  meter.textContent = `input peak ${safePeak.toFixed(3)} / rms ${safeRms.toFixed(3)}`;
+  meter.className = `pill ${safePeak > 0.001 ? "good" : ""}`.trim();
+  syncNodeGraphInputModuleLiveState();
+  updateNodeGraphLiveInputTestStatus();
+}
+
 function setNodeGraphLiveOutputMuted(muted) {
   const outputGain = nodeGraphMvp.live.outputGain;
   const context = nodeGraphMvp.live.context;
@@ -12421,37 +16706,590 @@ function setNodeGraphLiveScheduleStatus(text, state = "") {
   status.className = `pill ${state}`.trim();
 }
 
+function setNodeGraphLiveInputStatus(state, message = "") {
+  const status = document.getElementById("nodeLiveInputStatus");
+  nodeGraphMvp.live.inputStatus = state;
+  if (!status) {
+    return;
+  }
+  const textByState = {
+    blocked: "input blocked",
+    connected: "input connected",
+    off: "input off",
+    requesting: "input asking",
+    wired: "input wired",
+    unwired: "input unwired",
+  };
+  const classByState = {
+    blocked: "error",
+    connected: "good",
+    off: "",
+    requesting: "warn",
+    wired: "good",
+    unwired: "warn",
+  };
+  status.textContent = textByState[state] || "input off";
+  status.className = `pill ${classByState[state] || ""}`.trim();
+  if (message) {
+    status.title = message;
+  } else {
+    status.removeAttribute("title");
+  }
+  syncNodeGraphInputModuleLiveState();
+  updateNodeGraphLiveInputTestStatus();
+}
+
+function nodeGraphLiveMicStatusText(state = nodeGraphMvp.live.micStatus) {
+  switch (state) {
+    case "armed":
+      return "mic waits";
+    case "blocked":
+      return "mic blocked";
+    case "connected":
+      return "mic live";
+    case "requesting":
+      return "mic asking";
+    default:
+      return "mic off";
+  }
+}
+
+function nodeGraphLivePermissionStatusText(state = nodeGraphMvp.live.inputPermissionStatus) {
+  switch (state) {
+    case "denied":
+      return "mic blocked";
+    case "granted":
+      return "mic allowed";
+    case "prompt":
+      return "mic ask ready";
+    case "unsupported":
+      return "mic permission unknown";
+    default:
+      return "mic unknown";
+  }
+}
+
+async function refreshNodeGraphLiveMicrophonePermissionState() {
+  if (!navigator.permissions?.query) {
+    nodeGraphMvp.live.inputPermissionStatus = "unsupported";
+    updateNodeGraphLiveInputTestStatus();
+    return "unsupported";
+  }
+  try {
+    const permission = await navigator.permissions.query({ name: "microphone" });
+    const updatePermissionState = () => {
+      nodeGraphMvp.live.inputPermissionStatus = permission.state || "unknown";
+      if (
+        nodeGraphMvp.live.inputActive &&
+        !nodeGraphMvp.live.inputStream &&
+        permission.state === "denied"
+      ) {
+        const message = "Microphone permission is blocked in the browser.";
+        setNodeGraphLiveInputStatus("blocked", message);
+        setNodeGraphLiveMicStatus("blocked", message);
+      } else if (
+        nodeGraphMvp.live.inputActive &&
+        !nodeGraphMvp.live.inputStream &&
+        nodeGraphMvp.live.micStatus === "blocked"
+      ) {
+        const routeState = nodeGraphLiveInputRouteState();
+        setNodeGraphLiveInputStatus(routeState.state, routeState.message);
+        setNodeGraphLiveMicStatus(
+          "armed",
+          permission.state === "granted"
+            ? "Microphone permission is allowed. Start OUTPUT to connect it."
+            : "Start OUTPUT to request browser microphone permission.",
+        );
+      } else {
+        updateNodeGraphLiveInputTestStatus();
+      }
+    };
+    updatePermissionState();
+    permission.onchange = updatePermissionState;
+    return nodeGraphMvp.live.inputPermissionStatus;
+  } catch (_error) {
+    nodeGraphMvp.live.inputPermissionStatus = "unsupported";
+    updateNodeGraphLiveInputTestStatus();
+    return "unsupported";
+  }
+}
+
+function syncNodeGraphInputModuleLiveState() {
+  for (const node of document.querySelectorAll('.dsp-node[data-node-type="audioInput"]')) {
+    const badge = node.querySelector(".node-live-input-state-badge");
+    if (!badge) {
+      continue;
+    }
+    const state = nodeGraphMvp.live.inputActive ? nodeGraphMvp.live.micStatus : "off";
+    badge.textContent = nodeGraphLiveMicStatusText(state);
+    badge.dataset.micState = state;
+    const peak = Math.max(0, Math.min(1, Number(nodeGraphMvp.live.inputMeterPeak) || 0));
+    badge.dataset.inputPeak = peak.toFixed(3);
+    badge.style.setProperty("--node-live-input-peak", `${Math.round(peak * 100)}%`);
+    badge.setAttribute("title", document.getElementById("nodeLiveMicStatus")?.title || "");
+  }
+}
+
+function setNodeGraphLiveMicStatus(state, message = "") {
+  const status = document.getElementById("nodeLiveMicStatus");
+  nodeGraphMvp.live.micStatus = state;
+  if (!status) {
+    return;
+  }
+  const textByState = {
+    armed: "mic waits output",
+    blocked: "mic blocked",
+    connected: "mic live",
+    off: "mic off",
+    requesting: "mic asking",
+  };
+  const classByState = {
+    armed: "warn",
+    blocked: "error",
+    connected: "good",
+    off: "",
+    requesting: "warn",
+  };
+  const permissionText = state === "armed" || state === "off"
+    ? nodeGraphLivePermissionStatusText()
+    : "";
+  status.textContent = permissionText || textByState[state] || "mic off";
+  status.className = `pill ${classByState[state] || ""}`.trim();
+  if (message) {
+    status.title = message;
+  } else {
+    status.removeAttribute("title");
+  }
+  syncNodeGraphInputModuleLiveState();
+  updateNodeGraphLiveInputTestStatus();
+}
+
+function updateNodeGraphLiveInputTestStatus() {
+  const status = document.getElementById("nodeLiveInputTestStatus");
+  if (!status) {
+    return;
+  }
+  const inputActive = Boolean(nodeGraphMvp.live.inputActive);
+  const inputRouteState = nodeGraphLiveInputRouteState();
+  const outputEnabled = Boolean(nodeGraphMvp.live.outputEnabled);
+  const micStatus = nodeGraphMvp.live.micStatus || "off";
+  const permissionStatus = nodeGraphMvp.live.inputPermissionStatus || "unknown";
+  const peak = Number(nodeGraphMvp.live.inputMeterPeak) || 0;
+  let text = "input test off";
+  let state = "";
+  let title = "Press Input to show the live input module, then wire it manually.";
+  if (inputActive && inputRouteState.state === "unwired") {
+    text = "wire input";
+    state = "warn";
+    title = inputRouteState.message;
+  } else if (micStatus === "blocked" || (inputActive && permissionStatus === "denied")) {
+    text = "fix mic";
+    state = "error";
+    title = document.getElementById("nodeLiveMicStatus")?.title ||
+      "Microphone permission is blocked in the browser.";
+  } else if (inputActive && !outputEnabled) {
+    text = permissionStatus === "granted"
+      ? "start output"
+      : nodeGraphLivePermissionStatusText(permissionStatus);
+    state = permissionStatus === "granted" ? "good" : "warn";
+    title = permissionStatus === "granted"
+      ? "Microphone permission is already allowed. Press Output to start live input."
+      : "Press Output to start live audio and request microphone permission.";
+  } else if (micStatus === "requesting") {
+    text = "allow mic";
+    state = "warn";
+    title = "Respond to the browser microphone permission prompt.";
+  } else if (micStatus === "connected" && peak > 0.001) {
+    text = "input signal";
+    state = "good";
+    title = "Microphone signal is reaching the live input module.";
+  } else if (micStatus === "connected") {
+    text = "listening";
+    state = "warn";
+    title = "Microphone is connected; make sound to confirm signal.";
+  } else if (inputActive) {
+    text = "ready";
+    state = "warn";
+    title = inputRouteState.message || "Input is visible. Start Output to request microphone permission.";
+  }
+  status.textContent = text;
+  status.className = `pill ${state}`.trim();
+  status.title = title;
+}
+
+async function refreshNodeGraphLiveInputDevices() {
+  const select = document.getElementById("nodeLiveInputDeviceSelect");
+  if (!select) {
+    return;
+  }
+  const selectedDeviceId = nodeGraphMvp.live.inputDeviceId || "";
+  select.replaceChildren(new Option("default input", ""));
+  select.value = "";
+  select.disabled = !navigator.mediaDevices?.enumerateDevices;
+  if (select.disabled) {
+    select.title = nodeGraphTooltipText("audio.inputDeviceUnavailable");
+    return;
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const inputDevices = devices.filter((device) => device.kind === "audioinput");
+    inputDevices.forEach((device, index) => {
+      const label = device.label || `input ${index + 1}`;
+      select.append(new Option(label, device.deviceId));
+    });
+    const hasSelectedDevice = selectedDeviceId &&
+      inputDevices.some((device) => device.deviceId === selectedDeviceId);
+    select.value = hasSelectedDevice ? selectedDeviceId : "";
+    if (!hasSelectedDevice) {
+      nodeGraphMvp.live.inputDeviceId = "";
+    }
+    select.title = inputDevices.length
+      ? nodeGraphTooltipText("audio.inputDevice")
+      : nodeGraphTooltipText("audio.inputDeviceMissing");
+  } catch (error) {
+    select.disabled = true;
+    select.title = error.message || nodeGraphTooltipText("audio.inputDeviceUnavailable");
+  }
+}
+
+async function handleNodeGraphLiveInputDeviceChange(event) {
+  nodeGraphMvp.live.inputDeviceId = event.target.value || "";
+  if (!nodeGraphMvp.live.inputActive || !nodeGraphMvp.live.context || !nodeGraphMvp.live.node) {
+    return;
+  }
+  stopNodeGraphLiveInputSource();
+  try {
+    await startNodeGraphLiveInputSource();
+  } catch (error) {
+    setNodeGraphLiveBlockedError("input", error, { schedule: false });
+  }
+}
+
+function nodeGraphLiveInputErrorMessage(error) {
+  const name = error?.name || "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Microphone permission was blocked. Allow microphone access in the browser, then press Output again.";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return "No browser audio input device was found.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return "The selected audio input is busy or unavailable.";
+  }
+  if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError") {
+    return "The selected audio input is unavailable.";
+  }
+  return error?.message || "Browser audio input unavailable.";
+}
+
+function cleanupNodeGraphMockInputStream() {
+  try {
+    nodeGraphMvp.live.mockInputOscillator?.stop();
+  } catch (_error) {
+    // Mock input may already be stopped by live shutdown.
+  }
+  try {
+    nodeGraphMvp.live.mockInputOscillator?.disconnect();
+    nodeGraphMvp.live.mockInputGain?.disconnect();
+    nodeGraphMvp.live.mockInputDestination?.disconnect?.();
+  } catch (_error) {
+    // Disconnected mock graph nodes are harmless.
+  }
+  nodeGraphMvp.live.mockInputDestination = null;
+  nodeGraphMvp.live.mockInputGain = null;
+  nodeGraphMvp.live.mockInputOscillator = null;
+}
+
+function setNodeGraphMockInputFactory(options = {}) {
+  const frequency = Number.isFinite(Number(options.frequency))
+    ? Math.max(20, Math.min(20000, Number(options.frequency)))
+    : 220;
+  const gain = Number.isFinite(Number(options.gain))
+    ? Math.max(0, Math.min(1, Number(options.gain)))
+    : 0.25;
+  nodeGraphMvp.live.inputStreamFactory = async ({ context }) => {
+    if (!context?.createMediaStreamDestination) {
+      throw new Error("Mock browser input needs MediaStreamDestination support.");
+    }
+    cleanupNodeGraphMockInputStream();
+    const oscillator = context.createOscillator();
+    const inputGain = context.createGain();
+    const destination = context.createMediaStreamDestination();
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+    inputGain.gain.value = gain;
+    oscillator.connect(inputGain);
+    inputGain.connect(destination);
+    oscillator.start();
+    nodeGraphMvp.live.mockInputDestination = destination;
+    nodeGraphMvp.live.mockInputGain = inputGain;
+    nodeGraphMvp.live.mockInputOscillator = oscillator;
+    return destination.stream;
+  };
+}
+
+function stopNodeGraphMockInput() {
+  const hadMockInput = Boolean(
+    nodeGraphMvp.live.mockInputOscillator ||
+    nodeGraphMvp.live.mockInputGain ||
+    nodeGraphMvp.live.mockInputDestination
+  );
+  nodeGraphMvp.live.inputStreamFactory = null;
+  if (hadMockInput && nodeGraphMvp.live.inputStream) {
+    stopNodeGraphLiveInputSource();
+  } else {
+    cleanupNodeGraphMockInputStream();
+  }
+}
+
+async function startNodeGraphMockInput(options = {}) {
+  setNodeGraphMockInputFactory(options);
+  nodeGraphMvp.live.inputActive = true;
+  ensureNodeGraphLiveInputModule();
+  if (!nodeGraphMvp.live.node || !nodeGraphMvp.live.context) {
+    nodeGraphMvp.live.outputEnabled = true;
+    await startNodeGraphLiveAudio();
+  } else {
+    await syncNodeGraphLiveInputSource();
+  }
+  return nodeGraphLiveDebug();
+}
+
+function nodeGraphLiveInputDeviceIsUnavailable(error) {
+  return [
+    "ConstraintNotSatisfiedError",
+    "DevicesNotFoundError",
+    "NotFoundError",
+    "OverconstrainedError",
+  ].includes(error?.name || "");
+}
+
+async function requestNodeGraphLiveInputStream(deviceId = nodeGraphMvp.live.inputDeviceId) {
+  if (typeof nodeGraphMvp.live.inputStreamFactory === "function") {
+    return nodeGraphMvp.live.inputStreamFactory({
+      context: nodeGraphMvp.live.context,
+      deviceId,
+    });
+  }
+  return navigator.mediaDevices.getUserMedia({
+    audio: {
+      autoGainControl: false,
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      echoCancellation: false,
+      noiseSuppression: false,
+    },
+  });
+}
+
+function nodeGraphLiveInputRouteState() {
+  const inputNodeIds = new Set(
+    (nodeGraphMvp.patch.nodes || [])
+      .filter((node) => node.type === "audioInput")
+      .map((node) => node.id),
+  );
+  if (!inputNodeIds.size) {
+    return {
+      message: "Live INPUT module is visible. Wire it into Output to hear it.",
+      state: "unwired",
+    };
+  }
+  const hasSignalRoute = (nodeGraphMvp.patch.connections || []).some((connection) =>
+    inputNodeIds.has(connection.sourceNode)
+  );
+  const hasModulationRoute = (nodeGraphMvp.patch.modulations || []).some((modulation) =>
+    inputNodeIds.has(modulation.sourceNode)
+  );
+  if (hasSignalRoute || hasModulationRoute) {
+    return {
+      message: hasSignalRoute
+        ? "Live INPUT is wired into the patch."
+        : "Live INPUT is wired as parameter modulation.",
+      state: "wired",
+    };
+  }
+  return {
+    message: "Live INPUT module is visible but has no outgoing wires.",
+    state: "unwired",
+  };
+}
+
+function nodeGraphLiveOutputIsActive(running = Boolean(nodeGraphMvp.live.node)) {
+  const statusText = document.getElementById("nodeLiveStatus")?.textContent || "";
+  const starting = statusText === "starting";
+  return (running || starting) && statusText !== "error";
+}
+
+function nodeGraphLiveOutputButtonTitle(outputActive, outputEnabled) {
+  const inputActive = Boolean(nodeGraphMvp.live.inputActive);
+  const inputStreaming = Boolean(nodeGraphMvp.live.inputStream);
+  if (outputActive && inputStreaming) {
+    return nodeGraphTooltipText("audio.liveOutputRunningWithInput");
+  }
+  if (outputActive) {
+    return nodeGraphTooltipText("audio.liveOutputRunning");
+  }
+  if (outputEnabled && inputActive) {
+    return nodeGraphTooltipText("audio.liveOutputPermissionPending");
+  }
+  if (outputEnabled) {
+    return nodeGraphTooltipText("audio.liveOutputRequested");
+  }
+  if (inputActive) {
+    return nodeGraphTooltipText("audio.liveOutputWithInput");
+  }
+  return nodeGraphTooltipText("audio.liveOutputStart");
+}
+
+function syncNodeGraphOutputBypassButton(outputEnabled = Boolean(nodeGraphMvp.live.outputEnabled)) {
+  const outputNode = nodeGraphNodeElement("output");
+  const bypassButton = outputNode?.querySelector(".node-bypass-button");
+  if (!bypassButton || !outputNode) {
+    return;
+  }
+  const bypassed = !outputEnabled;
+  outputNode.classList.toggle("bypassed", bypassed);
+  bypassButton.setAttribute("aria-pressed", bypassed ? "true" : "false");
+  bypassButton.textContent = nodeGraphBypassGlyph(bypassed);
+  nodeGraphApplyTooltip(bypassButton, bypassed ? "module.outputOn" : "module.outputOff");
+}
+
 function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) {
   const statusText = document.getElementById("nodeLiveStatus")?.textContent || "";
   const starting = statusText === "starting";
-  const outputActive = (running || starting) && statusText !== "error";
+  const outputActive = nodeGraphLiveOutputIsActive(running);
+  const outputEnabled = Boolean(nodeGraphMvp.live.outputEnabled);
   const inputButton = document.getElementById("nodeLiveInputButton");
   const outputButton = document.getElementById("nodeLiveOutputButton");
+  const labelLiveToggle = (button, name, active) => {
+    if (!button) {
+      return;
+    }
+    const stateText = active ? "(Live)" : "(Off)";
+    button.replaceChildren();
+    for (const text of [name, stateText]) {
+      const line = document.createElement("span");
+      line.textContent = text;
+      button.append(line);
+    }
+  };
   if (inputButton) {
-    inputButton.classList.toggle("active", Boolean(nodeGraphMvp.live.inputActive));
-    inputButton.setAttribute("aria-pressed", nodeGraphMvp.live.inputActive ? "true" : "false");
+    const inputActive = Boolean(nodeGraphMvp.live.inputActive);
+    const inputStreaming = Boolean(nodeGraphMvp.live.inputStream);
+    if (!inputActive && !["blocked", "off"].includes(nodeGraphMvp.live.inputStatus)) {
+      setNodeGraphLiveInputStatus("off");
+    } else if (
+      inputActive &&
+      !inputStreaming &&
+      !nodeGraphMvp.live.node &&
+      !["blocked", "requesting"].includes(nodeGraphMvp.live.inputStatus)
+    ) {
+      const routeState = nodeGraphLiveInputRouteState();
+      setNodeGraphLiveInputStatus(routeState.state, routeState.message);
+    } else if (inputStreaming && nodeGraphMvp.live.inputStatus !== "connected") {
+      setNodeGraphLiveInputStatus("connected", "Live INPUT is connected to the browser audio engine.");
+    }
+    if (!inputActive && !["blocked", "off"].includes(nodeGraphMvp.live.micStatus)) {
+      setNodeGraphLiveMicStatus("off");
+    } else if (inputStreaming && nodeGraphMvp.live.micStatus !== "connected") {
+      setNodeGraphLiveMicStatus("connected", "Browser microphone stream is connected.");
+    } else if (
+      inputActive &&
+      !inputStreaming &&
+      !nodeGraphMvp.live.node &&
+      !["blocked", "requesting"].includes(nodeGraphMvp.live.micStatus)
+    ) {
+      setNodeGraphLiveMicStatus("armed", "Start OUTPUT to request browser microphone permission.");
+    }
+    inputButton.classList.toggle("active", inputActive);
+    inputButton.setAttribute("aria-pressed", inputActive ? "true" : "false");
+    labelLiveToggle(inputButton, "Input", inputActive);
+    inputButton.title = inputStreaming
+      ? nodeGraphTooltipText("audio.liveInputConnected")
+      : inputActive
+        ? nodeGraphTooltipText("audio.liveInputVisible")
+        : nodeGraphTooltipText("audio.liveInputShow");
   }
   if (outputButton) {
     outputButton.disabled = starting;
-    outputButton.classList.toggle("active", outputActive);
-    outputButton.setAttribute("aria-pressed", outputActive ? "true" : "false");
+    outputButton.classList.toggle("active", outputEnabled);
+    outputButton.setAttribute("aria-pressed", outputEnabled ? "true" : "false");
+    labelLiveToggle(outputButton, "Output", outputEnabled);
+    outputButton.title = nodeGraphLiveOutputButtonTitle(outputActive, outputEnabled);
   }
+  syncNodeGraphOutputBypassButton(outputEnabled);
+  syncNodeGraphInputModuleLiveState();
+  updateNodeGraphLiveInputTestStatus();
+  scheduleNodeLiveToggleTextFit();
+}
+
+function nodeGraphLiveOutputStartCancelled(serial) {
+  return serial !== nodeGraphMvp.live.outputToggleSerial || !nodeGraphMvp.live.outputEnabled;
 }
 
 function toggleNodeGraphLiveInput() {
   nodeGraphMvp.live.inputActive = !nodeGraphMvp.live.inputActive;
+  const addedInputModule = nodeGraphMvp.live.inputActive
+    ? ensureNodeGraphLiveInputModule()
+    : false;
+  if (nodeGraphMvp.live.inputActive) {
+    const routeState = nodeGraphLiveInputRouteState();
+    setNodeGraphLiveInputStatus(routeState.state, routeState.message);
+    refreshNodeGraphLiveMicrophonePermissionState();
+  } else {
+    setNodeGraphLiveInputStatus("off");
+    setNodeGraphLiveMicStatus("off");
+  }
+  if (!addedInputModule) {
+    applyNodeGraphPatchToDom();
+    drawNodeGraphWires();
+    scheduleNodeGraphLivePlanSync();
+  }
   renderNodeGraphLiveControls();
+  if (nodeGraphMvp.live.context && nodeGraphMvp.live.node) {
+    syncNodeGraphLiveInputSource().catch((error) => {
+      nodeGraphMvp.live.inputActive = false;
+      stopNodeGraphLiveInputSource();
+      setNodeGraphLiveInputStatus("blocked", error.message);
+      applyNodeGraphPatchToDom();
+      drawNodeGraphWires();
+      renderNodeGraphLiveControls();
+      setNodeGraphLiveBlockedError("input", error, { schedule: false });
+    });
+  }
+}
+
+async function setNodeGraphLiveOutputEnabled(enabled) {
+  const outputEnabled = Boolean(enabled);
+  const serial = nodeGraphMvp.live.outputToggleSerial + 1;
+  nodeGraphMvp.live.outputToggleSerial = serial;
+  nodeGraphMvp.live.outputEnabled = outputEnabled;
+  renderNodeGraphLiveControls(Boolean(nodeGraphMvp.live.node));
+  renderNodeGraphExecutionPlanDebug();
+
+  if (!outputEnabled) {
+    if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
+      await stopNodeGraphLiveAudio();
+    }
+    renderNodeGraphExecutionPlanDebug();
+    return;
+  }
+
+  if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
+    await stopNodeGraphLiveAudio();
+  }
+  if (serial !== nodeGraphMvp.live.outputToggleSerial || !nodeGraphMvp.live.outputEnabled) {
+    return;
+  }
+  renderNodeGraphLiveControls();
+  renderNodeGraphExecutionPlanDebug();
+  await startNodeGraphLiveAudio(serial);
+  if (serial === nodeGraphMvp.live.outputToggleSerial) {
+    renderNodeGraphExecutionPlanDebug();
+  }
 }
 
 function toggleNodeGraphLiveOutput() {
-  if (document.getElementById("nodeLiveStatus")?.textContent === "starting") {
-    return;
-  }
-  if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
-    stopNodeGraphLiveAudio();
-  } else {
-    startNodeGraphLiveAudio();
-  }
+  setNodeGraphLiveOutputEnabled(!nodeGraphMvp.live.outputEnabled);
 }
 
 function nodeGraphBuildLivePlan() {
@@ -12525,9 +17363,11 @@ function createNodeGraphLiveRuntime(plan) {
   const noiseSeeds = new Map();
   const spiralStates = new Map();
   const smoothers = new Map();
+  const triangleStates = new Map();
   for (const node of plan.nodes || []) {
     if (node.type === "osc") {
       phases.set(node.id, 0);
+      triangleStates.set(node.id, 0);
     }
     if (node.type === "osc" || node.type === "noise") {
       noiseSeeds.set(node.id, nodeGraphStableSeed(node.id));
@@ -12558,6 +17398,7 @@ function createNodeGraphLiveRuntime(plan) {
     phases,
     smoothers,
     spiralStates,
+    triangleStates,
   };
 }
 
@@ -12586,12 +17427,18 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.spiralStates) {
     runtime.spiralStates = new Map();
   }
+  if (!runtime.triangleStates) {
+    runtime.triangleStates = new Map();
+  }
   for (const node of plan.nodes || []) {
     if (!runtime.nodeOutputs.has(node.id)) {
       runtime.nodeOutputs.set(node.id, 0);
     }
     if (node.type === "osc" && !runtime.phases.has(node.id)) {
       runtime.phases.set(node.id, 0);
+    }
+    if (node.type === "osc" && !runtime.triangleStates.has(node.id)) {
+      runtime.triangleStates.set(node.id, 0);
     }
     if ((node.type === "osc" || node.type === "noise") && !runtime.noiseSeeds.has(node.id)) {
       runtime.noiseSeeds.set(node.id, nodeGraphStableSeed(node.id));
@@ -12615,6 +17462,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.phases.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.phases.delete(id);
+    }
+  }
+  for (const id of [...runtime.triangleStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.triangleStates.delete(id);
     }
   }
   for (const id of [...runtime.noiseSeeds.keys()]) {
@@ -12701,15 +17553,54 @@ function readNodeGraphRuntimeOutput(runtime, frameValues, nodeId, port = "Out") 
 }
 
 function normalizeNodeGraphParameterOutputValue(value, metadata = {}) {
+  return nodeGraphParameterValueToNormalizedSignal(value, metadata);
+}
+
+function nodeGraphParameterSkewExponent(metadata = {}) {
+  if (!metadata.nonlinearSlider) {
+    return 1;
+  }
   const min = Number(metadata.min);
   const max = Number(metadata.max);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+  const mid = Number(metadata.mid);
+  const range = max - min;
+  if (!Number.isFinite(range) || range <= 0 || !Number.isFinite(mid)) {
+    return 1;
+  }
+  const normalizedMid = clampNodeSliderValue((mid - min) / range, 0.000001, 0.999999);
+  return Math.log(normalizedMid) / Math.log(0.5);
+}
+
+function nodeGraphParameterValueToNormalizedSignal(value, metadata = {}) {
+  const min = Number(metadata.min);
+  const max = Number(metadata.max);
+  const range = max - min;
+  if (!Number.isFinite(range) || range <= 0) {
     return 0;
   }
   const bounded = metadata.wraparound
     ? wrapNodeSliderValue(Number(value) || 0, min, max)
     : clampNodeSliderValue(Number(value) || 0, min, max);
-  return clampNodeSliderValue((bounded - min) / (max - min), 0, 1);
+  const normalizedValue = clampNodeSliderValue((bounded - min) / range, 0, 1);
+  return clampNodeSliderValue(
+    normalizedValue ** (1 / nodeGraphParameterSkewExponent(metadata)),
+    0,
+    1,
+  );
+}
+
+function nodeGraphNormalizedSignalToParameterValue(signal, metadata = {}) {
+  const min = Number(metadata.min);
+  const max = Number(metadata.max);
+  const range = max - min;
+  if (!Number.isFinite(range) || range <= 0) {
+    return Number.isFinite(min) ? min : 0;
+  }
+  const normalizedSignal = metadata.wraparound
+    ? wrapNodeSliderValue(Number(signal) || 0, 0, 1)
+    : clampNodeSliderValue(Number(signal) || 0, 0, 1);
+  const normalizedValue = normalizedSignal ** nodeGraphParameterSkewExponent(metadata);
+  return nodeGraphApplyParameterBounds(min + range * normalizedValue, metadata);
 }
 
 function readNodeGraphRuntimePortOutput(runtime, frameValues, nodeId, port = "Out", frame = 0, frames = 1) {
@@ -12741,23 +17632,21 @@ function readNodeGraphLiveEffectiveParam(
 ) {
   const base = readNodeGraphLiveSmoothedParam(runtime, node, key, fallback, frame, frames);
   const metadata = node?.paramMeta?.[key] || {};
-  const min = Number(metadata.min);
-  const max = Number(metadata.max);
-  const depth = Number.isFinite(min) && Number.isFinite(max) ? (max - min) * 0.5 : 0;
   const modulations = runtime.modulationConnections?.get(nodeGraphParameterKey(node?.id, key)) || [];
-  const modulationValue = modulations.reduce(
+  const modulationSignal = modulations.reduce(
     (sum, modulation) =>
-      sum + readNodeGraphRuntimePortOutput(
+      sum + clampNodeSliderValue(readNodeGraphRuntimePortOutput(
         runtime,
         frameValues,
         modulation.sourceNode,
         modulation.sourcePort,
         frame,
         frames,
-      ) * depth,
+      ), 0, 1),
     0,
   );
-  return nodeGraphApplyParameterBounds(base + modulationValue, metadata);
+  const baseSignal = nodeGraphParameterValueToNormalizedSignal(base, metadata);
+  return nodeGraphNormalizedSignalToParameterValue(baseSignal + modulationSignal, metadata);
 }
 
 function nodeGraphPhaseRadians(value) {
@@ -12770,20 +17659,45 @@ function nextNodeGraphNoiseSample(runtime, nodeId) {
   return (seed / 0xffffffff) * 2 - 1;
 }
 
-function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, waveform) {
+function nodeGraphPolyBlep(phaseCycle, phaseIncrement) {
+  const dt = clampNodeSliderValue(Math.abs(Number(phaseIncrement) || 0), 1e-6, 0.5);
+  if (phaseCycle < dt) {
+    const t = phaseCycle / dt;
+    return t + t - t * t - 1;
+  }
+  if (phaseCycle > 1 - dt) {
+    const t = (phaseCycle - 1) / dt;
+    return t * t + t + t + 1;
+  }
+  return 0;
+}
+
+function nodeGraphPolyBlepSquare(phaseCycle, phaseIncrement) {
+  let value = phaseCycle < 0.5 ? 1 : -1;
+  value += nodeGraphPolyBlep(phaseCycle, phaseIncrement);
+  value -= nodeGraphPolyBlep(wrapNodeSliderValue(phaseCycle + 0.5, 0, 1), phaseIncrement);
+  return value;
+}
+
+function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, phaseIncrement, waveform) {
   const phaseCycle = wrapNodeSliderValue(phase / (Math.PI * 2), 0, 1);
   switch (Math.round(Number(waveform) || 0)) {
     case 1:
-      return phaseCycle < 0.5 ? 1 : -1;
+      return nodeGraphPolyBlepSquare(phaseCycle, phaseIncrement);
     case 2:
-      return 1 - Math.abs(phaseCycle - 0.5) * 4;
+      {
+        const triangle = runtime.triangleStates?.get(nodeId) || 0;
+        const nextTriangle = (triangle + nodeGraphPolyBlepSquare(phaseCycle, phaseIncrement) * phaseIncrement * 4) * 0.995;
+        runtime.triangleStates?.set(nodeId, clampNodeSliderValue(nextTriangle, -1, 1));
+        return clampNodeSliderValue(nextTriangle, -1, 1);
+      }
     case 3:
       return Math.sin(phase);
     case 4:
       return nextNodeGraphNoiseSample(runtime, nodeId);
     case 0:
     default:
-      return phaseCycle * 2 - 1;
+      return phaseCycle * 2 - 1 - nodeGraphPolyBlep(phaseCycle, phaseIncrement);
   }
 }
 
@@ -12981,7 +17895,27 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const node = runtime.nodes.get(nodeId);
     let value = 0;
 
-    if (node?.type === "osc") {
+    if (node?.type === "audioInput") {
+      const input = runtime.externalInput || {};
+      const leftChannel = input.left || input.right || null;
+      const rightChannel = input.right || input.left || null;
+      const left = Number(leftChannel?.[frame]) || 0;
+      const right = Number(rightChannel?.[frame]) || left;
+      const level = readNodeGraphLiveEffectiveParam(
+        runtime,
+        node,
+        "level",
+        0.35,
+        frame,
+        frames,
+        frameValues,
+      );
+      value = {
+        Left: left * level,
+        Out: ((left + right) * 0.5) * level,
+        Right: right * level,
+      };
+    } else if (node?.type === "osc") {
       const phase = runtime.phases.get(nodeId) || 0;
       const phaseOffset = nodeGraphPhaseRadians(
         readNodeGraphLiveEffectiveParam(
@@ -13012,10 +17946,12 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
+      const phaseIncrement = frequency / sampleRate;
       value = nodeGraphOscillatorWaveformSample(
         runtime,
         nodeId,
         phase + phaseOffset,
+        phaseIncrement,
         waveform,
       ) * readNodeGraphLiveEffectiveParam(
         runtime,
@@ -13108,10 +18044,23 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     runtime.nodeOutputs?.set(nodeId, value);
   }
 
+  const outputNode = runtime.nodes.get(runtime.outputNode || "output");
+  const outputVolume = outputNode
+    ? readNodeGraphLiveEffectiveParam(
+      runtime,
+      outputNode,
+      "volume",
+      1,
+      frame,
+      frames,
+      frameValues,
+    )
+    : 1;
+
   return {
     frameValues,
-    left: mixInput(runtime.outputNode || "output", "Left"),
-    right: mixInput(runtime.outputNode || "output", "Right"),
+    left: mixInput(runtime.outputNode || "output", "Left") * outputVolume,
+    right: mixInput(runtime.outputNode || "output", "Right") * outputVolume,
   };
 }
 
@@ -13128,7 +18077,24 @@ function renderNodeGraphLiveScriptBlock(event) {
   const sampleRate = event.playbackTime !== undefined
     ? output.sampleRate
     : nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate;
+  runtime.externalInput = {
+    left: event.inputBuffer?.numberOfChannels > 0
+      ? event.inputBuffer.getChannelData(0)
+      : null,
+    right: event.inputBuffer?.numberOfChannels > 1
+      ? event.inputBuffer.getChannelData(1)
+      : null,
+  };
   for (let frame = 0; frame < frames; frame += 1) {
+    const inputLeft = Number(runtime.externalInput.left?.[frame]) || 0;
+    const inputRight = Number(runtime.externalInput.right?.[frame]) || inputLeft;
+    nodeGraphMvp.live.inputMeterPeak = Math.max(
+      nodeGraphMvp.live.inputMeterPeak,
+      Math.abs(inputLeft),
+      Math.abs(inputRight),
+    );
+    nodeGraphMvp.live.inputMeterSquareSum += (inputLeft * inputLeft + inputRight * inputRight) * 0.5;
+    nodeGraphMvp.live.inputMeterSamples += 1;
     const frameOutput = evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames);
     if (nodeGraphOutputSampleClipped(frameOutput.left)) {
       runtime.meterClipCount += 1;
@@ -13146,15 +18112,23 @@ function renderNodeGraphLiveScriptBlock(event) {
       output.getChannelData(channel)[frame] = channel === 0 ? left : right;
     }
   }
+  runtime.externalInput = null;
   finishNodeGraphParameterSmoothing(runtime.smoothers);
   runtime.meterCounter += frames;
   if (runtime.meterCounter >= sampleRate / 10) {
+    setNodeGraphLiveInputMeter(
+      nodeGraphMvp.live.inputMeterPeak,
+      Math.sqrt(nodeGraphMvp.live.inputMeterSquareSum / Math.max(1, nodeGraphMvp.live.inputMeterSamples)),
+    );
     setNodeGraphLiveMeter(
       runtime.meterPeak,
       Math.sqrt(runtime.meterSquareSum / Math.max(1, runtime.meterSamples)),
       runtime.meterClipCount,
     );
     runtime.meterCounter = 0;
+    nodeGraphMvp.live.inputMeterPeak = 0;
+    nodeGraphMvp.live.inputMeterSamples = 0;
+    nodeGraphMvp.live.inputMeterSquareSum = 0;
     runtime.meterClipCount = 0;
     runtime.meterPeak = 0;
     runtime.meterSamples = 0;
@@ -13168,6 +18142,10 @@ function handleNodeGraphLiveWorkletMessage(event) {
     if (message.sessionId !== nodeGraphMvp.live.sessionId || !nodeGraphMvp.live.node) {
       return;
     }
+    setNodeGraphLiveInputMeter(
+      Number(message.inputPeak) || 0,
+      Number(message.inputRms) || 0,
+    );
     setNodeGraphLiveMeter(
       Number(message.peak) || 0,
       Number(message.rms) || 0,
@@ -13347,6 +18325,7 @@ function flushNodeGraphLivePlanSync() {
 
 async function stopNodeGraphLiveAudio() {
   clearNodeGraphLivePlanSync();
+  stopNodeGraphLiveInputSource();
   const liveNode = nodeGraphMvp.live.node;
   const liveContext = nodeGraphMvp.live.context;
   const scriptNode = nodeGraphMvp.live.scriptNode;
@@ -13380,6 +18359,7 @@ async function stopNodeGraphLiveAudio() {
   setNodeGraphLiveEngineTitle();
   setNodeGraphLivePlanStatus();
   setNodeGraphLivePlanTitle();
+  setNodeGraphLiveInputMeter();
   setNodeGraphLiveMeter();
   setNodeGraphLiveScheduleStatus("schedule stopped");
   clearNodeGraphLiveStatusTitle();
@@ -13390,12 +18370,12 @@ async function createNodeGraphLiveWorkletNode(context) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
-  await context.audioWorklet.addModule("/public/node-live-audio-worklet.js");
+  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js");
   const workletNode = new AudioWorkletNode(
     context,
     "node-live-audio-processor",
     {
-      numberOfInputs: 0,
+      numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [2],
     },
@@ -13408,17 +18388,111 @@ async function createNodeGraphLiveWorkletNode(context) {
 }
 
 function createNodeGraphLiveScriptProcessorNode(context, plan) {
-  const scriptNode = context.createScriptProcessor(nodeGraphAudioBlockSize, 0, 2);
+  const scriptNode = context.createScriptProcessor(nodeGraphAudioBlockSize, 2, 2);
   scriptNode.onaudioprocess = renderNodeGraphLiveScriptBlock;
   nodeGraphMvp.live.runtime = createNodeGraphLiveRuntime(plan);
   nodeGraphMvp.live.scriptNode = scriptNode;
   return scriptNode;
 }
 
-async function startNodeGraphLiveAudio() {
+function stopNodeGraphLiveInputSource() {
+  const source = nodeGraphMvp.live.inputSource;
+  const stream = nodeGraphMvp.live.inputStream;
+  nodeGraphMvp.live.inputSource = null;
+  nodeGraphMvp.live.inputStream = null;
+  cleanupNodeGraphMockInputStream();
+  try {
+    source?.disconnect();
+  } catch (_error) {
+    // Already disconnected input sources are harmless.
+  }
+  for (const track of stream?.getTracks?.() || []) {
+    track.stop();
+  }
+  setNodeGraphLiveInputStatus(
+    nodeGraphMvp.live.inputActive ? nodeGraphLiveInputRouteState().state : "off",
+    nodeGraphMvp.live.inputActive
+      ? nodeGraphLiveInputRouteState().message
+      : ""
+  );
+  setNodeGraphLiveMicStatus(
+    nodeGraphMvp.live.inputActive ? "armed" : "off",
+    nodeGraphMvp.live.inputActive
+      ? "Start OUTPUT to request browser microphone permission."
+      : ""
+  );
+}
+
+async function startNodeGraphLiveInputSource() {
+  const context = nodeGraphMvp.live.context;
+  const liveNode = nodeGraphMvp.live.node;
+  if (!context || !liveNode || nodeGraphMvp.live.inputStream) {
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    const message = window.isSecureContext
+      ? "Browser audio input unavailable."
+      : "Browser audio input needs HTTPS or localhost.";
+    setNodeGraphLiveInputStatus("blocked", message);
+    setNodeGraphLiveMicStatus("blocked", message);
+    const error = new Error(message);
+    error.nodeGraphInputError = true;
+    throw error;
+  }
+  setNodeGraphLiveInputStatus("requesting", "Requesting browser microphone permission.");
+  setNodeGraphLiveMicStatus("requesting", "Requesting browser microphone permission.");
+  try {
+    let stream = null;
+    try {
+      stream = await requestNodeGraphLiveInputStream();
+    } catch (error) {
+      if (!nodeGraphMvp.live.inputDeviceId || !nodeGraphLiveInputDeviceIsUnavailable(error)) {
+        throw error;
+      }
+      nodeGraphMvp.live.inputDeviceId = "";
+      setNodeGraphLiveInputStatus("requesting", "Selected input unavailable; retrying default input.");
+      setNodeGraphLiveMicStatus("requesting", "Selected input unavailable; retrying default input.");
+      await refreshNodeGraphLiveInputDevices();
+      stream = await requestNodeGraphLiveInputStream("");
+    }
+    const source = context.createMediaStreamSource(stream);
+    source.connect(liveNode);
+    nodeGraphMvp.live.inputStream = stream;
+    nodeGraphMvp.live.inputSource = source;
+    nodeGraphMvp.live.inputPermissionStatus = "granted";
+    setNodeGraphLiveInputStatus("connected", "Live INPUT is connected to the browser audio engine.");
+    setNodeGraphLiveMicStatus("connected", "Browser microphone stream is connected.");
+    refreshNodeGraphLiveInputDevices();
+  } catch (error) {
+    const message = nodeGraphLiveInputErrorMessage(error);
+    if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+      nodeGraphMvp.live.inputPermissionStatus = "denied";
+    }
+    setNodeGraphLiveInputStatus("blocked", message);
+    setNodeGraphLiveMicStatus("blocked", message);
+    error.nodeGraphInputError = true;
+    throw error;
+  }
+}
+
+async function syncNodeGraphLiveInputSource() {
+  if (nodeGraphMvp.live.inputActive) {
+    await startNodeGraphLiveInputSource();
+  } else {
+    stopNodeGraphLiveInputSource();
+  }
+}
+
+async function startNodeGraphLiveAudio(outputSerial = nodeGraphMvp.live.outputToggleSerial) {
+  if (nodeGraphLiveOutputStartCancelled(outputSerial)) {
+    renderNodeGraphLiveControls(false);
+    renderNodeGraphExecutionPlanDebug();
+    return;
+  }
   try {
     if (!nodeGraphScriptReadyForGraphAction("live audio")) {
       markNodeGraphLiveScriptBlocked();
+      renderNodeGraphLiveControls(false);
       return;
     }
     setNodeGraphLiveStatus("starting", "warn");
@@ -13426,6 +18500,11 @@ async function startNodeGraphLiveAudio() {
     stopNodeGraphRenderedPlayback();
     if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
       await stopNodeGraphLiveAudio();
+      if (nodeGraphLiveOutputStartCancelled(outputSerial)) {
+        renderNodeGraphLiveControls(false);
+        renderNodeGraphExecutionPlanDebug();
+        return;
+      }
       setNodeGraphLiveStatus("starting", "warn");
       renderNodeGraphLiveControls(false);
     }
@@ -13441,6 +18520,12 @@ async function startNodeGraphLiveAudio() {
     if (context.state === "suspended") {
       await context.resume();
     }
+    if (nodeGraphLiveOutputStartCancelled(outputSerial)) {
+      await context.close();
+      renderNodeGraphLiveControls(false);
+      renderNodeGraphExecutionPlanDebug();
+      return;
+    }
     const outputGain = context.createGain();
     outputGain.gain.value = 1;
     let liveNode = null;
@@ -13453,6 +18538,17 @@ async function startNodeGraphLiveAudio() {
       setNodeGraphLiveEngineStatus("engine fallback", "warn");
       setNodeGraphLiveEngineTitle(error.message);
     }
+    if (nodeGraphLiveOutputStartCancelled(outputSerial)) {
+      try {
+        liveNode?.disconnect();
+      } catch (_error) {
+        // A not-yet-connected live node is already silent.
+      }
+      await context.close();
+      renderNodeGraphLiveControls(false);
+      renderNodeGraphExecutionPlanDebug();
+      return;
+    }
     nodeGraphMvp.live.context = context;
     nodeGraphMvp.live.meterGain = null;
     nodeGraphMvp.live.node = liveNode;
@@ -13460,6 +18556,12 @@ async function startNodeGraphLiveAudio() {
     nodeGraphMvp.live.usesWorklet = usesWorklet;
     liveNode.connect(outputGain);
     outputGain.connect(context.destination);
+    await syncNodeGraphLiveInputSource();
+    if (nodeGraphLiveOutputStartCancelled(outputSerial)) {
+      await stopNodeGraphLiveAudio();
+      renderNodeGraphExecutionPlanDebug();
+      return;
+    }
     sendNodeGraphLivePlan();
     if (usesWorklet) {
       setNodeGraphLiveEngineStatus("engine worklet", "good");
@@ -13469,8 +18571,17 @@ async function startNodeGraphLiveAudio() {
     clearNodeGraphLiveStatusTitle();
     renderNodeGraphLiveControls(true);
   } catch (error) {
+    const inputError = Boolean(error.nodeGraphInputError);
+    const inputErrorMessage = inputError ? nodeGraphLiveInputErrorMessage(error) : "";
     await stopNodeGraphLiveAudio();
-    setNodeGraphLiveBlockedError("plan", error);
+    if (inputError) {
+      nodeGraphMvp.live.outputEnabled = false;
+      setNodeGraphLiveInputStatus("blocked", inputErrorMessage);
+      setNodeGraphLiveMicStatus("blocked", inputErrorMessage);
+      setNodeGraphLiveBlockedError("input", error, { schedule: false });
+    } else {
+      setNodeGraphLiveBlockedError("plan", error);
+    }
     renderNodeGraphLiveControls(false);
   }
 }
@@ -13483,11 +18594,10 @@ function renderNodeGraphAudio() {
   stopNodeGraphRenderedPlayback();
   const validation = nodeGraphValidate();
   const renderStatus = document.getElementById("nodeGraphRenderStatus");
-  const playButton = document.getElementById("nodePlayButton");
   if (!validation.valid) {
     nodeGraphMvp.rendered = null;
-    playButton.disabled = true;
-    playButton.title = `Play blocked: ${validation.issues.join(", ")}`;
+    clearNodeGraphRenderedAudioElement();
+    labelPrimaryAudioTitle("Fix graph before rendering", false);
     renderStatus.textContent = "render blocked";
     renderStatus.className = "pill warn";
     setNodeGraphAudioStats();
@@ -13500,6 +18610,7 @@ function renderNodeGraphAudio() {
     return;
   }
 
+  syncNodeGraphRenderSecondsFromInput({ normalize: true });
   const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
   const outputSampleRate = audio.outputSampleRate;
   const engineSampleRate = audio.clampedEngineSampleRate;
@@ -13584,8 +18695,7 @@ function renderNodeGraphAudio() {
     sourceNodes: validation.sourceNodes,
     stateReadCount,
   };
-  playButton.disabled = false;
-  playButton.title = "Play rendered sample";
+  syncNodeGraphRenderedAudioElement();
   renderStatus.textContent = "render ready";
   renderStatus.className = "pill good";
   setNodeGraphAudioStats(peak, rms, {
@@ -13706,7 +18816,9 @@ function setNodeVisualOutputExportReady(ready, title = "") {
     return;
   }
   button.disabled = !ready;
-  button.title = title || (ready ? "Save visual output as PNG" : "Render Sample before saving visual output");
+  button.title = title || nodeGraphTooltipText(
+    ready ? "legacyEvidence.visualOutputSave" : "legacyEvidence.visualOutputRenderFirst",
+  );
 }
 
 function drawNodeRenderedVisualOutput(options = {}) {
@@ -13767,7 +18879,7 @@ function drawNodeRenderedVisualOutput(options = {}) {
       canvas.dataset.visualExportIncludesPlaybackCursor = "false";
       canvas.dataset.visualExportReady = "false";
       canvas.dataset.visualPatchFingerprint = "";
-      canvas.title = "Node graph visual output waiting for Render Sample";
+      canvas.title = nodeGraphTooltipText("legacyEvidence.visualOutputWaiting");
       setNodeVisualOutputExportReady(false);
       renderNodeVisualOutputMeta({
         Frames: 0,
@@ -13941,47 +19053,10 @@ function saveNodeGraphVisualOutputPng() {
   }, "image/png");
 }
 
-async function playNodeGraphAudio() {
-  if (!nodeGraphMvp.rendered?.samples?.length) {
-    return;
-  }
-
-  if (nodeGraphMvp.live.node || nodeGraphMvp.live.context) {
-    await stopNodeGraphLiveAudio();
-  }
-  const renderedSampleRate = Number(nodeGraphMvp.rendered.sampleRate) || nodeGraphMvp.sampleRate;
-  nodeGraphMvp.audioContext ||= new AudioContext({ sampleRate: renderedSampleRate });
-  if (nodeGraphMvp.audioContext.state === "suspended") {
-    await nodeGraphMvp.audioContext.resume();
-  }
-  stopNodeGraphRenderedPlayback();
-
-  const channelCount = nodeGraphMvp.rendered.leftSamples?.length ? 2 : 1;
-  const buffer = nodeGraphMvp.audioContext.createBuffer(
-    channelCount,
-    nodeGraphMvp.rendered.samples.length,
-    renderedSampleRate,
-  );
-  buffer.copyToChannel(nodeGraphMvp.rendered.leftSamples || nodeGraphMvp.rendered.samples, 0);
-  if (channelCount > 1) {
-    buffer.copyToChannel(nodeGraphMvp.rendered.rightSamples || nodeGraphMvp.rendered.samples, 1);
-  }
-  const source = nodeGraphMvp.audioContext.createBufferSource();
-  source.buffer = buffer;
-  source.connect(nodeGraphMvp.audioContext.destination);
-  source.onended = () => {
-    if (nodeGraphMvp.bufferSource === source) {
-      nodeGraphMvp.bufferSource = null;
-      resetNodeGraphRenderedPlaybackCursor(true);
-    }
-  };
-  nodeGraphMvp.bufferSource = source;
-  source.start();
-  startNodeGraphRenderedPlaybackCursor();
-}
-
-function initNodeGraphMvp() {
+async function initNodeGraphMvp() {
   installNodeGraphDebugApi();
+  configureNodeGraphDefaultPresetButton();
+  await loadNodeGraphTooltips();
   const nodePanel = document.querySelector(".node-wiring-panel");
   nodePanel?.addEventListener("pointerover", handleNodeInteractionHelp);
   nodePanel?.addEventListener("pointermove", handleNodeInteractionHelp);
@@ -14001,16 +19076,31 @@ function initNodeGraphMvp() {
   }
   document
     .getElementById("nodeGraphWorkspace")
+    .addEventListener("nodegraph:environment-command", handleNodeGraphEnvironmentCommand);
+  document
+    .getElementById("nodeGraphWorkspace")
     .addEventListener("contextmenu", openNodeSceneContextMenu);
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("auxclick", preventNodeGraphMiddleMouseAuxClick);
   document
     .getElementById("nodeGraphWorkspace")
+    .addEventListener("mousedown", preventNodeGraphMiddleMouseDefault, true);
+  document
+    .getElementById("nodeGraphWorkspace")
+    .addEventListener("pointerdown", beginNodeGraphPatchPointWireDrag, true);
+  document
+    .getElementById("nodeGraphWorkspace")
     .addEventListener("pointerdown", beginNodeGraphWorkspacePan, true);
   document
     .getElementById("nodeGraphWorkspace")
+    .addEventListener("pointerdown", beginNodeGraphSmoothZoomDrag, true);
+  document
+    .getElementById("nodeGraphWorkspace")
     .addEventListener("pointerdown", beginNodeGraphMarqueeSelection);
+  document
+    .getElementById("nodeGraphWorkspace")
+    .addEventListener("pointermove", beginNodeGraphMarqueeSelectionOnEntry);
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("pointermove", dragNodeGraphMarqueeSelection);
@@ -14020,6 +19110,9 @@ function initNodeGraphMvp() {
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("pointercancel", endNodeGraphMarqueeSelection);
+  document
+    .getElementById("nodeGraphWorkspace")
+    .addEventListener("wheel", handleNodeGraphWorkspaceWheel, { passive: false });
   document
     .getElementById("nodeGraphResizeHandle")
     .addEventListener("pointerdown", beginNodeGraphWorkspaceResize);
@@ -14033,6 +19126,14 @@ function initNodeGraphMvp() {
   document.addEventListener("pointermove", dragNodeGraphWorkspacePan);
   document.addEventListener("pointerup", endNodeGraphWorkspacePan);
   document.addEventListener("pointercancel", endNodeGraphWorkspacePan);
+  document.addEventListener("pointermove", dragNodeGraphSmoothZoom);
+  document.addEventListener("pointerup", endNodeGraphSmoothZoomDrag);
+  document.addEventListener("pointercancel", endNodeGraphSmoothZoomDrag);
+  document.addEventListener("pointerdown", trackNodeGraphOutsideMarqueePointer, true);
+  document.addEventListener("pointerup", clearNodeGraphOutsideMarqueePointer, true);
+  document.addEventListener("pointercancel", clearNodeGraphOutsideMarqueePointer, true);
+  document.addEventListener("click", handleNodeGraphDocumentClick);
+  window.addEventListener("resize", handleNodeGraphWindowResize);
   document.addEventListener("pointermove", dragNodeMetadataPopover);
   document.addEventListener("pointerup", endNodeMetadataPopoverDrag);
   document.addEventListener("pointercancel", endNodeMetadataPopoverDrag);
@@ -14041,16 +19142,43 @@ function initNodeGraphMvp() {
   document.addEventListener("pointercancel", endNodeSceneContextMenuDrag);
   document.addEventListener("keydown", handleNodeGraphKeydown);
   document.getElementById("nodeRenderButton").addEventListener("click", renderNodeGraphAudio);
-  document.getElementById("nodePlayButton").addEventListener("click", playNodeGraphAudio);
+  document.getElementById("nodeRenderSecondsValue").addEventListener("input", handleNodeGraphRenderSecondsInput);
+  document
+    .getElementById("nodeRenderSecondsValue")
+    .addEventListener("change", () => syncNodeGraphRenderSecondsFromInput({ normalize: true }));
   document.getElementById("nodeCopyRuntimeSketchButton").addEventListener("click", copyNodeGraphRuntimeSketch);
   document.getElementById("nodeCopyExecutionJsonButton").addEventListener("click", copyNodeGraphExecutionJson);
   document.getElementById("nodeSaveVisualOutputButton").addEventListener("click", saveNodeGraphVisualOutputPng);
   document.getElementById("nodeLiveInputButton").addEventListener("click", toggleNodeGraphLiveInput);
+  document
+    .getElementById("nodeStartMockInputDebugButton")
+    .addEventListener("click", () => startNodeGraphMockInputDebug());
+  document
+    .getElementById("nodeStopMockInputDebugButton")
+    .addEventListener("click", stopNodeGraphMockInputDebug);
+  document
+    .getElementById("nodeLiveInputDeviceSelect")
+    .addEventListener("change", handleNodeGraphLiveInputDeviceChange);
   document.getElementById("nodeLiveOutputButton").addEventListener("click", toggleNodeGraphLiveOutput);
-  document.getElementById("nodeDefaultButton").addEventListener("click", restoreDefaultNodeGraph);
   document.getElementById("nodeDeleteButton").addEventListener("click", deleteSelectedNodeGraphItem);
   document.getElementById("nodeUndoButton").addEventListener("click", undoNodeGraphPatch);
   document.getElementById("nodeRedoButton").addEventListener("click", redoNodeGraphPatch);
+  document.getElementById("nodeGridToggleButton").addEventListener("click", toggleNodeGraphGridVisibility);
+  document.getElementById("nodeTooltipToggleButton").addEventListener("click", toggleNodeGraphTooltipVisibility);
+  document.getElementById("nodeUserUiSettingsButton").addEventListener("click", toggleNodeUserUiSettings);
+  document
+    .getElementById("nodeUserUiSettingsSaveDefault")
+    .addEventListener("click", handleUpdateDefaultNodeUiDevSettingsPresetClick);
+  document.getElementById("nodeUserUiSettingsClose").addEventListener("click", () => setNodeUserUiSettingsVisible(false));
+  document
+    .getElementById("nodeUserUiSettingsDragHandle")
+    .addEventListener("pointerdown", beginNodeUserUiSettingsDrag);
+  document
+    .getElementById("nodeUserUiSettingsHeading")
+    .addEventListener("pointerdown", beginNodeUserUiSettingsDrag);
+  document.getElementById("nodeSliderLabelsToggleButton").addEventListener("click", toggleNodeGraphSliderLabels);
+  document.getElementById("nodeSliderValuesToggleButton").addEventListener("click", toggleNodeGraphSliderValues);
+  document.getElementById("nodeSliderHandlesToggleButton").addEventListener("click", toggleNodeGraphSliderHandles);
   document
     .getElementById("nodeZoomOutButton")
     .addEventListener("click", () => zoomNodeGraphBy(-nodeGraphZoomLimits.step));
@@ -14067,14 +19195,160 @@ function initNodeGraphMvp() {
     .getElementById("nodeModularViewButton")
     .addEventListener("click", () => setNodeGraphViewMode("modular"));
   document
-    .getElementById("nodeScriptViewButton")
+    .getElementById("nodeModularOnlyViewButton")
+    .addEventListener("click", () => setNodeGraphViewMode("modular-only"));
+  document
+    .getElementById("nodeSnapGridViewButton")
+    .addEventListener("click", handleNodeGraphSnapGridButtonClick);
+  document
+    .getElementById("nodeModularOnlyBackButton")
+    .addEventListener("click", () => setNodeGraphViewMode("modular"));
+  document
+    .getElementById("nodeSettingsScriptViewButton")
     .addEventListener("click", () => setNodeGraphViewMode("script"));
   document.getElementById("nodePatchScript").addEventListener("input", handleNodePatchScriptInput);
+  document.getElementById("copyNodeGraphScriptButton").addEventListener("click", copyNodeGraphScriptToClipboard);
+  document.getElementById("downloadNodeGraphScriptButton").addEventListener("click", saveNodeGraphScript);
+  document.getElementById("pasteNodeGraphScriptButton").addEventListener("click", pasteNodeGraphScriptFromClipboard);
+  document.getElementById("updateDefaultPresetButton").addEventListener("click", handleUpdateDefaultNodeGraphPresetClick);
   document.getElementById("loadNodeGraphScriptButton").addEventListener("click", loadNodeGraphScript);
   document.getElementById("saveNodeGraphScriptButton").addEventListener("click", saveNodeGraphScript);
+  document.getElementById("copyNodeUiDevSettingsButton").addEventListener("click", copyNodeUiDevSettingsToClipboard);
+  document.getElementById("loadNodeUiDevSettingsButton").addEventListener("click", loadNodeUiDevSettingsFile);
+  document.getElementById("saveNodeUiDevSettingsButton").addEventListener("click", saveNodeUiDevSettingsFile);
+  document
+    .getElementById("updateDefaultNodeUiDevSettingsButton")
+    .addEventListener("click", handleUpdateDefaultNodeUiDevSettingsPresetClick);
+  document.getElementById("nodeUiDevButton").addEventListener("click", toggleNodeUiDevHelper);
+  document.getElementById("nodeUiDevHelperClose").addEventListener("click", () => setNodeUiDevHelperVisible(false));
+  document
+    .getElementById("nodeUiDevHelperDragHandle")
+    .addEventListener("pointerdown", beginNodeUiDevHelperDrag);
+  document
+    .getElementById("nodeUiDevHelperHeading")
+    .addEventListener("pointerdown", beginNodeUiDevHelperDrag);
+  document
+    .getElementById("nodeUiDevSettingsHeaderTextSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevButtonTextSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevLiveToggleTextSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModularHeaderButtonBackground")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevTooltipTextSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevMinimumGridBrightness")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleLightSpread")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleGridInset")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleRoundness")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevGridColor")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevGridColor")
+    .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevWorkspaceBackgroundColor")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevWorkspaceBackgroundColor")
+    .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevSettingsHeaderTopRatio")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevSettingsHeaderPadding")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevSliderDotSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleTitleFont")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleTitleFont")
+    .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleTitleHeight")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleTitleTextFill")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleIoSectionHeight")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevModuleNodeSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevNodeGlowSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevWirePatchPointSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevWireThickness")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevBypassIconSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevBypassIconGlowSpread")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  for (const colorInputId of [
+    "nodeUiDevBypassIconGlowColor",
+    "nodeUiDevBypassIconOnColor",
+    "nodeUiDevBypassOnBackgroundColor",
+    "nodeUiDevBypassOffBackgroundColor",
+  ]) {
+    const colorInput = document.getElementById(colorInputId);
+    colorInput.addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+    colorInput.addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  }
+  document
+    .getElementById("nodeUiDevMoveSymbolSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevCloseIconSize")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevSettingsHeaderHighlights")
+    .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  for (const colorInput of document.querySelectorAll("[data-node-color-var]")) {
+    colorInput.addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+    colorInput.addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  }
+  installNodeUiDevExposeControls();
+  organizeNodeUiDevSections();
+  installNodeSettingsHeaderTextFitObserver();
+  installNodeLiveToggleTextFitObserver();
+  await loadNodeUiDevDefaultSettings();
+  syncNodeUiDevSettingsHeaderControls();
+  document.addEventListener("pointermove", dragNodeUiDevHelper);
+  document.addEventListener("pointerup", endNodeUiDevHelperDrag);
+  document.addEventListener("pointercancel", endNodeUiDevHelperDrag);
+  document.addEventListener("pointermove", dragNodeUserUiSettings);
+  document.addEventListener("pointerup", endNodeUserUiSettingsDrag);
+  document.addEventListener("pointercancel", endNodeUserUiSettingsDrag);
   document
     .getElementById("nodePatchScriptFileInput")
     .addEventListener("change", handleNodeGraphScriptFileLoad);
+  document
+    .getElementById("nodeUiDevSettingsFileInput")
+    .addEventListener("change", handleNodeUiDevSettingsFileLoad);
   for (const field of document.querySelectorAll("[data-patch-info-field]")) {
     field.addEventListener("input", handleNodeGraphSettingsInput);
     field.addEventListener("change", commitNodeGraphSettingsHistory);
@@ -14088,6 +19362,10 @@ function initNodeGraphMvp() {
     field.addEventListener("change", commitNodeGraphSettingsHistory);
   }
   for (const field of document.querySelectorAll("[data-patch-audio-field]")) {
+    field.addEventListener("input", handleNodeGraphSettingsInput);
+    field.addEventListener("change", commitNodeGraphSettingsHistory);
+  }
+  for (const field of document.querySelectorAll("[data-patch-grid-field]")) {
     field.addEventListener("input", handleNodeGraphSettingsInput);
     field.addEventListener("change", commitNodeGraphSettingsHistory);
   }
@@ -14112,7 +19390,7 @@ function initNodeGraphMvp() {
   }
   document
     .getElementById("nodeSceneDeleteModule")
-    .addEventListener("click", deleteNodeGraphModuleFromContext);
+    .addEventListener("click", deleteNodeGraphSelectionFromContext);
   document
     .getElementById("nodeSceneCopyModule")
     .addEventListener("click", copyNodeGraphModuleFromContext);
@@ -14122,6 +19400,59 @@ function initNodeGraphMvp() {
   document
     .getElementById("nodeSceneWidthIncrease")
     .addEventListener("click", () => adjustNodeGraphModuleWidthFromContext(1));
+  document
+    .getElementById("nodeSceneTextBoxHeightDecrease")
+    .addEventListener("click", () => adjustNodeGraphTextBoxHeightFromContext(-1));
+  document
+    .getElementById("nodeSceneTextBoxHeightIncrease")
+    .addEventListener("click", () => adjustNodeGraphTextBoxHeightFromContext(1));
+  document
+    .getElementById("nodeSceneTextBoxTextSizeDecrease")
+    .addEventListener("click", () =>
+      adjustNodeGraphTextBoxTextSizeFromContext(-nodeGraphTextBoxTextSizeLimits.stepPercent));
+  document
+    .getElementById("nodeSceneTextBoxTextSizeIncrease")
+    .addEventListener("click", () =>
+      adjustNodeGraphTextBoxTextSizeFromContext(nodeGraphTextBoxTextSizeLimits.stepPercent));
+  document
+    .getElementById("nodeSceneAliasInput")
+    .addEventListener("input", () => setNodeGraphModuleAliasFromContext({ record: false }));
+  document
+    .getElementById("nodeSceneAliasInput")
+    .addEventListener("change", () => setNodeGraphModuleAliasFromContext({ record: true }));
+  document
+    .getElementById("nodeSceneToggleButtons")
+    .addEventListener("click", toggleNodeGraphModuleButtonsFromContext);
+  document
+    .getElementById("nodeSceneToggleTitle")
+    .addEventListener("click", toggleNodeGraphModuleTitleFromContext);
+  document
+    .getElementById("nodeSceneTextBoxSingleLine")
+    .addEventListener("click", () => setNodeGraphTextBoxModeFromContext("singleLine"));
+  document
+    .getElementById("nodeSceneTextBoxMultiline")
+    .addEventListener("click", () => setNodeGraphTextBoxModeFromContext("multiline"));
+  document
+    .getElementById("nodeSceneTextBoxTextInput")
+    .addEventListener("input", () => setNodeGraphTextBoxTextFromContext({ record: false }));
+  document
+    .getElementById("nodeSceneTextBoxTextInput")
+    .addEventListener("change", () => setNodeGraphTextBoxTextFromContext({ record: true }));
+  document
+    .getElementById("nodeSceneTextBoxAlignLeft")
+    .addEventListener("click", () => setNodeGraphTextBoxHorizontalAlignFromContext("left"));
+  document
+    .getElementById("nodeSceneTextBoxAlignCenter")
+    .addEventListener("click", () => setNodeGraphTextBoxHorizontalAlignFromContext("center"));
+  document
+    .getElementById("nodeSceneTextBoxAlignRight")
+    .addEventListener("click", () => setNodeGraphTextBoxHorizontalAlignFromContext("right"));
+  document
+    .getElementById("nodeSceneTextBoxVerticalAlign")
+    .addEventListener("input", () => setNodeGraphTextBoxVerticalAlignFromContext({ record: false }));
+  document
+    .getElementById("nodeSceneTextBoxVerticalAlign")
+    .addEventListener("change", () => setNodeGraphTextBoxVerticalAlignFromContext({ record: true }));
   document
     .getElementById("nodeSceneCloseMenu")
     .addEventListener("click", closeNodeSceneContextMenu);
@@ -14135,14 +19466,22 @@ function initNodeGraphMvp() {
   document.addEventListener("mousemove", dragNodeSlider);
   document.addEventListener("mouseup", endNodeSliderDrag);
 
-  commitNodeGraphPatch(cloneNodeGraphPatch(nodeGraphDefaultPatch), {
+  nodeGraphMvp.defaultPatch = await loadNodeGraphDefaultPresetPatch();
+  commitNodeGraphPatch(cloneNodeGraphPatch(nodeGraphMvp.defaultPatch), {
     markPending: false,
     record: false,
   });
   recordNodeGraphHistory();
   markNodeGraphRenderPending();
   applyNodeGraphZoom();
+  renderNodeGraphGridToggle();
+  renderNodeGraphSnapGridButton();
+  renderNodeGraphTooltipToggle();
+  renderNodeGraphSliderTextToggles();
   loadNodeMetadataKindTemplates();
+  refreshNodeGraphLiveInputDevices();
+  refreshNodeGraphLiveMicrophonePermissionState();
+  navigator.mediaDevices?.addEventListener?.("devicechange", refreshNodeGraphLiveInputDevices);
 }
 
 loadSignalPlotSettings();

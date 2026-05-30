@@ -4,24 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="/public/styles.css">
+  <link rel="stylesheet" href="./public/styles.css?v=wire-selection-glow">
 </head>
 <body class="debug-collapsed">
   <main class="shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">soemdsp-sandbox</p>
-        <h1>Bound WAV Resync</h1>
-      </div>
-      <button
-        id="refreshButton"
-        type="button"
-        aria-label="Reload manifest"
-        aria-busy="false"
-        data-loading="false"
-        title="Reload manifest and artifacts">Reload Manifest</button>
-    </header>
-
     <section class="status-strip" aria-label="Sandbox status">
       <div>
         <span>MANIFEST</span>
@@ -45,31 +31,7 @@
       </div>
     </section>
 
-    <section class="panel node-wiring-panel" aria-label="Node wiring MVP">
-      <div class="panel-heading">
-        <div class="node-patch-header-fields">
-          <input
-            id="nodePatchNameHeader"
-            class="node-patch-header-field name"
-            type="text"
-            autocomplete="off"
-            aria-label="Patch name"
-            data-patch-header-info-field="name">
-          <input
-            id="nodePatchTagsHeader"
-            class="node-patch-header-field tags"
-            type="text"
-            autocomplete="off"
-            aria-label="Patch tags"
-            data-patch-header-info-field="tags">
-        </div>
-        <div class="panel-heading-actions">
-          <span id="nodeGraphStatus" class="pill">Graph Ready</span>
-          <span id="nodeGraphSource" class="pill">source osc</span>
-          <span id="nodeGraphRenderStatus" class="pill">render pending</span>
-        </div>
-      </div>
-
+    <section id="nodeWiringPanel" class="panel node-wiring-panel" aria-label="Node wiring MVP">
       <div class="node-view-toolbar" aria-label="Modular view mode">
         <div class="node-view-tabs" role="group" aria-label="Node graph view">
           <button
@@ -77,36 +39,69 @@
             type="button"
             aria-label="Patch settings"
             aria-pressed="false"
-            title="Patch settings">&#9881;</button>
+            data-tooltip-key="view.patchSettings">&#9881;</button>
           <button
             id="nodeModularViewButton"
             class="active"
             type="button"
-            aria-pressed="true">Modular View</button>
+            aria-pressed="true"><span>Modular</span><span>View</span></button>
           <button
-            id="nodeScriptViewButton"
+            id="nodeModularOnlyViewButton"
             type="button"
-            aria-pressed="false">Script View</button>
+            aria-pressed="false"><span>Modular</span><span>Only</span></button>
+          <button
+            id="nodeUiViewButton"
+            class="node-under-construction-view-button"
+            type="button"
+            aria-disabled="true"
+            aria-pressed="false"
+            data-tooltip-key="view.uiViewDevelopment"><span>UI</span><span>View</span></button>
+          <button
+            id="nodeMidiKeyboardToggleButton"
+            class="node-under-construction-view-button"
+            type="button"
+            aria-disabled="true"
+            aria-pressed="false"
+            data-tooltip-key="view.midiKeyboardDevelopment"><span>Show/Hide</span><span>Keyboard</span></button>
           <span class="node-zoom-controls" role="group" aria-label="Node graph zoom">
-            <button id="nodeZoomOutButton" type="button" aria-label="Zoom out graph" title="Zoom out graph">-</button>
-            <button id="nodeZoomInButton" type="button" aria-label="Zoom in graph" title="Zoom in graph">+</button>
+            <span class="node-zoom-label">zoom</span>
+            <span class="node-zoom-buttons">
+              <button id="nodeZoomOutButton" type="button" aria-label="Zoom out graph" data-tooltip-key="view.zoomOut">-</button>
+              <button id="nodeZoomInButton" type="button" aria-label="Zoom in graph" data-tooltip-key="view.zoomIn">+</button>
+              <button id="nodeSnapGridViewButton" type="button" aria-label="Snap modular view to grid" aria-pressed="false" data-tooltip-key="view.snapGrid">#</button>
+            </span>
           </span>
-        </div>
-        <div class="node-help-stack">
-          <div id="nodeInteractionHelp" class="node-interaction-help" role="status" aria-live="polite"></div>
-          <div id="nodeSelectionCount" class="node-selection-count" role="status" aria-live="polite" hidden></div>
         </div>
         <div class="node-history-controls" role="group" aria-label="Node graph history">
           <button id="nodeUndoButton" type="button" disabled>Undo</button>
           <button id="nodeRedoButton" type="button" disabled>Redo</button>
-          <span id="nodeScriptStatus" class="pill good">script synced</span>
+          <button id="nodeGridToggleButton" type="button" aria-pressed="false">Show Grid</button>
+          <button id="nodeTooltipToggleButton" type="button" aria-pressed="true">Hide Tips</button>
+          <button
+            id="nodeUserUiSettingsButton"
+            type="button"
+            aria-pressed="false"><span>UI</span><span>Settings</span></button>
+          <button id="nodeSliderLabelsToggleButton" type="button" aria-pressed="true">Hide Labels</button>
+          <button id="nodeSliderValuesToggleButton" type="button" aria-pressed="true">Hide Values</button>
+          <button id="nodeSliderHandlesToggleButton" type="button" aria-pressed="true">Hide Slider</button>
         </div>
+      </div>
+
+      <div class="node-help-stack">
+        <div id="nodeInteractionHelp" class="node-interaction-help" role="status" aria-live="polite"></div>
       </div>
 
       <div
         id="nodeGraphWorkspace"
         class="node-graph-workspace"
         aria-label="Drag wires between DSP node ports; right-click empty scene space to add modules">
+        <button
+          id="nodeModularOnlyBackButton"
+          class="node-modular-only-back-button"
+          type="button"
+          aria-label="Return to full modular view"
+          data-tooltip-key="workspace.backToFull">←</button>
+        <div id="nodeGridHeatmap" class="node-grid-heatmap" aria-hidden="true"></div>
         <div id="nodeGraphZoomSurface" class="node-graph-zoom-surface">
           <svg
             id="nodeWireSvg"
@@ -121,10 +116,50 @@
           class="node-graph-resize-handle"
           type="button"
           aria-label="Resize modular workspace"
-          title="Resize modular workspace"></button>
+          data-tooltip-key="workspace.resizeTitle"></button>
       </div>
 
       <div id="nodeScriptView" class="node-script-view" hidden>
+        <div class="node-script-actions" aria-label="Patch script clipboard actions">
+          <button
+            id="copyNodeGraphScriptButton"
+            type="button"
+            data-tooltip-key="script.copy">Copy Script</button>
+          <button
+            id="downloadNodeGraphScriptButton"
+            class="node-script-icon-button"
+            type="button"
+            aria-label="Download patch script"
+            data-tooltip-key="script.download"><span aria-hidden="true">&#x1f4be;</span></button>
+          <button
+            id="pasteNodeGraphScriptButton"
+            type="button"
+            data-tooltip-key="script.paste">Paste Script</button>
+          <button
+            id="updateDefaultPresetButton"
+            type="button"
+            data-tooltip-key="script.updateDefault">Update Default</button>
+        </div>
+        <div class="node-script-grid-settings" aria-label="Grid unit pixel settings">
+          <label>Grid Unit W PX
+            <input
+              id="nodeScriptGridWidthPxValue"
+              type="number"
+              min="8"
+              max="96"
+              step="1"
+              data-patch-grid-field>
+          </label>
+          <label>Grid Unit H PX
+            <input
+              id="nodeScriptGridHeightPxValue"
+              type="number"
+              min="8"
+              max="96"
+              step="1"
+              data-patch-grid-field>
+          </label>
+        </div>
         <textarea
           id="nodePatchScript"
           spellcheck="false"
@@ -133,14 +168,66 @@
 
       <div id="nodeSettingsView" class="node-settings-view" hidden>
         <div class="node-settings-actions" aria-label="Patch script actions">
+          <div class="node-settings-script-action-group" role="group" aria-label="Script actions">
+            <button
+              id="loadNodeGraphScriptButton"
+              type="button"
+              data-tooltip-key="script.load"><span>Load</span><span>Script</span></button>
+            <button
+              id="nodeSettingsScriptViewButton"
+              type="button"
+              aria-pressed="false"
+              data-tooltip-key="script.view"><span>View</span><span>Script</span></button>
+            <button
+              id="saveNodeGraphScriptButton"
+              type="button"
+              data-tooltip-key="script.save"><span>Save</span><span>Script</span></button>
+          </div>
           <button
-            id="loadNodeGraphScriptButton"
+            id="nodeUiDevButton"
             type="button"
-            title="Load patch script">Load Script</button>
-          <button
-            id="saveNodeGraphScriptButton"
-            type="button"
-            title="Save patch script">Save Script</button>
+            aria-pressed="false"
+            data-tooltip-key="settings.uiDevOpen"><span>UIDEV</span></button>
+          <div class="node-settings-dev-action-group" role="group" aria-label="In-development build actions">
+            <button
+              id="makePluginButton"
+              class="node-settings-disabled-action"
+              type="button"
+              aria-disabled="true"
+              data-tooltip-key="settings.makePlugin"><span>Make Plugin</span><span>(in development)</span></button>
+            <button
+              id="makeModuleButton"
+              class="node-settings-disabled-action"
+              type="button"
+              aria-disabled="true"
+              data-tooltip-key="settings.makeModule"><span>Make Module</span><span>(in development)</span></button>
+            <button
+              id="makeWidgetButton"
+              class="node-settings-disabled-action"
+              type="button"
+              aria-disabled="true"
+              data-tooltip-key="settings.makeWidget"><span>Make Widget</span><span>(in development)</span></button>
+            <button
+              id="shareCircuitButton"
+              class="node-settings-disabled-action"
+              type="button"
+              aria-disabled="true"
+              data-tooltip-key="settings.shareCircuit"><span>Share Circuit</span><span>(in development)</span></button>
+          </div>
+          <div class="node-settings-feedback-action-group" role="group" aria-label="Feedback actions">
+          <a
+            class="node-settings-link-action node-settings-feature-action"
+            href="https://github.com/soundemote/soemdsp-sandbox/discussions/categories/feature-requests"
+            target="_blank"
+            rel="noreferrer"
+            data-tooltip-key="settings.requestFeature"><span>Request ↗</span><span>🚧 Feature</span></a>
+          <a
+            class="node-settings-link-action node-settings-bug-action"
+            href="https://github.com/soundemote/soemdsp-sandbox/issues/new"
+            target="_blank"
+            rel="noreferrer"
+            data-tooltip-key="settings.reportBug"><span>Report ↗</span><span>🐞 Bug</span></a>
+          </div>
           <input
             id="nodePatchScriptFileInput"
             type="file"
@@ -178,6 +265,26 @@
             </label>
             <label>Output Sample Rate
               <input id="patchOutputSampleRateValue" type="text" readonly>
+            </label>
+          </div>
+          <div class="node-settings-grid-unit-row">
+            <label>Grid Unit Width PX
+              <input
+                id="patchGridWidthPxValue"
+                type="number"
+                min="8"
+                max="96"
+                step="1"
+                data-patch-grid-field>
+            </label>
+            <label>Grid Unit Height PX
+              <input
+                id="patchGridHeightPxValue"
+                type="number"
+                min="8"
+                max="96"
+                step="1"
+                data-patch-grid-field>
             </label>
           </div>
           <label>Visual Output Mode
@@ -221,7 +328,564 @@
               value="0.35"
               data-patch-visual-field>
           </label>
+          <div class="node-settings-hsl-row">
+            <label>Modular Background H
+              <input
+                id="patchWorkspaceHueValue"
+                type="number"
+                min="0"
+                max="360"
+                step="1"
+                data-patch-visual-field>
+            </label>
+            <label>S
+              <input
+                id="patchWorkspaceSaturationValue"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                data-patch-visual-field>
+            </label>
+            <label>L
+              <input
+                id="patchWorkspaceLightnessValue"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                data-patch-visual-field>
+            </label>
+          </div>
         </div>
+      </div>
+
+      <div
+        id="nodeUiDevHelper"
+        class="node-ui-dev-helper"
+        hidden
+        role="dialog"
+        aria-label="UI development helper">
+        <div class="node-ui-dev-helper-heading" id="nodeUiDevHelperHeading">
+          <button
+            id="nodeUiDevHelperDragHandle"
+            class="node-ui-dev-drag-handle node-drag-handle"
+            type="button"
+            aria-label="Move UIDEV helper"
+            data-tooltip-key="settings.uiDevMove">&#x2725;</button>
+          <div>
+            <span>UIDEV</span>
+            <small>floating helper</small>
+          </div>
+          <button
+            id="nodeUiDevHelperClose"
+            class="panel-close-button"
+            type="button"
+            aria-label="Close UIDEV helper">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="node-ui-dev-helper-body">
+          <div class="node-ui-dev-actions" aria-label="user UI settings actions">
+            <button
+              id="copyNodeUiDevSettingsButton"
+              type="button">Copy</button>
+            <button
+              id="loadNodeUiDevSettingsButton"
+              type="button">Load</button>
+            <button
+              id="saveNodeUiDevSettingsButton"
+              type="button">Save</button>
+            <button
+              id="updateDefaultNodeUiDevSettingsButton"
+              type="button">Update Default</button>
+            <output
+              id="nodeUiDevSettingsStatus"
+              class="pill"
+              aria-live="polite">ui settings ready</output>
+            <input
+              id="nodeUiDevSettingsFileInput"
+              type="file"
+              accept="application/json,.json"
+              hidden>
+          </div>
+          <label class="node-ui-dev-control">
+            <span>settings header text size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSettingsHeaderTextSize"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="100">
+              <output id="nodeUiDevSettingsHeaderTextSizeValue" for="nodeUiDevSettingsHeaderTextSize">100%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>UIDEV button text size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevButtonTextSize"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="50">
+              <output id="nodeUiDevButtonTextSizeValue" for="nodeUiDevButtonTextSize">50%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>input/output text size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevLiveToggleTextSize"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="76">
+              <output id="nodeUiDevLiveToggleTextSizeValue" for="nodeUiDevLiveToggleTextSize">76%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>modular header button background</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModularHeaderButtonBackground"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="62">
+              <output id="nodeUiDevModularHeaderButtonBackgroundValue" for="nodeUiDevModularHeaderButtonBackground">62%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>tooltip text size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevTooltipTextSize"
+                type="range"
+                min="8"
+                max="28"
+                step="1"
+                value="14">
+              <output id="nodeUiDevTooltipTextSizeValue" for="nodeUiDevTooltipTextSize">14px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>minimum grid brightness</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevMinimumGridBrightness"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="5">
+              <output id="nodeUiDevMinimumGridBrightnessValue" for="nodeUiDevMinimumGridBrightness">5%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module light spread</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleLightSpread"
+                type="range"
+                min="40"
+                max="220"
+                step="1"
+                value="100">
+              <output id="nodeUiDevModuleLightSpreadValue" for="nodeUiDevModuleLightSpread">100%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module padding away from grid</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleGridInset"
+                type="range"
+                min="0"
+                max="20"
+                step="1"
+                value="6">
+              <output id="nodeUiDevModuleGridInsetValue" for="nodeUiDevModuleGridInset">6px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module roundness</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleRoundness"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="10">
+              <output id="nodeUiDevModuleRoundnessValue" for="nodeUiDevModuleRoundness">10%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>grid color</span>
+            <input id="nodeUiDevGridColor" type="color" value="#ffffff">
+            <output id="nodeUiDevGridColorValue" for="nodeUiDevGridColor">#ffffff</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>modular background color</span>
+            <input id="nodeUiDevWorkspaceBackgroundColor" type="color" value="#0d0d0d">
+            <output id="nodeUiDevWorkspaceBackgroundColorValue" for="nodeUiDevWorkspaceBackgroundColor">#0d0d0d</output>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>settings header top / bottom ratio</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSettingsHeaderTopRatio"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="62">
+              <output id="nodeUiDevSettingsHeaderTopRatioValue" for="nodeUiDevSettingsHeaderTopRatio">62%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>settings header extra padding</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSettingsHeaderPadding"
+                type="range"
+                min="0"
+                max="20"
+                step="1"
+                value="2">
+              <output id="nodeUiDevSettingsHeaderPaddingValue" for="nodeUiDevSettingsHeaderPadding">2px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control node-ui-dev-dot-control">
+            <span>slider drag dot size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSliderDotSize"
+                type="range"
+                min="0"
+                max="28"
+                step="1"
+                value="4">
+              <output id="nodeUiDevSliderDotSizeValue" for="nodeUiDevSliderDotSize">4px</output>
+              <span id="nodeUiDevSliderDotPreview" class="node-ui-dev-dot-preview" aria-hidden="true"></span>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module title font</span>
+            <div class="node-ui-dev-control-row select">
+              <select id="nodeUiDevModuleTitleFont">
+                <option value="cascadia">Cascadia</option>
+                <option value="consolas">Consolas</option>
+                <option value="courier">Courier</option>
+                <option value="segoe">Segoe</option>
+                <option value="arial">Arial</option>
+                <option value="symbols">Symbols</option>
+              </select>
+              <output id="nodeUiDevModuleTitleFontValue" for="nodeUiDevModuleTitleFont">Cascadia</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module title height</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleTitleHeight"
+                type="range"
+                min="12"
+                max="44"
+                step="1"
+                value="26">
+              <output id="nodeUiDevModuleTitleHeightValue" for="nodeUiDevModuleTitleHeight">26px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module title text area fill</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleTitleTextFill"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="62">
+              <output id="nodeUiDevModuleTitleTextFillValue" for="nodeUiDevModuleTitleTextFill">62%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>in/out module section height</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleIoSectionHeight"
+                type="range"
+                min="12"
+                max="44"
+                step="1"
+                value="24">
+              <output id="nodeUiDevModuleIoSectionHeightValue" for="nodeUiDevModuleIoSectionHeight">24px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>module node size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevModuleNodeSize"
+                type="range"
+                min="8"
+                max="28"
+                step="1"
+                value="16">
+              <output id="nodeUiDevModuleNodeSizeValue" for="nodeUiDevModuleNodeSize">16px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>node hover glow size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevNodeGlowSize"
+                type="range"
+                min="0"
+                max="200"
+                step="1"
+                value="50">
+              <output id="nodeUiDevNodeGlowSizeValue" for="nodeUiDevNodeGlowSize">50%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>wire patch point size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevWirePatchPointSize"
+                type="range"
+                min="0"
+                max="200"
+                step="1"
+                value="36">
+              <output id="nodeUiDevWirePatchPointSizeValue" for="nodeUiDevWirePatchPointSize">36%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>wire thickness</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevWireThickness"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="19">
+              <output id="nodeUiDevWireThicknessValue" for="nodeUiDevWireThickness">19%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control node-ui-dev-symbol-size-control node-ui-dev-bypass-icon-control">
+            <span>bypass icon size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevBypassIconSize"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="36">
+              <output id="nodeUiDevBypassIconSizeValue" for="nodeUiDevBypassIconSize">36%</output>
+              <span id="nodeUiDevBypassIconPreview" class="node-ui-dev-symbol-preview node-ui-dev-bypass-icon-preview" aria-hidden="true">🗲</span>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>bypass icon glow spread</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevBypassIconGlowSpread"
+                type="range"
+                min="0"
+                max="200"
+                step="1"
+                value="40">
+              <output id="nodeUiDevBypassIconGlowSpreadValue" for="nodeUiDevBypassIconGlowSpread">40%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>bypass icon glow color</span>
+            <input id="nodeUiDevBypassIconGlowColor" type="color" value="#f25d5d">
+            <output id="nodeUiDevBypassIconGlowColorValue" for="nodeUiDevBypassIconGlowColor">#f25d5d</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>bypass on icon color</span>
+            <input id="nodeUiDevBypassIconOnColor" type="color" value="#f7b758">
+            <output id="nodeUiDevBypassIconOnColorValue" for="nodeUiDevBypassIconOnColor">#f7b758</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>bypass on background</span>
+            <input id="nodeUiDevBypassOnBackgroundColor" type="color" value="#5c1818">
+            <output id="nodeUiDevBypassOnBackgroundColorValue" for="nodeUiDevBypassOnBackgroundColor">#5c1818</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>bypass off background</span>
+            <input id="nodeUiDevBypassOffBackgroundColor" type="color" value="#000000">
+            <output id="nodeUiDevBypassOffBackgroundColorValue" for="nodeUiDevBypassOffBackgroundColor">#000000</output>
+          </label>
+          <label class="node-ui-dev-control node-ui-dev-symbol-size-control">
+            <span>move symbol size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevMoveSymbolSize"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="60">
+              <output id="nodeUiDevMoveSymbolSizeValue" for="nodeUiDevMoveSymbolSize">60%</output>
+              <span id="nodeUiDevMoveSymbolPreview" class="node-ui-dev-symbol-preview node-ui-dev-move-symbol-preview" aria-hidden="true">&#x2725;</span>
+            </div>
+          </label>
+          <label class="node-ui-dev-control node-ui-dev-symbol-size-control">
+            <span>close X size</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevCloseIconSize"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="50">
+              <output id="nodeUiDevCloseIconSizeValue" for="nodeUiDevCloseIconSize">50%</output>
+              <span id="nodeUiDevCloseIconPreview" class="node-ui-dev-symbol-preview node-ui-dev-close-icon-preview" aria-hidden="true">&times;</span>
+            </div>
+          </label>
+          <section class="node-ui-dev-color-section" aria-label="Node color controls">
+            <div class="node-ui-dev-section-title">node colors</div>
+            <label class="node-ui-dev-color-control">
+              <span>module fill</span>
+              <input id="nodeUiDevNodeFillColor" type="color" value="#171a1f" data-node-color-var="--node-module-fill">
+              <output id="nodeUiDevNodeFillColorValue" for="nodeUiDevNodeFillColor">#171a1f</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>module stroke</span>
+              <input id="nodeUiDevNodeStrokeColor" type="color" value="#f3f1ec" data-node-color-var="--node-module-stroke">
+              <output id="nodeUiDevNodeStrokeColorValue" for="nodeUiDevNodeStrokeColor">#f3f1ec</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>selected stroke</span>
+              <input id="nodeUiDevNodeSelectedStrokeColor" type="color" value="#e2a86d" data-node-color-var="--node-module-selected-stroke">
+              <output id="nodeUiDevNodeSelectedStrokeColorValue" for="nodeUiDevNodeSelectedStrokeColor">#e2a86d</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>dragging stroke</span>
+              <input id="nodeUiDevNodeDraggingStrokeColor" type="color" value="#e2a86d" data-node-color-var="--node-module-drag-stroke">
+              <output id="nodeUiDevNodeDraggingStrokeColorValue" for="nodeUiDevNodeDraggingStrokeColor">#e2a86d</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>idle node fill</span>
+              <input id="nodeUiDevPortIdleFillColor" type="color" value="#000000" data-node-color-var="--node-port-idle-fill">
+              <output id="nodeUiDevPortIdleFillColorValue" for="nodeUiDevPortIdleFillColor">#000000</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>idle node stroke</span>
+              <input id="nodeUiDevPortIdleStrokeColor" type="color" value="#f3f1ec" data-node-color-var="--node-port-idle-stroke">
+              <output id="nodeUiDevPortIdleStrokeColorValue" for="nodeUiDevPortIdleStrokeColor">#f3f1ec</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>node hover fill</span>
+              <input id="nodeUiDevPortHoverFillColor" type="color" value="#f3f1ec" data-node-color-var="--node-port-hover-fill">
+              <output id="nodeUiDevPortHoverFillColorValue" for="nodeUiDevPortHoverFillColor">#f3f1ec</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>node hover stroke</span>
+              <input id="nodeUiDevPortHoverStrokeColor" type="color" value="#f3f1ec" data-node-color-var="--node-port-hover-stroke">
+              <output id="nodeUiDevPortHoverStrokeColorValue" for="nodeUiDevPortHoverStrokeColor">#f3f1ec</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>input fill</span>
+              <input id="nodeUiDevInputFillColor" type="color" value="#7fc7d9" data-node-color-var="--node-input-fill">
+              <output id="nodeUiDevInputFillColorValue" for="nodeUiDevInputFillColor">#7fc7d9</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>input stroke</span>
+              <input id="nodeUiDevInputStrokeColor" type="color" value="#7fc7d9" data-node-color-var="--node-input-stroke">
+              <output id="nodeUiDevInputStrokeColorValue" for="nodeUiDevInputStrokeColor">#7fc7d9</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>output fill</span>
+              <input id="nodeUiDevOutputFillColor" type="color" value="#e2a86d" data-node-color-var="--node-output-fill">
+              <output id="nodeUiDevOutputFillColorValue" for="nodeUiDevOutputFillColor">#e2a86d</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>output stroke</span>
+              <input id="nodeUiDevOutputStrokeColor" type="color" value="#e2a86d" data-node-color-var="--node-output-stroke">
+              <output id="nodeUiDevOutputStrokeColorValue" for="nodeUiDevOutputStrokeColor">#e2a86d</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>mod input fill</span>
+              <input id="nodeUiDevModInputFillColor" type="color" value="#b184ff" data-node-color-var="--node-mod-input-fill">
+              <output id="nodeUiDevModInputFillColorValue" for="nodeUiDevModInputFillColor">#b184ff</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>mod input stroke</span>
+              <input id="nodeUiDevModInputStrokeColor" type="color" value="#b184ff" data-node-color-var="--node-mod-input-stroke">
+              <output id="nodeUiDevModInputStrokeColorValue" for="nodeUiDevModInputStrokeColor">#b184ff</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>slider output fill</span>
+              <input id="nodeUiDevParamOutputFillColor" type="color" value="#66e0a3" data-node-color-var="--node-param-output-fill">
+              <output id="nodeUiDevParamOutputFillColorValue" for="nodeUiDevParamOutputFillColor">#66e0a3</output>
+            </label>
+            <label class="node-ui-dev-color-control">
+              <span>slider output stroke</span>
+              <input id="nodeUiDevParamOutputStrokeColor" type="color" value="#66e0a3" data-node-color-var="--node-param-output-stroke">
+              <output id="nodeUiDevParamOutputStrokeColorValue" for="nodeUiDevParamOutputStrokeColor">#66e0a3</output>
+            </label>
+          </section>
+          <label class="node-ui-dev-check">
+              <input
+                id="nodeUiDevSettingsHeaderHighlights"
+                type="checkbox">
+            <span>show settings header layout highlights</span>
+          </label>
+        </div>
+      </div>
+
+      <div
+        id="nodeUserUiSettingsPanel"
+        class="node-user-ui-settings-panel"
+        hidden
+        role="dialog"
+        aria-label="User UI settings">
+        <div class="node-user-ui-settings-heading" id="nodeUserUiSettingsHeading">
+          <button
+            id="nodeUserUiSettingsDragHandle"
+            class="node-user-ui-settings-drag-handle node-drag-handle"
+            type="button"
+            aria-label="Move UI settings"
+            data-tooltip-key="settings.uiSettingsMove">&#x2725;</button>
+          <div>
+            <span>UI SETTINGS</span>
+            <small>exposed from UIDEV</small>
+          </div>
+          <button
+            id="nodeUserUiSettingsClose"
+            class="panel-close-button"
+            type="button"
+            aria-label="Close UI settings">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="node-user-ui-settings-actions" aria-label="user UI settings actions">
+          <button
+            id="nodeUserUiSettingsSaveDefault"
+            type="button">Save UI Settings</button>
+          <output
+            id="nodeUserUiSettingsStatus"
+            class="pill"
+            aria-live="polite">ui settings ready</output>
+        </div>
+        <div
+          id="nodeUserUiSettingsControls"
+          class="node-user-ui-settings-controls"
+          aria-live="polite"></div>
       </div>
 
       <div
@@ -236,15 +900,15 @@
             class="scene-context-drag-handle"
             type="button"
             aria-label="Move module actions"
-            title="Move module actions">&#x2725;</button>
-          <div class="scene-context-title">Add Module</div>
+            data-tooltip-key="metadata.sceneMove">&#x2725;</button>
+          <div class="scene-context-title">circuits:</div>
           <button
             id="nodeSceneCloseMenu"
             class="panel-close-button"
             type="button"
             role="menuitem"
             aria-label="Close module actions">
-            <span aria-hidden="true">[ X ]</span>
+            <span aria-hidden="true">&times;</span>
           </button>
         </div>
         <div class="scene-context-add-group">
@@ -253,58 +917,170 @@
           <button id="nodeSceneAddNoise" type="button" role="menuitem" data-context-module="noise">Noise</button>
           <button id="nodeSceneAddGain" type="button" role="menuitem" data-context-module="gain">Gain</button>
           <button id="nodeSceneAddBias" type="button" role="menuitem" data-context-module="bias">Bias</button>
+          <button id="nodeSceneAddTextBox" type="button" role="menuitem" data-context-module="textBox">Text Box</button>
         </div>
         <button id="nodeSceneCopyModule" type="button" role="menuitem" hidden>
           <span>Copy</span>
           <kbd>Ctrl+C</kbd>
         </button>
+        <div id="nodeSceneSelectedModule" class="scene-context-selected-module" hidden>
+          <span>selected</span>
+          <strong>none</strong>
+        </div>
+        <label id="nodeSceneAliasControl" class="scene-context-alias-control" hidden>
+          <span>alias</span>
+          <input
+            id="nodeSceneAliasInput"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="module title alias">
+        </label>
         <div id="nodeSceneWidthControls" class="scene-context-width-controls" hidden>
           <button id="nodeSceneWidthDecrease" type="button" aria-label="Decrease module width">-</button>
           <span id="nodeSceneWidthValue" aria-live="polite">7 gu</span>
           <button id="nodeSceneWidthIncrease" type="button" aria-label="Increase module width">+</button>
         </div>
+        <div id="nodeSceneTextBoxHeightControls" class="scene-context-width-controls" hidden>
+          <button id="nodeSceneTextBoxHeightDecrease" type="button" aria-label="Decrease text box height">-</button>
+          <span id="nodeSceneTextBoxHeightValue" aria-live="polite">5 gu high</span>
+          <button id="nodeSceneTextBoxHeightIncrease" type="button" aria-label="Increase text box height">+</button>
+        </div>
+        <div id="nodeSceneTextBoxTextSizeControls" class="scene-context-width-controls" hidden>
+          <button id="nodeSceneTextBoxTextSizeDecrease" type="button" aria-label="Decrease text box text size">-</button>
+          <span id="nodeSceneTextBoxTextSizeValue" aria-live="polite">100% text</span>
+          <button id="nodeSceneTextBoxTextSizeIncrease" type="button" aria-label="Increase text box text size">+</button>
+        </div>
+        <label id="nodeSceneTextBoxTextControls" class="scene-context-text-box-text-control" hidden>
+          <span>text</span>
+          <textarea
+            id="nodeSceneTextBoxTextInput"
+            spellcheck="false"
+            rows="4"
+            placeholder="text box content"></textarea>
+        </label>
+        <button id="nodeSceneToggleButtons" type="button" role="menuitem" hidden>
+          <span>Hide buttons</span>
+        </button>
+        <button id="nodeSceneToggleTitle" type="button" role="menuitem" hidden>
+          <span>Hide title</span>
+        </button>
+        <div id="nodeSceneTextBoxControls" class="scene-context-text-box-controls" hidden>
+          <span>text box style</span>
+          <div>
+            <button id="nodeSceneTextBoxSingleLine" type="button" aria-pressed="true">single line</button>
+            <button id="nodeSceneTextBoxMultiline" type="button" aria-pressed="false">multiline</button>
+          </div>
+        </div>
+        <div id="nodeSceneTextBoxHorizontalAlignControls" class="scene-context-text-box-controls" hidden>
+          <span>horizontal align</span>
+          <div class="three">
+            <button id="nodeSceneTextBoxAlignLeft" type="button" aria-pressed="false">left</button>
+            <button id="nodeSceneTextBoxAlignCenter" type="button" aria-pressed="true">center</button>
+            <button id="nodeSceneTextBoxAlignRight" type="button" aria-pressed="false">right</button>
+          </div>
+        </div>
+        <label id="nodeSceneTextBoxVerticalAlignControls" class="scene-context-range-control" hidden>
+          <span>vertical position <output id="nodeSceneTextBoxVerticalAlignValue">50%</output></span>
+          <input
+            id="nodeSceneTextBoxVerticalAlign"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value="50">
+        </label>
         <button id="nodeSceneDeleteModule" class="scene-context-danger" type="button" role="menuitem" hidden>
           <span>Delete</span>
           <kbd>Delete</kbd>
         </button>
       </div>
 
-      <section class="audio-panel" aria-label="Primary audio">
-        <div>
-          <p>PRIMARY AUDIO</p>
-          <h2 id="audioTitle">runtime_dsp_object_bound_wav_resync_demo.wav</h2>
+      <section class="audio-panel node-sample-panel" aria-label="Rendered sample preview">
+        <div class="node-sample-identity">
+          <div class="node-patch-header-fields">
+            <input
+              id="nodePatchNameHeader"
+              class="node-patch-header-field name"
+              type="text"
+              autocomplete="off"
+              aria-label="Patch name"
+              data-patch-header-info-field="name">
+            <input
+              id="nodePatchTagsHeader"
+              class="node-patch-header-field tags"
+              type="text"
+              autocomplete="off"
+              aria-label="Patch tags"
+              data-patch-header-info-field="tags">
+          </div>
+          <h2 id="audioTitle"></h2>
         </div>
         <audio id="audioPlayer" controls preload="metadata"></audio>
       </section>
 
       <div class="node-graph-controls">
-        <div id="nodePalette" class="node-palette" aria-label="Node palette">
-          <button type="button" data-palette-node="osc">Osc</button>
-          <button type="button" data-palette-node="spiral">Spiral</button>
-          <button type="button" data-palette-node="noise">Noise</button>
-          <button type="button" data-palette-node="gain">Gain</button>
-          <button type="button" data-palette-node="bias">Bias</button>
-        </div>
-        <button id="nodeRenderButton" type="button">Render Sample</button>
-        <button id="nodePlayButton" type="button" disabled>Play Render</button>
-        <div class="node-live-controls" aria-label="Live Audio">
+        <button
+          id="nodeStartMockInputDebugButton"
+          class="node-debug-hidden-control"
+          type="button"
+          tabindex="-1"
+          aria-hidden="true">Start Mock Input</button>
+        <button
+          id="nodeStopMockInputDebugButton"
+          class="node-debug-hidden-control"
+          type="button"
+          tabindex="-1"
+          aria-hidden="true">Stop Mock Input</button>
+        <div id="nodePalette" class="node-palette node-live-toggle-palette" aria-label="Live audio toggles">
           <button
             id="nodeLiveInputButton"
             class="node-live-toggle"
             type="button"
-            aria-pressed="false">INPUT</button>
+            aria-pressed="false">
+            <span>Input</span>
+            <span>(Off)</span>
+          </button>
           <button
             id="nodeLiveOutputButton"
             class="node-live-toggle"
             type="button"
-            aria-pressed="false">OUTPUT</button>
+            aria-pressed="false">
+            <span>Output</span>
+            <span>(Off)</span>
+          </button>
+        </div>
+        <label class="node-render-duration-control">
+          <button id="nodeRenderButton" type="button">Render Sample</button>
+          <span>Seconds</span>
+          <input
+            id="nodeRenderSecondsValue"
+            type="number"
+            min="0.05"
+            max="60"
+            step="0.05"
+            value="2"
+            inputmode="decimal"
+            aria-label="Render sample length in seconds">
+        </label>
+        <div class="node-live-controls" aria-label="Live Audio">
+          <span id="nodeLiveInputStatus" class="pill">input off</span>
+          <span id="nodeLiveMicStatus" class="pill">mic off</span>
+          <select
+            id="nodeLiveInputDeviceSelect"
+            class="node-live-input-device-select"
+            aria-label="Live audio input device"
+            data-tooltip-key="audio.inputDevice">
+            <option value="">default input</option>
+          </select>
+          <span id="nodeLiveInputMeter" class="pill">input peak 0 / rms 0</span>
+          <span id="nodeLiveInputTestStatus" class="pill">input test off</span>
           <span id="nodeLiveStatus" class="pill">stopped</span>
           <span id="nodeLiveEngineStatus" class="pill">engine idle</span>
           <span id="nodeLivePlanStatus" class="pill">plan idle</span>
           <span id="nodeLiveMeter" class="pill" data-live-clips="0">live peak 0 / rms 0</span>
           <span id="nodeLiveRouteStatus" class="pill">schedule stopped</span>
         </div>
-        <button id="nodeDefaultButton" type="button">Default Chain</button>
         <button id="nodeDeleteButton" type="button" disabled>Delete Selection</button>
         <button id="toggleDebugButton" type="button" aria-pressed="false">Show Evidence</button>
       </div>
@@ -321,14 +1097,16 @@
               class="metadata-popover-drag-handle"
               type="button"
               aria-label="Move parameter metadata editor"
-              title="Move parameter metadata editor">&#x2725;</button>
+              data-tooltip-key="metadata.move">&#x2725;</button>
             <span id="metadataPopoverTitle">Parameter Metadata</span>
           </div>
           <button
             id="metadataPopoverClose"
             class="panel-close-button"
             type="button"
-            aria-label="Close parameter metadata editor">[ X ]</button>
+            aria-label="Close parameter metadata editor">
+            <span aria-hidden="true">&times;</span>
+          </button>
         </div>
         <div class="metadata-popover-grid">
           <label>Min <input id="metadataMinValue" type="text" inputmode="decimal"></label>
@@ -408,7 +1186,12 @@
         <div>
           <div class="panel-heading compact-heading">
             <h3>Graph Connections</h3>
-            <span id="nodeGraphValidation" class="pill">valid</span>
+            <div class="panel-heading-actions node-graph-debug-pills">
+              <span id="nodeGraphStatus" class="pill">Graph Ready</span>
+              <span id="nodeGraphSource" class="pill">source osc</span>
+              <span id="nodeGraphValidation" class="pill">valid</span>
+              <span id="nodeGraphRenderStatus" class="pill">render pending</span>
+            </div>
           </div>
           <ol id="nodeConnectionList" class="node-connection-list"></ol>
           <div class="panel-heading compact-heading node-execution-plan-heading">
@@ -519,7 +1302,7 @@
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Parameter timeline probe idle">probe</span>
+            data-tooltip-key="legacyEvidence.parameterTimelineProbeIdle">probe</span>
           <span id="parameterTimelineStatus" class="pill">Loading</span>
         </div>
       </div>
@@ -549,7 +1332,7 @@
             type="button"
             aria-pressed="false"
             aria-label="Play primary audio"
-            title="Play primary audio"
+            data-tooltip-key="legacyEvidence.playPrimaryAudio"
             disabled>Play Audio</button>
           <button
             id="followAudioButton"
@@ -557,7 +1340,7 @@
             type="button"
             aria-pressed="true"
             aria-label="Waveform view follows primary audio"
-            title="Waveform follows primary audio">Follow Audio</button>
+            data-tooltip-key="legacyEvidence.waveformFollowAudio">Follow Audio</button>
           <span id="audioPosition" class="pill">audio 0.000s / unknown</span>
           <span id="waveformPosition" class="pill">0.000s / unknown</span>
           <span id="waveformSample" class="pill">frame 0 / unknown / sample 0</span>
@@ -566,7 +1349,7 @@
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Waveform probe idle">probe</span>
+            data-tooltip-key="legacyEvidence.waveformProbeIdle">probe</span>
           <span id="waveformPhase" class="pill">phase</span>
           <span id="waveformPhaseRange" class="pill">range</span>
           <span id="waveformPhaseJumpTarget" class="pill">jump idle</span>
@@ -599,7 +1382,7 @@
         aria-label="Waveform position"
         aria-valuetext="0.000s / unknown / phase unknown / follow"
         data-follow-mode="follow"
-        title="Waveform position 0.000s / unknown / phase unknown / Follow Audio">
+        data-tooltip-key="legacyEvidence.waveformPositionIdle">
       <div id="waveformPhaseControls" class="phase-controls"></div>
       <dl id="waveformMeta" class="kv compact"></dl>
     </section>
@@ -615,7 +1398,7 @@
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Level envelope probe idle">probe</span>
+            data-tooltip-key="legacyEvidence.levelEnvelopeProbeIdle">probe</span>
           <span id="levelEnvelopeStatus" class="pill">Loading</span>
         </div>
       </div>
@@ -638,7 +1421,7 @@
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Phase audio stats probe idle">probe</span>
+            data-tooltip-key="legacyEvidence.phaseAudioStatsProbeIdle">probe</span>
           <span id="phaseAudioStatsStatus" class="pill">Loading</span>
         </div>
       </div>
@@ -658,13 +1441,13 @@
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Signal plot probe idle">probe</span>
+            data-tooltip-key="legacyEvidence.signalPlotProbeIdle">probe</span>
           <span
             id="signalPlotProbeSource"
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Signal plot source probe idle">near frame</span>
+            data-tooltip-key="legacyEvidence.signalPlotSourceProbeIdle">near frame</span>
           <span id="signalPlotStatus" class="pill">Loading</span>
         </div>
       </div>
@@ -703,7 +1486,7 @@
             class="pill"
             data-probe-source="none"
             data-probe-frame="none"
-            title="Phase list probe idle">probe</span>
+            data-tooltip-key="legacyEvidence.phaseListProbeIdle">probe</span>
           <span id="phaseStatus" class="pill">Loading</span>
         </div>
       </div>
@@ -763,6 +1546,7 @@
     </section>
   </main>
 
-  <script src="/public/app.js"></script>
+  <script src="./public/node-graph-wires.js?v=wide-mod-input-drop"></script>
+  <script src="./public/app.js?v=patch-point-drag-ownership"></script>
 </body>
 </html>

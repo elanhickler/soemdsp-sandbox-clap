@@ -1,0 +1,233 @@
+{
+  "audio": {
+    "targetSampleRate": 88200
+  },
+  "bypassedNodes": [],
+  "connections": [
+    {
+      "destinationNode": "gain",
+      "destinationPort": "In",
+      "sourceNode": "osc",
+      "sourcePort": "Out"
+    },
+    {
+      "destinationNode": "output",
+      "destinationPort": "Left",
+      "sourceNode": "gain",
+      "sourcePort": "Out"
+    },
+    {
+      "destinationNode": "output",
+      "destinationPort": "Right",
+      "sourceNode": "gain",
+      "sourcePort": "Out"
+    }
+  ],
+  "format": {
+    "kind": "soemdsp-sandbox-node-patch",
+    "version": 1
+  },
+  "grid": {
+    "sizePx": 28
+  },
+  "info": {
+    "author": "",
+    "description": "",
+    "name": "Patch name",
+    "tags": "tags"
+  },
+  "modulations": [],
+  "nodes": [
+    {
+      "gx": 1,
+      "gy": 1,
+      "id": "osc",
+      "paramMeta": {
+        "waveform": {
+          "choices": [
+            "Saw",
+            "Square",
+            "Triangle",
+            "Sine",
+            "Noise"
+          ],
+          "def": 0,
+          "displayChoices": true,
+          "divideChoicesVisibly": true,
+          "kind": "waveform",
+          "linearSmoothing": false,
+          "max": 4,
+          "mid": 2,
+          "min": 0,
+          "nonlinearSlider": false,
+          "showSign": false,
+          "step": 1,
+          "unit": "",
+          "wraparound": false
+        },
+        "frequency": {
+          "choices": [],
+          "def": 440,
+          "displayChoices": false,
+          "divideChoicesVisibly": false,
+          "kind": "frequency",
+          "linearSmoothing": true,
+          "max": 20000,
+          "mid": 440,
+          "min": 0,
+          "nonlinearSlider": true,
+          "showSign": false,
+          "step": 0,
+          "unit": "Hz",
+          "wraparound": false
+        },
+        "phase": {
+          "choices": [],
+          "def": 0,
+          "displayChoices": false,
+          "divideChoicesVisibly": false,
+          "kind": "phase",
+          "linearSmoothing": true,
+          "max": 1,
+          "mid": 0.5,
+          "min": 0,
+          "nonlinearSlider": false,
+          "showSign": false,
+          "step": 0.01,
+          "unit": "cycle",
+          "wraparound": true
+        },
+        "level": {
+          "choices": [],
+          "def": 0.35,
+          "displayChoices": false,
+          "divideChoicesVisibly": false,
+          "kind": "decimal",
+          "linearSmoothing": true,
+          "max": 0.8,
+          "mid": 0.35,
+          "min": 0,
+          "nonlinearSlider": true,
+          "showSign": false,
+          "step": 0.01,
+          "unit": "",
+          "wraparound": false
+        }
+      },
+      "params": {
+        "waveform": 0,
+        "frequency": 440,
+        "phase": 0,
+        "level": 0.35
+      },
+      "type": "osc"
+    },
+    {
+      "gx": 0,
+      "gy": 11,
+      "id": "noise",
+      "paramMeta": {
+        "level": {
+          "choices": [],
+          "def": 0.12,
+          "displayChoices": false,
+          "divideChoicesVisibly": false,
+          "kind": "decimal",
+          "linearSmoothing": true,
+          "max": 0.5,
+          "mid": 0.12,
+          "min": 0,
+          "nonlinearSlider": true,
+          "showSign": false,
+          "step": 0.01,
+          "unit": "",
+          "wraparound": false
+        }
+      },
+      "params": {
+        "level": 0.12
+      },
+      "type": "noise"
+    },
+    {
+      "gx": 11,
+      "gy": 2,
+      "id": "gain",
+      "paramMeta": {
+        "amount": {
+          "choices": [],
+          "def": 1.5,
+          "displayChoices": false,
+          "divideChoicesVisibly": false,
+          "kind": "decimal",
+          "linearSmoothing": true,
+          "max": 3,
+          "mid": 1,
+          "min": 0,
+          "nonlinearSlider": true,
+          "showSign": false,
+          "step": 0.01,
+          "unit": "",
+          "wraparound": false
+        }
+      },
+      "params": {
+        "amount": 1
+      },
+      "type": "gain"
+    },
+    {
+      "gx": 22,
+      "gy": 9,
+      "id": "output",
+      "paramMeta": {
+        "volume": {
+          "choices": [],
+          "def": 1,
+          "displayChoices": false,
+          "divideChoicesVisibly": false,
+          "kind": "decimal",
+          "linearSmoothing": true,
+          "max": 2,
+          "mid": 1,
+          "min": 0,
+          "nonlinearSlider": false,
+          "showSign": false,
+          "step": 0.01,
+          "unit": "",
+          "wraparound": false
+        }
+      },
+      "params": {
+        "volume": 0.1
+      },
+      "type": "output"
+    }
+  ],
+  "view": {
+    "heightGu": 20,
+    "widthGu": 31
+  },
+  "visual": {
+    "background": {
+      "h": 210,
+      "l": 5,
+      "s": 0
+    },
+    "mode": "auto",
+    "scale": 1,
+    "style": "glow",
+    "theme": "cyan-violet",
+    "trail": 0.35
+  },
+  "windows": {
+    "metadata": {
+      "left": null,
+      "top": null
+    },
+    "moduleActions": {
+      "left": null,
+      "top": null
+    }
+  }
+}

@@ -1,135 +1,53 @@
 # soemdsp-sandbox
 
-Local browser sandbox for `soemdsp` proof artifacts and demo-scoped interactive patching.
-
-The sandbox now has two lanes:
-
-- a browser-only Node Wiring MVP where output ports can be freely wired into signal or modulation inputs, with reachable graphs ending at Output compiled into an inspectable browser-local execution plan, rendered to an audible Web Audio buffer, played live through Web Audio, inspected through local waveform/signal-plot canvases, and projected into a first visual-output canvas
-- a read-only artifact inspector for generated `soemdsp` handoff manifests, WAVs, phase reports, producer proofs, boundary flags, parameter resync data, waveform playback, level envelopes, and X/Y signal plots
-
-The server remains read-only. The node graph is intentionally demo-scoped browser state. Its execution-plan compiler is a sandbox proof for browser patches; it does not mutate `Circuit`, introduce a production `soemdsp` scheduler, or become a plugin layer. Patch scripts can be edited, loaded, and saved from the browser, but the server does not persist project state.
-
-## Run
-
-Generate the current artifact packet from `soemdsp` first:
+Browser sandbox for trying `soemdsp` patching, generated artifacts, waveform
+views, Render Sample, and Live Audio.
 
 ```powershell
+# Requirements:
+# - Python 3
+# - A modern browser
+# No package install is required for the sandbox server.
+
+# Download:
+git clone https://github.com/soundemote/soemdsp-sandbox.git
+cd soemdsp-sandbox
+
+# Run:
+python server.py
+
+# Open:
+# http://127.0.0.1:8765
+
+# Stop:
+# Ctrl+C
+
+# Test:
+python scripts\smoke_test.py
+```
+
+Optional artifact packet:
+
+```powershell
+# Use this only if the sibling soemdsp repo is built locally.
 C:\Users\argit\Documents\_PROGRAMMING\soemdsp\build-moved\examples\Debug\runtime_dsp_object_bound_wav_resync_demo.exe
+python server.py
 ```
 
-Start the sandbox:
-
-```powershell
-python C:\Users\argit\Documents\_PROGRAMMING\soemdsp-sandbox\server.py
-```
-
-Open:
+Guides:
 
 ```text
-http://127.0.0.1:8765
+docs/ADDING_HARDCODED_SANDBOX_MODULE.md
+docs/OSC_MODULE_NON_UI_REFERENCE.md
 ```
 
-## Smoke Test
+Boundaries:
 
-After generating the current `soemdsp` artifact packet, run:
-
-```powershell
-python C:\Users\argit\Documents\_PROGRAMMING\soemdsp-sandbox\scripts\smoke_test.py
+```text
+The server is read-only.
+The browser patch graph is demo-scoped state.
+The browser compiler is not the production soemdsp scheduler.
+The WebUI does not instantiate real C++ DSP objects yet.
+Patch files can save current module instances and settings.
+Patch files cannot define new module types by themselves.
 ```
-
-The smoke test starts isolated local servers on automatic temporary ports, checks
-the manifest endpoint, checks the root shell DOM contract, duplicate IDs, and
-audio/waveform control attributes, checks the node graph MVP shell/source/style
-contract including the single-pass stored-output scheduler debug surface, checks static assets, checks the waveform
-seek source contract, checks producer proof flags, checks the handoff contract and boundary flags, checks handoff artifact
-references, checks artifact and phase coverage, checks every manifest artifact
-link for reachability, checks report documents, checks hands-on readiness source
-coverage, checks parameter resync summary
-values, checks primary audio artifact reachability, WAV metadata, and byte-range
-audio responses, checks producer-side phase audio measurements against decoded
-consumer measurements, checks decoded phase frequency and peak amplitude against the manifest resync targets, checks
-negative artifact handoff contract cases for entry point, audio, WAV path,
-duplicate single-role artifact, and phase-report coverage mismatches, checks
-negative phase-audio measurement contract cases for missing, mismatched, and
-drifting producer values, checks negative parameter-resync contract cases for
-missing, unchanged, invalid, and non-upward values, checks
-expected error and forbidden path responses including encoded traversal, checks
-that non-read methods are rejected by the read-only server, and verifies that
-readable malformed manifest shapes still preserve source details for the browser
-consumer. It also verifies local responses use no-store cache headers. It prints
-grouped checkpoints so failures are easier to locate, including sub-checkpoints
-for shell, static assets, manifest contracts, artifact reports, audio, and
-server error responses.
-
-## Boundaries
-
-The local server is read-only. The browser may generate temporary audio from the
-demo node graph, but it does not write patch/project state.
-
-The browser node graph compiles signal/modulation wiring into a local execution
-plan for Render Sample and Live Audio. The execution model is single-pass
-stored-output:
-
-- acyclic edges are evaluated as same-pass dependencies
-- patch-node-order cycle-closing signal or modulation edges are allowed as state reads
-- each node starts with stored output `0`
-- each node overwrites its stored output when it runs
-- disconnected modules remain in the editable patch but are omitted from the
-  audio runtime plan until they become reachable from Output
-- patch scripts preserve each node's current parameter values and parameter
-  metadata through `nodes[].params` and `nodes[].paramMeta`
-- patch scripts preserve the visual output renderer through `visual.mode`,
-  `visual.style`, `visual.scale`, `visual.theme`, and `visual.trail`; this is
-  authoring/display state, not DSP-node behavior
-- Play Render drives a visual-output playback cursor from the rendered Web
-  Audio buffer transport, so the static visual artifact can also be inspected as
-  a time-linked audiovisual proof
-- rendered visual output can be saved from the browser as a clean PNG without
-  the playback cursor overlay; this is a client-side export of the current
-  visual artifact, not server persistence, and the filename includes the
-  rendered patch fingerprint
-
-Render Sample and Live Audio expose patch evidence for debugging:
-
-- rendered samples store the patch fingerprint that produced them
-- the execution debug panel reports whether the last render still matches the
-  current patch
-- Render Sample and Live Audio evidence include active graph counts for nodes,
-  signal wires, modulation wires, feedback wires, and state reads; Live Audio
-  evidence also lists the state-read feedback wire identities
-- Live Audio error evidence includes the blocking message so failures can be
-  inspected without scraping the visible status text
-- Live Audio plan and parameter acknowledgements show the current patch
-  fingerprint in the plan status pill
-- the execution debug panel reports a runtime boundary block that separates
-  authoring/display fields from compiled runtime fields
-- the execution debug panel also reports a `soemdspMapping` block that names
-  the Circuit, compiler, Binding, and caller-owned DSP object responsibilities
-  for the current browser patch proof
-- the debug surface includes a pseudo-C++ `soemdspRuntimeSketch` showing the
-  future caller-owned block-processing shape without adding a production API
-- the Runtime Sketch panel renders that pseudo-C++ block separately from the
-  full JSON debug dump so the C++ mapping can be read directly in the browser
-- the Runtime Sketch panel can copy the pseudo-C++ sketch to the clipboard for
-  handoff or comparison
-- execution badges expose fixed help text for compiled order, bypassed, and
-  inactive module states without using slider hover titles
-- the Execution JSON panel can copy or select the full debug dump for handoff
-  and comparison
-- `window.soemdspSandboxDebug` exposes `compileExecutionPlan()`,
-  `currentPatchFingerprint()`, `lastRender()`, `live()`, and
-  `soemdspMapping()` / `soemdspRuntimeSketch()` for direct inspection
-
-That compiler is demo-scoped UI machinery, not a `soemdsp` runtime scheduler,
-not a Circuit-owned executor, and not a production project format. Feedback
-routing is intentionally simple stateful patch behavior, not algebraic loop
-solving.
-
-The sandbox does not:
-
-- instantiate DSP objects
-- schedule production `soemdsp` processing
-- mutate Circuit
-- persist project files server-side
-- own audio engine behavior
-- own plugin behavior

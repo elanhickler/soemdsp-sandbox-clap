@@ -12,6 +12,9 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
+DEFAULT_PRESET = PUBLIC / "presets" / "default.json"
+DEFAULT_UI_SETTINGS = PUBLIC / "presets" / "useruisettings.json"
+MAX_PRESET_BYTES = 512 * 1024
 DEFAULT_SOEMDSP_ROOT = ROOT.parent / "soemdsp"
 DEFAULT_MANIFEST = (
     DEFAULT_SOEMDSP_ROOT / "runtime_dsp_object_bound_wav_resync_demo.manifest.json"
@@ -64,13 +67,13 @@ NODE_METADATA_KIND_TEMPLATES = {
         "unit": "dB",
     },
     "frequency": {
-        "def": 1000,
+        "def": 440,
         "label": "Frequency",
         "linearSmoothing": True,
         "max": 20000,
-        "mid": 1000,
+        "mid": 440,
         "min": 0,
-        "step": 1,
+        "step": 0,
         "unit": "Hz",
     },
     "phase": {
@@ -236,6 +239,13 @@ class SandboxServer(BaseHTTPRequestHandler):
         self.serve_request(send_body=False)
 
     def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/presets/default":
+            self.save_default_preset()
+            return
+        if parsed.path == "/api/presets/useruisettings":
+            self.save_default_ui_settings()
+            return
         self.reject_mutation_method()
 
     def do_PUT(self) -> None:
@@ -347,6 +357,137 @@ class SandboxServer(BaseHTTPRequestHandler):
                 "templates": NODE_METADATA_KIND_TEMPLATES,
             },
         )
+
+    def save_default_preset(self) -> None:
+        payload = self.read_json_preset_payload("preset")
+        if payload is None:
+            return
+
+        patch_format = payload.get("format")
+        if not isinstance(patch_format, dict):
+            self.send_json(
+                {"ok": False, "error": "preset missing format object"},
+                status=400,
+            )
+            return
+        if patch_format.get("kind") != "soemdsp-sandbox-node-patch":
+            self.send_json(
+                {"ok": False, "error": "preset format kind mismatch"},
+                status=400,
+            )
+            return
+        if patch_format.get("version") != 1:
+            self.send_json(
+                {"ok": False, "error": "preset format version mismatch"},
+                status=400,
+            )
+            return
+        if not isinstance(payload.get("nodes"), list):
+            self.send_json(
+                {"ok": False, "error": "preset missing nodes array"},
+                status=400,
+            )
+            return
+
+        DEFAULT_PRESET.parent.mkdir(parents=True, exist_ok=True)
+        DEFAULT_PRESET.write_text(
+            f"{json.dumps(payload, indent=2, sort_keys=False)}\n",
+            encoding="utf-8",
+        )
+        self.send_json(
+            {
+                "ok": True,
+                "path": str(DEFAULT_PRESET),
+                "bytes": DEFAULT_PRESET.stat().st_size,
+            },
+        )
+
+    def save_default_ui_settings(self) -> None:
+        payload = self.read_json_preset_payload("ui settings")
+        if payload is None:
+            return
+
+        settings_format = payload.get("format")
+        if not isinstance(settings_format, dict):
+            self.send_json(
+                {"ok": False, "error": "ui settings missing format object"},
+                status=400,
+            )
+            return
+        if settings_format.get("kind") != "soemdsp-sandbox-user-ui-settings":
+            self.send_json(
+                {"ok": False, "error": "ui settings format kind mismatch"},
+                status=400,
+            )
+            return
+        if settings_format.get("version") != 1:
+            self.send_json(
+                {"ok": False, "error": "ui settings format version mismatch"},
+                status=400,
+            )
+            return
+        if not isinstance(payload.get("controls"), dict):
+            self.send_json(
+                {"ok": False, "error": "ui settings missing controls object"},
+                status=400,
+            )
+            return
+        if not isinstance(payload.get("nodeColors"), dict):
+            self.send_json(
+                {"ok": False, "error": "ui settings missing nodeColors object"},
+                status=400,
+            )
+            return
+
+        DEFAULT_UI_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+        DEFAULT_UI_SETTINGS.write_text(
+            f"{json.dumps(payload, indent=2, sort_keys=False)}\n",
+            encoding="utf-8",
+        )
+        self.send_json(
+            {
+                "ok": True,
+                "path": str(DEFAULT_UI_SETTINGS),
+                "bytes": DEFAULT_UI_SETTINGS.stat().st_size,
+            },
+        )
+
+    def read_json_preset_payload(self, label: str) -> dict | None:
+        length_text = self.headers.get("Content-Length", "0")
+        try:
+            length = int(length_text)
+        except ValueError:
+            self.send_json(
+                {"ok": False, "error": "invalid Content-Length"},
+                status=400,
+            )
+            return
+        if length <= 0:
+            self.send_json({"ok": False, "error": f"empty {label} body"}, status=400)
+            return None
+        if length > MAX_PRESET_BYTES:
+            self.send_json(
+                {"ok": False, "error": f"{label} body too large"},
+                status=413,
+            )
+            return None
+
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            self.send_json(
+                {"ok": False, "error": f"{label} JSON parse failed: {exc}"},
+                status=400,
+            )
+            return None
+
+        if not isinstance(payload, dict):
+            self.send_json(
+                {"ok": False, "error": f"{label} must be a JSON object"},
+                status=400,
+            )
+            return None
+        return payload
 
     def serve_artifact(self, query: str, send_body: bool) -> None:
         params = parse_qs(query)
