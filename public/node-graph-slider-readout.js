@@ -44,19 +44,21 @@ function nodeSliderChoiceCellRects(width, height, choices) {
     return [];
   }
 
-  const leftPaintedPadding = 2;
-  const rightPaintedPadding = 1;
+  const emptyPixelBorder = 1;
   const strokeWidth = 1;
   const strokeInset = strokeWidth / 2;
-  const leftRectPadding = leftPaintedPadding + strokeInset;
-  const rightRectPadding = rightPaintedPadding + strokeInset;
-  const verticalRectPadding = leftRectPadding;
+  // Crisp SVG strokes need one extra leading pixel to leave a visible 1px empty border.
+  const leadingPaintedPadding = emptyPixelBorder + strokeWidth;
+  const trailingPaintedPadding = emptyPixelBorder;
+  const leadingRectPadding = leadingPaintedPadding + strokeInset;
+  const trailingRectPadding = trailingPaintedPadding + strokeInset;
+  const verticalRectPadding = leadingRectPadding;
   const contentHeight = Math.max(0, layoutHeight - verticalRectPadding * 2);
   return choices.map((_, index) => {
     const segmentLeft = Math.round((index / count) * layoutWidth);
     const segmentRight = Math.round(((index + 1) / count) * layoutWidth);
-    const contentLeft = segmentLeft + leftRectPadding;
-    const contentRight = segmentRight - rightRectPadding;
+    const contentLeft = segmentLeft + leadingRectPadding;
+    const contentRight = segmentRight - trailingRectPadding;
     return {
       height: contentHeight,
       left: contentLeft,
