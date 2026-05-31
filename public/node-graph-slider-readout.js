@@ -133,6 +133,39 @@ function nodeSliderSnapStrokeSpan(start, end, viewportOrigin, strokeWidth = 1) {
   };
 }
 
+function nodeSliderSnapInsideStrokeCoordinate(localPosition, viewportOrigin, maxPosition, strokeWidth = 1) {
+  const inset = strokeWidth / 2;
+  const snappedPosition = nodeSliderSnapStrokeCoordinate(localPosition, viewportOrigin, strokeWidth);
+  return Math.max(inset, Math.min(maxPosition - inset, snappedPosition));
+}
+
+function nodeSliderChoiceStrokeRect(cell, layerRect) {
+  //TODO: ARCHITECT CLEAN HERE
+  // Choice slide strokes have a few intentionally centralized edge cases:
+  // - zero empty border still needs wall-touching strokes pulled inside the SVG
+  // - nonzero empty border should not gain an extra visual pixel of empty space
+  // - fractional screen placement can make the bottom/right strokes rasterize unevenly
+  const strokeInset = 0.5;
+  const rawLeft = cell.left <= 0 ? strokeInset : cell.left;
+  const rawTop = cell.top <= 0 ? strokeInset : cell.top;
+  const rawRight = cell.left + cell.width >= layerRect.width
+    ? cell.left + cell.width - strokeInset
+    : cell.left + cell.width;
+  const rawBottom = cell.top + cell.height >= layerRect.height
+    ? cell.top + cell.height - strokeInset
+    : cell.top + cell.height;
+  const left = nodeSliderSnapInsideStrokeCoordinate(rawLeft, layerRect.left, layerRect.width);
+  const top = nodeSliderSnapInsideStrokeCoordinate(rawTop, layerRect.top, layerRect.height);
+  const right = nodeSliderSnapInsideStrokeCoordinate(rawRight, layerRect.left, layerRect.width);
+  const bottom = nodeSliderSnapInsideStrokeCoordinate(rawBottom, layerRect.top, layerRect.height);
+  return {
+    height: Math.max(0, bottom - top),
+    left,
+    top,
+    width: Math.max(0, right - left),
+  };
+}
+
 function syncNodeSliderChoiceDebugSquares(readout, choices, enabled) {
   let layer = readout.querySelector(".node-choice-debug-layer");
   if (!enabled) {
@@ -181,18 +214,14 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled) {
     return marker;
   });
   const cellStrokes = cellRects.map((cell, index) => {
-    const strokeInset = 0.5;
-    const strokeLeft = cell.left <= 0 ? strokeInset : cell.left;
-    const strokeTop = cell.top <= 0 ? strokeInset : cell.top;
-    const strokeRight = cell.left + cell.width >= layerRect.width ? cell.left + cell.width - strokeInset : cell.left + cell.width;
-    const strokeBottom = cell.top + cell.height >= layerRect.height ? cell.top + cell.height - strokeInset : cell.top + cell.height;
+    const strokeRect = nodeSliderChoiceStrokeRect(cell, layerRect);
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     marker.setAttribute("class", "node-choice-debug-square node-choice-debug-cell node-choice-debug-cell-stroke");
     marker.setAttribute("data-choice-index", String(index));
-    marker.setAttribute("x", strokeLeft.toFixed(3));
-    marker.setAttribute("y", strokeTop.toFixed(3));
-    marker.setAttribute("width", Math.max(0, strokeRight - strokeLeft).toFixed(3));
-    marker.setAttribute("height", Math.max(0, strokeBottom - strokeTop).toFixed(3));
+    marker.setAttribute("x", strokeRect.left.toFixed(3));
+    marker.setAttribute("y", strokeRect.top.toFixed(3));
+    marker.setAttribute("width", strokeRect.width.toFixed(3));
+    marker.setAttribute("height", strokeRect.height.toFixed(3));
     marker.style.stroke = slideStyle.color;
     marker.style.strokeOpacity = String(slideStyle.edgeBrightness);
     return marker;
