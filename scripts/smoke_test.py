@@ -586,6 +586,7 @@ def require_shell_contract(html: str) -> None:
             "./public/node-graph-patch-clone.js",
             "./public/node-graph-slider-metadata.js",
             "./public/node-graph-slider-values.js",
+            "./public/node-graph-slider-dragging.js",
             "./public/node-graph-node-accessors.js",
             "./public/node-graph-selection.js",
             "./public/node-graph-port-geometry.js",
@@ -2050,6 +2051,7 @@ def require_static_assets(base_url: str) -> None:
         ("/public/node-graph-patch-clone.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-patch-clone.js"),
         ("/public/node-graph-slider-metadata.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-metadata.js"),
         ("/public/node-graph-slider-values.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-values.js"),
+        ("/public/node-graph-slider-dragging.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-dragging.js"),
         ("/public/node-graph-node-accessors.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-node-accessors.js"),
         ("/public/node-graph-selection.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-selection.js"),
         ("/public/node-graph-port-geometry.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-port-geometry.js"),
@@ -3196,6 +3198,7 @@ def require_node_graph_mvp_contract() -> None:
     patch_clone_source = (PUBLIC / "node-graph-patch-clone.js").read_text(encoding="utf-8")
     slider_metadata_source = (PUBLIC / "node-graph-slider-metadata.js").read_text(encoding="utf-8")
     slider_values_source = (PUBLIC / "node-graph-slider-values.js").read_text(encoding="utf-8")
+    slider_dragging_source = (PUBLIC / "node-graph-slider-dragging.js").read_text(encoding="utf-8")
     node_accessors_source = (PUBLIC / "node-graph-node-accessors.js").read_text(encoding="utf-8")
     selection_source = (PUBLIC / "node-graph-selection.js").read_text(encoding="utf-8")
     port_geometry_source = (PUBLIC / "node-graph-port-geometry.js").read_text(encoding="utf-8")
@@ -3245,7 +3248,7 @@ def require_node_graph_mvp_contract() -> None:
         f"{module_definitions_source}\n{module_sizing_source}\n"
         f"{parameter_metadata_source}\n{metadata_defaults_source}\n"
         f"{patch_normalizers_source}\n{patch_clone_source}\n{slider_metadata_source}\n"
-        f"{slider_values_source}\n"
+        f"{slider_values_source}\n{slider_dragging_source}\n"
         f"{node_accessors_source}\n{selection_source}\n{port_geometry_source}\n"
         f"{slider_readout_source}\n{slider_readout_controls_source}\n"
         f"{ghost_sliders_source}\n"
