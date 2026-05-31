@@ -32,18 +32,20 @@ function nodeSliderChoiceDividerBackground(choices) {
 }
 
 function nodeSliderChoiceSquareRects(readout, choices) {
-  const rect = readout.getBoundingClientRect();
+  const width = readout.clientWidth;
+  const height = readout.clientHeight;
   const count = choices.length;
-  if (!count || !Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+  if (!count || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return [];
   }
 
-  const segmentWidth = rect.width / count;
-  const size = Math.max(0, Math.min(segmentWidth, rect.height));
+  const inset = 2;
+  const segmentWidth = width / count;
+  const size = Math.max(0, Math.min(segmentWidth - inset * 2, height - inset * 2));
   return choices.map((_, index) => ({
     left: index * segmentWidth + (segmentWidth - size) / 2,
     size,
-    top: (rect.height - size) / 2,
+    top: (height - size) / 2,
   }));
 }
 
