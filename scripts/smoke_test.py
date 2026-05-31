@@ -579,6 +579,7 @@ def require_shell_contract(html: str) -> None:
             "./public/node-graph-metadata-kinds.js",
             "./public/node-graph-metadata-editor.js",
             "./public/node-graph-render-settings.js",
+            "./public/node-graph-rendered-audio.js",
             "./public/node-graph-text-box-utils.js",
             "./public/node-graph-tooltips.js",
             "./public/node-graph-ui-settings-definitions.js",
@@ -2010,6 +2011,7 @@ def require_static_assets(base_url: str) -> None:
         ("/public/node-graph-metadata-kinds.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-metadata-kinds.js"),
         ("/public/node-graph-metadata-editor.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-metadata-editor.js"),
         ("/public/node-graph-render-settings.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-render-settings.js"),
+        ("/public/node-graph-rendered-audio.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-rendered-audio.js"),
         ("/public/node-graph-text-box-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-text-box-utils.js"),
         ("/public/node-graph-tooltips.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-tooltips.js"),
         ("/public/node-graph-ui-settings-definitions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ui-settings-definitions.js"),
@@ -3123,6 +3125,7 @@ def require_node_graph_mvp_contract() -> None:
     metadata_kinds_source = (PUBLIC / "node-graph-metadata-kinds.js").read_text(encoding="utf-8")
     metadata_editor_source = (PUBLIC / "node-graph-metadata-editor.js").read_text(encoding="utf-8")
     render_settings_source = (PUBLIC / "node-graph-render-settings.js").read_text(encoding="utf-8")
+    rendered_audio_source = (PUBLIC / "node-graph-rendered-audio.js").read_text(encoding="utf-8")
     patch_normalizers_source = (PUBLIC / "node-graph-patch-normalizers.js").read_text(encoding="utf-8")
     text_box_utils_source = (PUBLIC / "node-graph-text-box-utils.js").read_text(encoding="utf-8")
     tooltip_utils_source = (PUBLIC / "node-graph-tooltips.js").read_text(encoding="utf-8")
@@ -3145,6 +3148,7 @@ def require_node_graph_mvp_contract() -> None:
         f"{node_accessors_source}\n{slider_readout_source}\n{slider_readout_controls_source}\n"
         f"{ghost_sliders_source}\n"
         f"{metadata_kinds_source}\n{metadata_editor_source}\n{render_settings_source}\n"
+        f"{rendered_audio_source}\n"
         f"{text_box_utils_source}\n"
         f"{tooltip_utils_source}\n{visual_utils_source}\n"
         f"{ui_settings_definitions_source}\n{ui_settings_utils_source}\n"
