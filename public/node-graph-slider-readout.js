@@ -50,7 +50,7 @@ function nodeSliderChoiceCellRects(width, height, choices) {
   const wallRectPadding = emptyPixelBorder + strokeInset;
   const dividerRectPadding = emptyPixelBorder + strokeWidth + strokeInset;
   const trailingRectPadding = wallRectPadding;
-  const verticalRectPadding = dividerRectPadding;
+  const verticalRectPadding = wallRectPadding;
   const contentHeight = Math.max(0, layoutHeight - verticalRectPadding * 2);
   return choices.map((_, index) => {
     const segmentLeft = Math.round((index / count) * layoutWidth);
