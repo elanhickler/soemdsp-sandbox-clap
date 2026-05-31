@@ -86,6 +86,15 @@ function nodeSliderSnapStrokeCoordinate(localPosition, viewportOrigin, strokeWid
   return snappedStrokeCenter - viewportOrigin;
 }
 
+function nodeSliderSnapStrokeSpan(start, end, viewportOrigin, strokeWidth = 1) {
+  const snappedStart = nodeSliderSnapStrokeCoordinate(start, viewportOrigin, strokeWidth);
+  const snappedEnd = nodeSliderSnapStrokeCoordinate(end, viewportOrigin, strokeWidth);
+  return {
+    start: snappedStart,
+    size: Math.max(0, snappedEnd - snappedStart),
+  };
+}
+
 function syncNodeSliderChoiceDebugSquares(readout, choices, enabled) {
   let layer = readout.querySelector(".node-choice-debug-layer");
   if (!enabled) {
@@ -119,8 +128,8 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled) {
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     marker.setAttribute("class", "node-choice-debug-square node-choice-debug-cell");
     marker.setAttribute("data-choice-index", String(index));
-    marker.setAttribute("x", nodeSliderSnapStrokeCoordinate(cell.left, layerRect.left).toFixed(3));
-    marker.setAttribute("y", nodeSliderSnapStrokeCoordinate(cell.top, layerRect.top).toFixed(3));
+    marker.setAttribute("x", cell.left.toFixed(3));
+    marker.setAttribute("y", cell.top.toFixed(3));
     marker.setAttribute("width", cell.width.toFixed(3));
     marker.setAttribute("height", cell.height.toFixed(3));
     return marker;
