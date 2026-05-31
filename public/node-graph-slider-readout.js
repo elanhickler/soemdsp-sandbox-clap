@@ -22,33 +22,48 @@ function syncNodeSliderPortalHandle(readout, slider, position, enabled) {
   readout.style.setProperty("--portal-right-width", `${leftOverflow}px`);
 }
 
-function nodeSliderChoiceDividerBackground(choices) {
+function nodeSliderChoiceDividerBackground(readout, choices) {
+  const width = Math.floor(readout.getBoundingClientRect().width);
   const dividerColor = "rgba(243, 241, 236, 0.2)";
   const dividerLayers = Array.from({ length: Math.max(0, choices.length - 1) }, (_, index) => {
-    const position = ((index + 1) / choices.length) * 100;
-    return `linear-gradient(90deg, transparent 0 calc(${position}% - 0.5px), ${dividerColor} calc(${position}% - 0.5px) calc(${position}% + 0.5px), transparent calc(${position}% + 0.5px) 100%)`;
+    if (!Number.isFinite(width) || width <= 0) {
+      const position = ((index + 1) / choices.length) * 100;
+      return `linear-gradient(90deg, transparent 0 calc(${position}% - 0.5px), ${dividerColor} calc(${position}% - 0.5px) calc(${position}% + 0.5px), transparent calc(${position}% + 0.5px) 100%)`;
+    }
+    const position = Math.round(((index + 1) / choices.length) * width);
+    return `linear-gradient(90deg, transparent 0 ${position}px, ${dividerColor} ${position}px ${position + 1}px, transparent ${position + 1}px 100%)`;
   });
   return dividerLayers.join(", ") || "none";
 }
 
 function nodeSliderChoiceSquareRects(readout, choices) {
-  const width = Math.round(readout.clientWidth);
-  const height = Math.round(readout.clientHeight);
+  const readoutRect = readout.getBoundingClientRect();
+  const width = Math.floor(readoutRect.width);
+  const height = Math.round(readoutRect.height);
   const count = choices.length;
   if (!count || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return [];
   }
 
-  const inset = 2;
-  const size = Math.max(0, Math.floor(Math.min(width / count - inset * 2, height - inset * 2)));
-  return choices.map((_, index) => {
+  const padding = 1;
+  const dividerWidth = 1;
+  const contentHeight = Math.max(0, height - padding * 2);
+  const cells = choices.map((_, index) => {
     const segmentLeft = Math.round((index / count) * width);
     const segmentRight = Math.round(((index + 1) / count) * width);
-    const segmentWidth = segmentRight - segmentLeft;
+    const contentLeft = segmentLeft + (index === 0 ? padding : dividerWidth + padding);
+    const contentRight = segmentRight - padding;
     return {
-      left: segmentLeft + Math.round((segmentWidth - size) / 2),
+      left: contentLeft,
+      width: Math.max(0, contentRight - contentLeft),
+    };
+  });
+  const size = Math.max(0, Math.floor(Math.min(contentHeight, ...cells.map((cell) => cell.width))) - 1);
+  return cells.map((cell) => {
+    return {
+      left: cell.left + Math.floor((cell.width - size) / 2),
       size,
-      top: Math.round((height - size) / 2),
+      top: padding + Math.floor((contentHeight - size) / 2),
     };
   });
 }
@@ -118,7 +133,7 @@ function syncNodeSliderReadout(slider) {
   if (dividesChoices) {
     readout.style.removeProperty("--value-start");
     readout.style.removeProperty("--value-end");
-    readout.style.setProperty("--choice-divider-background", nodeSliderChoiceDividerBackground(choices));
+    readout.style.setProperty("--choice-divider-background", nodeSliderChoiceDividerBackground(readout, choices));
     syncNodeSliderChoiceDebugSquares(readout, choices, true);
     syncNodeSliderPortalHandle(readout, slider, position, false);
   } else {
