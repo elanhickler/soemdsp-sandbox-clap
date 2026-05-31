@@ -44,11 +44,11 @@
   },
   "script": {
       "copy": "Copy patch script to clipboard",
+      "download": "Download patch script as a JSON file",
       "paste": "Paste patch script from clipboard",
     "updateDefault": "Validate current patch script and save it as the default preset",
     "load": "Load patch script",
-    "view": "Open the patch script editor",
-    "save": "Save patch script"
+    "view": "Open the patch script editor"
   },
   "settings": {
     "uiDevOpen": "Mouse: click to open or close the floating UI development helper.",

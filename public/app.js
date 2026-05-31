@@ -96,82 +96,6 @@ function clampFrame(frame, waveform) {
   return Math.max(0, Math.min(waveform.frames, frame));
 }
 
-function clearNodeGraphConfirmDefaultButton(button = nodeGraphMvp.confirmDefaultButton) {
-  if (!button) {
-    return;
-  }
-  if (nodeGraphMvp.confirmDefaultButtonTimer) {
-    window.clearTimeout(nodeGraphMvp.confirmDefaultButtonTimer);
-    nodeGraphMvp.confirmDefaultButtonTimer = 0;
-  }
-  button.classList.remove("confirming-default");
-  button.removeAttribute("aria-pressed");
-  if (button.dataset.confirmDefaultHtml) {
-    button.innerHTML = button.dataset.confirmDefaultHtml;
-    delete button.dataset.confirmDefaultHtml;
-  }
-  if (button.dataset.confirmDefaultText) {
-    delete button.dataset.confirmDefaultText;
-  }
-  if (nodeGraphMvp.confirmDefaultButton === button) {
-    nodeGraphMvp.confirmDefaultButton = null;
-  }
-}
-
-function nodeGraphDefaultButtonLabel(button) {
-  const spanText = button
-    ? [...button.querySelectorAll(":scope > span")]
-      .map((span) => span.textContent.trim())
-      .filter(Boolean)
-      .join(" ")
-    : "";
-  return button?.dataset.defaultButtonLabel || spanText || button?.textContent.trim() || "Update Default";
-}
-
-function nodeGraphDefaultButtonHtml(button) {
-  return button?.dataset.defaultButtonHtml || button?.innerHTML || nodeGraphDefaultButtonLabel(button);
-}
-
-function confirmNodeGraphDefaultButtonClick(button, statusCallback) {
-  if (!button) {
-    return false;
-  }
-  button.dataset.defaultButtonLabel = nodeGraphDefaultButtonLabel(button);
-  button.dataset.defaultButtonHtml = nodeGraphDefaultButtonHtml(button);
-  if (nodeGraphMvp.confirmDefaultButton === button && button.classList.contains("confirming-default")) {
-    clearNodeGraphConfirmDefaultButton(button);
-    return true;
-  }
-  clearNodeGraphConfirmDefaultButton();
-  button.dataset.confirmDefaultText = nodeGraphDefaultButtonLabel(button);
-  button.dataset.confirmDefaultHtml = nodeGraphDefaultButtonHtml(button);
-  button.textContent = "Confirm Default";
-  button.classList.add("confirming-default");
-  button.setAttribute("aria-pressed", "true");
-  nodeGraphMvp.confirmDefaultButton = button;
-  nodeGraphMvp.confirmDefaultButtonTimer = window.setTimeout(() => {
-    clearNodeGraphConfirmDefaultButton(button);
-  }, 4500);
-  statusCallback?.();
-  return false;
-}
-
-function flashNodeGraphDefaultButtonSaved(button) {
-  if (!button) {
-    return;
-  }
-  const originalText = nodeGraphDefaultButtonLabel(button);
-  const originalHtml = nodeGraphDefaultButtonHtml(button);
-  button.classList.remove("saved-default");
-  void button.offsetWidth;
-  button.textContent = "Saved";
-  button.classList.add("saved-default");
-  window.setTimeout(() => {
-    button.classList.remove("saved-default");
-    button.innerHTML = originalHtml || originalText;
-  }, 1000);
-}
-
 function setInspectionCursorSource(sourceName, mode) {
   const source = document.getElementById("inspectionCursorSource");
   const value = `source ${sourceName}`;
@@ -18336,10 +18260,10 @@ async function initNodeGraphMvp() {
     .addEventListener("click", () => setNodeGraphViewMode("script"));
   document.getElementById("nodePatchScript").addEventListener("input", handleNodePatchScriptInput);
   document.getElementById("copyNodeGraphScriptButton").addEventListener("click", copyNodeGraphScriptToClipboard);
+  document.getElementById("downloadNodeGraphScriptButton").addEventListener("click", saveNodeGraphScript);
   document.getElementById("pasteNodeGraphScriptButton").addEventListener("click", pasteNodeGraphScriptFromClipboard);
   document.getElementById("updateDefaultPresetButton").addEventListener("click", handleUpdateDefaultNodeGraphPresetClick);
   document.getElementById("loadNodeGraphScriptButton").addEventListener("click", loadNodeGraphScript);
-  document.getElementById("saveNodeGraphScriptButton").addEventListener("click", saveNodeGraphScript);
   document.getElementById("copyNodeUiDevSettingsButton").addEventListener("click", copyNodeUiDevSettingsToClipboard);
   document.getElementById("loadNodeUiDevSettingsButton").addEventListener("click", loadNodeUiDevSettingsFile);
   document.getElementById("saveNodeUiDevSettingsButton").addEventListener("click", saveNodeUiDevSettingsFile);

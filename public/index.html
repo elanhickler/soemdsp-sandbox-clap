@@ -126,6 +126,12 @@
             type="button"
             data-tooltip-key="script.copy">Copy Script</button>
           <button
+            id="downloadNodeGraphScriptButton"
+            class="node-script-icon-button"
+            type="button"
+            aria-label="Download patch script"
+            data-tooltip-key="script.download"><span aria-hidden="true">&#x1f4be;</span></button>
+          <button
             id="pasteNodeGraphScriptButton"
             type="button"
             data-tooltip-key="script.paste">Paste Script</button>
@@ -172,10 +178,6 @@
               type="button"
               aria-pressed="false"
               data-tooltip-key="script.view"><span>View</span><span>Script</span></button>
-            <button
-              id="saveNodeGraphScriptButton"
-              type="button"
-              data-tooltip-key="script.save"><span>Save</span><span>Script</span></button>
           </div>
           <button
             id="nodeUiDevButton"
@@ -1540,12 +1542,13 @@
     </section>
   </main>
 
-  <script src="./public/format-utils.js?v=node-graph-file-actions-refactor"></script>
-  <script src="./public/audio-utils.js?v=node-graph-file-actions-refactor"></script>
-  <script src="./public/ui-label-utils.js?v=node-graph-file-actions-refactor"></script>
-  <script src="./public/signal-plot-settings.js?v=node-graph-file-actions-refactor"></script>
-  <script src="./public/node-graph-wires.js?v=node-graph-file-actions-refactor"></script>
-  <script src="./public/node-graph-file-actions.js?v=node-graph-file-actions-refactor"></script>
-  <script src="./public/app.js?v=node-graph-file-actions-refactor"></script>
+  <script src="./public/format-utils.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/audio-utils.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/ui-label-utils.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/signal-plot-settings.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/node-graph-wires.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/node-graph-file-actions.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/node-graph-default-buttons.js?v=node-graph-default-buttons-refactor"></script>
+  <script src="./public/app.js?v=node-graph-default-buttons-refactor"></script>
 </body>
 </html>

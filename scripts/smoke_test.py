@@ -266,7 +266,7 @@ REQUIRED_SHELL_IDS = {
     "patchNameValue",
     "patchTagsValue",
     "patchVisualModeValue",
-    "saveNodeGraphScriptButton",
+    "downloadNodeGraphScriptButton",
     "metadataDefaultValue",
     "metadataDivideChoicesValue",
     "metadataDisplayChoicesValue",
@@ -550,6 +550,7 @@ def require_shell_contract(html: str) -> None:
             "./public/app.js",
             "./public/audio-utils.js",
             "./public/format-utils.js",
+            "./public/node-graph-default-buttons.js",
             "./public/node-graph-file-actions.js",
             "./public/node-graph-wires.js",
             "./public/signal-plot-settings.js",
@@ -1933,6 +1934,7 @@ def require_static_assets(base_url: str) -> None:
         ("/public/app.js", ("application/javascript", "text/javascript"), PUBLIC / "app.js"),
         ("/public/audio-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "audio-utils.js"),
         ("/public/format-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "format-utils.js"),
+        ("/public/node-graph-default-buttons.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-default-buttons.js"),
         ("/public/node-graph-file-actions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-file-actions.js"),
         ("/public/signal-plot-settings.js", ("application/javascript", "text/javascript"), PUBLIC / "signal-plot-settings.js"),
         ("/public/ui-label-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "ui-label-utils.js"),
@@ -3012,11 +3014,12 @@ def require_node_graph_mvp_contract() -> None:
     ui_label_source = (PUBLIC / "ui-label-utils.js").read_text(encoding="utf-8")
     wire_source = (PUBLIC / "node-graph-wires.js").read_text(encoding="utf-8")
     file_actions_source = (PUBLIC / "node-graph-file-actions.js").read_text(encoding="utf-8")
+    default_buttons_source = (PUBLIC / "node-graph-default-buttons.js").read_text(encoding="utf-8")
     server_source = (ROOT / "server.py").read_text(encoding="utf-8")
     node_graph_source = (
         f"{app_source}\n{audio_source}\n{format_source}\n"
         f"{signal_plot_settings_source}\n{ui_label_source}\n{wire_source}\n"
-        f"{file_actions_source}\n{server_source}"
+        f"{file_actions_source}\n{default_buttons_source}\n{server_source}"
     )
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
     tooltip_source = (PUBLIC / "tooltips.json").read_text(encoding="utf-8")
@@ -3053,16 +3056,15 @@ def require_node_graph_mvp_contract() -> None:
         "Visual Output Trail",
         "<span>Load</span><span>Script</span>",
         "<span>View</span><span>Script</span>",
-        "<span>Save</span><span>Script</span>",
         "Update Default",
         "Copy Script",
         "Paste Script",
         "copyNodeGraphScriptButton",
+        "downloadNodeGraphScriptButton",
         "pasteNodeGraphScriptButton",
         "updateDefaultPresetButton",
         "loadNodeGraphScriptButton",
         "nodeSettingsScriptViewButton",
-        "saveNodeGraphScriptButton",
         "nodeUiDevButton",
         "<span>UIDEV</span>",
         "nodeUiDevHelper",
