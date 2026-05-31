@@ -566,6 +566,7 @@ def require_shell_contract(html: str) -> None:
             "./public/node-graph-workspace-view.js",
             "./public/node-graph-marquee-selection.js",
             "./public/node-graph-node-dragging.js",
+            "./public/node-graph-module-actions.js",
             "./public/node-graph-history.js",
             "./public/node-graph-keyboard-shortcuts.js",
             "./public/node-graph-live-status-text.js",
@@ -2028,6 +2029,7 @@ def require_static_assets(base_url: str) -> None:
         ("/public/node-graph-workspace-view.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-workspace-view.js"),
         ("/public/node-graph-marquee-selection.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-marquee-selection.js"),
         ("/public/node-graph-node-dragging.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-node-dragging.js"),
+        ("/public/node-graph-module-actions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-module-actions.js"),
         ("/public/node-graph-history.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-history.js"),
         ("/public/node-graph-keyboard-shortcuts.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-keyboard-shortcuts.js"),
         ("/public/node-graph-live-status-text.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-status-text.js"),
@@ -3172,6 +3174,7 @@ def require_node_graph_mvp_contract() -> None:
     workspace_view_source = (PUBLIC / "node-graph-workspace-view.js").read_text(encoding="utf-8")
     marquee_selection_source = (PUBLIC / "node-graph-marquee-selection.js").read_text(encoding="utf-8")
     node_dragging_source = (PUBLIC / "node-graph-node-dragging.js").read_text(encoding="utf-8")
+    module_actions_source = (PUBLIC / "node-graph-module-actions.js").read_text(encoding="utf-8")
     history_source = (PUBLIC / "node-graph-history.js").read_text(encoding="utf-8")
     keyboard_shortcuts_source = (PUBLIC / "node-graph-keyboard-shortcuts.js").read_text(encoding="utf-8")
     live_status_text_source = (PUBLIC / "node-graph-live-status-text.js").read_text(encoding="utf-8")
@@ -3231,7 +3234,7 @@ def require_node_graph_mvp_contract() -> None:
         f"{patch_serialization_source}\n{settings_fields_source}\n{settings_view_source}\n"
         f"{settings_text_fit_source}\n{default_preset_source}\n{script_status_source}\n{view_controls_source}\n"
         f"{workspace_view_source}\n{marquee_selection_source}\n{node_dragging_source}\n"
-        f"{history_source}\n{keyboard_shortcuts_source}\n"
+        f"{module_actions_source}\n{history_source}\n{keyboard_shortcuts_source}\n"
         f"{live_status_text_source}\n{live_status_controls_source}\n{live_meter_controls_source}\n"
         f"{live_input_status_source}\n{live_evidence_source}\n{live_control_rendering_source}\n"
         f"{wire_source}\n"
