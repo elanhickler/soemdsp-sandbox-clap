@@ -36,7 +36,7 @@ function nodeSliderChoiceDividerBackground(readout, choices) {
   return dividerLayers.join(", ") || "none";
 }
 
-function nodeSliderChoiceSquareRects(width, height, choices) {
+function nodeSliderChoiceCellRects(width, height, choices) {
   const layoutWidth = Math.floor(width);
   const layoutHeight = Math.round(height);
   const count = choices.length;
@@ -47,24 +47,22 @@ function nodeSliderChoiceSquareRects(width, height, choices) {
   const padding = 2;
   const dividerWidth = 1;
   const contentHeight = Math.max(0, layoutHeight - padding * 2);
-  const cells = choices.map((_, index) => {
+  return choices.map((_, index) => {
     const segmentLeft = Math.round((index / count) * layoutWidth);
     const segmentRight = Math.round(((index + 1) / count) * layoutWidth);
     const contentLeft = segmentLeft + (index === 0 ? padding : dividerWidth + padding);
     const contentRight = segmentRight - padding;
     return {
+      height: contentHeight,
       left: contentLeft,
+      top: padding,
       width: Math.max(0, contentRight - contentLeft),
     };
   });
-  const size = Math.max(0, Math.floor(Math.min(contentHeight, ...cells.map((cell) => cell.width))) - 1);
-  return cells.map((cell) => {
-    return {
-      left: cell.left + Math.floor((cell.width - size) / 2),
-      size,
-      top: padding + Math.floor((contentHeight - size) / 2),
-    };
-  });
+}
+
+function nodeSliderChoiceSquareRects(width, height, choices) {
+  return nodeSliderChoiceCellRects(width, height, choices);
 }
 
 function nodeSliderChoiceDividerLines(width, height, choices) {
@@ -117,17 +115,17 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled) {
     marker.setAttribute("y2", divider.height.toFixed(3));
     return marker;
   });
-  const squares = nodeSliderChoiceSquareRects(layerRect.width, layerRect.height, choices).map((square, index) => {
+  const cells = nodeSliderChoiceCellRects(layerRect.width, layerRect.height, choices).map((cell, index) => {
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    marker.setAttribute("class", "node-choice-debug-square");
+    marker.setAttribute("class", "node-choice-debug-square node-choice-debug-cell");
     marker.setAttribute("data-choice-index", String(index));
-    marker.setAttribute("x", nodeSliderSnapStrokeCoordinate(square.left, layerRect.left).toFixed(3));
-    marker.setAttribute("y", nodeSliderSnapStrokeCoordinate(square.top, layerRect.top).toFixed(3));
-    marker.setAttribute("width", square.size.toFixed(3));
-    marker.setAttribute("height", square.size.toFixed(3));
+    marker.setAttribute("x", nodeSliderSnapStrokeCoordinate(cell.left, layerRect.left).toFixed(3));
+    marker.setAttribute("y", nodeSliderSnapStrokeCoordinate(cell.top, layerRect.top).toFixed(3));
+    marker.setAttribute("width", cell.width.toFixed(3));
+    marker.setAttribute("height", cell.height.toFixed(3));
     return marker;
   });
-  layer.replaceChildren(...dividers, ...squares);
+  layer.replaceChildren(...dividers, ...cells);
 }
 
 function syncNodeSliderReadout(slider) {

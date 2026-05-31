@@ -2807,7 +2807,8 @@ audio {
   shape-rendering: crispEdges;
 }
 
-.node-choice-debug-square {
+.node-choice-debug-square,
+.node-choice-debug-cell {
   fill: rgba(255, 55, 55, 0.14);
   stroke: rgba(255, 55, 55, 0.92);
   stroke-width: 1px;
