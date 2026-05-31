@@ -270,6 +270,17 @@ function zoomNodeGraphAt(delta, clientX, clientY) {
   setNodeGraphZoom(nodeGraphZoomByRatio(ratio), { x: clientX, y: clientY });
 }
 
+function resetNodeGraphZoomToOne() {
+  const oldPan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  nodeGraphMvp.zoom = 1;
+  nodeGraphMvp.pan = {
+    x: snapNodeGraphPanValueToGrid(oldPan.x, nodeGraphGridWidth(), 1),
+    y: snapNodeGraphPanValueToGrid(oldPan.y, nodeGraphGridHeight(), 1),
+  };
+  applyNodeGraphZoom();
+  applyNodeGraphPan();
+}
+
 function normalizeNodeGraphZoomInput(value) {
   const zoom = Number.parseFloat(String(value).trim());
   if (!Number.isFinite(zoom)) {
@@ -344,7 +355,7 @@ function handleNodeGraphZoomResetClick(event) {
   }
   nodeGraphMvp.zoomResetClickTimer = window.setTimeout(() => {
     nodeGraphMvp.zoomResetClickTimer = 0;
-    setNodeGraphZoom(1);
+    resetNodeGraphZoomToOne();
   }, 180);
 }
 
