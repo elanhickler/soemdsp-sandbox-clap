@@ -1,0 +1,79 @@
+function renderNodeGraphVisualSettings() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  const visual = normalizeNodeGraphPatchVisual(nodeGraphMvp.patch.visual);
+  const uiBackground = document.getElementById("nodeUiDevWorkspaceBackgroundColor")?.value;
+  workspace.style.setProperty(
+    "--node-workspace-bg",
+    uiBackground ? normalizeNodeUiDevColor(uiBackground, nodeGraphWorkspaceBackgroundCss(visual.background)) : nodeGraphWorkspaceBackgroundCss(visual.background),
+  );
+}
+
+function syncNodeGraphSettingsView() {
+  const info = normalizeNodeGraphPatchInfo(nodeGraphMvp.patch.info);
+  setNodeGraphSettingsField("nodePatchNameHeader", info.name);
+  setNodeGraphSettingsField("nodePatchTagsHeader", info.tags);
+  setNodeGraphSettingsField("patchNameValue", info.name);
+  setNodeGraphSettingsField("patchAuthorValue", info.author);
+  setNodeGraphSettingsField("patchTagsValue", info.tags);
+  setNodeGraphSettingsField("patchDescriptionValue", info.description);
+  const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
+  setNodeGraphSettingsField("patchCurrentSampleRateValue", nodeGraphFormatSampleRate(audio.currentSampleRate));
+  setNodeGraphSettingsField("patchTargetSampleRateValue", audio.targetSampleRate);
+  setNodeGraphSettingsField("patchResultingSampleRateValue", nodeGraphFormatSampleRate(audio.resultingSampleRate));
+  setNodeGraphSettingsField("patchResultingOversamplingValue", nodeGraphFormatOversamplingRatio(audio.oversamplingRatio));
+  setNodeGraphSettingsField("patchOutputSampleRateValue", nodeGraphFormatSampleRate(audio.outputSampleRate));
+  const grid = normalizeNodeGraphPatchGrid(nodeGraphMvp.patch.grid);
+  setNodeGraphSettingsField("patchGridWidthPxValue", grid.widthPx);
+  setNodeGraphSettingsField("patchGridHeightPxValue", grid.heightPx);
+  setNodeGraphSettingsField("nodeScriptGridWidthPxValue", grid.widthPx);
+  setNodeGraphSettingsField("nodeScriptGridHeightPxValue", grid.heightPx);
+  const visual = normalizeNodeGraphPatchVisual(nodeGraphMvp.patch.visual);
+  setNodeGraphSettingsField("patchWorkspaceHueValue", visual.background.h);
+  setNodeGraphSettingsField("patchWorkspaceSaturationValue", visual.background.s);
+  setNodeGraphSettingsField("patchWorkspaceLightnessValue", visual.background.l);
+  setNodeGraphSettingsField("patchVisualModeValue", visual.mode);
+  setNodeGraphSettingsField("patchVisualScaleValue", visual.scale);
+  setNodeGraphSettingsField("patchVisualStyleValue", visual.style);
+  setNodeGraphSettingsField("patchVisualThemeValue", visual.theme);
+  setNodeGraphSettingsField("patchVisualTrailValue", visual.trail);
+}
+
+function readNodeGraphSettingsView() {
+  return normalizeNodeGraphPatchInfo({
+    author: document.getElementById("patchAuthorValue")?.value,
+    description: document.getElementById("patchDescriptionValue")?.value,
+    name: document.getElementById("patchNameValue")?.value,
+    tags: document.getElementById("patchTagsValue")?.value,
+  });
+}
+
+function readNodeGraphVisualSettingsView() {
+  return normalizeNodeGraphPatchVisual({
+    background: {
+      h: nodeGraphSyncedFieldValue(["patchWorkspaceHueValue"]),
+      s: nodeGraphSyncedFieldValue(["patchWorkspaceSaturationValue"]),
+      l: nodeGraphSyncedFieldValue(["patchWorkspaceLightnessValue"]),
+    },
+    mode: document.getElementById("patchVisualModeValue")?.value,
+    scale: document.getElementById("patchVisualScaleValue")?.value,
+    style: document.getElementById("patchVisualStyleValue")?.value,
+    theme: document.getElementById("patchVisualThemeValue")?.value,
+    trail: document.getElementById("patchVisualTrailValue")?.value,
+  });
+}
+
+function readNodeGraphAudioSettingsView() {
+  return normalizeNodeGraphPatchAudio({
+    targetSampleRate: document.getElementById("patchTargetSampleRateValue")?.value,
+  });
+}
+
+function readNodeGraphGridSettingsView() {
+  return normalizeNodeGraphPatchGrid({
+    heightPx: nodeGraphSyncedFieldValue(["patchGridHeightPxValue", "nodeScriptGridHeightPxValue"]),
+    widthPx: nodeGraphSyncedFieldValue(["patchGridWidthPxValue", "nodeScriptGridWidthPxValue"]),
+  });
+}
