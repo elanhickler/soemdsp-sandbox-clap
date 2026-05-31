@@ -58,9 +58,12 @@ function syncNodeSliderReadout(slider) {
   readout.dataset.choiceCount = usesChoices ? String(choices.length) : "0";
   readout.classList.toggle("choices-divided", dividesChoices);
   readout.classList.toggle("reserves-sign-column", usesNumericReadout || usesChoices);
+  readout.classList.remove("choice-at-start", "choice-at-end");
   readout.removeAttribute("title");
   if (dividesChoices) {
     const choiceIndex = Math.max(0, Math.min(choices.length - 1, Math.round(Number(slider.value))));
+    readout.classList.toggle("choice-at-start", choiceIndex === 0);
+    readout.classList.toggle("choice-at-end", choiceIndex === choices.length - 1);
     readout.style.setProperty("--value-start", `${(choiceIndex / choices.length) * 100}%`);
     readout.style.setProperty("--value-end", `${((choiceIndex + 1) / choices.length) * 100}%`);
     readout.style.setProperty("--choice-divider-width", `${100 / choices.length}%`);

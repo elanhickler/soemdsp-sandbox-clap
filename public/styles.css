@@ -2746,6 +2746,14 @@ audio {
   background: transparent;
 }
 
+.node-slider-readout.choices-divided.choice-at-start::before {
+  border-left-color: transparent;
+}
+
+.node-slider-readout.choices-divided.choice-at-end::before {
+  border-right-color: transparent;
+}
+
 .node-slider-readout-label {
   position: relative;
   z-index: 1;
