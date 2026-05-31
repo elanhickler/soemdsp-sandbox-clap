@@ -4,7 +4,7 @@
 })({
   "format": {
     "kind": "soemdsp-sandbox-user-ui-settings",
-    "version": 2
+    "version": 3
   },
   "controls": {
     "settingsHeaderTextSize": 100,
@@ -25,7 +25,7 @@
     "moduleTitleHeight": 26,
     "moduleTitleTextFill": 62,
     "moduleIoSectionHeight": 24,
-    "moduleNodeSize": 16,
+    "moduleNodeSize": 57,
     "nodeGlowSize": 50,
     "wirePatchPointSize": 36,
     "wireThickness": 19,

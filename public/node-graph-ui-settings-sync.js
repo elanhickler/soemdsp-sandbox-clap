@@ -200,7 +200,7 @@ function syncNodeUiDevSettingsHeaderControls() {
   const moduleTitleHeightPx = Math.max(12, Math.min(44, Number(moduleTitleHeightInput.value) || 26));
   const moduleTitleTextFillPercent = Math.max(0, Math.min(100, Number(moduleTitleTextFillInput.value) || 0));
   const moduleIoSectionHeightPx = Math.max(12, Math.min(44, Number(moduleIoSectionHeightInput.value) || 24));
-  const moduleNodeSizePx = Math.max(8, Math.min(28, Number(moduleNodeSizeInput.value) || 16));
+  const moduleNodeSizePercent = Math.max(0, Math.min(100, Number(moduleNodeSizeInput.value) || 0));
   const nodeGlowSizePercent = Math.max(0, Math.min(200, Number(nodeGlowSizeInput.value) || 0));
   const wirePatchPointSizePercent = Math.max(0, Math.min(200, Number(wirePatchPointSizeInput.value) || 0));
   const wireThicknessPercent = Math.max(0, Math.min(100, Number(wireThicknessInput.value) || 0));
@@ -277,7 +277,7 @@ function syncNodeUiDevSettingsHeaderControls() {
     ?.style.setProperty("--node-io-section-min-height", `${moduleIoSectionHeightPx}px`);
   document
     .getElementById("nodeGraphWorkspace")
-    ?.style.setProperty("--node-port-diameter", `${moduleNodeSizePx}px`);
+    ?.style.setProperty("--node-port-size-ratio", String(moduleNodeSizePercent / 100));
   document
     .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-hover-glow-size-ratio", String(nodeGlowSizePercent / 100));
@@ -340,7 +340,7 @@ function syncNodeUiDevSettingsHeaderControls() {
   moduleTitleHeightValue.textContent = `${moduleTitleHeightPx}px`;
   moduleTitleTextFillValue.textContent = `${moduleTitleTextFillPercent}%`;
   moduleIoSectionHeightValue.textContent = `${moduleIoSectionHeightPx}px`;
-  moduleNodeSizeValue.textContent = `${moduleNodeSizePx}px`;
+  moduleNodeSizeValue.textContent = `${moduleNodeSizePercent}%`;
   nodeGlowSizeValue.textContent = `${nodeGlowSizePercent}%`;
   wirePatchPointSizeValue.textContent = `${wirePatchPointSizePercent}%`;
   wireThicknessValue.textContent = `${wireThicknessPercent}%`;

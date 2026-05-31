@@ -828,9 +828,12 @@ audio {
   --node-module-grid-inset: calc(var(--node-grid-size) * 0.2142857);
   --node-module-roundness-ratio: 0.1;
   --node-port-column-gap: calc(var(--node-grid-size) * 0.2857143);
-  --node-port-diameter: 16px;
+  --node-port-size-ratio: 0.57;
+  --node-port-area-size: var(--node-grid-height);
+  --node-port-diameter: calc(var(--node-port-area-size) * var(--node-port-size-ratio));
   --node-port-radius: calc(var(--node-port-diameter) * 0.5);
-  --node-port-column-width: var(--node-port-radius);
+  --node-port-area-radius: calc(var(--node-port-area-size) * 0.5);
+  --node-port-column-width: var(--node-port-area-radius);
   /* Legacy smoke contract token: --node-wire-patch-point-size: 36%. */
   --node-wire-patch-point-size-ratio: 0.36;
   --node-wire-patch-point-size: calc(var(--node-port-diameter) * var(--node-wire-patch-point-size-ratio));
@@ -3467,7 +3470,7 @@ button.saved-default,
   box-sizing: border-box;
   width: var(--node-port-column-width);
   min-width: var(--node-port-column-width);
-  height: var(--node-port-diameter);
+  height: var(--node-port-area-size);
   min-height: 0;
   padding: 0;
   border: 0;
@@ -3484,10 +3487,10 @@ button.saved-default,
   position: absolute;
   top: 50%;
   box-sizing: border-box;
-  width: var(--node-port-radius);
-  min-width: var(--node-port-radius);
-  height: var(--node-port-diameter);
-  min-height: var(--node-port-diameter);
+  width: var(--node-port-area-radius);
+  min-width: var(--node-port-area-radius);
+  height: var(--node-port-area-size);
+  min-height: var(--node-port-area-size);
   border: 1px solid color-mix(in srgb, var(--node-port-idle-stroke) 34%, transparent);
   background: color-mix(in srgb, var(--node-port-idle-fill) 42%, transparent);
   pointer-events: none;
@@ -3502,7 +3505,8 @@ button.saved-default,
   left: 0;
   border-left-width: 0;
   border-radius: 0 999px 999px 0;
-  transform: translateY(-50%);
+  transform: translateY(-50%) scale(var(--node-port-size-ratio));
+  transform-origin: left center;
 }
 
 .node-param-port.parameter-output {
@@ -3514,7 +3518,7 @@ button.saved-default,
   justify-self: end;
   width: var(--node-port-column-width);
   min-width: var(--node-port-column-width);
-  height: var(--node-port-diameter);
+  height: var(--node-port-area-size);
   min-height: 0;
 }
 
@@ -3522,7 +3526,8 @@ button.saved-default,
   right: 0;
   border-right-width: 0;
   border-radius: 999px 0 0 999px;
-  transform: translateY(-50%);
+  transform: translateY(-50%) scale(var(--node-port-size-ratio));
+  transform-origin: right center;
 }
 
 .node-port.output.connected-port {

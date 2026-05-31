@@ -27,7 +27,7 @@ function normalizeNodeUiDevSettings(settings = {}) {
   return {
     format: {
       kind: "soemdsp-sandbox-user-ui-settings",
-      version: 2,
+      version: 3,
     },
     controls: Object.fromEntries(
       nodeUiDevSettingControls.map((definition) => [
@@ -93,15 +93,8 @@ function loadNodeUiDevSettingsFromScript(text) {
   if (format.kind !== "soemdsp-sandbox-user-ui-settings") {
     throw new Error("UI settings format kind mismatch");
   }
-  if (format.version !== 1 && format.version !== 2) {
+  if (format.version !== 3) {
     throw new Error("UI settings format version mismatch");
-  }
-  if (format.version === 1) {
-    payload.controls = { ...(payload.controls || {}) };
-    const legacyWireThickness = Number(payload.controls.wireThickness);
-    if (Number.isFinite(legacyWireThickness) && legacyWireThickness > 0 && legacyWireThickness <= 10) {
-      payload.controls.wireThickness = Math.round((legacyWireThickness / 16) * 100);
-    }
   }
   return normalizeNodeUiDevSettings(payload);
 }
