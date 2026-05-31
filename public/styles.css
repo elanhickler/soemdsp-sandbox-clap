@@ -2735,6 +2735,13 @@ audio {
     #080b0d;
 }
 
+.node-slider-readout.choices-divided::before {
+  inset-block: 1px;
+  left: calc(var(--value-start, 0%) + 1px);
+  right: calc(100% - var(--value-end, 0%) + 1px);
+  border-radius: 2px;
+}
+
 .node-slider-readout-label {
   position: relative;
   z-index: 1;
