@@ -5627,41 +5627,8 @@ const nodeGraphWireInteractions = window.createNodeGraphWireInteractionControlle
   workspace: () => document.getElementById("nodeGraphWorkspace"),
 });
 
-const nodeGraphZoomLimits = Object.freeze({
-  max: 6,
-  min: 0.25,
-  step: 0.08,
-  wheelRatio: 1.12,
-});
-
 function nodeGraphBypassGlyph(bypassed) {
   return "🗲";
-}
-
-function applyNodeGraphWorkspaceView() {
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  if (!workspace) {
-    return;
-  }
-
-  workspace.style.setProperty("--node-grid-height", `${nodeGraphGridHeight()}px`);
-  workspace.style.setProperty("--node-grid-size", `${nodeGraphGridSize()}px`);
-  workspace.style.setProperty("--node-grid-width", `${nodeGraphGridWidth()}px`);
-  const view = normalizeNodeGraphPatchView(nodeGraphMvp.patch.view);
-  if (view.widthGu > 0) {
-    workspace.style.width = nodeGraphWorkspaceWidthCss(view.widthGu * nodeGraphGridWidth());
-  } else {
-    workspace.style.removeProperty("width");
-  }
-  if (view.heightGu > 0) {
-    workspace.style.height = nodeGraphWorkspaceHeightCss(view.heightGu * nodeGraphGridHeight());
-    workspace.style.removeProperty("aspect-ratio");
-  } else {
-    workspace.style.removeProperty("height");
-    workspace.style.removeProperty("aspect-ratio");
-  }
-  workspace.dataset.widthGu = String(view.widthGu);
-  workspace.dataset.heightGu = String(view.heightGu);
 }
 
 function normalizeNodeGraphPatchParameter(type, key, value, metadata = null) {
