@@ -594,6 +594,7 @@ def require_shell_contract(html: str) -> None:
             "./public/node-graph-rendered-visual-output.js",
             "./public/node-graph-rendered-output-canvases.js",
             "./public/node-graph-execution-wires.js",
+            "./public/node-graph-execution-plan.js",
             "./public/node-graph-execution-summary.js",
             "./public/node-graph-render-output.js",
             "./public/node-graph-debug-copy.js",
@@ -2050,6 +2051,7 @@ def require_static_assets(base_url: str) -> None:
         ("/public/node-graph-rendered-visual-output.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-rendered-visual-output.js"),
         ("/public/node-graph-rendered-output-canvases.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-rendered-output-canvases.js"),
         ("/public/node-graph-execution-wires.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-wires.js"),
+        ("/public/node-graph-execution-plan.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-plan.js"),
         ("/public/node-graph-execution-summary.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-summary.js"),
         ("/public/node-graph-render-output.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-render-output.js"),
         ("/public/node-graph-debug-copy.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-debug-copy.js"),
@@ -3188,6 +3190,7 @@ def require_node_graph_mvp_contract() -> None:
     rendered_visual_output_source = (PUBLIC / "node-graph-rendered-visual-output.js").read_text(encoding="utf-8")
     rendered_output_canvases_source = (PUBLIC / "node-graph-rendered-output-canvases.js").read_text(encoding="utf-8")
     execution_wires_source = (PUBLIC / "node-graph-execution-wires.js").read_text(encoding="utf-8")
+    execution_plan_source = (PUBLIC / "node-graph-execution-plan.js").read_text(encoding="utf-8")
     execution_summary_source = (PUBLIC / "node-graph-execution-summary.js").read_text(encoding="utf-8")
     render_output_source = (PUBLIC / "node-graph-render-output.js").read_text(encoding="utf-8")
     debug_copy_source = (PUBLIC / "node-graph-debug-copy.js").read_text(encoding="utf-8")
@@ -3226,7 +3229,8 @@ def require_node_graph_mvp_contract() -> None:
         f"{ghost_sliders_source}\n"
         f"{metadata_kinds_source}\n{metadata_editor_source}\n{render_settings_source}\n"
         f"{rendered_audio_source}\n{rendered_visual_output_source}\n"
-        f"{rendered_output_canvases_source}\n{execution_wires_source}\n{execution_summary_source}\n"
+        f"{rendered_output_canvases_source}\n{execution_wires_source}\n"
+        f"{execution_plan_source}\n{execution_summary_source}\n"
         f"{render_output_source}\n{debug_copy_source}\n"
         f"{execution_debug_api_source}\n{execution_debug_view_source}\n"
         f"{text_box_utils_source}\n{text_box_rendering_source}\n"
