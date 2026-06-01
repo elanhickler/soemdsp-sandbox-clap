@@ -24,6 +24,12 @@ function normalizeNodeUiDevSettings(settings = {}) {
     }
   }
   const gridVisible = view.gridVisible ?? controls.gridVisible ?? controls.showGrid ?? nodeGraphMvp.gridVisible;
+  const sliderLayout = normalizeNodeGraphSliderLayout(view.sliderLayout ?? nodeGraphMvp.sliderLayout);
+  const sliderAmountVisible = Boolean(view.sliderAmountVisible ?? nodeGraphMvp.sliderAmountVisible);
+  const sliderPositionVisible = Boolean(
+    view.sliderPositionVisible ??
+    nodeGraphMvp.sliderPositionVisible
+  );
   return {
     format: {
       kind: "soemdsp-sandbox-user-ui-settings",
@@ -44,6 +50,9 @@ function normalizeNodeUiDevSettings(settings = {}) {
     nodeColors: normalizedColors,
     view: {
       gridVisible: Boolean(gridVisible),
+      sliderLayout,
+      sliderAmountVisible,
+      sliderPositionVisible,
     },
   };
 }
@@ -78,6 +87,9 @@ function readNodeUiDevSettingsFromControls() {
     nodeColors,
     view: {
       gridVisible: Boolean(nodeGraphMvp.gridVisible),
+      sliderLayout: normalizeNodeGraphSliderLayout(nodeGraphMvp.sliderLayout),
+      sliderAmountVisible: Boolean(nodeGraphMvp.sliderAmountVisible),
+      sliderPositionVisible: Boolean(nodeGraphMvp.sliderPositionVisible),
     },
   });
 }
@@ -127,7 +139,12 @@ function applyNodeUiDevSettings(settings) {
     }
   }
   nodeGraphMvp.gridVisible = Boolean(normalized.view.gridVisible);
+  nodeGraphMvp.sliderLayout = normalizeNodeGraphSliderLayout(normalized.view.sliderLayout);
+  nodeGraphMvp.sliderAmountVisible = Boolean(normalized.view.sliderAmountVisible);
+  nodeGraphMvp.sliderPositionVisible = Boolean(normalized.view.sliderPositionVisible);
   renderNodeGraphGridToggle();
+  renderNodeGraphSliderVisibilityToggles();
+  renderNodeGraphSliderLayout();
   syncNodeUiDevSettingsHeaderControls();
   if (!document.activeElement?.dataset?.nodeUiDevMirror) {
     renderNodeUserUiSettingsControls();

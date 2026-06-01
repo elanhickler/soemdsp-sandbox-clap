@@ -1,4 +1,7 @@
 function populateNodeSliderReadoutShell(readout) {
+  const amountFill = document.createElement("span");
+  amountFill.className = "node-slider-amount-fill";
+  amountFill.setAttribute("aria-hidden", "true");
   const portalLeft = document.createElement("span");
   portalLeft.className = "node-slider-readout-portal node-slider-readout-portal-left";
   portalLeft.setAttribute("aria-hidden", "true");
@@ -11,7 +14,7 @@ function populateNodeSliderReadoutShell(readout) {
   valueText.className = "node-slider-readout-value";
   const unitText = document.createElement("span");
   unitText.className = "node-slider-readout-unit";
-  readout.append(portalLeft, portalRight, labelText, valueText, unitText);
+  readout.append(amountFill, portalLeft, portalRight, labelText, valueText, unitText);
 }
 
 function commitNodeSliderReadoutEdit(input) {
@@ -61,6 +64,8 @@ function beginNodeSliderReadoutEdit(readout) {
   input.className = "node-slider-readout-input";
   input.inputMode = nodeSliderShouldDisplayChoices(slider) ? "text" : "decimal";
   input.value = nodeSliderChoiceLabel(slider) ?? formatNodeSliderNumber(slider.value, {
+    kind: slider.dataset.kind,
+    maxDigits: slider.dataset.maxDigits,
     reserveSignSpace: true,
     showSign: nodeSliderShouldShowSign(slider),
   });
@@ -111,10 +116,13 @@ function updateNodeSliderValueHover(readout, event) {
     start = (choiceIndex / choices.length) * width;
     end = ((choiceIndex + 1) / choices.length) * width;
   } else {
-    const center = nodeSliderTravelFromValue(slider, Number(slider.value)) * width;
-    const markerHalfWidth = Math.max(8, width * 0.0234);
-    start = center - markerHalfWidth;
-    end = center + markerHalfWidth;
+    const range = nodeSliderHandleRangeFromTravel(
+      slider,
+      readout,
+      nodeSliderTravelFromValue(slider, Number(slider.value)),
+    );
+    start = range.start;
+    end = range.end;
   }
 
   readout.classList.toggle("value-hovering", x >= start && x <= end);
@@ -141,6 +149,7 @@ function createNodeSliderReadout(slider) {
   slider.dataset.step ||= slider.step || "any";
   slider.step = "any";
   slider.dataset.kind ||= "decimal";
+  slider.dataset.maxDigits ||= String(nodeGraphDefaultMetadataMaxDigits(slider.dataset.kind));
   slider.dataset.unit ??= "";
   slider.dataset.choices ??= "";
   slider.dataset.displayChoices ??= "false";

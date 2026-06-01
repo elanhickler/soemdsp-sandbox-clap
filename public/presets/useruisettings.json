@@ -1,9 +1,10 @@
 {
   "format": {
     "kind": "soemdsp-sandbox-user-ui-settings",
-    "version": 2
+    "version": 3
   },
   "controls": {
+    "mouseLightEnabled": true,
     "settingsHeaderTextSize": 100,
     "uiDevButtonTextSize": 50,
     "liveToggleTextSize": 76,
@@ -22,10 +23,20 @@
     "moduleTitleHeight": 26,
     "moduleTitleTextFill": 62,
     "moduleIoSectionHeight": 24,
-    "moduleNodeSize": 16,
+    "moduleNodeSize": 57,
+    "sliderWidth": 100,
+    "sliderHeight": 28,
+    "sliderLabelColor": "#cfdde5",
+    "sliderValueColor": "#ffffff",
+    "sliderUnitColor": "#7fc7d9",
+    "sliderFillHoverColor": "#7fc7d9",
+    "sliderFillHoverAlpha": 28,
     "nodeGlowSize": 50,
     "wirePatchPointSize": 36,
     "wireThickness": 19,
+    "traceWireThickness": 1,
+    "choiceSlideEmptyBorder": 2,
+    "choiceDividerHeight": 35,
     "bypassIconSize": 36,
     "bypassIconGlowSpread": 40,
     "bypassIconGlowColor": "#f25d5d",
@@ -37,6 +48,7 @@
     "settingsHeaderHighlights": false
   },
   "exposedControls": {
+    "mouseLightEnabled": true,
     "settingsHeaderTextSize": false,
     "uiDevButtonTextSize": false,
     "liveToggleTextSize": true,
@@ -56,9 +68,19 @@
     "moduleTitleTextFill": true,
     "moduleIoSectionHeight": true,
     "moduleNodeSize": true,
+    "sliderWidth": true,
+    "sliderHeight": true,
+    "sliderLabelColor": true,
+    "sliderValueColor": true,
+    "sliderUnitColor": true,
+    "sliderFillHoverColor": true,
+    "sliderFillHoverAlpha": true,
     "nodeGlowSize": true,
     "wirePatchPointSize": true,
     "wireThickness": true,
+    "traceWireThickness": true,
+    "choiceSlideEmptyBorder": false,
+    "choiceDividerHeight": true,
     "bypassIconSize": false,
     "bypassIconGlowSpread": false,
     "bypassIconGlowColor": false,
@@ -70,7 +92,10 @@
     "settingsHeaderHighlights": false
   },
   "view": {
-    "gridVisible": true
+    "gridVisible": true,
+    "sliderLayout": "text-inside",
+    "sliderAmountVisible": false,
+    "sliderPositionVisible": true
   },
   "nodeColors": {
     "--node-module-fill": "#171a1f",

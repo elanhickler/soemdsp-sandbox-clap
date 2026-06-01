@@ -201,7 +201,7 @@ function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, waveform) {
       return nextNodeGraphNoiseSample(runtime, nodeId);
     case 0:
     default:
-      return phaseCycle * 2 - 1;
+      return 1 - phaseCycle * 2;
   }
 }
 ```

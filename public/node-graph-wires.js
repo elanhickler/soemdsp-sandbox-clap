@@ -130,14 +130,14 @@
         kind = "signal",
         mode = "same-pass",
         pathClass = "node-wire-path",
+        pathData: explicitPathData = null,
         to,
         wireColors = null,
         wireType = "cable",
       } = options;
       const normalizedWireType = normalizeNodeGraphWireType(wireType);
       const isTrace = normalizedWireType === nodeGraphWireTypes.trace;
-      const isWire = normalizedWireType === nodeGraphWireTypes.wire;
-      const pathData = isTrace ? tracePath(from, to) : isWire ? straightPath(from, to) : path(from, to);
+      const pathData = explicitPathData || (isTrace ? tracePath(from, to) : path(from, to));
       const stroke = createGradient(svg, gradientId, from, to, gradientClass, wireColors);
       const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       hitPath.setAttribute("class", "node-wire-hit-path");
@@ -145,6 +145,9 @@
       hitPath.dataset.connectionIndex = String(index);
       hitPath.dataset.connectionKind = kind;
       hitPath.dataset.interactionMode = mode;
+      if (Array.isArray(options.tracePoints)) {
+        hitPath.dataset.tracePoints = nodeGraphTraceWaypointAttribute(options.tracePoints);
+      }
       hitPath.setAttribute("d", pathData);
       hitPath.addEventListener("click", (event) => deps.selectWire(event, index, kind));
       svg.append(hitPath);
@@ -152,12 +155,15 @@
       const renderedPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       renderedPath.setAttribute(
         "class",
-        `${pathClass}${isTrace ? " trace-wire" : ""}${isWire ? " linear-wire" : ""}`,
+        `${pathClass}${isTrace ? " trace-wire" : ""}`,
       );
       renderedPath.dataset.alias = alias;
       renderedPath.dataset.connectionIndex = String(index);
       renderedPath.dataset.connectionKind = kind;
       renderedPath.dataset.interactionMode = mode;
+      if (Array.isArray(options.tracePoints)) {
+        renderedPath.dataset.tracePoints = nodeGraphTraceWaypointAttribute(options.tracePoints);
+      }
       renderedPath.setAttribute("d", pathData);
       renderedPath.setAttribute("stroke", stroke);
       svg.append(renderedPath);
@@ -260,21 +266,25 @@
       return best;
     }
 
-    function connectEndpoints(a, b) {
+    function connectEndpoints(a, b, options = {}) {
       if (!a || !b || endpointsMatch(a, b)) {
         return false;
       }
+      const reversedOptions = () => ({
+        ...options,
+        tracePoints: normalizeNodeGraphTracePoints(options.tracePoints).reverse(),
+      });
       if (a.io === "output" && b.io === "input") {
-        return deps.connectPorts(a.node, a.port, b.node, b.port);
+        return deps.connectPorts(a.node, a.port, b.node, b.port, options);
       }
       if (a.io === "input" && b.io === "output") {
-        return deps.connectPorts(b.node, b.port, a.node, a.port);
+        return deps.connectPorts(b.node, b.port, a.node, a.port, reversedOptions());
       }
       if (a.io === "output" && b.io === "modulation") {
-        return deps.connectModulation(a.node, a.port, b.node, b.param);
+        return deps.connectModulation(a.node, a.port, b.node, b.param, options);
       }
       if (a.io === "modulation" && b.io === "output") {
-        return deps.connectModulation(b.node, b.port, a.node, a.param);
+        return deps.connectModulation(b.node, b.port, a.node, a.param, reversedOptions());
       }
       return false;
     }
@@ -332,7 +342,14 @@
       );
     }
 
+    function endpointsShareNode(a, b) {
+      return Boolean(a && b && a.node === b.node);
+    }
+
     function endpointsShouldBurst(a, b) {
+      if (endpointsShareNode(a, b)) {
+        return false;
+      }
       return Boolean(
         a &&
         b &&
@@ -404,6 +421,109 @@
       dragging?.visualElement?.classList?.remove("dragging");
     }
 
+    function cancelManualTrace() {
+      if (!state.manualTrace) {
+        return false;
+      }
+      clearDragClass(state.manualTrace);
+      state.manualTrace = null;
+      deps.drawWires();
+      deps.setHelp("");
+      return true;
+    }
+
+    function beginManualTrace(event, port) {
+      const endpoint = helpers.endpointFromElement(port);
+      if (!endpoint || !helpers.pointInEndpointHitbox(endpoint, event.clientX, event.clientY)) {
+        return false;
+      }
+      const visualPort = helpers.dragVisualElement(port);
+      state.manualTrace = {
+        endpoint,
+        from: helpers.endpointPoint(endpoint, port),
+        points: [],
+        to: deps.clientPoint(event),
+        visualElement: visualPort,
+      };
+      visualPort?.classList.add("dragging");
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      deps.setHelp("Trace mode: click empty space to place trace points, click a compatible patch point to finish. Escape, right click, middle click, or plain click outside cancels.");
+      deps.drawWires();
+      return true;
+    }
+
+    function handleManualTracePointerDown(event) {
+      const trace = state.manualTrace;
+      if (!trace) {
+        return false;
+      }
+      const eventTarget = event.target instanceof Element ? event.target : null;
+      if (event.button !== 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        cancelManualTrace();
+        return true;
+      }
+
+      const target = helpers.dropTargetFromPoint(event.clientX, event.clientY);
+      const targetEndpoint = helpers.endpointFromElement(target);
+      if (targetEndpoint) {
+        const tracePoints = normalizeNodeGraphTracePoints(trace.points);
+        const endpointPoint = helpers.endpointPoint(targetEndpoint, target) || deps.clientPoint(event);
+        nodeGraphTraceAppendFinalApproachPoint(trace.from, tracePoints, endpointPoint);
+        const cleanedTracePoints = nodeGraphTraceCleanFinalDestinationPoints(
+          trace.from,
+          tracePoints,
+          endpointPoint,
+        );
+        const connected = helpers.connectEndpoints(trace.endpoint, targetEndpoint, {
+          replaceDuplicate: true,
+          tracePoints: cleanedTracePoints,
+          wireType: nodeGraphWireTypes.trace,
+        });
+        clearDragClass(trace);
+        state.manualTrace = null;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        if (connected) {
+          deps.setHelp("Trace connected.");
+          deps.drawWires();
+          return true;
+        }
+        if (helpers.endpointsShouldBurst(trace.endpoint, targetEndpoint)) {
+          const from = trace.from;
+          const to = helpers.endpointPoint(targetEndpoint, target) || deps.clientPoint(event);
+          deps.drawWires();
+          animateDestroyedWire(from, to);
+          deps.burstZap(from);
+          deps.burstZap(to);
+        } else {
+          deps.drawWires();
+        }
+        return true;
+      }
+
+      if (eventTarget?.closest?.(".dsp-node, .node-slider-readout, input, textarea, select")) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation?.();
+        cancelManualTrace();
+        return true;
+      }
+
+      nodeGraphTraceAppendSingleMovePoint(trace.from, trace.points, deps.clientPoint(event));
+      trace.to = nodeGraphTraceLastPoint(trace.from, trace.points) || deps.clientPoint(event);
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      deps.drawWires();
+      return true;
+    }
+
     function animateDestroyedWire(from, to) {
       const svg = deps.svg();
       if (!svg || !from || !to) {
@@ -418,6 +538,14 @@
 
     function beginWireDragFromElement(event, port) {
       if (event.button !== 0) {
+        return;
+      }
+      if (state.manualTrace) {
+        handleManualTracePointerDown(event);
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) {
+        beginManualTrace(event, port);
         return;
       }
       if (event.altKey) {
@@ -451,6 +579,10 @@
     }
 
     function beginPatchPointWireDrag(event) {
+      if (state.manualTrace) {
+        handleManualTracePointerDown(event);
+        return;
+      }
       const target = event.target instanceof Element ? event.target : null;
       if (
         event.button !== 0 ||
@@ -472,6 +604,11 @@
     }
 
     function dragWire(event) {
+      if (state.manualTrace) {
+        state.manualTrace.to = deps.clientPoint(event);
+        deps.drawWires();
+        return;
+      }
       if (!state.dragging) {
         return;
       }
@@ -512,6 +649,10 @@
     }
 
     function handlePatchPointHover(event) {
+      if (state.sliderDragging) {
+        setHoveredPatchPoint(null);
+        return;
+      }
       const workspace = deps.workspace();
       const target = event.target instanceof Element ? event.target : null;
       if (!workspace?.contains(target)) {
@@ -531,6 +672,7 @@
     return {
       beginPatchPointWireDrag,
       beginWireDrag,
+      cancelManualTrace,
       clearHover,
       dragWire,
       endWireDrag,

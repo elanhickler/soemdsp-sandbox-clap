@@ -1,7 +1,6 @@
 const nodeGraphWireTypes = Object.freeze({
   cable: "cable",
   trace: "trace",
-  wire: "wire",
 });
 
 function normalizeNodeGraphWireType(value) {
@@ -13,6 +12,16 @@ function normalizeNodeGraphWireType(value) {
 function nodeGraphWireTypePatchValue(value) {
   const wireType = normalizeNodeGraphWireType(value);
   return wireType === nodeGraphWireTypes.cable ? undefined : wireType;
+}
+
+function nodeGraphConnectionOptionsWithSelfTrace(sourceNode, destinationNode, options = {}) {
+  if (sourceNode !== destinationNode || options.wireType || options.tracePoints?.length) {
+    return options;
+  }
+  return {
+    ...options,
+    wireType: nodeGraphWireTypes.trace,
+  };
 }
 
 function setSelectedNodeGraphWireType(wireType) {
@@ -34,6 +43,7 @@ function setSelectedNodeGraphWireType(wireType) {
   const nextType = normalizeNodeGraphWireType(wireType);
   if (nextType === nodeGraphWireTypes.cable) {
     delete wire.wireType;
+    delete wire.tracePoints;
   } else {
     wire.wireType = nextType;
   }
@@ -63,7 +73,7 @@ function disconnectNodeGraphConnection(index, kind = "signal") {
   commitNodeGraphPatch(patch, { status: "wire disconnected" });
 }
 
-function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinationPort) {
+function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinationPort, options = {}) {
   if (
     !nodeGraphInputKey(destinationNode, destinationPort) ||
     !nodeGraphMvp.activeNodes.has(sourceNode) ||
@@ -72,29 +82,47 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
     return false;
   }
 
-  const duplicate = nodeGraphMvp.patch.connections.some(
+  const duplicateIndex = nodeGraphMvp.patch.connections.findIndex(
     (connection) =>
       connection.sourceNode === sourceNode &&
       connection.sourcePort === sourcePort &&
       connection.destinationNode === destinationNode &&
       connection.destinationPort === destinationPort,
   );
-  if (duplicate) {
+  if (duplicateIndex >= 0 && !options.replaceDuplicate) {
     return false;
   }
 
+  const effectiveOptions = nodeGraphConnectionOptionsWithSelfTrace(sourceNode, destinationNode, options);
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const nextWireData = {
+    ...(nodeGraphWireTypePatchValue(effectiveOptions.wireType)
+      ? { wireType: nodeGraphWireTypePatchValue(effectiveOptions.wireType) }
+      : {}),
+    ...(effectiveOptions.tracePoints?.length
+      ? { tracePoints: normalizeNodeGraphTracePoints(effectiveOptions.tracePoints) }
+      : {}),
+  };
+  if (duplicateIndex >= 0) {
+    patch.connections[duplicateIndex] = {
+      ...patch.connections[duplicateIndex],
+      ...nextWireData,
+    };
+    commitNodeGraphPatch(patch, { status: "wire traced" });
+    return true;
+  }
   patch.connections.push({
     sourceNode,
     sourcePort,
     destinationNode,
     destinationPort,
+    ...nextWireData,
   });
   commitNodeGraphPatch(patch, { status: "wire connected" });
   return true;
 }
 
-function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, destinationParam) {
+function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, destinationParam, options = {}) {
   if (
     !nodeGraphMvp.activeNodes.has(sourceNode) ||
     !nodeGraphMvp.activeNodes.has(destinationNode)
@@ -102,23 +130,41 @@ function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, des
     return false;
   }
 
-  const duplicate = nodeGraphMvp.patch.modulations.some(
+  const duplicateIndex = nodeGraphMvp.patch.modulations.findIndex(
     (modulation) =>
       modulation.sourceNode === sourceNode &&
       modulation.sourcePort === sourcePort &&
       modulation.destinationNode === destinationNode &&
       modulation.destinationParam === destinationParam,
   );
-  if (duplicate) {
+  if (duplicateIndex >= 0 && !options.replaceDuplicate) {
     return false;
   }
 
+  const effectiveOptions = nodeGraphConnectionOptionsWithSelfTrace(sourceNode, destinationNode, options);
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const nextWireData = {
+    ...(nodeGraphWireTypePatchValue(effectiveOptions.wireType)
+      ? { wireType: nodeGraphWireTypePatchValue(effectiveOptions.wireType) }
+      : {}),
+    ...(effectiveOptions.tracePoints?.length
+      ? { tracePoints: normalizeNodeGraphTracePoints(effectiveOptions.tracePoints) }
+      : {}),
+  };
+  if (duplicateIndex >= 0) {
+    patch.modulations[duplicateIndex] = {
+      ...patch.modulations[duplicateIndex],
+      ...nextWireData,
+    };
+    commitNodeGraphPatch(patch, { status: "modulation traced" });
+    return true;
+  }
   patch.modulations.push({
     sourceNode,
     sourcePort,
     destinationNode,
     destinationParam,
+    ...nextWireData,
   });
   commitNodeGraphPatch(patch, { status: "modulation connected" });
   return true;

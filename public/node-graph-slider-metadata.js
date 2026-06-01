@@ -1,6 +1,113 @@
+const nodeSliderNumberFormatSmokeCases = Object.freeze([
+  { value: 1456.6982, maxDigits: 5, expected: "1456.7" },
+  { value: 220, maxDigits: 5, expected: "220.00" },
+  { value: 1, maxDigits: 3, expected: "1.00" },
+  { value: 12.34567, maxDigits: 5, expected: "12.346" },
+  { value: 0.123456, maxDigits: 5, expected: "0.1235" },
+  { value: -0.123456, maxDigits: 5, expected: "-0.1235" },
+  { value: 0.123456, maxDigits: 5, showSign: true, expected: "+0.1235" },
+  { value: 0.123456, maxDigits: 5, reserveSignSpace: true, expected: " 0.1235" },
+]);
+
+function limit_decimals(
+  value,
+  maxDigits,
+  minDecimalPlaces = 0,
+  maxDecimalPlaces = maxDigits,
+  removeTrailingZeros = true,
+  allowExtraDecimalForLeadingZero = false,
+) {
+  const source = String(value ?? "").trimStart();
+  const signMatch = source.match(/^[+-]/);
+  const sign = signMatch ? signMatch[0] : "";
+  const unsigned = sign ? source.slice(1) : source;
+  const match = unsigned.match(/^(\d*)(\.?)(\d*)/);
+  let whole = match?.[1] || "";
+  const dot = match?.[2] || "";
+  const decimalSource = match?.[3] || "";
+  const omitLeadingZero = allowExtraDecimalForLeadingZero && whole === "0";
+
+  if (omitLeadingZero) {
+    whole = "";
+  } else if (!whole) {
+    whole = "0";
+  }
+  if (!dot) {
+    if (!removeTrailingZeros) {
+      const boundedMaxDigits = Math.max(0, Math.min(12, Math.round(Number(maxDigits) || 0)));
+      const boundedMinDecimals = Math.max(0, Math.round(Number(minDecimalPlaces) || 0));
+      const boundedMaxDecimals = Math.max(0, Math.round(Number(maxDecimalPlaces) || 0));
+      const digitBudget = Math.max(0, boundedMaxDigits - whole.length);
+      const decimals = "".padEnd(Math.min(digitBudget, boundedMinDecimals, boundedMaxDecimals), "0");
+      if (decimals) {
+        return `${sign}${whole}.${decimals}`;
+      }
+    }
+    return `${sign}${whole}`;
+  }
+
+  const boundedMaxDigits = Math.max(0, Math.min(12, Math.round(Number(maxDigits) || 0)));
+  const boundedMinDecimals = Math.max(0, Math.round(Number(minDecimalPlaces) || 0));
+  const boundedMaxDecimals = Math.max(0, Math.round(Number(maxDecimalPlaces) || 0));
+  let digitBudget = Math.max(0, boundedMaxDigits - whole.length);
+  let decimalPlaces = Math.min(digitBudget, boundedMaxDecimals);
+  let decimals = decimalSource.slice(0, decimalPlaces);
+  const roundDigit = Number(decimalSource.charAt(decimalPlaces) || "0");
+
+  if (roundDigit >= 5) {
+    const rounded = nodeSliderRoundLimitedDecimalDigits(whole, decimals, decimalPlaces);
+    whole = rounded.whole;
+    decimals = rounded.decimals;
+    digitBudget = Math.max(0, boundedMaxDigits - whole.length);
+    decimalPlaces = Math.min(decimals.length, digitBudget, boundedMaxDecimals);
+    decimals = decimals.slice(0, decimalPlaces);
+  }
+
+  if (removeTrailingZeros) {
+    decimals = decimals.replace(/0+$/, "");
+  } else {
+    decimals = decimals.padEnd(Math.min(digitBudget, boundedMinDecimals), "0");
+  }
+
+  if (!decimals) {
+    return `${sign}${whole}`;
+  }
+  return `${sign}${omitLeadingZero ? "" : whole}.${decimals}`;
+}
+
+function nodeSliderRoundLimitedDecimalDigits(whole, decimals, decimalPlaces) {
+  const nextDecimals = decimals.padEnd(decimalPlaces, "0").split("");
+  for (let index = nextDecimals.length - 1; index >= 0; index -= 1) {
+    if (nextDecimals[index] !== "9") {
+      nextDecimals[index] = String(Number(nextDecimals[index]) + 1);
+      return { whole, decimals: nextDecimals.join("") };
+    }
+    nextDecimals[index] = "0";
+  }
+  return {
+    whole: nodeSliderIncrementWholeDigits(whole),
+    decimals: nextDecimals.join(""),
+  };
+}
+
+function nodeSliderIncrementWholeDigits(whole) {
+  const digits = (whole || "0").split("");
+  for (let index = digits.length - 1; index >= 0; index -= 1) {
+    if (digits[index] !== "9") {
+      digits[index] = String(Number(digits[index]) + 1);
+      return digits.join("");
+    }
+    digits[index] = "0";
+  }
+  return `1${digits.join("")}`;
+}
+
 function formatNodeSliderNumber(value, options = {}) {
   const number = Number(value);
-  const text = Number.isFinite(number) ? Number(number.toFixed(6)).toString() : "";
+  const maxDigits = normalizeNodeGraphMetadataMaxDigits(options.maxDigits, options.kind);
+  const text = Number.isFinite(number)
+    ? limit_decimals(String(number), maxDigits, maxDigits, maxDigits, false)
+    : "";
   if (options.showSign && number >= 0) {
     return `+${text}`;
   }
@@ -127,6 +234,7 @@ function nodeSliderMetadata(slider) {
     unit: slider.dataset.unit ?? "",
     kind: slider.dataset.kind || "decimal",
     max,
+    maxDigits: normalizeNodeGraphMetadataMaxDigits(slider.dataset.maxDigits, slider.dataset.kind),
     mid,
     min,
     step,
@@ -135,14 +243,16 @@ function nodeSliderMetadata(slider) {
 
 function formatNodeSliderMetadataTooltip(slider) {
   const metadata = nodeSliderMetadata(slider);
-  const stepText = metadata.step > 0 ? formatNodeSliderNumber(metadata.step) : "any";
+  const numberOptions = { kind: metadata.kind, maxDigits: metadata.maxDigits };
+  const stepText = metadata.step > 0 ? formatNodeSliderNumber(metadata.step, numberOptions) : "any";
   const rows = [
-    `current ${formatNodeSliderNumber(metadata.cur)}`,
-    `default ${formatNodeSliderNumber(metadata.def)}`,
-    `min ${formatNodeSliderNumber(metadata.min)}`,
-    `max ${formatNodeSliderNumber(metadata.max)}`,
+    `current ${formatNodeSliderNumber(metadata.cur, numberOptions)}`,
+    `default ${formatNodeSliderNumber(metadata.def, numberOptions)}`,
+    `min ${formatNodeSliderNumber(metadata.min, numberOptions)}`,
+    `max ${formatNodeSliderNumber(metadata.max, numberOptions)}`,
     `step ${stepText}`,
     `kind ${metadata.kind}`,
+    `max digits ${metadata.maxDigits}`,
     `unit ${metadata.unit}`,
     `choices ${metadata.choices.length ? formatNodeMetadataChoices(metadata.choices) : "none"}`,
     `display choices ${metadata.displayChoices}`,
@@ -153,7 +263,7 @@ function formatNodeSliderMetadataTooltip(slider) {
     `wraparound ${metadata.wraparound}`,
   ];
   if (metadata.nonlinearSlider) {
-    rows.splice(3, 0, `mid ${formatNodeSliderNumber(metadata.mid)}`);
+    rows.splice(3, 0, `mid ${formatNodeSliderNumber(metadata.mid, numberOptions)}`);
   }
   return rows.join(" / ");
 }

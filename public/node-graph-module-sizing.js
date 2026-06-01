@@ -108,6 +108,7 @@ function nodeGraphModuleRequiredHeightUnitsForUi(type, ui = {}) {
   }
   return (
     nodeGraphModuleHeaderHeightUnits(ui) +
+    nodeGraphModuleLayout.moduleScopeHeightGu +
     nodeGraphModuleIoSectionHeightGu(type) +
     nodeGraphModuleSliderBodyHeightGu(type) +
     nodeGraphModuleLayout.fitCushionGu +

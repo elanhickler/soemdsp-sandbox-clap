@@ -97,25 +97,44 @@ function nodeInteractionMouseHint(element) {
   if (element.matches("input, textarea, select")) {
     return nodeGraphTooltipText("common.editText");
   }
-  if (element.id === "nodeZoomOutButton" || element.id === "nodeZoomResetButton" || element.id === "nodeZoomInButton") {
-    return nodeGraphTooltipText("view.zoomHelp");
-  }
   if (element.id === "nodeGraphResizeHandle") {
     return nodeGraphTooltipText("workspace.resize");
   }
-  if (
-    element.id === "nodeSettingsViewButton" ||
-    element.id === "nodeModularViewButton" ||
-    element.id === "nodeModularOnlyViewButton" ||
-    element.id === "nodeSettingsScriptViewButton"
-  ) {
+  if (element.id === "nodeZoomOutButton" || element.id === "nodeZoomResetButton" || element.id === "nodeZoomInButton") {
+    return nodeGraphTooltipText("view.zoomHelp");
+  }
+  if (element.id === "nodeSnapGridViewButton") {
+    return nodeGraphTooltipText("view.snapGrid");
+  }
+  if (element.id === "nodeSettingsViewButton") {
+    return nodeGraphTooltipText("view.patchSettings");
+  }
+  if (element.id === "nodeModularViewButton" || element.id === "nodeModularOnlyViewButton") {
     return nodeGraphTooltipText("view.switchView");
+  }
+  if (element.id === "nodeUiViewButton") {
+    return nodeGraphTooltipText("view.uiViewDevelopment");
+  }
+  if (element.id === "nodeMidiKeyboardToggleButton") {
+    return nodeGraphTooltipText("view.midiKeyboardDevelopment");
   }
   if (element.id === "nodeUndoButton" || element.id === "nodeRedoButton") {
     return nodeGraphTooltipText("history.help");
   }
+  if (element.id === "nodeUserUiSettingsButton") {
+    return nodeGraphTooltipText("settings.uiSettingsOpen");
+  }
   if (element.id === "nodeGridToggleButton") {
     return nodeGraphTooltipText("view.gridHelp");
+  }
+  if (element.id === "nodeTooltipToggleButton") {
+    return nodeGraphTooltipText(nodeGraphMvp.tooltipVisible ? "view.tipsHide" : "view.tipsShow");
+  }
+  if (element.id === "nodeSliderAmountToggleButton") {
+    return nodeGraphTooltipText(nodeGraphMvp.sliderAmountVisible ? "view.sliderAmountHide" : "view.sliderAmountShow");
+  }
+  if (element.id === "nodeSliderPositionToggleButton") {
+    return nodeGraphTooltipText(nodeGraphMvp.sliderPositionVisible ? "view.sliderPositionHide" : "view.sliderPositionShow");
   }
   if (element.dataset.paletteNode) {
     return nodeGraphTooltipText("actions.addModule");

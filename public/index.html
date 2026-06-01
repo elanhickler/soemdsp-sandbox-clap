@@ -4,9 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=selected-choice-cell-1780272000000">
+  <link rel="stylesheet" href="./public/styles.css?v=cpu-module-scopes-1780345200000">
 </head>
-<body class="debug-collapsed">
+<body class="debug-collapsed node-boot-loading">
+  <div class="node-boot-loading-screen" role="status" aria-live="polite">
+    <span>Loading interface</span>
+  </div>
+  <script src="./public/boot-loading.js?v=boot-loading-fade-1780340400000"></script>
   <main class="shell">
     <section class="status-strip" aria-label="Sandbox status">
       <div>
@@ -38,8 +42,7 @@
             id="nodeSettingsViewButton"
             type="button"
             aria-label="Patch settings"
-            aria-pressed="false"
-            data-tooltip-key="view.patchSettings">&#9881;</button>
+            aria-pressed="false">&#9881;</button>
           <button
             id="nodeModularViewButton"
             class="active"
@@ -54,22 +57,20 @@
             class="node-under-construction-view-button"
             type="button"
             aria-disabled="true"
-            aria-pressed="false"
-            data-tooltip-key="view.uiViewDevelopment"><span>UI</span><span>View</span></button>
+            aria-pressed="false"><span>UI</span><span>View</span></button>
           <button
             id="nodeMidiKeyboardToggleButton"
             class="node-under-construction-view-button"
             type="button"
             aria-disabled="true"
-            aria-pressed="false"
-            data-tooltip-key="view.midiKeyboardDevelopment"><span>Show/Hide</span><span>Keyboard</span></button>
+            aria-pressed="false"><span>Show/Hide</span><span>Keyboard</span></button>
           <span class="node-zoom-controls" role="group" aria-label="Node graph zoom">
             <span class="node-zoom-label">zoom</span>
             <span class="node-zoom-buttons">
-              <button id="nodeZoomOutButton" type="button" aria-label="Zoom out graph" data-tooltip-key="view.zoomOut">-</button>
-              <button id="nodeZoomResetButton" type="button" aria-label="Reset graph zoom to 1:1" data-tooltip-key="view.zoomReset">1.00</button>
-              <button id="nodeZoomInButton" type="button" aria-label="Zoom in graph" data-tooltip-key="view.zoomIn">+</button>
-              <button id="nodeSnapGridViewButton" type="button" aria-label="Snap modular view to grid" aria-pressed="false" data-tooltip-key="view.snapGrid">#</button>
+              <button id="nodeZoomOutButton" type="button" aria-label="Zoom out graph">-</button>
+              <button id="nodeZoomResetButton" type="button" aria-label="Reset graph zoom to 1:1">1.00</button>
+              <button id="nodeZoomInButton" type="button" aria-label="Zoom in graph">+</button>
+              <button id="nodeSnapGridViewButton" type="button" aria-label="Snap modular view to grid" aria-pressed="false">#</button>
             </span>
           </span>
         </div>
@@ -82,9 +83,8 @@
             aria-pressed="false"><span>UI</span><span>Settings</span></button>
           <button id="nodeGridToggleButton" type="button" aria-pressed="false">Show Grid</button>
           <button id="nodeTooltipToggleButton" type="button" aria-pressed="true">Hide Tips</button>
-          <button id="nodeSliderLabelsToggleButton" type="button" aria-pressed="true">Hide Labels</button>
-          <button id="nodeSliderValuesToggleButton" type="button" aria-pressed="true">Hide Values</button>
-          <button id="nodeSliderHandlesToggleButton" type="button" aria-pressed="true">Hide Slider</button>
+          <button id="nodeSliderAmountToggleButton" type="button" aria-pressed="false">Show Amount Slider</button>
+          <button id="nodeSliderPositionToggleButton" type="button" aria-pressed="true">Hide Position Slider</button>
         </div>
       </div>
 
@@ -101,8 +101,12 @@
           class="node-modular-only-back-button"
           type="button"
           aria-label="Return to full modular view"
-          data-tooltip-key="workspace.backToFull">←</button>
+          data-tooltip-key="workspace.backToFull">&larr;</button>
         <div id="nodeGridHeatmap" class="node-grid-heatmap" aria-hidden="true"></div>
+        <canvas
+          id="nodeModuleScopeCanvas"
+          class="node-module-scope-canvas"
+          aria-hidden="true"></canvas>
         <div id="nodeGraphZoomSurface" class="node-graph-zoom-surface">
           <svg
             id="nodeWireSvg"
@@ -208,12 +212,6 @@
               type="button"
               aria-disabled="true"
               data-tooltip-key="settings.makeWidget"><span>Make Widget</span><span>(in development)</span></button>
-            <button
-              id="shareCircuitButton"
-              class="node-settings-disabled-action"
-              type="button"
-              aria-disabled="true"
-              data-tooltip-key="settings.shareCircuit"><span>Share Circuit</span><span>(in development)</span></button>
           </div>
           <div class="node-settings-feedback-action-group" role="group" aria-label="Feedback actions">
           <a
@@ -221,13 +219,13 @@
             href="https://github.com/soundemote/soemdsp-sandbox/discussions/categories/feature-requests"
             target="_blank"
             rel="noreferrer"
-            data-tooltip-key="settings.requestFeature"><span>Request ↗</span><span>🚧 Feature</span></a>
+            data-tooltip-key="settings.requestFeature"><span>Request &nearr;</span><span>Feature</span></a>
           <a
             class="node-settings-link-action node-settings-bug-action"
             href="https://github.com/soundemote/soemdsp-sandbox/issues/new"
             target="_blank"
             rel="noreferrer"
-            data-tooltip-key="settings.reportBug"><span>Report ↗</span><span>🐞 Bug</span></a>
+            data-tooltip-key="settings.reportBug"><span>Report &nearr;</span><span>Bug</span></a>
           </div>
           <input
             id="nodePatchScriptFileInput"
@@ -652,6 +650,65 @@
             </div>
           </label>
           <label class="node-ui-dev-control">
+            <span>slider width</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSliderWidth"
+                type="range"
+                min="20"
+                max="100"
+                step="1"
+                value="100">
+              <output id="nodeUiDevSliderWidthValue" for="nodeUiDevSliderWidth">100%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>slider height</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSliderHeight"
+                type="range"
+                min="8"
+                max="40"
+                step="1"
+                value="28">
+              <output id="nodeUiDevSliderHeightValue" for="nodeUiDevSliderHeight">28px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>slider label color</span>
+            <input id="nodeUiDevSliderLabelColor" type="color" value="#cfdde5">
+            <output id="nodeUiDevSliderLabelColorValue" for="nodeUiDevSliderLabelColor">#cfdde5</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>slider value color</span>
+            <input id="nodeUiDevSliderValueColor" type="color" value="#ffffff">
+            <output id="nodeUiDevSliderValueColorValue" for="nodeUiDevSliderValueColor">#ffffff</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>slider unit color</span>
+            <input id="nodeUiDevSliderUnitColor" type="color" value="#7fc7d9">
+            <output id="nodeUiDevSliderUnitColorValue" for="nodeUiDevSliderUnitColor">#7fc7d9</output>
+          </label>
+          <label class="node-ui-dev-color-control">
+            <span>slider fill mouseover color</span>
+            <input id="nodeUiDevSliderFillHoverColor" type="color" value="#7fc7d9">
+            <output id="nodeUiDevSliderFillHoverColorValue" for="nodeUiDevSliderFillHoverColor">#7fc7d9</output>
+          </label>
+          <label class="node-ui-dev-control">
+            <span>slider fill mouseover alpha</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevSliderFillHoverAlpha"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="28">
+              <output id="nodeUiDevSliderFillHoverAlphaValue" for="nodeUiDevSliderFillHoverAlpha">28%</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
             <span>node hover glow size</span>
             <div class="node-ui-dev-control-row">
               <input
@@ -691,6 +748,19 @@
             </div>
           </label>
           <label class="node-ui-dev-control">
+            <span>trace wire thickness</span>
+            <div class="node-ui-dev-control-row">
+              <input
+                id="nodeUiDevTraceWireThickness"
+                type="range"
+                min="1"
+                max="12"
+                step="1"
+                value="1">
+              <output id="nodeUiDevTraceWireThicknessValue" for="nodeUiDevTraceWireThickness">1px</output>
+            </div>
+          </label>
+          <label class="node-ui-dev-control">
             <span>choice slider empty border</span>
             <div class="node-ui-dev-control-row">
               <input
@@ -699,40 +769,28 @@
                 min="0"
                 max="8"
                 step="1"
-                value="0">
-              <output id="nodeUiDevChoiceSlideEmptyBorderValue" for="nodeUiDevChoiceSlideEmptyBorder">0px</output>
+                value="2">
+              <output id="nodeUiDevChoiceSlideEmptyBorderValue" for="nodeUiDevChoiceSlideEmptyBorder">2px</output>
             </div>
           </label>
           <label class="node-ui-dev-control">
-            <span>choice slider edge brightness</span>
+            <span>choice separator height</span>
             <div class="node-ui-dev-control-row">
               <input
-                id="nodeUiDevChoiceSlideEdgeBrightness"
+                id="nodeUiDevChoiceDividerHeight"
                 type="range"
                 min="0"
-                max="100"
+                max="35"
                 step="1"
-                value="82">
-              <output id="nodeUiDevChoiceSlideEdgeBrightnessValue" for="nodeUiDevChoiceSlideEdgeBrightness">82%</output>
+                value="35">
+              <output id="nodeUiDevChoiceDividerHeightValue" for="nodeUiDevChoiceDividerHeight">35px</output>
             </div>
           </label>
-          <label class="node-ui-dev-control">
-            <span>choice slider glow level</span>
-            <div class="node-ui-dev-control-row">
-              <input
-                id="nodeUiDevChoiceSlideGlowLevel"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value="45">
-              <output id="nodeUiDevChoiceSlideGlowLevelValue" for="nodeUiDevChoiceSlideGlowLevel">45%</output>
-            </div>
-          </label>
-          <label class="node-ui-dev-color-control">
-            <span>choice slider overall color</span>
-            <input id="nodeUiDevChoiceSlideColor" type="color" value="#7fc7d9">
-            <output id="nodeUiDevChoiceSlideColorValue" for="nodeUiDevChoiceSlideColor">#7fc7d9</output>
+          <label class="node-ui-dev-check">
+            <input
+              id="nodeUiDevChoiceSlideDebugBoxes"
+              type="checkbox">
+            <span>choice slider debug boxes</span>
           </label>
           <label class="node-ui-dev-control node-ui-dev-symbol-size-control node-ui-dev-bypass-icon-control">
             <span>bypass icon size</span>
@@ -745,7 +803,7 @@
                 step="1"
                 value="36">
               <output id="nodeUiDevBypassIconSizeValue" for="nodeUiDevBypassIconSize">36%</output>
-              <span id="nodeUiDevBypassIconPreview" class="node-ui-dev-symbol-preview node-ui-dev-bypass-icon-preview" aria-hidden="true">🗲</span>
+              <span id="nodeUiDevBypassIconPreview" class="node-ui-dev-symbol-preview node-ui-dev-bypass-icon-preview" aria-hidden="true">&#x1F5F2;</span>
             </div>
           </label>
           <label class="node-ui-dev-control">
@@ -985,7 +1043,6 @@
           <div>
             <button id="nodeSceneWireTypeCable" type="button" data-wire-type="cable">Cable</button>
             <button id="nodeSceneWireTypeTrace" type="button" data-wire-type="trace">Trace</button>
-            <button id="nodeSceneWireTypeWire" type="button" data-wire-type="wire">Wire</button>
           </div>
         </div>
         <label id="nodeSceneAliasControl" class="scene-context-alias-control" hidden>
@@ -1093,6 +1150,12 @@
           type="button"
           tabindex="-1"
           aria-hidden="true">Stop Mock Input</button>
+        <button
+          id="sharePatchCommunityButton"
+          class="node-patch-community-control"
+          type="button"
+          aria-disabled="true"
+          data-tooltip-key="settings.sharePatchCommunity"><span>Share Patch</span><span>With Community</span></button>
         <div id="nodePalette" class="node-palette node-live-toggle-palette" aria-label="Live audio toggles">
           <button
             id="nodeLiveInputButton"
@@ -1175,6 +1238,7 @@
           <label>Max <input id="metadataMaxValue" type="text" inputmode="decimal"></label>
           <label>Default <input id="metadataDefaultValue" type="text" inputmode="decimal"></label>
           <label>Drag Step <input id="metadataStepValue" type="text" inputmode="decimal"></label>
+          <label>Max Digits <input id="metadataMaxDigitsValue" type="number" min="0" max="12" step="1" inputmode="numeric"></label>
           <label>Kind <select id="metadataKindValue"></select></label>
           <label>Unit <input id="metadataUnitValue" type="text"></label>
           <label class="metadata-choices-label">
@@ -1607,80 +1671,153 @@
     </section>
   </main>
 
-  <script src="./public/format-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/inspection-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/audio-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/ui-label-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/signal-plot-settings.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-wires.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-file-actions.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-default-buttons.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-module-definitions.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-module-sizing.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-parameter-metadata.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-metadata-defaults.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-text-box-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-text-box-rendering.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-patch-normalizers.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-audio-derivation.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-grid-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-patch-runtime.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-patch-serialization.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-settings-fields.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-settings-view.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-settings-text-fit.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-default-preset.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-script-status.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-view-controls.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-workspace-view.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-marquee-selection.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-node-dragging.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-context-menu.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-module-actions.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-module-rendering.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-history.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-visual-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-patch-clone.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-slider-metadata.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-slider-values.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-slider-dragging.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-node-accessors.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-selection.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-port-geometry.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-slider-readout.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-slider-readout-controls.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-ghost-sliders.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-metadata-kinds.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-metadata-editor.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-render-settings.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-rendered-audio.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-rendered-visual-output.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-rendered-output-canvases.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-execution-wires.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-execution-plan.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-execution-summary.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-wire-actions.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-wire-rendering.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-render-output.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-debug-copy.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-execution-debug-api.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-execution-debug-view.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-tooltips.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-interaction-help.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/presets/useruisettings.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-ui-settings-definitions.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-ui-settings-utils.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-user-ui-settings-controls.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-ui-settings-panels.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-ui-settings-persistence.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-ui-settings-sync.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-keyboard-shortcuts.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-live-status-text.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-live-status-controls.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-live-meter-controls.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-live-input-status.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-live-evidence.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/node-graph-live-control-rendering.js?v=selected-choice-cell-1780272000000"></script>
-  <script src="./public/app.js?v=selected-choice-cell-1780272000000"></script>
+  <script src="./public/app-state.js?v=app-state-refactor-1780353000000"></script>
+  <script src="./public/format-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/inspection-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/audio-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/ui-label-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/ui-render-utils.js?v=ui-render-utils-refactor-1780351800000"></script>
+  <script src="./public/inspection-cursor-pills.js?v=inspection-cursor-pills-refactor-1780390200000"></script>
+  <script src="./public/inspection-cursor.js?v=inspection-cursor-render-refactor-1780378800000"></script>
+  <script src="./public/phase-display-utils.js?v=phase-display-refactor-1780351200000"></script>
+  <script src="./public/phase-audio-analysis.js?v=phase-audio-analysis-refactor-1780356000000"></script>
+  <script src="./public/level-envelope-canvas.js?v=level-envelope-canvas-refactor-1780389000000"></script>
+  <script src="./public/level-envelope-view.js?v=level-envelope-view-refactor-1780354800000"></script>
+  <script src="./public/phase-audio-stats-probe.js?v=phase-audio-stats-probe-refactor-1780387800000"></script>
+  <script src="./public/phase-audio-stats-view.js?v=phase-audio-stats-view-refactor-1780355400000"></script>
+  <script src="./public/signal-plot-settings.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/signal-plot-metrics.js?v=signal-plot-metrics-refactor-1780378200000"></script>
+  <script src="./public/signal-plot-view.js?v=signal-plot-view-refactor-1780378200000"></script>
+  <script src="./public/signal-plot-probes.js?v=signal-plot-probes-refactor-1780377600000"></script>
+  <script src="./public/signal-plot-readouts.js?v=signal-plot-readouts-refactor-1780392600000"></script>
+  <script src="./public/signal-plot-controls.js?v=signal-plot-controls-refactor-1780377000000"></script>
+  <script src="./public/artifact-report-utils.js?v=artifact-report-utils-refactor-1780383600000"></script>
+  <script src="./public/artifact-report-reports.js?v=artifact-report-reports-refactor-1780384200000"></script>
+  <script src="./public/artifact-list-view.js?v=artifact-list-view-refactor-1780384800000"></script>
+  <script src="./public/artifact-coverage-view.js?v=artifact-coverage-view-refactor-1780385400000"></script>
+  <script src="./public/manifest-source-view.js?v=manifest-source-view-refactor-1780385400000"></script>
+  <script src="./public/parameter-summary-view.js?v=parameter-summary-view-refactor-1780383000000"></script>
+  <script src="./public/parameter-timeline-probe.js?v=parameter-timeline-probe-refactor-1780388400000"></script>
+  <script src="./public/parameter-views.js?v=parameter-views-refactor-1780383000000"></script>
+  <script src="./public/manifest-processing-contracts.js?v=manifest-contract-split-1780386000000"></script>
+  <script src="./public/manifest-phase-contracts.js?v=manifest-contract-split-1780386000000"></script>
+  <script src="./public/manifest-contracts.js?v=manifest-contracts-refactor-1780386000000"></script>
+  <script src="./public/legacy-evidence-checklist-view.js?v=legacy-evidence-checklist-refactor-1780386600000"></script>
+  <script src="./public/legacy-evidence-proof-view.js?v=legacy-evidence-proof-refactor-1780387200000"></script>
+  <script src="./public/legacy-evidence-views.js?v=legacy-evidence-views-refactor-1780359000000"></script>
+  <script src="./public/phase-list-view.js?v=phase-list-view-refactor-1780359600000"></script>
+  <script src="./public/hands-on-readiness-waveform-labels.js?v=hands-on-readiness-waveform-labels-refactor-1780390800000"></script>
+  <script src="./public/hands-on-readiness-primary-labels.js?v=hands-on-readiness-primary-labels-refactor-1780381200000"></script>
+  <script src="./public/hands-on-readiness-artifact-labels.js?v=hands-on-readiness-artifact-labels-refactor-1780381800000"></script>
+  <script src="./public/hands-on-readiness-signal-inspection-labels.js?v=hands-on-readiness-signal-inspection-refactor-1780391400000"></script>
+  <script src="./public/hands-on-readiness-phase-parameter-labels.js?v=hands-on-readiness-phase-parameter-refactor-1780392000000"></script>
+  <script src="./public/hands-on-readiness-probe-labels.js?v=hands-on-readiness-probe-labels-refactor-1780382400000"></script>
+  <script src="./public/hands-on-readiness.js?v=hands-on-readiness-refactor-1780382400000"></script>
+  <script src="./public/waveform-canvas.js?v=waveform-canvas-refactor-1780379400000"></script>
+  <script src="./public/waveform-current-parameters.js?v=waveform-current-parameters-refactor-1780380000000"></script>
+  <script src="./public/waveform-position-view.js?v=waveform-position-view-refactor-1780380600000"></script>
+  <script src="./public/waveform-view.js?v=waveform-view-refactor-1780380600000"></script>
+  <script src="./public/waveform-transport.js?v=waveform-transport-refactor-1780376400000"></script>
+  <script src="./public/waveform-phase-controls.js?v=waveform-phase-controls-refactor-1780375800000"></script>
+  <script src="./public/waveform-interactions.js?v=waveform-interactions-refactor-1780375200000"></script>
+  <script src="./public/manifest-view.js?v=manifest-view-refactor-1780360800000"></script>
+  <script src="./public/manifest-loader.js?v=manifest-loader-refactor-1780389600000"></script>
+  <script src="./public/node-graph-wires.js?v=no-self-burst-1780321400000"></script>
+  <script src="./public/node-graph-file-actions.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-default-buttons.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-module-definitions.js?v=module-scope-window-1780343400000"></script>
+  <script src="./public/node-graph-module-sizing.js?v=module-scope-window-1780343400000"></script>
+  <script src="./public/node-graph-metadata-kinds.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-parameter-metadata.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-metadata-defaults.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-text-box-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-text-box-rendering.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-patch-normalizers.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-audio-derivation.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-grid-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-patch-runtime.js?v=module-monitor-model-1780342200000"></script>
+  <script src="./public/node-graph-patch-serialization.js?v=module-monitor-model-1780342200000"></script>
+  <script src="./public/node-graph-settings-fields.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-settings-view.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-settings-text-fit.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-default-preset.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-script-status.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-view-controls.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/node-graph-workspace-geometry.js?v=node-graph-workspace-geometry-refactor-1780374000000"></script>
+  <script src="./public/node-graph-workspace-zoom.js?v=node-graph-workspace-zoom-refactor-1780374600000"></script>
+  <script src="./public/node-graph-workspace-view.js?v=node-graph-workspace-view-refactor-1780374600000"></script>
+  <script src="./public/node-graph-marquee-selection.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-node-dragging.js?v=cpu-module-scopes-1780345200000"></script>
+  <script src="./public/node-graph-context-menu.js?v=manual-trace-vertices-1780316800000"></script>
+  <script src="./public/node-graph-module-actions.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-module-scopes.js?v=webgl-module-scopes-1780347000000"></script>
+  <script src="./public/node-graph-module-factories.js?v=node-graph-module-factories-refactor-1780369800000"></script>
+  <script src="./public/node-graph-module-header-rendering.js?v=node-graph-module-header-rendering-refactor-1780370400000"></script>
+  <script src="./public/node-graph-module-rendering.js?v=module-scope-window-1780343400000"></script>
+  <script src="./public/node-graph-history.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-visual-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-patch-clone.js?v=module-monitor-model-1780342200000"></script>
+  <script src="./public/node-graph-slider-metadata.js?v=fixed-module-digits-integers-1780309400000"></script>
+  <script src="./public/node-graph-slider-values.js?v=slider-constants-refactor-1780352400000"></script>
+  <script src="./public/node-graph-slider-dragging.js?v=slider-drag-reanchor-1780330800000"></script>
+  <script src="./public/node-graph-node-accessors.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-selection.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-port-geometry.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-slider-readout.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/node-graph-slider-readout-controls.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/node-graph-ghost-sliders.js?v=slider-lane-inset-1780328200000"></script>
+  <script src="./public/node-graph-metadata-editor.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-render-settings.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-rendered-audio.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-rendered-visual-output.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-rendered-output-canvases.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-execution-wires.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-execution-plan.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-execution-summary.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-wire-actions.js?v=no-self-burst-1780321400000"></script>
+  <script src="./public/node-graph-trace-router.js?v=no-self-burst-1780321400000"></script>
+  <script src="./public/node-graph-wire-rendering.js?v=cpu-module-scopes-1780345200000"></script>
+  <script src="./public/node-graph-render-output.js?v=render-output-refactor-1780348200000"></script>
+  <script src="./public/node-graph-debug-copy.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-execution-debug-api.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-execution-debug-view.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-tooltips.js?v=native-tooltip-ban-1780335000000"></script>
+  <script src="./public/node-graph-interaction-help.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/presets/useruisettings.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/node-graph-ui-settings-definitions.js?v=slider-fill-hover-settings-1780323200000"></script>
+  <script src="./public/node-graph-ui-settings-utils.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-user-ui-settings-controls.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/node-graph-ui-settings-panels.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-ui-settings-persistence.js?v=slider-amount-position-1780333200000"></script>
+  <script src="./public/node-graph-ui-settings-sync.js?v=slider-fill-hover-settings-1780323200000"></script>
+  <script src="./public/node-graph-keyboard-shortcuts.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-live-status-text.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-live-status-controls.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-live-meter-controls.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-live-input-status.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-live-evidence.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-live-control-rendering.js?v=slider-unit-color-1780307400000"></script>
+  <script src="./public/node-graph-default-patch.js?v=default-patch-refactor-1780349400000"></script>
+  <script src="./public/node-graph-state.js?v=node-graph-state-refactor-1780362000000"></script>
+  <script src="./public/node-graph-patch-core.js?v=node-graph-patch-core-refactor-1780362600000"></script>
+  <script src="./public/node-graph-live-plan-runtime.js?v=node-graph-live-plan-runtime-refactor-1780372800000"></script>
+  <script src="./public/node-graph-live-parameter-runtime.js?v=node-graph-live-parameter-runtime-refactor-1780372200000"></script>
+  <script src="./public/node-graph-oscillator-runtime.js?v=node-graph-oscillator-runtime-refactor-1780371600000"></script>
+  <script src="./public/node-graph-jerobeam-spiral.js?v=node-graph-jerobeam-spiral-refactor-1780371000000"></script>
+  <script src="./public/node-graph-live-frame-evaluator.js?v=node-graph-live-frame-evaluator-refactor-1780373400000"></script>
+  <script src="./public/node-graph-live-runtime.js?v=node-graph-live-runtime-refactor-1780363200000"></script>
+  <script src="./public/node-graph-wire-controller-bootstrap.js?v=node-graph-wire-controller-bootstrap-refactor-1780364400000"></script>
+  <script src="./public/node-graph-workspace-event-bindings.js?v=node-graph-workspace-event-bindings-refactor-1780367400000"></script>
+  <script src="./public/node-graph-render-live-event-bindings.js?v=node-graph-render-live-event-bindings-refactor-1780368000000"></script>
+  <script src="./public/node-graph-header-event-bindings.js?v=node-graph-header-event-bindings-refactor-1780368600000"></script>
+  <script src="./public/node-graph-help-event-bindings.js?v=node-graph-help-event-bindings-refactor-1780369200000"></script>
+  <script src="./public/node-graph-scene-menu-event-bindings.js?v=node-graph-scene-menu-event-bindings-refactor-1780365600000"></script>
+  <script src="./public/node-graph-uidev-event-bindings.js?v=node-graph-uidev-event-bindings-refactor-1780366200000"></script>
+  <script src="./public/node-graph-settings-event-bindings.js?v=node-graph-settings-event-bindings-refactor-1780366800000"></script>
+  <script src="./public/node-graph-slider-event-bindings.js?v=node-graph-slider-event-bindings-refactor-1780369200000"></script>
+  <script src="./public/node-graph-event-bindings.js?v=node-graph-event-bindings-refactor-1780365000000"></script>
+  <script src="./public/node-graph-bootstrap.js?v=node-graph-bootstrap-refactor-1780363800000"></script>
+  <script src="./public/app-event-bindings.js?v=app-event-bindings-refactor-1780361400000"></script>
+  <script src="./public/app.js?v=render-output-refactor-1780348200000"></script>
 </body>
 </html>

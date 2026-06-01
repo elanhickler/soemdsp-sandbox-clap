@@ -34,6 +34,28 @@ function normalizeNodeGraphMetadataChoices(value, fallback = []) {
   return normalized.length ? normalized : [...fallback];
 }
 
+function nodeGraphDefaultMetadataMaxDigits(kind = "decimal") {
+  return normalizeNodeMetadataKind(kind) === "frequency" ? 5 : 3;
+}
+
+function normalizeNodeGraphMetadataMaxDigits(value, kind = "decimal") {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return nodeGraphDefaultMetadataMaxDigits(kind);
+  }
+  return Math.max(0, Math.min(12, Math.round(number)));
+}
+
+function nodeGraphInferParameterMetadataKind(parameter = {}) {
+  const explicitKind = normalizeNodeMetadataKind(parameter.kind);
+  if (explicitKind && explicitKind !== "decimal") {
+    return explicitKind;
+  }
+  const label = String(parameter.label || parameter.key || "").toLowerCase();
+  const unit = String(parameter.unit || "").toLowerCase();
+  return unit === "hz" || label.includes("frequency") ? "frequency" : explicitKind;
+}
+
 function nodeGraphParameterDefinitionMetadata(parameter) {
   if (!parameter) {
     return null;
@@ -46,6 +68,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
   const def = Number(parameter.defaultValue);
   const step = Number(parameter.step);
   const safeMid = clampNodeSliderValue(Number.isFinite(mid) ? mid : (safeMin + safeMax) / 2, safeMin, safeMax);
+  const kind = nodeGraphInferParameterMetadataKind(parameter);
   return {
     choices: normalizeNodeGraphMetadataChoices(parameter.choices || []),
     def: clampNodeSliderValue(Number.isFinite(def) ? def : safeMin, safeMin, safeMax),
@@ -53,9 +76,10 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
     divideChoicesVisibly: Object.hasOwn(parameter, "divideChoicesVisibly")
       ? Boolean(parameter.divideChoicesVisibly)
       : Boolean(parameter.choices?.length),
-    kind: parameter.kind || "decimal",
+    kind,
     linearSmoothing: parameter.linearSmoothing !== false,
     max: safeMax,
+    maxDigits: normalizeNodeGraphMetadataMaxDigits(parameter.maxDigits, kind),
     mid: safeMid,
     min: safeMin,
     nonlinearSlider: Object.hasOwn(parameter, "nonlinearSlider")
@@ -68,7 +92,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
   };
 }
 
-function normalizeNodeMetadataKindTemplate(template = {}) {
+function normalizeNodeMetadataKindTemplate(template = {}, kind = "decimal") {
   const choices = normalizeNodeGraphMetadataChoices(template.choices || []);
   const min = Number(template.min);
   const max = Number(template.max);
@@ -83,6 +107,7 @@ function normalizeNodeMetadataKindTemplate(template = {}) {
     divideChoicesVisibly: Object.hasOwn(template, "divideChoicesVisibly")
       ? Boolean(template.divideChoicesVisibly)
       : Boolean(choices.length),
+    maxDigits: normalizeNodeGraphMetadataMaxDigits(template.maxDigits, kind),
     nonlinearSlider,
   };
 }
@@ -121,6 +146,7 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
   const mid = Number(Object.hasOwn(source, "mid") ? source.mid : fallback.mid);
   const def = Number(Object.hasOwn(source, "def") ? source.def : fallback.def);
   const step = Number(Object.hasOwn(source, "step") ? source.step : fallback.step);
+  const kind = normalizeNodeMetadataKind(source.kind || fallback.kind);
   const choices = normalizeNodeGraphMetadataChoices(
     Object.hasOwn(source, "choices") ? source.choices : fallback.choices,
     fallback.choices,
@@ -134,11 +160,15 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
     divideChoicesVisibly: Object.hasOwn(source, "divideChoicesVisibly")
       ? Boolean(source.divideChoicesVisibly)
       : Boolean(fallback.divideChoicesVisibly || (choices.length && fallback.displayChoices)),
-    kind: normalizeNodeMetadataKind(source.kind || fallback.kind),
+    kind,
     linearSmoothing: Object.hasOwn(source, "linearSmoothing")
       ? Boolean(source.linearSmoothing)
       : fallback.linearSmoothing,
     max,
+    maxDigits: normalizeNodeGraphMetadataMaxDigits(
+      Object.hasOwn(source, "maxDigits") ? source.maxDigits : fallback.maxDigits,
+      kind,
+    ),
     mid: clampNodeSliderValue(Number.isFinite(mid) ? mid : fallback.mid, min, max),
     min,
     nonlinearSlider: Object.hasOwn(source, "nonlinearSlider")

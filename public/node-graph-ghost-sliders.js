@@ -62,14 +62,18 @@ function syncNodeGraphGhostSliders() {
       readout.style.removeProperty("--ghost-end");
       continue;
     }
-    const position = clampNodeSliderValue(ghostSignal, 0, 1) * 100;
+    const range = nodeSliderHandleRangeFromTravel(
+      slider,
+      readout,
+      clampNodeSliderValue(ghostSignal, 0, 1),
+    );
     readout.style.setProperty(
       "--ghost-start",
-      `calc(${position}% - ${nodeSliderHandleHalfWidthPx}px)`,
+      `${range.start}px`,
     );
     readout.style.setProperty(
       "--ghost-end",
-      `calc(${position}% + ${nodeSliderHandleHalfWidthPx}px)`,
+      `${range.end}px`,
     );
   }
 }

@@ -44,38 +44,7 @@ function nodeSliderReadCssNumber(element, property, fallback, min = -Infinity, m
   return Math.max(min, Math.min(max, value));
 }
 
-function nodeSliderReadCssColor(element, property, fallback) {
-  const value = getComputedStyle(element).getPropertyValue(property).trim();
-  return value || fallback;
-}
-
-function nodeSliderHexToRgba(color, alpha) {
-  const normalized = color.trim();
-  const match = /^#?([0-9a-f]{6})$/i.exec(normalized);
-  if (!match) {
-    return normalized;
-  }
-  const value = match[1];
-  const red = Number.parseInt(value.slice(0, 2), 16);
-  const green = Number.parseInt(value.slice(2, 4), 16);
-  const blue = Number.parseInt(value.slice(4, 6), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-function nodeSliderChoiceSlideStyle(readout) {
-  const color = nodeSliderReadCssColor(readout, "--node-choice-slide-color", "#7fc7d9");
-  const edgeBrightness = nodeSliderReadCssNumber(readout, "--node-choice-slide-edge-brightness", 0.85, 0, 1);
-  const glowLevel = nodeSliderReadCssNumber(readout, "--node-choice-slide-glow-level", 0.45, 0, 1);
-  return {
-    color,
-    edgeBrightness,
-    fillOpacity: Math.min(0.42, 0.12 + glowLevel * 0.2),
-    glowAlpha: glowLevel * 0.62,
-    glowRadius: glowLevel * 8,
-  };
-}
-
-function nodeSliderChoiceCellRects(width, height, choices, emptyPixelBorder = 0) {
+function nodeSliderChoiceCellRects(width, height, choices) {
   const layoutWidth = Number(width);
   const layoutHeight = Number(height);
   const count = choices.length;
@@ -83,18 +52,39 @@ function nodeSliderChoiceCellRects(width, height, choices, emptyPixelBorder = 0)
     return [];
   }
 
-  const boundedEmptyPixelBorder = Math.max(0, Math.min(8, Number(emptyPixelBorder) || 0));
-  const contentHeight = Math.max(0, layoutHeight - boundedEmptyPixelBorder * 2);
   return choices.map((_, index) => {
     const segmentLeft = index === 0 ? 0 : Math.round((index / count) * layoutWidth);
     const segmentRight = index === count - 1 ? layoutWidth : Math.round(((index + 1) / count) * layoutWidth);
-    const contentLeft = segmentLeft + boundedEmptyPixelBorder;
-    const contentRight = segmentRight - boundedEmptyPixelBorder;
     return {
-      height: contentHeight,
-      left: contentLeft,
-      top: boundedEmptyPixelBorder,
-      width: Math.max(0, contentRight - contentLeft),
+      height: layoutHeight,
+      left: segmentLeft,
+      top: 0,
+      width: Math.max(0, segmentRight - segmentLeft),
+    };
+  });
+}
+
+function nodeSliderChoiceCellRectsFromWalls(wallXs, height, viewportLeft, viewportTop, emptyPixelBorder = 0) {
+  const boundedEmptyPixelBorder = Math.max(0, Math.min(8, Number(emptyPixelBorder) || 0));
+  const strokeInset = 0.5;
+  const trailingPixelCorrection = boundedEmptyPixelBorder > 0 ? 1 : 0;
+  return wallXs.slice(0, -1).map((leftWall, index) => {
+    const rightWall = wallXs[index + 1];
+    const left = nodeSliderSnapStrokeCoordinate(leftWall + boundedEmptyPixelBorder + strokeInset, viewportLeft);
+    const right = nodeSliderSnapStrokeCoordinate(
+      rightWall - boundedEmptyPixelBorder - strokeInset - trailingPixelCorrection,
+      viewportLeft,
+    );
+    const top = nodeSliderSnapStrokeCoordinate(boundedEmptyPixelBorder + strokeInset, viewportTop);
+    const bottom = nodeSliderSnapStrokeCoordinate(
+      height - boundedEmptyPixelBorder - strokeInset - trailingPixelCorrection,
+      viewportTop,
+    );
+    return {
+      height: Math.max(0, bottom - top),
+      left,
+      top,
+      width: Math.max(0, right - left),
     };
   });
 }
@@ -112,6 +102,19 @@ function nodeSliderChoiceDividerLinesFromCells(cellRects) {
     top: cellRects[index].top,
     x: cellRects[index].left + cellRects[index].width,
   }));
+}
+
+function nodeSliderSelectedChoiceDividerLines(dividerLines, selectedIndex) {
+  return dividerLines.filter((divider) => (
+    divider.index === selectedIndex - 1 ||
+    divider.index === selectedIndex
+  ));
+}
+
+function nodeSliderChoiceDividerHeight(readout, layerHeight) {
+  const zoom = Math.max(0.01, Number(nodeGraphMvp?.zoom) || 1);
+  const heightAtOneToOne = nodeSliderReadCssNumber(readout, "--node-choice-divider-height", 35, 0, 35);
+  return Math.max(0, Math.min(layerHeight, heightAtOneToOne / zoom));
 }
 
 function nodeSliderSnapStrokeCoordinate(localPosition, viewportOrigin, strokeWidth = 1) {
@@ -148,28 +151,82 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled, selectedInd
 
   const layerRect = layer.getBoundingClientRect();
   const emptyPixelBorder = nodeSliderReadCssNumber(readout, "--node-choice-slide-empty-border", 0, 0, 8);
-  const slideStyle = nodeSliderChoiceSlideStyle(readout);
   layer.setAttribute("viewBox", `0 0 ${layerRect.width.toFixed(3)} ${layerRect.height.toFixed(3)}`);
   layer.setAttribute("preserveAspectRatio", "none");
-  const cellRects = nodeSliderChoiceCellRects(layerRect.width, layerRect.height, choices, emptyPixelBorder);
+  const segmentRects = nodeSliderChoiceCellRects(layerRect.width, layerRect.height, choices);
+  const dividerHeight = nodeSliderChoiceDividerHeight(readout, layerRect.height);
+  const dividerTop = (layerRect.height - dividerHeight) * 0.5;
+  const dividerLines = nodeSliderChoiceDividerLinesFromCells(segmentRects).map((divider, index) => ({
+    ...divider,
+    height: dividerHeight,
+    index,
+    top: dividerTop,
+    x: nodeSliderSnapStrokeCoordinate(divider.x, layerRect.left),
+  }));
+  const cellWallXs = [
+    0,
+    ...dividerLines.map((divider) => divider.x),
+    layerRect.width,
+  ];
+  const engineSliderWallXs = [
+    nodeSliderSnapStrokeCoordinate(0.5, layerRect.left),
+    nodeSliderSnapStrokeCoordinate(Math.max(0.5, layerRect.width - 0.5), layerRect.left),
+  ];
+  const cellRects = nodeSliderChoiceCellRectsFromWalls(
+    cellWallXs,
+    layerRect.height,
+    layerRect.left,
+    layerRect.top,
+    emptyPixelBorder,
+  );
   const activeChoiceIndex = Math.max(
     0,
     Math.min(cellRects.length - 1, Number.isFinite(selectedIndex) ? Math.round(selectedIndex) : 0),
   );
-  const dividers = nodeSliderChoiceDividerLinesFromCells(cellRects).map((divider, index) => {
+  const visibleDividerLines = nodeSliderSelectedChoiceDividerLines(dividerLines, activeChoiceIndex);
+  const dividers = visibleDividerLines.map((divider) => {
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    const x = nodeSliderSnapStrokeCoordinate(divider.x, layerRect.left);
     marker.setAttribute("class", "node-choice-debug-divider");
-    marker.setAttribute("data-choice-divider-index", String(index));
-    marker.setAttribute("x1", x.toFixed(3));
-    marker.setAttribute("x2", x.toFixed(3));
+    marker.setAttribute("data-choice-divider-index", String(divider.index));
+    marker.setAttribute("x1", divider.x.toFixed(3));
+    marker.setAttribute("x2", divider.x.toFixed(3));
     marker.setAttribute("y1", divider.top.toFixed(3));
     marker.setAttribute("y2", (divider.top + divider.height).toFixed(3));
+    return marker;
+  });
+  const debugWalls = cellWallXs.map((wallX, index) => {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    marker.setAttribute("class", "node-choice-debug-wall");
+    marker.setAttribute("data-choice-wall-index", String(index));
+    marker.setAttribute("x1", wallX.toFixed(3));
+    marker.setAttribute("x2", wallX.toFixed(3));
+    marker.setAttribute("y1", "0");
+    marker.setAttribute("y2", layerRect.height.toFixed(3));
+    return marker;
+  });
+  const debugSliderWalls = engineSliderWallXs.map((wallX, index) => {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    marker.setAttribute("class", "node-choice-debug-slider-wall");
+    marker.setAttribute("data-choice-slider-wall-index", String(index));
+    marker.setAttribute("x1", wallX.toFixed(3));
+    marker.setAttribute("x2", wallX.toFixed(3));
+    marker.setAttribute("y1", "0");
+    marker.setAttribute("y2", layerRect.height.toFixed(3));
     return marker;
   });
   const selectedCellRects = cellRects
     .map((cell, index) => ({ cell, index }))
     .filter(({ index }) => index === activeChoiceIndex);
+  const debugCellStrokes = cellRects.map((cell, index) => {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    marker.setAttribute("class", "node-choice-debug-cell-debug");
+    marker.setAttribute("data-choice-index", String(index));
+    marker.setAttribute("x", cell.left.toFixed(3));
+    marker.setAttribute("y", cell.top.toFixed(3));
+    marker.setAttribute("width", cell.width.toFixed(3));
+    marker.setAttribute("height", cell.height.toFixed(3));
+    return marker;
+  });
   const cells = selectedCellRects.map(({ cell, index }) => {
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     marker.setAttribute("class", "node-choice-debug-square node-choice-debug-cell node-choice-debug-cell-fill");
@@ -178,35 +235,34 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled, selectedInd
     marker.setAttribute("y", cell.top.toFixed(3));
     marker.setAttribute("width", cell.width.toFixed(3));
     marker.setAttribute("height", cell.height.toFixed(3));
-    marker.style.fill = slideStyle.color;
-    marker.style.fillOpacity = String(slideStyle.fillOpacity);
-    marker.style.filter = slideStyle.glowLevel <= 0
-      ? "none"
-      : `drop-shadow(0 0 ${slideStyle.glowRadius.toFixed(2)}px ${nodeSliderHexToRgba(slideStyle.color, slideStyle.glowAlpha.toFixed(3))})`;
     return marker;
   });
   const cellStrokes = selectedCellRects.map(({ cell, index }) => {
-    const strokeInset = 0.5;
-    const zeroBorderOutset = emptyPixelBorder <= 0 ? 1 : 0;
-    const trailingStrokeOutset = emptyPixelBorder > 0 ? 1 : zeroBorderOutset;
-    const strokeLeft = cell.left <= 0 ? Math.max(0, strokeInset - zeroBorderOutset) : cell.left;
-    const strokeTop = cell.top <= 0 ? Math.max(0, strokeInset - zeroBorderOutset) : cell.top;
-    const strokeRight = cell.left + cell.width >= layerRect.width
-      ? cell.left + cell.width - strokeInset + zeroBorderOutset
-      : Math.min(layerRect.width, cell.left + cell.width + trailingStrokeOutset);
-    const strokeBottom = Math.min(layerRect.height + zeroBorderOutset, cell.top + cell.height + trailingStrokeOutset);
-    const marker = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const right = cell.left + cell.width;
+    const bottom = cell.top + cell.height;
     marker.setAttribute("class", "node-choice-debug-square node-choice-debug-cell node-choice-debug-cell-stroke");
     marker.setAttribute("data-choice-index", String(index));
-    marker.setAttribute("x", strokeLeft.toFixed(3));
-    marker.setAttribute("y", strokeTop.toFixed(3));
-    marker.setAttribute("width", Math.max(0, strokeRight - strokeLeft).toFixed(3));
-    marker.setAttribute("height", Math.max(0, strokeBottom - strokeTop).toFixed(3));
-    marker.style.stroke = slideStyle.color;
-    marker.style.strokeOpacity = String(slideStyle.edgeBrightness);
+    marker.setAttribute(
+      "d",
+      [
+        `M ${cell.left.toFixed(3)} ${cell.top.toFixed(3)}`,
+        `H ${right.toFixed(3)}`,
+        `V ${bottom.toFixed(3)}`,
+        `H ${cell.left.toFixed(3)}`,
+        "Z",
+      ].join(" "),
+    );
     return marker;
   });
-  layer.replaceChildren(...cells, ...dividers, ...cellStrokes);
+  layer.replaceChildren(
+    ...cells,
+    ...dividers,
+    ...cellStrokes,
+    ...debugCellStrokes,
+    ...debugWalls,
+    ...debugSliderWalls,
+  );
 }
 
 function syncNodeSliderReadout(slider) {
@@ -234,6 +290,8 @@ function syncNodeSliderReadout(slider) {
     labelText.textContent = readout.dataset.paramLabel || nodeSliderLabelText(slider);
   }
   valueText.textContent = choiceLabel ? ` ${choiceLabel}` : formatNodeSliderNumber(slider.value, {
+    kind: slider.dataset.kind,
+    maxDigits: slider.dataset.maxDigits,
     reserveSignSpace: true,
     showSign: nodeSliderShouldShowSign(slider),
   });
@@ -247,24 +305,27 @@ function syncNodeSliderReadout(slider) {
   readout.classList.toggle("reserves-sign-column", usesNumericReadout || usesChoices);
   readout.removeAttribute("title");
   if (dividesChoices) {
+    readout.style.removeProperty("--amount-end");
     readout.style.removeProperty("--value-start");
     readout.style.removeProperty("--value-end");
     readout.style.setProperty("--choice-divider-background", "none");
     syncNodeSliderChoiceDebugSquares(readout, choices, true, Number(slider.value));
     syncNodeSliderPortalHandle(readout, slider, position, false);
   } else {
-    const boundedPosition = Math.max(0, Math.min(100, position));
+    const travel = Math.max(0, Math.min(1, position / 100));
+    const range = nodeSliderHandleRangeFromTravel(slider, readout, travel);
+    readout.style.setProperty("--amount-end", `${range.center}px`);
     readout.style.setProperty(
       "--value-start",
-      `calc(${boundedPosition}% - ${nodeSliderHandleHalfWidthPx}px)`,
+      `${range.start}px`,
     );
     readout.style.setProperty(
       "--value-end",
-      `calc(${boundedPosition}% + ${nodeSliderHandleHalfWidthPx}px)`,
+      `${range.end}px`,
     );
     readout.style.setProperty("--choice-divider-background", "none");
     syncNodeSliderChoiceDebugSquares(readout, choices, false);
-    syncNodeSliderPortalHandle(readout, slider, boundedPosition, usesPortalWrap);
+    syncNodeSliderPortalHandle(readout, slider, position, usesPortalWrap);
   }
   syncNodeSliderMetadataTooltip(slider);
 }

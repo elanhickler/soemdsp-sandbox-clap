@@ -6,6 +6,10 @@ function nodeGraphRenderPendingSummary() {
   }
 }
 
+function renderedNodeGraphWavBlob(rendered) {
+  return nodeGraphRenderedWavBlob(rendered, nodeGraphMvp.sampleRate);
+}
+
 function nodeGraphOutputClipCountText(count = 0) {
   return count === 1 ? "1 clip" : `${count} clips`;
 }
@@ -101,6 +105,7 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
 function markNodeGraphRenderPending(summary = "") {
   stopNodeGraphRenderedPlayback();
   nodeGraphMvp.rendered = null;
+  clearNodeGraphModuleScopeBuffers();
   clearNodeGraphRenderedAudioElement();
   labelPrimaryAudioTitle("Render Sample creates preview audio here", false);
   document.getElementById("nodeGraphRenderStatus").textContent = "render pending";
@@ -111,5 +116,149 @@ function markNodeGraphRenderPending(summary = "") {
     outputSummary.textContent = summary || nodeGraphRenderPendingSummary();
   }
   renderNodeGraphExecutionPlanDebug();
+  drawNodeRenderedAudio();
+}
+
+function renderNodeGraphAudio() {
+  if (!nodeGraphScriptReadyForGraphAction("render")) {
+    markNodeGraphRenderScriptBlocked();
+    return;
+  }
+  stopNodeGraphRenderedPlayback();
+  const validation = nodeGraphValidate();
+  const renderStatus = document.getElementById("nodeGraphRenderStatus");
+  if (!validation.valid) {
+    nodeGraphMvp.rendered = null;
+    clearNodeGraphModuleScopeBuffers();
+    clearNodeGraphRenderedAudioElement();
+    labelPrimaryAudioTitle("Fix graph before rendering", false);
+    renderStatus.textContent = "render blocked";
+    renderStatus.className = "pill warn";
+    setNodeGraphAudioStats();
+    const outputSummary = document.getElementById("nodeOutputSummary");
+    if (outputSummary) {
+      outputSummary.textContent = validation.scheduleText;
+    }
+    renderNodeGraphExecutionPlanDebug();
+    drawNodeRenderedAudio();
+    return;
+  }
+
+  syncNodeGraphRenderSecondsFromInput({ normalize: true });
+  const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
+  const outputSampleRate = audio.outputSampleRate;
+  const engineSampleRate = audio.clampedEngineSampleRate;
+  const outputFrames = Math.floor(outputSampleRate * nodeGraphMvp.seconds);
+  const engineFrames = Math.max(1, Math.round(engineSampleRate * nodeGraphMvp.seconds));
+  const patchFingerprint = nodeGraphPatchFingerprint();
+  const engineLeftSamples = new Float32Array(engineFrames);
+  const engineRightSamples = new Float32Array(engineFrames);
+  const plan = nodeGraphBuildLivePlan();
+  const stateReadCount = nodeGraphStateReadCount(plan);
+  const runtime = createNodeGraphLiveRuntime(plan);
+  const scopeCapture = beginNodeGraphRenderedScopeCapture({
+    frames: engineFrames,
+    patch: nodeGraphMvp.patch,
+    patchFingerprint,
+    sampleRate: engineSampleRate,
+  });
+  let clipCount = 0;
+
+  for (let blockStart = 0; blockStart < engineFrames; blockStart += nodeGraphAudioBlockSize) {
+    const blockFrames = Math.min(nodeGraphAudioBlockSize, engineFrames - blockStart);
+    for (let blockFrame = 0; blockFrame < blockFrames; blockFrame += 1) {
+      const frame = blockStart + blockFrame;
+      const frameOutput = evaluateNodeGraphPlanFrame(
+        runtime,
+        engineSampleRate,
+        blockFrame,
+        blockFrames,
+      );
+      captureNodeGraphRenderedScopeFrame(
+        scopeCapture,
+        runtime,
+        frameOutput.frameValues,
+        frame,
+        blockFrame,
+        blockFrames,
+      );
+      if (nodeGraphOutputSampleClipped(frameOutput.left)) {
+        clipCount += 1;
+      }
+      if (nodeGraphOutputSampleClipped(frameOutput.right)) {
+        clipCount += 1;
+      }
+      const left = nodeGraphClampOutputSample(frameOutput.left);
+      const right = nodeGraphClampOutputSample(frameOutput.right);
+      engineLeftSamples[frame] = left;
+      engineRightSamples[frame] = right;
+    }
+    finishNodeGraphParameterSmoothing(runtime.smoothers);
+  }
+  finishNodeGraphRenderedScopeCapture(scopeCapture);
+
+  const leftSamples = nodeGraphResampleRenderedChannel(
+    engineLeftSamples,
+    engineSampleRate,
+    outputSampleRate,
+    outputFrames,
+  );
+  const rightSamples = nodeGraphResampleRenderedChannel(
+    engineRightSamples,
+    engineSampleRate,
+    outputSampleRate,
+    outputFrames,
+  );
+  const samples = new Float32Array(outputFrames);
+  let peak = 0;
+  let squareSum = 0;
+  for (let frame = 0; frame < outputFrames; frame += 1) {
+    const left = leftSamples[frame] || 0;
+    const right = rightSamples[frame] || 0;
+    samples[frame] = (left + right) * 0.5;
+    peak = Math.max(peak, Math.abs(left), Math.abs(right));
+    squareSum += (left * left + right * right) * 0.5;
+  }
+
+  const rms = Math.sqrt(squareSum / outputFrames);
+  nodeGraphMvp.rendered = {
+    channels: 2,
+    connectionCount: plan.connections.length,
+    durationSeconds: outputFrames / outputSampleRate,
+    engineFrames,
+    engineSampleRate,
+    feedbackConnectionCount: plan.feedbackConnections.length,
+    feedbackModulationCount: plan.feedbackModulations.length,
+    frames: outputFrames,
+    modulationCount: plan.modulations.length,
+    nodeCount: plan.nodes.length,
+    oversamplingRatio: audio.oversamplingRatio,
+    peak,
+    leftSamples,
+    patchFingerprint,
+    rightSamples,
+    rms,
+    sampleRate: outputSampleRate,
+    samples,
+    clipCount,
+    sourceNodes: validation.sourceNodes,
+    stateReadCount,
+  };
+  syncNodeGraphRenderedAudioElement();
+  renderStatus.textContent = "render ready";
+  renderStatus.className = "pill good";
+  setNodeGraphAudioStats(peak, rms, {
+    frames: outputFrames,
+    sampleRate: outputSampleRate,
+    clipCount,
+    engineSampleRate,
+    oversamplingRatio: audio.oversamplingRatio,
+    stateReadCount,
+  });
+  renderNodeGraphExecutionPlanDebug();
+  const outputSummary = document.getElementById("nodeOutputSummary");
+  if (outputSummary) {
+    outputSummary.textContent = validation.scheduleText;
+  }
   drawNodeRenderedAudio();
 }

@@ -8,8 +8,8 @@ function renderNodeGraphHistoryControls() {
   const canRedo = nodeGraphMvp.historyIndex < nodeGraphMvp.historySnapshots.length - 1;
   undo.disabled = !canUndo;
   redo.disabled = !canRedo;
-  undo.title = nodeGraphTooltipText(canUndo ? "history.undo" : "history.undoUnavailable");
-  redo.title = nodeGraphTooltipText(canRedo ? "history.redo" : "history.redoUnavailable");
+  undo.removeAttribute("title");
+  redo.removeAttribute("title");
 }
 
 function renderNodeGraphGridToggle() {
@@ -20,37 +20,77 @@ function renderNodeGraphGridToggle() {
   if (button) {
     button.textContent = visible ? "Hide Grid" : "Show Grid";
     button.setAttribute("aria-pressed", visible ? "true" : "false");
-    button.title = nodeGraphTooltipText(visible ? "view.gridHide" : "view.gridShow");
+    button.removeAttribute("title");
   }
   syncNodeUserUiSettingsViewControls();
 }
 
-function renderNodeGraphSliderTextToggles() {
+function renderNodeGraphSliderVisibilityToggles() {
   const workspace = document.getElementById("nodeGraphWorkspace");
-  const labelsButton = document.getElementById("nodeSliderLabelsToggleButton");
-  const valuesButton = document.getElementById("nodeSliderValuesToggleButton");
-  const handlesButton = document.getElementById("nodeSliderHandlesToggleButton");
-  const labelsVisible = Boolean(nodeGraphMvp.sliderLabelsVisible);
-  const valuesVisible = Boolean(nodeGraphMvp.sliderValuesVisible);
-  const handlesVisible = Boolean(nodeGraphMvp.sliderHandlesVisible);
-  workspace?.classList.toggle("hide-slider-labels", !labelsVisible);
-  workspace?.classList.toggle("hide-slider-values", !valuesVisible);
-  workspace?.classList.toggle("hide-slider-handles", !handlesVisible);
-  if (labelsButton) {
-    labelsButton.textContent = labelsVisible ? "Hide Labels" : "Show Labels";
-    labelsButton.setAttribute("aria-pressed", labelsVisible ? "true" : "false");
-    labelsButton.title = nodeGraphTooltipText(labelsVisible ? "view.sliderLabelsHide" : "view.sliderLabelsShow");
+  const amountButton = document.getElementById("nodeSliderAmountToggleButton");
+  const positionButton = document.getElementById("nodeSliderPositionToggleButton");
+  const amountVisible = Boolean(nodeGraphMvp.sliderAmountVisible);
+  const positionVisible = Boolean(nodeGraphMvp.sliderPositionVisible);
+  workspace?.classList.toggle("show-slider-amount", amountVisible);
+  workspace?.classList.toggle("hide-slider-position", !positionVisible);
+  if (amountButton) {
+    amountButton.textContent = amountVisible ? "Hide Amount Slider" : "Show Amount Slider";
+    amountButton.setAttribute("aria-pressed", amountVisible ? "true" : "false");
+    amountButton.removeAttribute("title");
   }
-  if (valuesButton) {
-    valuesButton.textContent = valuesVisible ? "Hide Values" : "Show Values";
-    valuesButton.setAttribute("aria-pressed", valuesVisible ? "true" : "false");
-    valuesButton.title = nodeGraphTooltipText(valuesVisible ? "view.sliderValuesHide" : "view.sliderValuesShow");
+  if (positionButton) {
+    positionButton.textContent = positionVisible ? "Hide Position Slider" : "Show Position Slider";
+    positionButton.setAttribute("aria-pressed", positionVisible ? "true" : "false");
+    positionButton.removeAttribute("title");
   }
-  if (handlesButton) {
-    handlesButton.textContent = handlesVisible ? "Hide Slider" : "Show Slider";
-    handlesButton.setAttribute("aria-pressed", handlesVisible ? "true" : "false");
-    handlesButton.title = nodeGraphTooltipText(handlesVisible ? "view.sliderHandlesHide" : "view.sliderHandlesShow");
-  }
+  syncNodeUserUiSettingsViewControls();
+}
+
+const nodeGraphSliderLayouts = Object.freeze([
+  { key: "text-inside", label: "Text Inside" },
+  { key: "label-value-slider", label: "Label Value Slider" },
+  { key: "value-unit-left", label: "Value And Unit Left" },
+  { key: "value-unit-right", label: "Value And Unit Right" },
+  { key: "label-outside", label: "Label Outside" },
+  { key: "label-outside-no-unit", label: "Label Outside No Unit" },
+  { key: "value-outside", label: "Value Outside" },
+  { key: "unit-only", label: "Unit Only" },
+  { key: "value-focus", label: "Value Focus" },
+]);
+
+function normalizeNodeGraphSliderLayout(value) {
+  const aliases = {
+    alternate: "label-outside",
+    classic: "text-inside",
+  };
+  const key = aliases[value] || value;
+  return nodeGraphSliderLayouts.some((layout) => layout.key === key) ? key : "text-inside";
+}
+
+function nodeGraphSliderLayoutLabel(value) {
+  const normalized = normalizeNodeGraphSliderLayout(value);
+  return nodeGraphSliderLayouts.find((layout) => layout.key === normalized)?.label || "Text Inside";
+}
+
+function nextNodeGraphSliderLayout(value) {
+  const normalized = normalizeNodeGraphSliderLayout(value);
+  const index = nodeGraphSliderLayouts.findIndex((layout) => layout.key === normalized);
+  const next = nodeGraphSliderLayouts[(index + 1) % nodeGraphSliderLayouts.length];
+  return next?.key || "text-inside";
+}
+
+function renderNodeGraphSliderLayout() {
+  const layout = normalizeNodeGraphSliderLayout(nodeGraphMvp.sliderLayout);
+  nodeGraphMvp.sliderLayout = layout;
+  document.getElementById("nodeGraphWorkspace")?.setAttribute("data-slider-layout", layout);
+  document.getElementById("nodeWiringPanel")?.setAttribute("data-slider-layout", layout);
+  syncNodeUserUiSettingsViewControls();
+}
+
+function cycleNodeGraphSliderLayout() {
+  nodeGraphMvp.sliderLayout = nextNodeGraphSliderLayout(nodeGraphMvp.sliderLayout);
+  renderNodeGraphSliderLayout();
+  setNodeInteractionHelp(`Slider layout: ${nodeGraphSliderLayoutLabel(nodeGraphMvp.sliderLayout)}.`);
 }
 
 function renderNodeGraphTooltipToggle() {
@@ -65,7 +105,7 @@ function renderNodeGraphTooltipToggle() {
   if (button) {
     button.textContent = visible ? "Hide Tips" : "Show Tips";
     button.setAttribute("aria-pressed", visible ? "true" : "false");
-    button.title = nodeGraphTooltipText(visible ? "view.tipsHide" : "view.tipsShow");
+    button.removeAttribute("title");
   }
 }
 
@@ -79,19 +119,14 @@ function toggleNodeGraphTooltipVisibility() {
   renderNodeGraphTooltipToggle();
 }
 
-function toggleNodeGraphSliderLabels() {
-  nodeGraphMvp.sliderLabelsVisible = !nodeGraphMvp.sliderLabelsVisible;
-  renderNodeGraphSliderTextToggles();
+function toggleNodeGraphSliderAmount() {
+  nodeGraphMvp.sliderAmountVisible = !nodeGraphMvp.sliderAmountVisible;
+  renderNodeGraphSliderVisibilityToggles();
 }
 
-function toggleNodeGraphSliderValues() {
-  nodeGraphMvp.sliderValuesVisible = !nodeGraphMvp.sliderValuesVisible;
-  renderNodeGraphSliderTextToggles();
-}
-
-function toggleNodeGraphSliderHandles() {
-  nodeGraphMvp.sliderHandlesVisible = !nodeGraphMvp.sliderHandlesVisible;
-  renderNodeGraphSliderTextToggles();
+function toggleNodeGraphSliderPosition() {
+  nodeGraphMvp.sliderPositionVisible = !nodeGraphMvp.sliderPositionVisible;
+  renderNodeGraphSliderVisibilityToggles();
 }
 
 function renderNodeVisibility() {

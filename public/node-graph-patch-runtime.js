@@ -46,7 +46,17 @@ function nextNodeGraphTypeCounts(nodes = nodeGraphMvp.patch.nodes) {
 
 function syncNodeGraphRuntimeFromPatch() {
   nodeGraphMvp.activeNodes = new Set(nodeGraphMvp.patch.nodes.map((node) => node.id));
-  nodeGraphMvp.connections = nodeGraphMvp.patch.connections.map((connection) => ({ ...connection }));
-  nodeGraphMvp.modulations = nodeGraphMvp.patch.modulations.map((modulation) => ({ ...modulation }));
+  nodeGraphMvp.connections = nodeGraphMvp.patch.connections.map((connection) => ({
+    ...connection,
+    tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints),
+  }));
+  nodeGraphMvp.modulations = nodeGraphMvp.patch.modulations.map((modulation) => ({
+    ...modulation,
+    tracePoints: normalizeNodeGraphTracePoints(modulation.tracePoints),
+  }));
+  nodeGraphMvp.monitors = normalizeNodeGraphPatchMonitors(
+    nodeGraphMvp.patch.monitors,
+    nodeGraphMvp.patch,
+  );
   nodeGraphMvp.nodeTypeCounts = nextNodeGraphTypeCounts();
 }

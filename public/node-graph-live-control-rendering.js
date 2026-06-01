@@ -35,7 +35,7 @@ function syncNodeGraphOutputBypassButton(outputEnabled = Boolean(nodeGraphMvp.li
   outputNode.classList.toggle("bypassed", bypassed);
   bypassButton.setAttribute("aria-pressed", bypassed ? "true" : "false");
   bypassButton.textContent = nodeGraphBypassGlyph(bypassed);
-  nodeGraphApplyTooltip(bypassButton, bypassed ? "module.outputOn" : "module.outputOff");
+  nodeGraphApplyTooltip(bypassButton, bypassed ? "module.outputOn" : "module.outputOff", {}, { title: false });
 }
 
 function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) {

@@ -135,20 +135,69 @@ function createNodeUserUiSettingsControl(definition) {
   return row;
 }
 
-function createNodeUserUiSettingsViewControl() {
+function createNodeUserUiSettingsViewCheckbox({ key, label, getValue, setValue }) {
   const row = document.createElement("label");
   row.className = "node-user-ui-setting-control boolean";
   const title = document.createElement("span");
-  title.textContent = "Show grid";
+  title.textContent = label;
   const input = document.createElement("input");
   input.type = "checkbox";
-  input.dataset.nodeUiViewSetting = "gridVisible";
-  input.checked = Boolean(nodeGraphMvp.gridVisible);
+  input.dataset.nodeUiViewSetting = key;
+  input.checked = Boolean(getValue());
   input.addEventListener("change", () => {
-    nodeGraphMvp.gridVisible = Boolean(input.checked);
-    renderNodeGraphGridToggle();
+    setValue(Boolean(input.checked));
   });
   row.append(title, input);
+  return row;
+}
+
+function createNodeUserUiSettingsViewControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "gridVisible",
+    label: "Show grid",
+    getValue: () => nodeGraphMvp.gridVisible,
+    setValue: (visible) => {
+      nodeGraphMvp.gridVisible = visible;
+      renderNodeGraphGridToggle();
+    },
+  });
+}
+
+function createNodeUserUiSettingsSliderAmountControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "sliderAmountVisible",
+    label: "Show amount slider",
+    getValue: () => nodeGraphMvp.sliderAmountVisible,
+    setValue: (visible) => {
+      nodeGraphMvp.sliderAmountVisible = visible;
+      renderNodeGraphSliderVisibilityToggles();
+    },
+  });
+}
+
+function createNodeUserUiSettingsSliderPositionControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "sliderPositionVisible",
+    label: "Show position slider",
+    getValue: () => nodeGraphMvp.sliderPositionVisible,
+    setValue: (visible) => {
+      nodeGraphMvp.sliderPositionVisible = visible;
+      renderNodeGraphSliderVisibilityToggles();
+    },
+  });
+}
+
+function createNodeUserUiSettingsSliderLayoutControl() {
+  const row = document.createElement("div");
+  row.className = "node-user-ui-setting-control action";
+  const title = document.createElement("span");
+  title.textContent = "Slider layout";
+  const button = document.createElement("button");
+  button.id = "nodeUserSliderLayoutCycleButton";
+  button.type = "button";
+  button.dataset.nodeUiViewSetting = "sliderLayout";
+  button.addEventListener("click", cycleNodeGraphSliderLayout);
+  row.append(title, button);
   return row;
 }
 
@@ -181,6 +230,11 @@ function renderNodeUserUiSettingsControls() {
     const controls = [];
     if (section.title === "workspace") {
       controls.push(createNodeUserUiSettingsViewControl());
+      controls.push(createNodeUserUiSettingsSliderAmountControl());
+      controls.push(createNodeUserUiSettingsSliderPositionControl());
+    }
+    if (section.title === "modules and nodes") {
+      controls.push(createNodeUserUiSettingsSliderLayoutControl());
     }
     for (const id of section.ids) {
       const definition = definitionsById.get(id);
@@ -209,6 +263,24 @@ function syncNodeUserUiSettingsViewControls() {
       continue;
     }
     input.checked = Boolean(nodeGraphMvp.gridVisible);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='sliderAmountVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = Boolean(nodeGraphMvp.sliderAmountVisible);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='sliderPositionVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = Boolean(nodeGraphMvp.sliderPositionVisible);
+  }
+  for (const button of document.querySelectorAll("[data-node-ui-view-setting='sliderLayout']")) {
+    const label = nodeGraphSliderLayoutLabel(nodeGraphMvp.sliderLayout);
+    button.textContent = label;
+    button.setAttribute("aria-label", `Cycle slider layout. Current: ${label}`);
+    button.setAttribute("data-current-slider-layout", normalizeNodeGraphSliderLayout(nodeGraphMvp.sliderLayout));
   }
 }
 

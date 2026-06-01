@@ -1,3 +1,7 @@
+const nodeSliderHandleHalfWidthPx = 8;
+const nodeSliderHandleLeftWallClearancePx = 1;
+const nodeSliderHandleRightWallClearancePx = 3;
+
 function clampNodeSliderValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -132,6 +136,59 @@ function nodeSliderTravelFromValue(slider, value) {
   return normalizedValue ** (1 / exponent);
 }
 
+function nodeSliderVisualLane(surface, slider) {
+  const rect = surface?.getBoundingClientRect?.() || { width: 0 };
+  const width = Math.max(0, Number(rect.width) || 0);
+  const handleHalfWidth = Math.min(nodeSliderHandleHalfWidthPx, width / 2);
+  const maxClearance = Math.max(0, width / 2 - handleHalfWidth);
+  const leftClearance = nodeSliderShouldWraparound(slider)
+    ? 0
+    : Math.min(nodeSliderHandleLeftWallClearancePx, maxClearance);
+  const rightClearance = nodeSliderShouldWraparound(slider)
+    ? 0
+    : Math.min(nodeSliderHandleRightWallClearancePx, maxClearance);
+  const leftInset = nodeSliderShouldWraparound(slider) ? 0 : handleHalfWidth + leftClearance;
+  const rightInset = nodeSliderShouldWraparound(slider) ? 0 : handleHalfWidth + rightClearance;
+  return {
+    handleHalfWidth,
+    inset: leftInset,
+    leftInset,
+    rightInset,
+    travelWidth: Math.max(1, width - leftInset - rightInset),
+    width: Math.max(1, width),
+  };
+}
+
+function nodeSliderVisualCenterFromTravel(slider, surface, travel) {
+  const lane = nodeSliderVisualLane(surface, slider);
+  const normalizedTravel = clampNodeSliderValue(Number(travel) || 0, 0, 1);
+  return lane.inset + normalizedTravel * lane.travelWidth;
+}
+
+function nodeSliderHandleRangeFromTravel(slider, surface, travel) {
+  const lane = nodeSliderVisualLane(surface, slider);
+  const center = nodeSliderVisualCenterFromTravel(slider, surface, travel);
+  return {
+    center,
+    end: center + lane.handleHalfWidth,
+    handleHalfWidth: lane.handleHalfWidth,
+    start: center - lane.handleHalfWidth,
+    width: lane.width,
+  };
+}
+
+function nodeSliderTravelFromPointer(slider, surface, clientX) {
+  const rect = surface.getBoundingClientRect();
+  const lane = nodeSliderVisualLane(surface, slider);
+  const x = clientX - rect.left;
+  const rawTravel = nodeSliderShouldWraparound(slider)
+    ? x / lane.width
+    : (x - lane.inset) / lane.travelWidth;
+  return nodeSliderShouldWraparound(slider)
+    ? wrapNodeSliderValue(rawTravel, 0, 1)
+    : clampNodeSliderValue(rawTravel, 0, 1);
+}
+
 function setNodeSliderMetadata(slider, metadata) {
   slider.min = String(metadata.min);
   slider.max = String(metadata.max);
@@ -141,6 +198,9 @@ function setNodeSliderMetadata(slider, metadata) {
   );
   slider.dataset.step = metadata.step > 0 ? String(metadata.step) : "any";
   slider.dataset.kind = metadata.kind || "decimal";
+  slider.dataset.maxDigits = String(
+    normalizeNodeGraphMetadataMaxDigits(metadata.maxDigits, metadata.kind),
+  );
   slider.dataset.unit = metadata.unit ?? "";
   slider.dataset.choices = formatNodeMetadataChoices(metadata.choices || []);
   slider.dataset.displayChoices = metadata.displayChoices ? "true" : "false";

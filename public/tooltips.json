@@ -29,12 +29,10 @@
     "snapGrid": "Click: snap modular view pan, zoom, and edges to the grid.\nShift-click: toggle grid-snapped movement while middle-dragging the view.",
     "tipsShow": "Show tooltip text",
     "tipsHide": "Hide tooltip text",
-    "sliderLabelsShow": "Show slider labels",
-    "sliderLabelsHide": "Hide slider labels",
-    "sliderValuesShow": "Show slider values and units",
-    "sliderValuesHide": "Hide slider values and units",
-    "sliderHandlesShow": "Show slider fill and handle",
-    "sliderHandlesHide": "Hide slider fill and handle"
+    "sliderAmountShow": "Show slider amount fill",
+    "sliderAmountHide": "Hide slider amount fill",
+    "sliderPositionShow": "Show slider position marker",
+    "sliderPositionHide": "Hide slider position marker"
   },
   "history": {
     "undo": "Undo patch edit",
@@ -55,6 +53,7 @@
   "settings": {
     "uiDevOpen": "Mouse: click to open or close the floating UI development helper.",
     "uiDevTitle": "Open UIDEV helper",
+    "uiSettingsOpen": "Mouse: click to open or close user UI settings.",
     "uiDevMove": "Mouse: drag to move the UIDEV helper.",
     "uiDevMoveTitle": "Move UIDEV helper",
     "uiSettingsMove": "Mouse: drag to move the UI settings panel.",
@@ -62,7 +61,7 @@
     "makePlugin": "Export the current circuit to CLAP/VST/AU/other that turns a sandbox patch into a multiplatform audio plugin. (currently unavailable)",
     "makeModule": "Design a reusable DSP module from the current circuit or selected nodes. (currently unavailable)",
     "makeWidget": "Build a custom UI widget/performer control for circuit interactions and visual performance. (currently unavailable)",
-    "shareCircuit": "Publish or copy a shareable circuit/preset so other people can load, remix, and learn from a community of audiovisual artists. (currently unavailable)",
+    "sharePatchCommunity": "Share this patch with the community so other people can load, remix, and learn from it. (currently unavailable)",
     "requestFeature": "Request a soemdsp sandbox feature",
     "reportBug": "Report a soemdsp sandbox bug"
   },
@@ -135,8 +134,7 @@
     "deleteWireMissing": "Delete unavailable: selected wire no longer exists",
     "wireType": {
       "cable": "Cable: draw this selected wire with the current curvy cable style.",
-      "trace": "Trace: draw this selected wire as a crisp up/down/left/right circuit trace.",
-      "wire": "Wire: draw this selected wire as a straight point-to-point line."
+      "trace": "Trace: draw this selected wire as a crisp up/down/left/right circuit trace."
     },
     "copyExecutionJson": "Mouse: click to copy the full compiled execution JSON.",
     "copyRuntimeSketch": "Mouse: click to copy the caller-owned C++ runtime sketch.",

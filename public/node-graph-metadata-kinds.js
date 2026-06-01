@@ -1,3 +1,8 @@
+const nodeMetadataKindAliases = Object.freeze({
+  bipolar: "decimal_bipolar",
+  gain: "amplitude",
+});
+
 function populateNodeMetadataKindChoices() {
   const select = document.getElementById("metadataKindValue");
   if (select.options.length) {
@@ -23,7 +28,7 @@ function applyNodeMetadataKindTemplates(templates) {
   nodeMetadataKindTemplates = Object.freeze(Object.fromEntries(
     Object.entries(templates).map(([kind, template]) => [
       kind,
-      normalizeNodeMetadataKindTemplate(template),
+      normalizeNodeMetadataKindTemplate(template, kind),
     ]),
   ));
   const select = document.getElementById("metadataKindValue");
@@ -53,7 +58,7 @@ async function loadNodeMetadataKindTemplates() {
     nodeMetadataKindTemplates = Object.freeze(Object.fromEntries(
       Object.entries(fallbackNodeMetadataKindTemplates).map(([kind, template]) => [
         kind,
-        normalizeNodeMetadataKindTemplate(template),
+        normalizeNodeMetadataKindTemplate(template, kind),
       ]),
     ));
   }

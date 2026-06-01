@@ -1,4 +1,98 @@
 const nodeGraphTooltipSourceUrl = "./public/tooltips.json?v=tooltip-master";
+const sandboxNativeTitleStorageAttribute = "data-native-title-disabled";
+
+function sandboxStoreAndRemoveNativeTitle(element) {
+  if (!(element instanceof Element) || !element.hasAttribute("title")) {
+    return;
+  }
+  const value = element.getAttribute("title") || "";
+  if (value) {
+    element.setAttribute(sandboxNativeTitleStorageAttribute, value);
+  } else {
+    element.removeAttribute(sandboxNativeTitleStorageAttribute);
+  }
+  element.removeAttribute("title");
+}
+
+function sandboxStripNativeTitleAttributes(root = document) {
+  if (root instanceof Element) {
+    sandboxStoreAndRemoveNativeTitle(root);
+  }
+  const scope = root instanceof Document || root instanceof DocumentFragment || root instanceof Element
+    ? root
+    : document;
+  for (const element of scope.querySelectorAll?.("[title]") || []) {
+    sandboxStoreAndRemoveNativeTitle(element);
+  }
+}
+
+function sandboxInstallNativeTitlePropertyGuard(proto) {
+  if (!proto || proto.__sandboxNativeTitleGuardInstalled) {
+    return;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(proto, "title");
+  Object.defineProperty(proto, "title", {
+    configurable: true,
+    enumerable: descriptor?.enumerable ?? true,
+    get() {
+      return this.getAttribute?.(sandboxNativeTitleStorageAttribute) || "";
+    },
+    set(value) {
+      const text = String(value || "");
+      if (text) {
+        this.setAttribute?.(sandboxNativeTitleStorageAttribute, text);
+      } else {
+        this.removeAttribute?.(sandboxNativeTitleStorageAttribute);
+      }
+      this.removeAttribute?.("title");
+    },
+  });
+  Object.defineProperty(proto, "__sandboxNativeTitleGuardInstalled", {
+    configurable: true,
+    value: true,
+  });
+}
+
+function installSandboxNativeTooltipBan() {
+  if (window.__sandboxNativeTooltipBanInstalled) {
+    sandboxStripNativeTitleAttributes();
+    return;
+  }
+  window.__sandboxNativeTooltipBanInstalled = true;
+  const nativeSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function setAttributeWithoutNativeTitle(name, value) {
+    if (String(name).toLowerCase() === "title") {
+      const text = String(value || "");
+      if (text) {
+        nativeSetAttribute.call(this, sandboxNativeTitleStorageAttribute, text);
+      } else {
+        this.removeAttribute(sandboxNativeTitleStorageAttribute);
+      }
+      this.removeAttribute("title");
+      return;
+    }
+    nativeSetAttribute.call(this, name, value);
+  };
+  sandboxInstallNativeTitlePropertyGuard(HTMLElement.prototype);
+  sandboxInstallNativeTitlePropertyGuard(SVGElement.prototype);
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === "attributes" && mutation.attributeName === "title") {
+        sandboxStoreAndRemoveNativeTitle(mutation.target);
+      }
+      for (const node of mutation.addedNodes || []) {
+        sandboxStripNativeTitleAttributes(node);
+      }
+    }
+  });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["title"],
+    childList: true,
+    subtree: true,
+  });
+  sandboxStripNativeTitleAttributes();
+}
 
 function nodeGraphTooltipTemplate(key) {
   if (!key) {
@@ -30,13 +124,12 @@ function nodeGraphApplyTooltip(element, key, context = {}, options = {}) {
   if (!text) {
     return "";
   }
-  if (options.title !== false) {
-    element.title = text;
-  }
   if (options.interaction !== false) {
     element.dataset.interactionHelp = text;
   }
   element.dataset.tooltipKey = key;
+  element.setAttribute(sandboxNativeTitleStorageAttribute, text);
+  element.removeAttribute("title");
   return text;
 }
 
@@ -54,12 +147,11 @@ function applyNodeGraphStaticTooltips(root = document) {
     if (!text) {
       continue;
     }
-    if (element.dataset.tooltipTitle !== "false") {
-      element.title = text;
-    }
     if (element.dataset.tooltipInteraction !== "false") {
       element.dataset.interactionHelp = text;
     }
+    element.setAttribute(sandboxNativeTitleStorageAttribute, text);
+    element.removeAttribute("title");
   }
 }
 
@@ -75,4 +167,7 @@ async function loadNodeGraphTooltips() {
     nodeGraphMvp.tooltips = {};
   }
   applyNodeGraphStaticTooltips();
+  installSandboxNativeTooltipBan();
 }
+
+installSandboxNativeTooltipBan();

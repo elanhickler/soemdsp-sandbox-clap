@@ -61,20 +61,33 @@ function syncNodeUiDevSettingsHeaderControls() {
   const moduleIoSectionHeightValue = document.getElementById("nodeUiDevModuleIoSectionHeightValue");
   const moduleNodeSizeInput = document.getElementById("nodeUiDevModuleNodeSize");
   const moduleNodeSizeValue = document.getElementById("nodeUiDevModuleNodeSizeValue");
+  const sliderWidthInput = document.getElementById("nodeUiDevSliderWidth");
+  const sliderWidthValue = document.getElementById("nodeUiDevSliderWidthValue");
+  const sliderHeightInput = document.getElementById("nodeUiDevSliderHeight");
+  const sliderHeightValue = document.getElementById("nodeUiDevSliderHeightValue");
+  const sliderLabelColorInput = document.getElementById("nodeUiDevSliderLabelColor");
+  const sliderLabelColorValue = document.getElementById("nodeUiDevSliderLabelColorValue");
+  const sliderValueColorInput = document.getElementById("nodeUiDevSliderValueColor");
+  const sliderValueColorValue = document.getElementById("nodeUiDevSliderValueColorValue");
+  const sliderUnitColorInput = document.getElementById("nodeUiDevSliderUnitColor");
+  const sliderUnitColorValue = document.getElementById("nodeUiDevSliderUnitColorValue");
+  const sliderFillHoverColorInput = document.getElementById("nodeUiDevSliderFillHoverColor");
+  const sliderFillHoverColorValue = document.getElementById("nodeUiDevSliderFillHoverColorValue");
+  const sliderFillHoverAlphaInput = document.getElementById("nodeUiDevSliderFillHoverAlpha");
+  const sliderFillHoverAlphaValue = document.getElementById("nodeUiDevSliderFillHoverAlphaValue");
   const nodeGlowSizeInput = document.getElementById("nodeUiDevNodeGlowSize");
   const nodeGlowSizeValue = document.getElementById("nodeUiDevNodeGlowSizeValue");
   const wirePatchPointSizeInput = document.getElementById("nodeUiDevWirePatchPointSize");
   const wirePatchPointSizeValue = document.getElementById("nodeUiDevWirePatchPointSizeValue");
   const wireThicknessInput = document.getElementById("nodeUiDevWireThickness");
   const wireThicknessValue = document.getElementById("nodeUiDevWireThicknessValue");
+  const traceWireThicknessInput = document.getElementById("nodeUiDevTraceWireThickness");
+  const traceWireThicknessValue = document.getElementById("nodeUiDevTraceWireThicknessValue");
   const choiceSlideEmptyBorderInput = document.getElementById("nodeUiDevChoiceSlideEmptyBorder");
   const choiceSlideEmptyBorderValue = document.getElementById("nodeUiDevChoiceSlideEmptyBorderValue");
-  const choiceSlideEdgeBrightnessInput = document.getElementById("nodeUiDevChoiceSlideEdgeBrightness");
-  const choiceSlideEdgeBrightnessValue = document.getElementById("nodeUiDevChoiceSlideEdgeBrightnessValue");
-  const choiceSlideGlowLevelInput = document.getElementById("nodeUiDevChoiceSlideGlowLevel");
-  const choiceSlideGlowLevelValue = document.getElementById("nodeUiDevChoiceSlideGlowLevelValue");
-  const choiceSlideColorInput = document.getElementById("nodeUiDevChoiceSlideColor");
-  const choiceSlideColorValue = document.getElementById("nodeUiDevChoiceSlideColorValue");
+  const choiceDividerHeightInput = document.getElementById("nodeUiDevChoiceDividerHeight");
+  const choiceDividerHeightValue = document.getElementById("nodeUiDevChoiceDividerHeightValue");
+  const choiceSlideDebugBoxesInput = document.getElementById("nodeUiDevChoiceSlideDebugBoxes");
   const bypassIconSizeInput = document.getElementById("nodeUiDevBypassIconSize");
   const bypassIconSizeValue = document.getElementById("nodeUiDevBypassIconSizeValue");
   const bypassIconPreview = document.getElementById("nodeUiDevBypassIconPreview");
@@ -137,20 +150,33 @@ function syncNodeUiDevSettingsHeaderControls() {
     !moduleIoSectionHeightValue ||
     !moduleNodeSizeInput ||
     !moduleNodeSizeValue ||
+    !sliderWidthInput ||
+    !sliderWidthValue ||
+    !sliderHeightInput ||
+    !sliderHeightValue ||
+    !sliderLabelColorInput ||
+    !sliderLabelColorValue ||
+    !sliderValueColorInput ||
+    !sliderValueColorValue ||
+    !sliderUnitColorInput ||
+    !sliderUnitColorValue ||
+    !sliderFillHoverColorInput ||
+    !sliderFillHoverColorValue ||
+    !sliderFillHoverAlphaInput ||
+    !sliderFillHoverAlphaValue ||
     !nodeGlowSizeInput ||
     !nodeGlowSizeValue ||
     !wirePatchPointSizeInput ||
     !wirePatchPointSizeValue ||
     !wireThicknessInput ||
     !wireThicknessValue ||
+    !traceWireThicknessInput ||
+    !traceWireThicknessValue ||
     !choiceSlideEmptyBorderInput ||
     !choiceSlideEmptyBorderValue ||
-    !choiceSlideEdgeBrightnessInput ||
-    !choiceSlideEdgeBrightnessValue ||
-    !choiceSlideGlowLevelInput ||
-    !choiceSlideGlowLevelValue ||
-    !choiceSlideColorInput ||
-    !choiceSlideColorValue ||
+    !choiceDividerHeightInput ||
+    !choiceDividerHeightValue ||
+    !choiceSlideDebugBoxesInput ||
     !bypassIconSizeInput ||
     !bypassIconSizeValue ||
     !bypassIconPreview ||
@@ -205,16 +231,19 @@ function syncNodeUiDevSettingsHeaderControls() {
   const moduleIoSectionHeightPx = 24;
   moduleIoSectionHeightInput.value = String(moduleIoSectionHeightPx);
   const moduleNodeSizePercent = Math.max(0, Math.min(100, Number(moduleNodeSizeInput.value) || 0));
+  const sliderWidthPercent = Math.max(20, Math.min(100, Number(sliderWidthInput.value) || 100));
+  const sliderHeightPx = Math.max(8, Math.min(40, Number(sliderHeightInput.value) || 28));
+  const sliderLabelColor = normalizeNodeUiDevColor(sliderLabelColorInput.value, "#cfdde5");
+  const sliderValueColor = normalizeNodeUiDevColor(sliderValueColorInput.value, "#ffffff");
+  const sliderUnitColor = normalizeNodeUiDevColor(sliderUnitColorInput.value, "#7fc7d9");
+  const sliderFillHoverColor = normalizeNodeUiDevColor(sliderFillHoverColorInput.value, "#7fc7d9");
+  const sliderFillHoverAlphaPercent = Math.max(0, Math.min(100, Number(sliderFillHoverAlphaInput.value) || 0));
   const nodeGlowSizePercent = Math.max(0, Math.min(200, Number(nodeGlowSizeInput.value) || 0));
   const wirePatchPointSizePercent = Math.max(0, Math.min(200, Number(wirePatchPointSizeInput.value) || 0));
   const wireThicknessPercent = Math.max(0, Math.min(100, Number(wireThicknessInput.value) || 0));
+  const traceWireThicknessPx = Math.max(1, Math.min(12, Number(traceWireThicknessInput.value) || 1));
   const choiceSlideEmptyBorderPx = Math.max(0, Math.min(8, Number(choiceSlideEmptyBorderInput.value) || 0));
-  const choiceSlideEdgeBrightnessPercent = Math.max(
-    0,
-    Math.min(100, Number(choiceSlideEdgeBrightnessInput.value) || 0),
-  );
-  const choiceSlideGlowLevelPercent = Math.max(0, Math.min(100, Number(choiceSlideGlowLevelInput.value) || 0));
-  const choiceSlideColor = normalizeNodeUiDevColor(choiceSlideColorInput.value, "#7fc7d9");
+  const choiceDividerHeightPx = Math.max(0, Math.min(35, Number(choiceDividerHeightInput.value) || 0));
   const bypassIconSizePercent = Math.max(0, Math.min(100, Number(bypassIconSizeInput.value) || 0));
   const bypassIconGlowSpreadPercent = Math.max(
     0,
@@ -293,6 +322,31 @@ function syncNodeUiDevSettingsHeaderControls() {
     ?.style.setProperty("--node-port-size-ratio", String(moduleNodeSizePercent / 100));
   document
     .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-width-ratio", String(sliderWidthPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-readout-height", `${sliderHeightPx}px`);
+  sliderLabelColorInput.value = sliderLabelColor;
+  sliderValueColorInput.value = sliderValueColor;
+  sliderUnitColorInput.value = sliderUnitColor;
+  sliderFillHoverColorInput.value = sliderFillHoverColor;
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-label-color", sliderLabelColor);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-value-color", sliderValueColor);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-unit-color", sliderUnitColor);
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-fill-hover-rgb", nodeUiDevHexColorToRgbTriplet(sliderFillHoverColor));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-slider-fill-hover-alpha", String(sliderFillHoverAlphaPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-hover-glow-size-ratio", String(nodeGlowSizePercent / 100));
   document
     .getElementById("nodeGraphWorkspace")
@@ -302,16 +356,16 @@ function syncNodeUiDevSettingsHeaderControls() {
     ?.style.setProperty("--node-wire-thickness-ratio", String(wireThicknessPercent / 100));
   document
     .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-trace-wire-thickness", `${traceWireThicknessPx}px`);
+  document
+    .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-choice-slide-empty-border", `${choiceSlideEmptyBorderPx}`);
   document
     .getElementById("nodeGraphWorkspace")
-    ?.style.setProperty("--node-choice-slide-edge-brightness", String(choiceSlideEdgeBrightnessPercent / 100));
+    ?.style.setProperty("--node-choice-divider-height", `${choiceDividerHeightPx}px`);
   document
-    .getElementById("nodeGraphWorkspace")
-    ?.style.setProperty("--node-choice-slide-glow-level", String(choiceSlideGlowLevelPercent / 100));
-  document
-    .getElementById("nodeGraphWorkspace")
-    ?.style.setProperty("--node-choice-slide-color", choiceSlideColor);
+    .getElementById("nodeWiringPanel")
+    ?.classList.toggle("choice-slider-debug", choiceSlideDebugBoxesInput.checked);
   document
     .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-bypass-icon-size-ratio", String(bypassIconSizePercent / 100));
@@ -354,14 +408,19 @@ function syncNodeUiDevSettingsHeaderControls() {
   moduleTitleTextFillValue.textContent = `${moduleTitleTextFillPercent}%`;
   moduleIoSectionHeightValue.textContent = `${moduleIoSectionHeightPx}px`;
   moduleNodeSizeValue.textContent = `${moduleNodeSizePercent}%`;
+  sliderWidthValue.textContent = `${sliderWidthPercent}%`;
+  sliderHeightValue.textContent = `${sliderHeightPx}px`;
+  sliderLabelColorValue.textContent = sliderLabelColor;
+  sliderValueColorValue.textContent = sliderValueColor;
+  sliderUnitColorValue.textContent = sliderUnitColor;
+  sliderFillHoverColorValue.textContent = sliderFillHoverColor;
+  sliderFillHoverAlphaValue.textContent = `${sliderFillHoverAlphaPercent}%`;
   nodeGlowSizeValue.textContent = `${nodeGlowSizePercent}%`;
   wirePatchPointSizeValue.textContent = `${wirePatchPointSizePercent}%`;
   wireThicknessValue.textContent = `${wireThicknessPercent}%`;
+  traceWireThicknessValue.textContent = `${traceWireThicknessPx}px`;
   choiceSlideEmptyBorderValue.textContent = `${choiceSlideEmptyBorderPx}px`;
-  choiceSlideEdgeBrightnessValue.textContent = `${choiceSlideEdgeBrightnessPercent}%`;
-  choiceSlideGlowLevelValue.textContent = `${choiceSlideGlowLevelPercent}%`;
-  choiceSlideColorInput.value = choiceSlideColor;
-  choiceSlideColorValue.textContent = choiceSlideColor;
+  choiceDividerHeightValue.textContent = `${choiceDividerHeightPx}px`;
   bypassIconSizeValue.textContent = `${bypassIconSizePercent}%`;
   bypassIconGlowSpreadValue.textContent = `${bypassIconGlowSpreadPercent}%`;
   bypassIconGlowColorInput.value = bypassIconGlowColor;

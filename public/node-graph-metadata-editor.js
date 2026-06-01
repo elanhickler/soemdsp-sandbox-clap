@@ -90,6 +90,8 @@ function fillNodeMetadataPopover(slider) {
   document.getElementById("metadataDefaultValue").value =
     formatNodeSliderCompactNumber(metadata.def);
   document.getElementById("metadataStepValue").value = formatNodeMetadataStep(metadata.step);
+  document.getElementById("metadataMaxDigitsValue").value =
+    String(normalizeNodeGraphMetadataMaxDigits(metadata.maxDigits, metadata.kind));
   document.getElementById("metadataKindValue").value = normalizeNodeMetadataKind(metadata.kind);
   document.getElementById("metadataUnitValue").value = metadata.unit;
   document.getElementById("metadataChoicesValue").value =
@@ -140,10 +142,15 @@ function readNodeMetadataEditorValues(slider) {
     [min, max] = [max, min];
   }
   const stepInput = document.getElementById("metadataStepValue").value.trim();
+  const kind = normalizeNodeMetadataKind(document.getElementById("metadataKindValue").value);
   return {
     def: parseNodeMetadataNumber(document.getElementById("metadataDefaultValue").value, current.def),
-    kind: normalizeNodeMetadataKind(document.getElementById("metadataKindValue").value),
+    kind,
     max,
+    maxDigits: normalizeNodeGraphMetadataMaxDigits(
+      document.getElementById("metadataMaxDigitsValue").value,
+      kind,
+    ),
     mid: parseNodeMetadataNumber(document.getElementById("metadataMidValue").value, current.mid),
     min,
     choices: parseNodeMetadataChoices(document.getElementById("metadataChoicesValue").value),
@@ -191,6 +198,8 @@ function setNodeMetadataDefaultsFromKind() {
     document.getElementById("metadataMaxValue").value = String(template.max);
   }
   document.getElementById("metadataUnitValue").value = template.unit;
+  document.getElementById("metadataMaxDigitsValue").value =
+    String(normalizeNodeGraphMetadataMaxDigits(template.maxDigits, kind));
   document.getElementById("metadataChoicesValue").value = formatNodeMetadataChoices(choices);
   document.getElementById("metadataDisplayChoicesValue").checked = Boolean(template.displayChoices);
   document.getElementById("metadataDivideChoicesValue").checked = Boolean(template.divideChoicesVisibly);

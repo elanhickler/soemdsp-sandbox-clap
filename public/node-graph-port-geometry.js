@@ -40,19 +40,10 @@ function nodeGraphElementCenter(element, io = null) {
   const elementRect = element.getBoundingClientRect();
   const zoom = nodeGraphZoom();
   const centerX = elementRect.left + elementRect.width / 2;
-  const elementStyle = getComputedStyle(element);
-  const patchPointRatio = Math.max(
-    0,
-    Number.parseFloat(elementStyle.getPropertyValue("--node-wire-patch-point-size-ratio")) ||
-      nodeGraphDefaultPatchPointSizeRatio,
-  );
-  const portDiameter = Number.parseFloat(elementStyle.getPropertyValue("--node-port-diameter"))
-    || Math.max(elementRect.width, elementRect.height);
-  const patchPointOverlap = (portDiameter * patchPointRatio) / 2;
   const anchorX = io === "output"
-    ? elementRect.right - patchPointOverlap
+    ? elementRect.right
     : io === "input" || io === "modulation"
-      ? elementRect.left + patchPointOverlap
+      ? elementRect.left
       : centerX;
   return {
     x: (anchorX - surfaceRect.left) / zoom,

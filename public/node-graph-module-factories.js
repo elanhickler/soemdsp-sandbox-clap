@@ -1,0 +1,134 @@
+function createNodeGraphPort(node, type, port, io) {
+  const button = document.createElement("button");
+  button.className = `node-port ${io}`;
+  button.type = "button";
+  button.dataset.node = node;
+  button.dataset.port = port;
+  button.dataset.io = io;
+  button.dataset.alias = nodeGraphLabel(node, port);
+  const label = `${nodeGraphNodeLabels[type]} ${io} port ${port}`;
+  button.setAttribute("aria-label", label);
+  return button;
+}
+
+function createNodeGraphIoColumn(node, type, ports, io) {
+  if (!ports?.length) {
+    return null;
+  }
+
+  const column = document.createElement("div");
+  column.className = `node-io-column ${io}`;
+  for (const port of ports) {
+    const row = document.createElement("div");
+    row.className = `node-io-row ${io}`;
+    row.dataset.node = node;
+    row.dataset.port = port;
+    row.dataset.io = io;
+    row.dataset.alias = nodeGraphLabel(node, port);
+    row.setAttribute(
+      "aria-label",
+      `${nodeGraphNodeLabels[type]} ${io} port ${port} interaction area`,
+    );
+    const label = document.createElement("span");
+    label.className = "node-io-label";
+    label.textContent = port;
+    if (io === "input") {
+      row.append(createNodeGraphPort(node, type, port, io), label);
+    } else {
+      row.append(label, createNodeGraphPort(node, type, port, io));
+    }
+    column.append(row);
+  }
+  return column;
+}
+
+function createNodeParameterModulationPort(node, type, parameter) {
+  const button = document.createElement("button");
+  button.className = "node-param-port modulation-input";
+  button.type = "button";
+  button.dataset.node = node;
+  button.dataset.param = parameter.key;
+  button.dataset.port = parameter.key;
+  button.dataset.io = "modulation";
+  button.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${parameter.key} mod`;
+  const label = `${nodeGraphNodeLabels[type]} ${parameter.label} modulation input`;
+  button.setAttribute("aria-label", label);
+  return button;
+}
+
+function createNodeParameterOutputPort(node, type, parameter) {
+  const button = document.createElement("button");
+  button.className = "node-param-port parameter-output node-port output";
+  button.type = "button";
+  button.dataset.node = node;
+  button.dataset.param = parameter.key;
+  button.dataset.port = parameter.key;
+  button.dataset.io = "output";
+  button.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${parameter.key} slider`;
+  const label = `${nodeGraphNodeLabels[type]} ${parameter.label} slider output`;
+  button.setAttribute("aria-label", label);
+  return button;
+}
+
+function createNodeGraphModuleScopeSection(node, type) {
+  const section = document.createElement("div");
+  section.className = "node-module-scope-window";
+  section.dataset.node = node;
+  section.dataset.nodeType = type;
+  section.setAttribute("aria-hidden", "true");
+
+  const surface = document.createElement("div");
+  surface.className = "node-module-scope-window-surface";
+  section.append(surface);
+  return section;
+}
+
+function createNodeGraphParameter(node, type, parameter) {
+  const row = document.createElement("div");
+  row.className = "node-parameter-row";
+  row.dataset.param = parameter.key;
+  row.append(createNodeParameterModulationPort(node, type, parameter));
+
+  const label = document.createElement("label");
+  label.className = "node-parameter-control";
+  label.dataset.paramLabel = parameter.label;
+  label.setAttribute("aria-label", parameter.label);
+  const input = document.createElement("input");
+  const legacyIds = {
+    "bias.offset": "nodeBiasAmount",
+    "gain.amount": "nodeGainAmount",
+    "noise.level": "nodeNoiseLevel",
+    "osc.frequency": "nodeOscFrequency",
+    "osc.level": "nodeOscLevel",
+    "osc.phase": "nodeOscPhase",
+    "osc.waveform": "nodeOscWaveform",
+  };
+  input.id = legacyIds[`${node}.${parameter.key}`] || `node-${node}-${parameter.key}`;
+  input.dataset.param = parameter.key;
+  input.type = "range";
+  input.min = parameter.min;
+  input.max = parameter.max;
+  input.step = "any";
+  input.value = parameter.defaultValue;
+  const metadata = nodeGraphParameterDefinitionMetadata(parameter);
+  input.dataset.step = parameter.step;
+  input.dataset.mid = parameter.mid;
+  input.dataset.default = parameter.defaultValue;
+  input.dataset.kind = metadata?.kind || "decimal";
+  input.dataset.maxDigits = String(
+    normalizeNodeGraphMetadataMaxDigits(metadata?.maxDigits, metadata?.kind),
+  );
+  input.dataset.unit = parameter.unit ?? "";
+  input.dataset.choices = formatNodeMetadataChoices(parameter.choices || []);
+  input.dataset.displayChoices = parameter.displayChoices ? "true" : "false";
+  input.dataset.divideChoicesVisibly = parameter.divideChoicesVisibly ? "true" : "false";
+  input.dataset.linearSmoothing = parameter.linearSmoothing === false ? "false" : "true";
+  input.dataset.nonlinearSlider = metadata?.nonlinearSlider ? "true" : "false";
+  input.dataset.showSign = parameter.showSign ? "true" : "false";
+  input.dataset.wraparound = parameter.wraparound ? "true" : "false";
+  input.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} ${parameter.label}`);
+  label.append(input);
+  row.append(label);
+  row.append(createNodeParameterOutputPort(node, type, parameter));
+  return row;
+}

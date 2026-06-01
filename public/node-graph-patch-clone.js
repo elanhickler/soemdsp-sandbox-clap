@@ -40,11 +40,18 @@ function cloneNodeGraphPatch(patch) {
   return {
     audio: normalizeNodeGraphPatchAudio(patch.audio),
     bypassedNodes: Array.isArray(patch.bypassedNodes) ? [...patch.bypassedNodes] : [],
-    connections: (patch.connections || []).map((connection) => ({ ...connection })),
+    connections: (patch.connections || []).map((connection) => ({
+      ...connection,
+      tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints),
+    })),
     format: { ...(patch.format || nodeGraphPatchFormat) },
     grid: normalizeNodeGraphPatchGrid(patch.grid),
     info: normalizeNodeGraphPatchInfo(patch.info),
-    modulations: (patch.modulations || []).map((modulation) => ({ ...modulation })),
+    modulations: (patch.modulations || []).map((modulation) => ({
+      ...modulation,
+      tracePoints: normalizeNodeGraphTracePoints(modulation.tracePoints),
+    })),
+    monitors: normalizeNodeGraphPatchMonitors(patch.monitors, patch),
     nodes: (patch.nodes || []).map((node) => {
       const ui = nodeGraphModuleDefinitions[node.type]?.layout === "textBox" && !Object.hasOwn(node, "ui")
         ? { buttonsHidden: true }

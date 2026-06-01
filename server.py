@@ -207,6 +207,9 @@ NODE_METADATA_KIND_TEMPLATES = {
     },
 }
 
+for kind, template in NODE_METADATA_KIND_TEMPLATES.items():
+    template.setdefault("maxDigits", 5 if kind == "frequency" else 3)
+
 
 def ui_settings_script_text(payload: dict) -> str:
     payload_text = json.dumps(payload, indent=2, sort_keys=False)
@@ -431,7 +434,7 @@ class SandboxServer(BaseHTTPRequestHandler):
                 status=400,
             )
             return
-        if settings_format.get("version") not in (1, 2):
+        if settings_format.get("version") not in (1, 2, 3):
             self.send_json(
                 {"ok": False, "error": "ui settings format version mismatch"},
                 status=400,

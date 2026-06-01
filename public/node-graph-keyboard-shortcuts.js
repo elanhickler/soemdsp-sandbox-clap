@@ -90,6 +90,10 @@ function resizeSelectedNodeGraphModulesOnGrid(axis, delta) {
 }
 
 function handleNodeGraphKeydown(event) {
+  if (event.key === "Escape" && nodeGraphWireInteractions?.cancelManualTrace?.()) {
+    event.preventDefault();
+    return;
+  }
   if (event.key === "Escape" && document.getElementById("nodeWiringPanel")?.classList.contains("modular-only-view")) {
     setNodeGraphViewMode("modular");
     return;

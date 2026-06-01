@@ -8,6 +8,7 @@ function serializeNodeGraphPatch(patch = nodeGraphMvp.patch) {
       grid: patch.grid,
       info: normalizeNodeGraphPatchInfo(patch.info),
       modulations: patch.modulations || [],
+      monitors: normalizeNodeGraphPatchMonitors(patch.monitors, patch),
       nodes: patch.nodes,
       view: normalizeNodeGraphPatchView(patch.view),
       visual: normalizeNodeGraphPatchVisual(patch.visual),

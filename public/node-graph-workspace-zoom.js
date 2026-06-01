@@ -1,0 +1,265 @@
+function applyNodeGraphZoom() {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  workspace.style.setProperty("--node-graph-zoom", String(nodeGraphZoom()));
+  workspace.dataset.zoom = nodeGraphZoom().toFixed(2);
+  applyNodeGraphWorkspaceView();
+  updateNodeGraphGridHeatmap();
+  const zoomOutButton = document.getElementById("nodeZoomOutButton");
+  const zoomResetButton = document.getElementById("nodeZoomResetButton");
+  const zoomInButton = document.getElementById("nodeZoomInButton");
+  if (zoomOutButton) {
+    zoomOutButton.disabled = nodeGraphZoom() <= nodeGraphZoomLimits.min + 0.001;
+  }
+  if (zoomResetButton) {
+    const zoomLabel = nodeGraphZoomLabel();
+    if (zoomResetButton.dataset.editingZoom !== "true") {
+      zoomResetButton.textContent = zoomLabel;
+    }
+    zoomResetButton.setAttribute("aria-label", `Current zoom ${zoomLabel}. Reset graph zoom to 1:1`);
+    zoomResetButton.removeAttribute("title");
+  }
+  if (zoomInButton) {
+    zoomInButton.disabled = nodeGraphZoom() >= nodeGraphZoomLimits.max - 0.001;
+  }
+  drawNodeGraphWires();
+}
+
+function setNodeGraphZoom(nextZoom, anchor = null) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const workspaceRect = workspace?.getBoundingClientRect();
+  const oldZoom = nodeGraphZoom();
+  const oldPan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  const anchorPoint = workspaceRect
+    ? (anchor || {
+      x: workspaceRect.left + workspaceRect.width / 2,
+      y: workspaceRect.top + workspaceRect.height / 2,
+    })
+    : null;
+  const anchoredContentPoint = workspaceRect && anchorPoint
+    ? {
+      x: (anchorPoint.x - workspaceRect.left - (Number(oldPan.x) || 0)) / oldZoom,
+      y: (anchorPoint.y - workspaceRect.top - (Number(oldPan.y) || 0)) / oldZoom,
+    }
+    : null;
+  const zoom = Math.max(
+    nodeGraphZoomLimits.min,
+    Math.min(nodeGraphZoomLimits.max, Number(nextZoom) || 1),
+  );
+  if (Math.abs(zoom - oldZoom) < 0.001) {
+    return;
+  }
+  nodeGraphMvp.zoom = zoom;
+  const nextPan = workspaceRect && anchorPoint && anchoredContentPoint
+    ? {
+      x: anchorPoint.x - workspaceRect.left - anchoredContentPoint.x * zoom,
+      y: anchorPoint.y - workspaceRect.top - anchoredContentPoint.y * zoom,
+    }
+    : oldPan;
+  nodeGraphMvp.pan = {
+    x: Number(nextPan.x) || 0,
+    y: Number(nextPan.y) || 0,
+  };
+  applyNodeGraphZoom();
+  applyNodeGraphPan();
+}
+
+function nodeGraphZoomByRatio(ratio) {
+  const value = Number(ratio);
+  return Number.isFinite(value) && value > 0
+    ? nodeGraphZoom() * value
+    : nodeGraphZoom();
+}
+
+function nodeGraphZoomButtonStep(event) {
+  if (event?.ctrlKey || event?.metaKey) {
+    return nodeGraphZoomLimits.fineStep;
+  }
+  if (event?.shiftKey) {
+    return nodeGraphZoomLimits.quarterStep;
+  }
+  return nodeGraphZoomLimits.step;
+}
+
+function nodeGraphIntegerZoomTarget(direction) {
+  const zoom = nodeGraphZoom();
+  return direction > 0
+    ? Math.floor(zoom + 0.001) + 1
+    : Math.ceil(zoom - 0.001) - 1;
+}
+
+function zoomNodeGraphBy(delta) {
+  const event = arguments[1] || window.event || null;
+  const direction = Math.sign(delta);
+  if (!direction) {
+    return;
+  }
+  const step = nodeGraphZoomButtonStep(event);
+  const target = Math.abs(step - nodeGraphZoomLimits.step) < 0.001
+    ? nodeGraphIntegerZoomTarget(direction)
+    : nodeGraphZoom() + direction * step;
+  setNodeGraphZoom(target);
+}
+
+function zoomNodeGraphAt(delta, clientX, clientY) {
+  const ratio = delta > 0
+    ? nodeGraphZoomLimits.wheelRatio
+    : 1 / nodeGraphZoomLimits.wheelRatio;
+  setNodeGraphZoom(nodeGraphZoomByRatio(ratio), { x: clientX, y: clientY });
+}
+
+function resetNodeGraphZoomToOne() {
+  const oldPan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  nodeGraphMvp.zoom = 1;
+  nodeGraphMvp.pan = {
+    x: snapNodeGraphPanValueToGrid(oldPan.x, nodeGraphGridWidth(), 1),
+    y: snapNodeGraphPanValueToGrid(oldPan.y, nodeGraphGridHeight(), 1),
+  };
+  applyNodeGraphZoom();
+  applyNodeGraphPan();
+}
+
+function normalizeNodeGraphZoomInput(value) {
+  const zoom = Number.parseFloat(String(value).trim());
+  if (!Number.isFinite(zoom)) {
+    return null;
+  }
+  return Math.max(nodeGraphZoomLimits.min, Math.min(nodeGraphZoomLimits.max, zoom));
+}
+
+function finishNodeGraphZoomInput(input, options = {}) {
+  const button = input.closest("#nodeZoomResetButton");
+  if (!button) {
+    return;
+  }
+  if (button.dataset.editingZoom !== "true") {
+    return;
+  }
+  const shouldApply = options.apply !== false;
+  const zoom = shouldApply ? normalizeNodeGraphZoomInput(input.value) : null;
+  button.dataset.editingZoom = "false";
+  if (shouldApply && zoom !== null) {
+    setNodeGraphZoom(zoom);
+  } else {
+    applyNodeGraphZoom();
+  }
+  button.focus({ preventScroll: true });
+}
+
+function beginNodeGraphZoomInput(event) {
+  const button = event.currentTarget;
+  if (!(button instanceof HTMLButtonElement) || button.dataset.editingZoom === "true") {
+    return;
+  }
+  if (nodeGraphMvp.zoomResetClickTimer) {
+    window.clearTimeout(nodeGraphMvp.zoomResetClickTimer);
+    nodeGraphMvp.zoomResetClickTimer = 0;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  button.dataset.editingZoom = "true";
+  const input = document.createElement("input");
+  input.className = "node-zoom-reset-input";
+  input.type = "text";
+  input.inputMode = "decimal";
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.value = nodeGraphZoomLabel();
+  input.setAttribute("aria-label", "Set modular zoom level");
+  input.addEventListener("click", (inputEvent) => inputEvent.stopPropagation());
+  input.addEventListener("dblclick", (inputEvent) => inputEvent.stopPropagation());
+  input.addEventListener("keydown", (inputEvent) => {
+    if (inputEvent.key === "Enter") {
+      inputEvent.preventDefault();
+      finishNodeGraphZoomInput(input, { apply: true });
+    } else if (inputEvent.key === "Escape") {
+      inputEvent.preventDefault();
+      finishNodeGraphZoomInput(input, { apply: false });
+    }
+  });
+  input.addEventListener("blur", () => finishNodeGraphZoomInput(input, { apply: true }));
+  button.replaceChildren(input);
+  input.focus({ preventScroll: true });
+  input.select();
+}
+
+function handleNodeGraphZoomResetClick(event) {
+  const button = event.currentTarget;
+  if (!(button instanceof HTMLButtonElement) || button.dataset.editingZoom === "true") {
+    return;
+  }
+  if (nodeGraphMvp.zoomResetClickTimer) {
+    window.clearTimeout(nodeGraphMvp.zoomResetClickTimer);
+  }
+  nodeGraphMvp.zoomResetClickTimer = window.setTimeout(() => {
+    nodeGraphMvp.zoomResetClickTimer = 0;
+    resetNodeGraphZoomToOne();
+  }, 180);
+}
+
+function handleNodeGraphWorkspaceWheel(event) {
+  if (!event.deltaY) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  zoomNodeGraphAt(
+    -Math.sign(event.deltaY),
+    event.clientX,
+    event.clientY,
+  );
+}
+
+function beginNodeGraphSmoothZoomDrag(event) {
+  const ctrlZoom = event.ctrlKey;
+  const altZoom = event.altKey;
+  if (
+    event.button !== 1 ||
+    (!ctrlZoom && !altZoom)
+  ) {
+    return;
+  }
+
+  const workspace = event.currentTarget;
+  nodeGraphMvp.smoothZoomDragging = {
+    anchor: { x: event.clientX, y: event.clientY },
+    pointerId: event.pointerId,
+    startClientY: event.clientY,
+    startZoom: nodeGraphZoom(),
+  };
+  workspace.classList.add("smooth-zooming");
+  workspace.setPointerCapture(event.pointerId);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeGraphSmoothZoom(event) {
+  const drag = nodeGraphMvp.smoothZoomDragging;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const deltaY = drag.startClientY - event.clientY;
+  const ratio = Math.exp(deltaY * 0.0045);
+  setNodeGraphZoom(drag.startZoom * ratio, drag.anchor);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function endNodeGraphSmoothZoomDrag(event) {
+  const drag = nodeGraphMvp.smoothZoomDragging;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (workspace?.hasPointerCapture?.(event.pointerId)) {
+    workspace.releasePointerCapture(event.pointerId);
+  }
+  workspace?.classList.remove("smooth-zooming");
+  nodeGraphMvp.smoothZoomDragging = null;
+  event.preventDefault();
+  event.stopPropagation();
+}

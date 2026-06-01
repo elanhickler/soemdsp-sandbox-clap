@@ -1,3 +1,67 @@
+function nodeGraphSelfTraceModuleRect(nodeId) {
+  const surface = nodeGraphZoomSurface();
+  const node = nodeGraphNodeElement(nodeId);
+  if (!surface || !node) {
+    return null;
+  }
+  const surfaceRect = surface.getBoundingClientRect();
+  const nodeRect = node.getBoundingClientRect();
+  const zoom = nodeGraphZoom();
+  const titleRowRect = node.querySelector(".node-header-title-row")?.getBoundingClientRect();
+  const titleBottom = titleRowRect
+    ? (titleRowRect.bottom - surfaceRect.top) / zoom
+    : (nodeRect.top - surfaceRect.top) / zoom;
+  return {
+    bottom: (nodeRect.bottom - surfaceRect.top) / zoom,
+    left: (nodeRect.left - surfaceRect.left) / zoom,
+    right: (nodeRect.right - surfaceRect.left) / zoom,
+    titleBottom,
+    top: (nodeRect.top - surfaceRect.top) / zoom,
+  };
+}
+
+function nodeGraphSelfTracePoints(wire, from, to) {
+  const sourceNode = wire?.sourceNode;
+  const destinationNode = wire?.destinationNode;
+  if (!sourceNode || sourceNode !== destinationNode) {
+    return [];
+  }
+  const rect = nodeGraphSelfTraceModuleRect(sourceNode);
+  if (!rect) {
+    return [];
+  }
+  const distance = Math.max(nodeGraphGridWidth(), nodeGraphGridHeight()) * 0.75;
+  const centerX = (rect.left + rect.right) * 0.5;
+  const fromDirection = from.x < centerX ? -1 : 1;
+  const toDirection = to.x < centerX ? -1 : 1;
+  const outX = from.x + fromDirection * distance;
+  const destinationSideX = to.x + toDirection * distance;
+  const aboveY = Math.max(0.5, rect.top - distance);
+  const belowTitleY = Math.max(to.y, rect.titleBottom + 0.5);
+  return [
+    { x: outX, y: from.y },
+    { x: outX, y: aboveY },
+    { x: destinationSideX, y: aboveY },
+    { x: destinationSideX, y: belowTitleY },
+  ];
+}
+
+function nodeGraphManualTracePathOptions(wire, from, to) {
+  const wireType = normalizeNodeGraphWireType(wire?.wireType);
+  if (wireType !== nodeGraphWireTypes.trace) {
+    return { wireType };
+  }
+  const manualTracePoints = normalizeNodeGraphTracePoints(wire?.tracePoints);
+  const tracePoints = manualTracePoints.length
+    ? manualTracePoints
+    : nodeGraphSelfTracePoints(wire, from, to);
+  return {
+    pathData: nodeGraphTracePathFromPoints(from, tracePoints, to),
+    tracePoints,
+    wireType,
+  };
+}
+
 function drawNodeGraphWires() {
   const workspace = nodeGraphZoomSurface();
   const svg = document.getElementById("nodeWireSvg");
@@ -63,6 +127,7 @@ function drawNodeGraphWires() {
         nodeGraphPortWireColor(connection.sourceNode, connection.sourcePort, "output"),
         nodeGraphPortWireColor(connection.destinationNode, connection.destinationPort, "input"),
       ],
+      ...nodeGraphManualTracePathOptions(connection, from, to),
     });
 
     nodeGraphNodeElement(connection.sourceNode)?.classList.add("connected");
@@ -111,6 +176,7 @@ function drawNodeGraphWires() {
         nodeGraphPortWireColor(modulation.sourceNode, modulation.sourcePort, "output"),
         nodeGraphPortWireColor(modulation.destinationNode, modulation.destinationParam, "modulation"),
       ],
+      ...nodeGraphManualTracePathOptions(modulation, from, to),
     });
 
     nodeGraphNodeElement(modulation.sourceNode)?.classList.add("connected");
@@ -118,6 +184,8 @@ function drawNodeGraphWires() {
     markNodeGraphPortConnected(modulation.sourceNode, modulation.sourcePort, "output");
     markNodeGraphModulationPortConnected(modulation.destinationNode, modulation.destinationParam);
   }
+
+  syncNodeGraphMonitorIndicators();
 
   if (nodeGraphMvp.dragging) {
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -145,7 +213,30 @@ function drawNodeGraphWires() {
     svg.append(path);
   }
 
+  if (nodeGraphMvp.manualTrace) {
+    const trace = nodeGraphMvp.manualTrace;
+    const previewPoint = nodeGraphTraceSingleMovePoint(trace.from, trace.points, trace.to);
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const stroke = nodeGraphWireHelpers.createGradient(
+      svg,
+      "node-wire-gradient-manual-trace",
+      trace.from,
+      trace.to,
+      "node-wire-gradient-stop",
+      [
+        nodeGraphPortWireColor(trace.endpoint.node, trace.endpoint.port, trace.endpoint.io),
+        "rgba(243, 241, 236, 0.44)",
+      ],
+    );
+    path.setAttribute("class", "node-wire-path trace-wire temp");
+    path.setAttribute("stroke", stroke);
+    path.dataset.tracePoints = nodeGraphTraceWaypointAttribute(trace.points);
+    path.setAttribute("d", nodeGraphTracePathFromPoints(trace.from, trace.points, previewPoint));
+    svg.append(path);
+  }
+
   renderNodeGraphSelection();
+  scheduleNodeGraphModuleScopeDraw();
 }
 
 function renderNodeGraphConnectionList() {

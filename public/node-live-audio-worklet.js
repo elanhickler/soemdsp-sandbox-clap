@@ -467,7 +467,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         return this.nextNoiseSample(nodeId);
       case 0:
       default:
-        return phaseCycle * 2 - 1 - this.polyBlep(phaseCycle, phaseIncrement);
+        return 1 - phaseCycle * 2 + this.polyBlep(phaseCycle, phaseIncrement);
     }
   }
 
@@ -675,7 +675,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         );
         const phaseIncrement = frequency / sampleRate;
         value = this.oscillatorSample(nodeId, phase + phaseOffset, phaseIncrement, waveform) *
-          this.readEffectiveParameter(node, "level", 0.35, frame, frames, frameValues);
+          this.readEffectiveParameter(node, "level", 0.5, frame, frames, frameValues);
         this.phases.set(
           nodeId,
           (phase + (Math.PI * 2 * frequency) / sampleRate) % (Math.PI * 2),

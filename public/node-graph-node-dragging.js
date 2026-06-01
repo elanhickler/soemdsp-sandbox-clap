@@ -79,6 +79,7 @@ function dragNodeGraphNode(event) {
     }, { clamp: false });
   }
   drawNodeGraphWires();
+  scheduleNodeGraphModuleScopeDraw();
 }
 
 function endNodeGraphNodeDrag(event) {

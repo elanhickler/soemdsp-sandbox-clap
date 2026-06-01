@@ -147,13 +147,7 @@ function clearNodeSliderDotCursor() {
 }
 
 function nodeSliderValueFromPointer(slider, surface, clientX) {
-  const rect = surface.getBoundingClientRect();
-  const travel = clampNodeSliderValue(
-    (clientX - rect.left) / Math.max(1, rect.width),
-    0,
-    1,
-  );
-  return nodeSliderValueFromTravel(slider, travel);
+  return nodeSliderValueFromTravel(slider, nodeSliderTravelFromPointer(slider, surface, clientX));
 }
 
 function nodeSliderFineTuneScale(event) {
@@ -169,6 +163,12 @@ function nodeSliderFineTuneScale(event) {
   return 1;
 }
 
+function reanchorNodeSliderDragAtPointer(drag, event) {
+  drag.startTravel = nodeSliderTravelFromValue(drag.slider, Number(drag.slider.value));
+  drag.startX = event.clientX;
+  drag.startY = event.clientY;
+}
+
 function beginNodeSliderDrag(event) {
   if (nodeGraphMvp.sliderDragging || event.button > 0 || event.detail > 1) {
     return;
@@ -180,7 +180,7 @@ function beginNodeSliderDrag(event) {
     return;
   }
 
-  const rect = surface.getBoundingClientRect();
+  const lane = nodeSliderVisualLane(surface, slider);
   const resetToDefaultOnClick = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
   const pointerMode = event.altKey ? "absolute" : "relative";
   let startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
@@ -205,10 +205,11 @@ function beginNodeSliderDrag(event) {
     startX: event.clientX,
     startY: event.clientY,
     fineScale: nodeSliderFineTuneScale(event),
-    width: Math.max(1, rect.width),
+    width: lane.travelWidth,
   };
   surface.classList.add("value-dragging");
   document.body.classList.add("node-slider-dragging");
+  nodeGraphWireInteractions?.clearHover?.();
   updateNodeSliderDotCursor(event);
   if (event.pointerId !== undefined) {
     surface.setPointerCapture(event.pointerId);
@@ -240,13 +241,17 @@ function dragNodeSlider(event) {
       drag.moved = true;
     }
     const travelDelta = ((horizontalDelta + verticalDelta) / drag.width) * drag.fineScale;
+    const nextTravel = drag.startTravel + travelDelta;
     setNodeSliderValue(
       drag.slider,
       quantizeNodeSliderDragValue(
         drag.slider,
-        nodeSliderValueFromTravel(drag.slider, drag.startTravel + travelDelta),
+        nodeSliderValueFromTravel(drag.slider, nextTravel),
       ),
     );
+    if (!nodeSliderShouldWraparound(drag.slider) && (nextTravel <= 0 || nextTravel >= 1)) {
+      reanchorNodeSliderDragAtPointer(drag, event);
+    }
   }
   updateNodeSliderDotCursor(event);
   event.preventDefault();

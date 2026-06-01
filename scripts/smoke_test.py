@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import cache
 from html.parser import HTMLParser
 import json
 import socket
@@ -25,6 +26,184 @@ DEFAULT_UI_SETTINGS_SCRIPT = PUBLIC / "presets" / "useruisettings.js"
 DEFAULT_MANIFEST = (
     ROOT.parent / "soemdsp" / "runtime_dsp_object_bound_wav_resync_demo.manifest.json"
 )
+JS_CONTENT_TYPES = ("application/javascript", "text/javascript")
+PUBLIC_SCRIPT_PATHS = (
+    "./public/boot-loading.js",
+    "./public/app-state.js",
+    "./public/format-utils.js",
+    "./public/inspection-utils.js",
+    "./public/audio-utils.js",
+    "./public/ui-label-utils.js",
+    "./public/ui-render-utils.js",
+    "./public/inspection-cursor-pills.js",
+    "./public/inspection-cursor.js",
+    "./public/phase-display-utils.js",
+    "./public/phase-audio-analysis.js",
+    "./public/level-envelope-canvas.js",
+    "./public/level-envelope-view.js",
+    "./public/phase-audio-stats-probe.js",
+    "./public/phase-audio-stats-view.js",
+    "./public/signal-plot-settings.js",
+    "./public/signal-plot-metrics.js",
+    "./public/signal-plot-view.js",
+    "./public/signal-plot-probes.js",
+    "./public/signal-plot-readouts.js",
+    "./public/signal-plot-controls.js",
+    "./public/artifact-report-utils.js",
+    "./public/artifact-report-reports.js",
+    "./public/artifact-list-view.js",
+    "./public/artifact-coverage-view.js",
+    "./public/manifest-source-view.js",
+    "./public/parameter-summary-view.js",
+    "./public/parameter-timeline-probe.js",
+    "./public/parameter-views.js",
+    "./public/manifest-processing-contracts.js",
+    "./public/manifest-phase-contracts.js",
+    "./public/manifest-contracts.js",
+    "./public/legacy-evidence-checklist-view.js",
+    "./public/legacy-evidence-proof-view.js",
+    "./public/legacy-evidence-views.js",
+    "./public/phase-list-view.js",
+    "./public/hands-on-readiness-waveform-labels.js",
+    "./public/hands-on-readiness-primary-labels.js",
+    "./public/hands-on-readiness-artifact-labels.js",
+    "./public/hands-on-readiness-signal-inspection-labels.js",
+    "./public/hands-on-readiness-phase-parameter-labels.js",
+    "./public/hands-on-readiness-probe-labels.js",
+    "./public/hands-on-readiness.js",
+    "./public/waveform-canvas.js",
+    "./public/waveform-current-parameters.js",
+    "./public/waveform-position-view.js",
+    "./public/waveform-view.js",
+    "./public/waveform-transport.js",
+    "./public/waveform-phase-controls.js",
+    "./public/waveform-interactions.js",
+    "./public/manifest-view.js",
+    "./public/manifest-loader.js",
+    "./public/node-graph-wires.js",
+    "./public/node-graph-file-actions.js",
+    "./public/node-graph-default-buttons.js",
+    "./public/node-graph-module-definitions.js",
+    "./public/node-graph-module-sizing.js",
+    "./public/node-graph-metadata-kinds.js",
+    "./public/node-graph-parameter-metadata.js",
+    "./public/node-graph-metadata-defaults.js",
+    "./public/node-graph-text-box-utils.js",
+    "./public/node-graph-text-box-rendering.js",
+    "./public/node-graph-patch-normalizers.js",
+    "./public/node-graph-audio-derivation.js",
+    "./public/node-graph-grid-utils.js",
+    "./public/node-graph-patch-runtime.js",
+    "./public/node-graph-patch-serialization.js",
+    "./public/node-graph-settings-fields.js",
+    "./public/node-graph-settings-view.js",
+    "./public/node-graph-settings-text-fit.js",
+    "./public/node-graph-default-preset.js",
+    "./public/node-graph-script-status.js",
+    "./public/node-graph-view-controls.js",
+    "./public/node-graph-workspace-geometry.js",
+    "./public/node-graph-workspace-zoom.js",
+    "./public/node-graph-workspace-view.js",
+    "./public/node-graph-marquee-selection.js",
+    "./public/node-graph-node-dragging.js",
+    "./public/node-graph-context-menu.js",
+    "./public/node-graph-module-actions.js",
+    "./public/node-graph-module-scopes.js",
+    "./public/node-graph-module-factories.js",
+    "./public/node-graph-module-header-rendering.js",
+    "./public/node-graph-module-rendering.js",
+    "./public/node-graph-history.js",
+    "./public/node-graph-visual-utils.js",
+    "./public/node-graph-patch-clone.js",
+    "./public/node-graph-slider-metadata.js",
+    "./public/node-graph-slider-values.js",
+    "./public/node-graph-slider-dragging.js",
+    "./public/node-graph-node-accessors.js",
+    "./public/node-graph-selection.js",
+    "./public/node-graph-port-geometry.js",
+    "./public/node-graph-slider-readout.js",
+    "./public/node-graph-slider-readout-controls.js",
+    "./public/node-graph-ghost-sliders.js",
+    "./public/node-graph-metadata-editor.js",
+    "./public/node-graph-render-settings.js",
+    "./public/node-graph-rendered-audio.js",
+    "./public/node-graph-rendered-visual-output.js",
+    "./public/node-graph-rendered-output-canvases.js",
+    "./public/node-graph-execution-wires.js",
+    "./public/node-graph-execution-plan.js",
+    "./public/node-graph-execution-summary.js",
+    "./public/node-graph-wire-actions.js",
+    "./public/node-graph-trace-router.js",
+    "./public/node-graph-wire-rendering.js",
+    "./public/node-graph-render-output.js",
+    "./public/node-graph-debug-copy.js",
+    "./public/node-graph-execution-debug-api.js",
+    "./public/node-graph-execution-debug-view.js",
+    "./public/node-graph-tooltips.js",
+    "./public/node-graph-interaction-help.js",
+    "./public/presets/useruisettings.js",
+    "./public/node-graph-ui-settings-definitions.js",
+    "./public/node-graph-ui-settings-utils.js",
+    "./public/node-graph-user-ui-settings-controls.js",
+    "./public/node-graph-ui-settings-panels.js",
+    "./public/node-graph-ui-settings-persistence.js",
+    "./public/node-graph-ui-settings-sync.js",
+    "./public/node-graph-keyboard-shortcuts.js",
+    "./public/node-graph-live-status-text.js",
+    "./public/node-graph-live-status-controls.js",
+    "./public/node-graph-live-meter-controls.js",
+    "./public/node-graph-live-input-status.js",
+    "./public/node-graph-live-evidence.js",
+    "./public/node-graph-live-control-rendering.js",
+    "./public/node-graph-default-patch.js",
+    "./public/node-graph-state.js",
+    "./public/node-graph-patch-core.js",
+    "./public/node-graph-live-plan-runtime.js",
+    "./public/node-graph-live-parameter-runtime.js",
+    "./public/node-graph-oscillator-runtime.js",
+    "./public/node-graph-jerobeam-spiral.js",
+    "./public/node-graph-live-frame-evaluator.js",
+    "./public/node-graph-live-runtime.js",
+    "./public/node-graph-wire-controller-bootstrap.js",
+    "./public/node-graph-workspace-event-bindings.js",
+    "./public/node-graph-render-live-event-bindings.js",
+    "./public/node-graph-header-event-bindings.js",
+    "./public/node-graph-help-event-bindings.js",
+    "./public/node-graph-scene-menu-event-bindings.js",
+    "./public/node-graph-uidev-event-bindings.js",
+    "./public/node-graph-settings-event-bindings.js",
+    "./public/node-graph-slider-event-bindings.js",
+    "./public/node-graph-event-bindings.js",
+    "./public/node-graph-bootstrap.js",
+    "./public/app-event-bindings.js",
+    "./public/app.js",
+)
+
+
+def public_script_request_path(script_path: str) -> str:
+    return script_path.removeprefix(".")
+
+
+def public_script_source_path(script_path: str) -> Path:
+    if script_path == "./public/presets/useruisettings.js":
+        return DEFAULT_UI_SETTINGS_SCRIPT
+    return ROOT / script_path.removeprefix("./")
+
+
+def static_asset_contracts():
+    for script_path in PUBLIC_SCRIPT_PATHS:
+        yield public_script_request_path(script_path), JS_CONTENT_TYPES, public_script_source_path(script_path)
+    yield "/public/node-live-audio-worklet.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet.js"
+    yield "/public/styles.css", "text/css", PUBLIC / "styles.css"
+
+
+@cache
+def read_public_script_sources() -> dict[str, str]:
+    return {
+        script_path: public_script_source_path(script_path).read_text(encoding="utf-8")
+        for script_path in PUBLIC_SCRIPT_PATHS
+    }
+
 SOEMDSP_META_HEADER = ROOT.parent / "soemdsp" / "include" / "soemdsp" / "meta.hpp"
 EXPECTED_CONTRACT = "soemdsp-demo-local-sandbox-handoff"
 EXPECTED_CONTRACT_VERSION = 1
@@ -211,6 +390,7 @@ REQUIRED_SHELL_IDS = {
     "nodeGraphZoomSurface",
     "nodeGridHeatmap",
     "nodeInteractionHelp",
+    "nodeModuleScopeCanvas",
     "nodeScriptGridHeightPxValue",
     "nodeScriptGridWidthPxValue",
     "patchGridHeightPxValue",
@@ -273,6 +453,7 @@ REQUIRED_SHELL_IDS = {
     "metadataDisplayChoicesValue",
     "metadataKindValue",
     "metadataLinearSmoothingValue",
+    "metadataMaxDigitsValue",
     "metadataNonlinearSliderValue",
     "metadataChoicesValue",
     "metadataMaxValue",
@@ -413,6 +594,84 @@ def require(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def trace_test_point(value: float) -> float:
+    return round(float(value or 0) - 0.5) + 0.5
+
+
+def normalize_trace_test_points(points: list[dict[str, float]]) -> list[dict[str, float]]:
+    return [
+        {"x": trace_test_point(point.get("x", 0)), "y": trace_test_point(point.get("y", 0))}
+        for point in points
+    ]
+
+
+def push_trace_test_point(points: list[dict[str, float]], point: dict[str, float]) -> None:
+    previous = points[-1] if points else None
+    if not previous or abs(previous["x"] - point["x"]) > 0.001 or abs(previous["y"] - point["y"]) > 0.001:
+        points.append(point)
+
+
+def trace_test_orthogonal_points(
+    start: dict[str, float],
+    waypoints: list[dict[str, float]],
+    end: dict[str, float],
+) -> list[dict[str, float]]:
+    anchors = normalize_trace_test_points([start, *normalize_trace_test_points(waypoints), end])
+    if len(anchors) < 2:
+        return anchors
+
+    routed: list[dict[str, float]] = []
+    push_trace_test_point(routed, anchors[0])
+    for anchor in anchors[1:]:
+        previous = routed[-1]
+        if abs(previous["x"] - anchor["x"]) > 0.001 and abs(previous["y"] - anchor["y"]) > 0.001:
+            push_trace_test_point(routed, {"x": anchor["x"], "y": previous["y"]})
+        push_trace_test_point(routed, anchor)
+    return routed
+
+
+def trace_test_single_move_point(
+    start: dict[str, float],
+    waypoints: list[dict[str, float]],
+    point: dict[str, float],
+) -> dict[str, float]:
+    anchors = normalize_trace_test_points([start, *normalize_trace_test_points(waypoints)])
+    previous = anchors[-1]
+    target = normalize_trace_test_points([point])[0]
+    dx = abs(target["x"] - previous["x"])
+    dy = abs(target["y"] - previous["y"])
+    return {"x": target["x"], "y": previous["y"]} if dx >= dy else {"x": previous["x"], "y": target["y"]}
+
+
+def require_manual_trace_waypoint_contract() -> None:
+    waypoints = [
+        {"x": 123, "y": 234},
+        {"x": 345, "y": 456},
+        {"x": 567, "y": 234},
+    ]
+    routed = trace_test_orthogonal_points({"x": 0, "y": 0}, waypoints, {"x": 700, "y": 500})
+    routed_pairs = {(point["x"], point["y"]) for point in routed}
+    for point in normalize_trace_test_points(waypoints):
+        require(
+            (point["x"], point["y"]) in routed_pairs,
+            f"manual trace waypoint missing from routed path: {point}",
+        )
+    for previous, current in zip(routed, routed[1:]):
+        require(
+            previous["x"] == current["x"] or previous["y"] == current["y"],
+            f"manual trace segment is diagonal: {previous} -> {current}",
+        )
+    normalized_once = normalize_trace_test_points(waypoints)
+    normalized_twice = normalize_trace_test_points(normalized_once)
+    require(normalized_once == normalized_twice, "manual trace waypoint normalization must be idempotent")
+
+    start = {"x": 0, "y": 0}
+    first_click = trace_test_single_move_point(start, [], {"x": 100, "y": 60})
+    second_click = trace_test_single_move_point(start, [first_click], {"x": 100, "y": 140})
+    require(first_click == {"x": 100.5, "y": 0.5}, "first manual trace click should add only one horizontal move")
+    require(second_click == {"x": 100.5, "y": 140.5}, "second manual trace click should add only one vertical move")
+
+
 def read_soemdsp_meta_kinds() -> set[str]:
     source = SOEMDSP_META_HEADER.read_text(encoding="utf-8")
     enum_start = source.index("enum class MetaType")
@@ -431,6 +690,7 @@ def require_soemdsp_wire_meta_traits() -> None:
     for snippet in [
         "std::string_view unit_;",
         ", unit_(WireTypeTraits::get(type).unit_)",
+        ", maxDigits(WireTypeTraits::get(type).maxDigits)",
         ", divideChoicesVisibly(!customchoices.empty() ? true : WireTypeTraits::get(type).divideChoicesVisibly)",
         ", def_(!customchoices.empty() ? 0.0 : WireTypeTraits::get(type).def_)",
         ", min_(!customchoices.empty() ? 0.0 : WireTypeTraits::get(type).min_)",
@@ -438,6 +698,8 @@ def require_soemdsp_wire_meta_traits() -> None:
         ": WireTypeTraits::get(type).max_)",
         'static_assert(WireMeta{ "frequency", "", MetaType::frequency }.unit_ == "Hz");',
         'static_assert(WireMeta{ "frequency", "", MetaType::frequency }.max_ == 20000.0);',
+        'static_assert(WireMeta{ "frequency", "", MetaType::frequency }.maxDigits == 5);',
+        'static_assert(WireMeta{ "amplitude", "", MetaType::amplitude }.maxDigits == 3);',
         'static_assert(WireMeta{ "waveform", "", MetaType::waveform }.choices.size() == 5);',
         'static_assert(WireMeta{ "waveform", "", MetaType::waveform }.max_ == 4.0);',
         'static_assert(WireMeta{ "custom", "", MetaType::waveform, choice::onoff }.choices.size() == 2);',
@@ -547,83 +809,7 @@ def require_shell_contract(html: str) -> None:
     require(not missing_ids, f"shell missing required ids: {missing_ids}")
     require(parser.inline_script_count == 0, "shell includes inline script")
     require(
-        script_paths == {
-            "./public/app.js",
-            "./public/audio-utils.js",
-            "./public/format-utils.js",
-            "./public/inspection-utils.js",
-            "./public/node-graph-interaction-help.js",
-            "./public/node-graph-audio-derivation.js",
-            "./public/node-graph-grid-utils.js",
-            "./public/node-graph-patch-runtime.js",
-            "./public/node-graph-patch-serialization.js",
-            "./public/node-graph-settings-fields.js",
-            "./public/node-graph-settings-view.js",
-            "./public/node-graph-settings-text-fit.js",
-            "./public/node-graph-default-preset.js",
-            "./public/node-graph-script-status.js",
-            "./public/node-graph-view-controls.js",
-            "./public/node-graph-workspace-view.js",
-            "./public/node-graph-marquee-selection.js",
-            "./public/node-graph-node-dragging.js",
-            "./public/node-graph-context-menu.js",
-            "./public/node-graph-module-actions.js",
-            "./public/node-graph-module-rendering.js",
-            "./public/node-graph-history.js",
-            "./public/node-graph-keyboard-shortcuts.js",
-            "./public/node-graph-live-status-text.js",
-            "./public/node-graph-live-status-controls.js",
-            "./public/node-graph-live-meter-controls.js",
-            "./public/node-graph-live-input-status.js",
-            "./public/node-graph-live-evidence.js",
-            "./public/node-graph-live-control-rendering.js",
-            "./public/node-graph-default-buttons.js",
-            "./public/node-graph-file-actions.js",
-            "./public/node-graph-module-definitions.js",
-            "./public/node-graph-module-sizing.js",
-            "./public/node-graph-parameter-metadata.js",
-            "./public/node-graph-metadata-defaults.js",
-            "./public/node-graph-patch-normalizers.js",
-            "./public/node-graph-patch-clone.js",
-            "./public/node-graph-slider-metadata.js",
-            "./public/node-graph-slider-values.js",
-            "./public/node-graph-slider-dragging.js",
-            "./public/node-graph-node-accessors.js",
-            "./public/node-graph-selection.js",
-            "./public/node-graph-port-geometry.js",
-            "./public/node-graph-slider-readout.js",
-            "./public/node-graph-slider-readout-controls.js",
-            "./public/node-graph-ghost-sliders.js",
-            "./public/node-graph-metadata-kinds.js",
-            "./public/node-graph-metadata-editor.js",
-            "./public/node-graph-render-settings.js",
-            "./public/node-graph-rendered-audio.js",
-            "./public/node-graph-rendered-visual-output.js",
-            "./public/node-graph-rendered-output-canvases.js",
-            "./public/node-graph-execution-wires.js",
-            "./public/node-graph-execution-plan.js",
-            "./public/node-graph-execution-summary.js",
-            "./public/node-graph-wire-actions.js",
-            "./public/node-graph-wire-rendering.js",
-            "./public/node-graph-render-output.js",
-            "./public/node-graph-debug-copy.js",
-            "./public/node-graph-execution-debug-api.js",
-            "./public/node-graph-execution-debug-view.js",
-            "./public/node-graph-text-box-utils.js",
-            "./public/node-graph-text-box-rendering.js",
-            "./public/node-graph-tooltips.js",
-            "./public/node-graph-ui-settings-definitions.js",
-            "./public/node-graph-ui-settings-utils.js",
-            "./public/node-graph-user-ui-settings-controls.js",
-            "./public/node-graph-ui-settings-panels.js",
-            "./public/node-graph-ui-settings-persistence.js",
-            "./public/node-graph-ui-settings-sync.js",
-            "./public/node-graph-visual-utils.js",
-            "./public/node-graph-wires.js",
-            "./public/presets/useruisettings.js",
-            "./public/signal-plot-settings.js",
-            "./public/ui-label-utils.js",
-        },
+        script_paths == set(PUBLIC_SCRIPT_PATHS),
         f"shell scripts were {sorted(parser.scripts)!r}",
     )
     require(
@@ -1951,9 +2137,9 @@ def require_user_ui_settings_update_contract(base_url: str) -> None:
     payload = json.loads(original.decode("utf-8"))
     payload["format"] = {
         "kind": "soemdsp-sandbox-user-ui-settings",
-        "version": 2,
+        "version": 3,
     }
-    payload["view"] = {"gridVisible": False}
+    payload["view"] = {"gridVisible": False, "sliderLayout": "value-focus"}
     body = json.dumps(payload).encode("utf-8")
     try:
         response = request(
@@ -1962,16 +2148,20 @@ def require_user_ui_settings_update_contract(base_url: str) -> None:
             headers={"Content-Type": "application/json"},
             data=body,
         )
-        require(response.status == 200, "version 2 UI settings update did not return 200")
-        require_no_store(response, "version 2 UI settings update")
+        require(response.status == 200, "version 3 UI settings update did not return 200")
+        require_no_store(response, "version 3 UI settings update")
         saved_payload = json.loads(DEFAULT_UI_SETTINGS.read_text(encoding="utf-8"))
         require(
-            saved_payload.get("format", {}).get("version") == 2,
-            "version 2 UI settings update was not saved",
+            saved_payload.get("format", {}).get("version") == 3,
+            "version 3 UI settings update was not saved",
         )
         require(
             saved_payload.get("view", {}).get("gridVisible") is False,
             "UI settings update did not preserve view.gridVisible",
+        )
+        require(
+            saved_payload.get("view", {}).get("sliderLayout") == "value-focus",
+            "UI settings update did not preserve view.sliderLayout",
         )
         saved_script = DEFAULT_UI_SETTINGS_SCRIPT.read_text(encoding="utf-8")
         require(
@@ -1985,6 +2175,10 @@ def require_user_ui_settings_update_contract(base_url: str) -> None:
         require(
             '"gridVisible": false' in saved_script,
             "bundled UI settings script did not preserve view.gridVisible",
+        )
+        require(
+            '"sliderLayout": "value-focus"' in saved_script,
+            "bundled UI settings script did not preserve view.sliderLayout",
         )
     finally:
         DEFAULT_UI_SETTINGS.write_bytes(original)
@@ -2013,88 +2207,7 @@ def require_root_shell(base_url: str) -> None:
 
 
 def require_static_assets(base_url: str) -> None:
-    for path, content_type, source_path in [
-        ("/public/app.js", ("application/javascript", "text/javascript"), PUBLIC / "app.js"),
-        ("/public/audio-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "audio-utils.js"),
-        ("/public/format-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "format-utils.js"),
-        ("/public/inspection-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "inspection-utils.js"),
-        ("/public/node-graph-interaction-help.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-interaction-help.js"),
-        ("/public/node-graph-audio-derivation.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-audio-derivation.js"),
-        ("/public/node-graph-grid-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-grid-utils.js"),
-        ("/public/node-graph-patch-runtime.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-patch-runtime.js"),
-        ("/public/node-graph-patch-serialization.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-patch-serialization.js"),
-        ("/public/node-graph-settings-fields.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-settings-fields.js"),
-        ("/public/node-graph-settings-view.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-settings-view.js"),
-        ("/public/node-graph-settings-text-fit.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-settings-text-fit.js"),
-        ("/public/node-graph-default-preset.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-default-preset.js"),
-        ("/public/node-graph-script-status.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-script-status.js"),
-        ("/public/node-graph-view-controls.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-view-controls.js"),
-        ("/public/node-graph-workspace-view.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-workspace-view.js"),
-        ("/public/node-graph-marquee-selection.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-marquee-selection.js"),
-        ("/public/node-graph-node-dragging.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-node-dragging.js"),
-        ("/public/node-graph-context-menu.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-context-menu.js"),
-        ("/public/node-graph-module-actions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-module-actions.js"),
-        ("/public/node-graph-module-rendering.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-module-rendering.js"),
-        ("/public/node-graph-history.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-history.js"),
-        ("/public/node-graph-keyboard-shortcuts.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-keyboard-shortcuts.js"),
-        ("/public/node-graph-live-status-text.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-status-text.js"),
-        ("/public/node-graph-live-status-controls.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-status-controls.js"),
-        ("/public/node-graph-live-meter-controls.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-meter-controls.js"),
-        ("/public/node-graph-live-input-status.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-input-status.js"),
-        ("/public/node-graph-live-evidence.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-evidence.js"),
-        ("/public/node-graph-live-control-rendering.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-live-control-rendering.js"),
-        ("/public/node-graph-default-buttons.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-default-buttons.js"),
-        ("/public/node-graph-file-actions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-file-actions.js"),
-        ("/public/node-graph-module-definitions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-module-definitions.js"),
-        ("/public/node-graph-module-sizing.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-module-sizing.js"),
-        ("/public/node-graph-parameter-metadata.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-parameter-metadata.js"),
-        ("/public/node-graph-metadata-defaults.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-metadata-defaults.js"),
-        ("/public/node-graph-patch-normalizers.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-patch-normalizers.js"),
-        ("/public/node-graph-patch-clone.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-patch-clone.js"),
-        ("/public/node-graph-slider-metadata.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-metadata.js"),
-        ("/public/node-graph-slider-values.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-values.js"),
-        ("/public/node-graph-slider-dragging.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-dragging.js"),
-        ("/public/node-graph-node-accessors.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-node-accessors.js"),
-        ("/public/node-graph-selection.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-selection.js"),
-        ("/public/node-graph-port-geometry.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-port-geometry.js"),
-        ("/public/node-graph-slider-readout.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-readout.js"),
-        ("/public/node-graph-slider-readout-controls.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-slider-readout-controls.js"),
-        ("/public/node-graph-ghost-sliders.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ghost-sliders.js"),
-        ("/public/node-graph-metadata-kinds.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-metadata-kinds.js"),
-        ("/public/node-graph-metadata-editor.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-metadata-editor.js"),
-        ("/public/node-graph-render-settings.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-render-settings.js"),
-        ("/public/node-graph-rendered-audio.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-rendered-audio.js"),
-        ("/public/node-graph-rendered-visual-output.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-rendered-visual-output.js"),
-        ("/public/node-graph-rendered-output-canvases.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-rendered-output-canvases.js"),
-        ("/public/node-graph-execution-wires.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-wires.js"),
-        ("/public/node-graph-execution-plan.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-plan.js"),
-        ("/public/node-graph-execution-summary.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-summary.js"),
-        ("/public/node-graph-wire-actions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-wire-actions.js"),
-        ("/public/node-graph-wire-rendering.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-wire-rendering.js"),
-        ("/public/node-graph-render-output.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-render-output.js"),
-        ("/public/node-graph-debug-copy.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-debug-copy.js"),
-        ("/public/node-graph-execution-debug-api.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-debug-api.js"),
-        ("/public/node-graph-execution-debug-view.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-execution-debug-view.js"),
-        ("/public/node-graph-text-box-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-text-box-utils.js"),
-        ("/public/node-graph-text-box-rendering.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-text-box-rendering.js"),
-        ("/public/node-graph-tooltips.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-tooltips.js"),
-        ("/public/node-graph-ui-settings-definitions.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ui-settings-definitions.js"),
-        ("/public/node-graph-ui-settings-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ui-settings-utils.js"),
-        ("/public/node-graph-user-ui-settings-controls.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-user-ui-settings-controls.js"),
-        ("/public/node-graph-ui-settings-panels.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ui-settings-panels.js"),
-        ("/public/node-graph-ui-settings-persistence.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ui-settings-persistence.js"),
-        ("/public/node-graph-ui-settings-sync.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-ui-settings-sync.js"),
-        ("/public/node-graph-visual-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "node-graph-visual-utils.js"),
-        ("/public/presets/useruisettings.js", ("application/javascript", "text/javascript"), DEFAULT_UI_SETTINGS_SCRIPT),
-        ("/public/signal-plot-settings.js", ("application/javascript", "text/javascript"), PUBLIC / "signal-plot-settings.js"),
-        ("/public/ui-label-utils.js", ("application/javascript", "text/javascript"), PUBLIC / "ui-label-utils.js"),
-        (
-            "/public/node-live-audio-worklet.js",
-            ("application/javascript", "text/javascript"),
-            PUBLIC / "node-live-audio-worklet.js",
-        ),
-        ("/public/styles.css", "text/css", PUBLIC / "styles.css"),
-    ]:
+    for path, content_type, source_path in static_asset_contracts():
         expected = source_path.read_bytes()
         expected_size = str(len(expected))
         head_response = request(f"{base_url}{path}", method="HEAD")
@@ -2119,24 +2232,16 @@ def require_static_assets(base_url: str) -> None:
 
 
 def require_waveform_seek_source_contract() -> None:
-    app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
-    audio_source = (PUBLIC / "audio-utils.js").read_text(encoding="utf-8")
-    format_source = (PUBLIC / "format-utils.js").read_text(encoding="utf-8")
-    inspection_source = (PUBLIC / "inspection-utils.js").read_text(encoding="utf-8")
-    file_actions_source = (PUBLIC / "node-graph-file-actions.js").read_text(encoding="utf-8")
-    signal_plot_settings_source = (PUBLIC / "signal-plot-settings.js").read_text(encoding="utf-8")
-    ui_label_source = (PUBLIC / "ui-label-utils.js").read_text(encoding="utf-8")
-    waveform_source = (
-        f"{app_source}\n{audio_source}\n{format_source}\n{inspection_source}\n"
-        f"{file_actions_source}\n{signal_plot_settings_source}\n{ui_label_source}"
-    )
+    script_sources = read_public_script_sources()
+    app_source = script_sources["./public/app.js"]
+    waveform_source = "\n".join(script_sources.values())
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
     require(
-        "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)" in app_source,
+        "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)" in waveform_source,
         "waveform seek helper missing",
     )
     require(
-        "audio.currentTime = targetTime;" in app_source,
+        "audio.currentTime = targetTime;" in waveform_source,
         "waveform seek helper does not seek primary audio",
     )
     for snippet in [
@@ -3018,7 +3123,7 @@ def require_waveform_seek_source_contract() -> None:
         'classList.add("dragging")',
         'classList.remove("dragging")',
     ]:
-        require(snippet in app_source, f"waveform drag state missing {snippet}")
+        require(snippet in waveform_source, f"waveform drag state missing {snippet}")
     for snippet in [
         "touch-action: none;",
         "user-select: none;",
@@ -3069,10 +3174,17 @@ def require_waveform_seek_source_contract() -> None:
 
 
 def require_manifest_error_surface_contract() -> None:
-    app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
-    start = app_source.index("function renderError(message, details = {})")
-    end = app_source.index("async function loadManifest()", start)
-    render_error = app_source[start:end]
+    manifest_view_source = (PUBLIC / "manifest-view.js").read_text(encoding="utf-8")
+    manifest_loader_source = (PUBLIC / "manifest-loader.js").read_text(encoding="utf-8")
+    start = manifest_view_source.index("function renderError(message, details = {})")
+    end = len(manifest_view_source)
+    render_error = manifest_view_source[start:end]
+    for snippet in [
+        "function renderRefreshButton(loading = state.manifestLoading)",
+        'const button = document.getElementById("refreshButton")',
+        "async function loadManifest()",
+    ]:
+        require(snippet in manifest_loader_source, f"manifest loader missing {snippet}")
     required_unavailable_renderers = [
         "renderUnavailableProducerProof();",
         "renderUnavailableHandsOnReadiness();",
@@ -3109,18 +3221,18 @@ def require_manifest_error_surface_contract() -> None:
 
 
 def require_follow_free_seek_contract() -> None:
-    app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
-    start = app_source.index(
+    waveform_source = "\n".join(read_public_script_sources().values())
+    start = waveform_source.index(
         "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)",
     )
-    end = app_source.index("function seekWaveformAtClientX(clientX)", start)
-    seek_function = app_source[start:end]
-    sync_start = app_source.index("function syncWaveformToAudio()")
-    sync_end = app_source.index(
+    end = waveform_source.index("function seekWaveformAtClientX(clientX)", start)
+    seek_function = waveform_source[start:end]
+    sync_start = waveform_source.index("function syncWaveformToAudio()")
+    sync_end = waveform_source.index(
         "function seekPrimaryAudioToFrame(frame, source = inspectionSources.waveform)",
         sync_start,
     )
-    sync_function = app_source[sync_start:sync_end]
+    sync_function = waveform_source[sync_start:sync_end]
     require(
         "if (state.followAudio) {" in seek_function,
         "waveform seek no longer gates native audio seeking behind follow mode",
@@ -3156,120 +3268,22 @@ def require_follow_free_seek_contract() -> None:
         '.addEventListener("pointercancel", endScrubberDrag)',
         '.addEventListener("lostpointercapture", endScrubberDrag)',
     ]:
-        require(snippet in app_source, f"scrubber drag guard missing {snippet}")
+        require(snippet in waveform_source, f"scrubber drag guard missing {snippet}")
 
 
 def require_node_graph_mvp_contract() -> None:
+    require_manual_trace_waypoint_contract()
+
     index_source = (PUBLIC / "index.html").read_text(encoding="utf-8")
-    app_source = (PUBLIC / "app.js").read_text(encoding="utf-8")
-    audio_source = (PUBLIC / "audio-utils.js").read_text(encoding="utf-8")
-    format_source = (PUBLIC / "format-utils.js").read_text(encoding="utf-8")
-    signal_plot_settings_source = (PUBLIC / "signal-plot-settings.js").read_text(encoding="utf-8")
-    ui_label_source = (PUBLIC / "ui-label-utils.js").read_text(encoding="utf-8")
-    interaction_help_source = (PUBLIC / "node-graph-interaction-help.js").read_text(encoding="utf-8")
-    audio_derivation_source = (PUBLIC / "node-graph-audio-derivation.js").read_text(encoding="utf-8")
-    grid_utils_source = (PUBLIC / "node-graph-grid-utils.js").read_text(encoding="utf-8")
-    patch_runtime_source = (PUBLIC / "node-graph-patch-runtime.js").read_text(encoding="utf-8")
-    patch_serialization_source = (PUBLIC / "node-graph-patch-serialization.js").read_text(encoding="utf-8")
-    settings_fields_source = (PUBLIC / "node-graph-settings-fields.js").read_text(encoding="utf-8")
-    settings_view_source = (PUBLIC / "node-graph-settings-view.js").read_text(encoding="utf-8")
-    settings_text_fit_source = (PUBLIC / "node-graph-settings-text-fit.js").read_text(encoding="utf-8")
-    default_preset_source = (PUBLIC / "node-graph-default-preset.js").read_text(encoding="utf-8")
-    script_status_source = (PUBLIC / "node-graph-script-status.js").read_text(encoding="utf-8")
-    view_controls_source = (PUBLIC / "node-graph-view-controls.js").read_text(encoding="utf-8")
-    workspace_view_source = (PUBLIC / "node-graph-workspace-view.js").read_text(encoding="utf-8")
-    marquee_selection_source = (PUBLIC / "node-graph-marquee-selection.js").read_text(encoding="utf-8")
-    node_dragging_source = (PUBLIC / "node-graph-node-dragging.js").read_text(encoding="utf-8")
-    context_menu_source = (PUBLIC / "node-graph-context-menu.js").read_text(encoding="utf-8")
-    module_actions_source = (PUBLIC / "node-graph-module-actions.js").read_text(encoding="utf-8")
-    module_rendering_source = (PUBLIC / "node-graph-module-rendering.js").read_text(encoding="utf-8")
-    history_source = (PUBLIC / "node-graph-history.js").read_text(encoding="utf-8")
-    keyboard_shortcuts_source = (PUBLIC / "node-graph-keyboard-shortcuts.js").read_text(encoding="utf-8")
-    live_status_text_source = (PUBLIC / "node-graph-live-status-text.js").read_text(encoding="utf-8")
-    live_status_controls_source = (PUBLIC / "node-graph-live-status-controls.js").read_text(encoding="utf-8")
-    live_meter_controls_source = (PUBLIC / "node-graph-live-meter-controls.js").read_text(encoding="utf-8")
-    live_input_status_source = (PUBLIC / "node-graph-live-input-status.js").read_text(encoding="utf-8")
-    live_evidence_source = (PUBLIC / "node-graph-live-evidence.js").read_text(encoding="utf-8")
-    live_control_rendering_source = (PUBLIC / "node-graph-live-control-rendering.js").read_text(encoding="utf-8")
-    wire_source = (PUBLIC / "node-graph-wires.js").read_text(encoding="utf-8")
-    file_actions_source = (PUBLIC / "node-graph-file-actions.js").read_text(encoding="utf-8")
-    default_buttons_source = (PUBLIC / "node-graph-default-buttons.js").read_text(encoding="utf-8")
-    module_definitions_source = (PUBLIC / "node-graph-module-definitions.js").read_text(encoding="utf-8")
-    module_sizing_source = (PUBLIC / "node-graph-module-sizing.js").read_text(encoding="utf-8")
-    parameter_metadata_source = (PUBLIC / "node-graph-parameter-metadata.js").read_text(encoding="utf-8")
-    metadata_defaults_source = (PUBLIC / "node-graph-metadata-defaults.js").read_text(encoding="utf-8")
-    patch_clone_source = (PUBLIC / "node-graph-patch-clone.js").read_text(encoding="utf-8")
-    slider_metadata_source = (PUBLIC / "node-graph-slider-metadata.js").read_text(encoding="utf-8")
-    slider_values_source = (PUBLIC / "node-graph-slider-values.js").read_text(encoding="utf-8")
-    slider_dragging_source = (PUBLIC / "node-graph-slider-dragging.js").read_text(encoding="utf-8")
-    node_accessors_source = (PUBLIC / "node-graph-node-accessors.js").read_text(encoding="utf-8")
-    selection_source = (PUBLIC / "node-graph-selection.js").read_text(encoding="utf-8")
-    port_geometry_source = (PUBLIC / "node-graph-port-geometry.js").read_text(encoding="utf-8")
-    slider_readout_source = (PUBLIC / "node-graph-slider-readout.js").read_text(encoding="utf-8")
-    slider_readout_controls_source = (PUBLIC / "node-graph-slider-readout-controls.js").read_text(encoding="utf-8")
-    ghost_sliders_source = (PUBLIC / "node-graph-ghost-sliders.js").read_text(encoding="utf-8")
-    metadata_kinds_source = (PUBLIC / "node-graph-metadata-kinds.js").read_text(encoding="utf-8")
-    metadata_editor_source = (PUBLIC / "node-graph-metadata-editor.js").read_text(encoding="utf-8")
-    render_settings_source = (PUBLIC / "node-graph-render-settings.js").read_text(encoding="utf-8")
-    rendered_audio_source = (PUBLIC / "node-graph-rendered-audio.js").read_text(encoding="utf-8")
-    rendered_visual_output_source = (PUBLIC / "node-graph-rendered-visual-output.js").read_text(encoding="utf-8")
-    rendered_output_canvases_source = (PUBLIC / "node-graph-rendered-output-canvases.js").read_text(encoding="utf-8")
-    execution_wires_source = (PUBLIC / "node-graph-execution-wires.js").read_text(encoding="utf-8")
-    execution_plan_source = (PUBLIC / "node-graph-execution-plan.js").read_text(encoding="utf-8")
-    execution_summary_source = (PUBLIC / "node-graph-execution-summary.js").read_text(encoding="utf-8")
-    wire_actions_source = (PUBLIC / "node-graph-wire-actions.js").read_text(encoding="utf-8")
-    wire_rendering_source = (PUBLIC / "node-graph-wire-rendering.js").read_text(encoding="utf-8")
-    render_output_source = (PUBLIC / "node-graph-render-output.js").read_text(encoding="utf-8")
-    debug_copy_source = (PUBLIC / "node-graph-debug-copy.js").read_text(encoding="utf-8")
-    execution_debug_api_source = (PUBLIC / "node-graph-execution-debug-api.js").read_text(encoding="utf-8")
-    execution_debug_view_source = (PUBLIC / "node-graph-execution-debug-view.js").read_text(encoding="utf-8")
-    patch_normalizers_source = (PUBLIC / "node-graph-patch-normalizers.js").read_text(encoding="utf-8")
-    text_box_utils_source = (PUBLIC / "node-graph-text-box-utils.js").read_text(encoding="utf-8")
-    text_box_rendering_source = (PUBLIC / "node-graph-text-box-rendering.js").read_text(encoding="utf-8")
-    tooltip_utils_source = (PUBLIC / "node-graph-tooltips.js").read_text(encoding="utf-8")
-    ui_settings_definitions_source = (PUBLIC / "node-graph-ui-settings-definitions.js").read_text(encoding="utf-8")
-    ui_settings_utils_source = (PUBLIC / "node-graph-ui-settings-utils.js").read_text(encoding="utf-8")
-    user_ui_settings_controls_source = (PUBLIC / "node-graph-user-ui-settings-controls.js").read_text(encoding="utf-8")
-    ui_settings_panels_source = (PUBLIC / "node-graph-ui-settings-panels.js").read_text(encoding="utf-8")
-    ui_settings_persistence_source = (PUBLIC / "node-graph-ui-settings-persistence.js").read_text(encoding="utf-8")
-    ui_settings_sync_source = (PUBLIC / "node-graph-ui-settings-sync.js").read_text(encoding="utf-8")
-    visual_utils_source = (PUBLIC / "node-graph-visual-utils.js").read_text(encoding="utf-8")
-    user_ui_settings_source = DEFAULT_UI_SETTINGS_SCRIPT.read_text(encoding="utf-8")
+    script_sources = read_public_script_sources()
+    app_source = script_sources["./public/app.js"]
+    boot_loading_source = script_sources["./public/boot-loading.js"]
+    metadata_defaults_source = script_sources["./public/node-graph-metadata-defaults.js"]
+    slider_readout_source = script_sources["./public/node-graph-slider-readout.js"]
+    tooltip_utils_source = script_sources["./public/node-graph-tooltips.js"]
+    wire_actions_source = script_sources["./public/node-graph-wire-actions.js"]
     server_source = (ROOT / "server.py").read_text(encoding="utf-8")
-    node_graph_source = (
-        f"{app_source}\n{audio_source}\n{format_source}\n"
-        f"{signal_plot_settings_source}\n{ui_label_source}\n{interaction_help_source}\n"
-        f"{audio_derivation_source}\n{grid_utils_source}\n{patch_runtime_source}\n"
-        f"{patch_serialization_source}\n{settings_fields_source}\n{settings_view_source}\n"
-        f"{settings_text_fit_source}\n{default_preset_source}\n{script_status_source}\n{view_controls_source}\n"
-        f"{workspace_view_source}\n{marquee_selection_source}\n{node_dragging_source}\n"
-        f"{context_menu_source}\n{module_actions_source}\n{module_rendering_source}\n"
-        f"{history_source}\n{keyboard_shortcuts_source}\n"
-        f"{live_status_text_source}\n{live_status_controls_source}\n{live_meter_controls_source}\n"
-        f"{live_input_status_source}\n{live_evidence_source}\n{live_control_rendering_source}\n"
-        f"{wire_source}\n"
-        f"{file_actions_source}\n{default_buttons_source}\n"
-        f"{module_definitions_source}\n{module_sizing_source}\n"
-        f"{parameter_metadata_source}\n{metadata_defaults_source}\n"
-        f"{patch_normalizers_source}\n{patch_clone_source}\n{slider_metadata_source}\n"
-        f"{slider_values_source}\n{slider_dragging_source}\n"
-        f"{node_accessors_source}\n{selection_source}\n{port_geometry_source}\n"
-        f"{slider_readout_source}\n{slider_readout_controls_source}\n"
-        f"{ghost_sliders_source}\n"
-        f"{metadata_kinds_source}\n{metadata_editor_source}\n{render_settings_source}\n"
-        f"{rendered_audio_source}\n{rendered_visual_output_source}\n"
-        f"{rendered_output_canvases_source}\n{execution_wires_source}\n"
-        f"{execution_plan_source}\n{execution_summary_source}\n"
-        f"{wire_actions_source}\n{wire_rendering_source}\n"
-        f"{render_output_source}\n{debug_copy_source}\n"
-        f"{execution_debug_api_source}\n{execution_debug_view_source}\n"
-        f"{text_box_utils_source}\n{text_box_rendering_source}\n"
-        f"{tooltip_utils_source}\n{visual_utils_source}\n"
-        f"{ui_settings_definitions_source}\n{ui_settings_utils_source}\n"
-        f"{user_ui_settings_controls_source}\n{ui_settings_panels_source}\n"
-        f"{ui_settings_persistence_source}\n{ui_settings_sync_source}\n"
-        f"{user_ui_settings_source}\n{server_source}"
-    )
+    node_graph_source = "\n".join(script_sources.values()) + f"\n{server_source}"
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
     tooltip_source = (PUBLIC / "tooltips.json").read_text(encoding="utf-8")
     worklet_source = (PUBLIC / "node-live-audio-worklet.js").read_text(encoding="utf-8")
@@ -3385,6 +3399,32 @@ def require_node_graph_mvp_contract() -> None:
         "nodeUiDevModuleNodeSizeValue",
         "module node size",
         "nodeUiDevModuleNodeSizeValue\" for=\"nodeUiDevModuleNodeSize\">57%",
+        "nodeUiDevSliderWidth",
+        "nodeUiDevSliderWidthValue",
+        "slider width",
+        "nodeUiDevSliderWidthValue\" for=\"nodeUiDevSliderWidth\">100%",
+        "nodeUiDevSliderHeight",
+        "nodeUiDevSliderHeightValue",
+        "slider height",
+        "nodeUiDevSliderHeightValue\" for=\"nodeUiDevSliderHeight\">28px",
+        "nodeUiDevSliderLabelColor",
+        "nodeUiDevSliderLabelColorValue",
+        "slider label color",
+        "nodeUiDevSliderValueColor",
+        "nodeUiDevSliderValueColorValue",
+        "slider value color",
+        "nodeUiDevSliderUnitColor",
+        "nodeUiDevSliderUnitColorValue",
+        "slider unit color",
+        "nodeUiDevSliderFillHoverColor",
+        "nodeUiDevSliderFillHoverColorValue",
+        "slider fill mouseover color",
+        "nodeUiDevSliderFillHoverAlpha",
+        "nodeUiDevSliderFillHoverAlphaValue",
+        "slider fill mouseover alpha",
+        "nodeUiDevChoiceDividerHeight",
+        "nodeUiDevChoiceDividerHeightValue",
+        "choice separator height",
         "nodeUiDevWirePatchPointSize",
         "nodeUiDevWirePatchPointSizeValue",
         "wire patch point size",
@@ -3469,6 +3509,7 @@ def require_node_graph_mvp_contract() -> None:
         "nodeRuntimeSketch",
         "nodeRuntimeSketchStatus",
         "nodeGraphZoomSurface",
+        "nodeModuleScopeCanvas",
         "nodeSelectionMarquee",
         "node-selection-marquee",
         "nodePalette",
@@ -3521,7 +3562,10 @@ def require_node_graph_mvp_contract() -> None:
         "Render Sample",
         "Seconds",
         "toggleDebugButton",
-        '<body class="debug-collapsed">',
+        '<body class="debug-collapsed node-boot-loading">',
+        '<script src="./public/boot-loading.js?v=boot-loading-fade-1780340400000"></script>',
+        "node-boot-loading-screen",
+        "Loading interface",
         'aria-pressed="false">Show Evidence</button>',
         "nodeParameterMetadataPopover",
         "metadataMinValue",
@@ -3530,6 +3574,7 @@ def require_node_graph_mvp_contract() -> None:
         "metadataMaxValue",
         "metadataDefaultValue",
         "metadataStepValue",
+        "metadataMaxDigitsValue",
         "metadataKindValue",
         "metadataUnitValue",
         "metadataChoicesValue",
@@ -3556,15 +3601,12 @@ def require_node_graph_mvp_contract() -> None:
         "<span>(Off)</span>",
         "nodeUiViewButton",
         "<span>UI</span><span>View</span>",
-        'data-tooltip-key="view.uiViewDevelopment"',
         "nodeMidiKeyboardToggleButton",
         "<span>Show/Hide</span><span>Keyboard</span>",
-        'data-tooltip-key="view.midiKeyboardDevelopment"',
-        'data-tooltip-key="view.patchSettings"',
         'data-tooltip-key="settings.makePlugin"',
         'data-tooltip-key="settings.makeModule"',
         'data-tooltip-key="settings.makeWidget"',
-        'data-tooltip-key="settings.shareCircuit"',
+        'data-tooltip-key="settings.sharePatchCommunity"',
         'data-tooltip-key="settings.requestFeature"',
         'data-tooltip-key="settings.reportBug"',
         "node-settings-script-action-group",
@@ -3576,11 +3618,11 @@ def require_node_graph_mvp_contract() -> None:
         "makePluginButton",
         "makeModuleButton",
         "makeWidgetButton",
-        "shareCircuitButton",
+        "sharePatchCommunityButton",
         "<span>Make Plugin</span><span>(in development)</span>",
         "<span>Make Module</span><span>(in development)</span>",
         "<span>Make Widget</span><span>(in development)</span>",
-        "<span>Share Circuit</span><span>(in development)</span>",
+        "<span>Share Patch</span><span>With Community</span>",
     ]:
         require(snippet in index_source, f"node graph shell missing {snippet}")
 
@@ -3656,6 +3698,7 @@ def require_node_graph_mvp_contract() -> None:
     fallback_waveform_source = metadata_defaults_source[fallback_waveform_index:fallback_waveform_end]
     for snippet in [
         "max: 4",
+        "maxDigits: 3",
         "mid: 2",
         "min: 0",
     ]:
@@ -3678,7 +3721,29 @@ def require_node_graph_mvp_contract() -> None:
         "const nodeGraphModuleDefinitions",
         "label: \"Volume\"",
         "key: \"volume\"",
-        "defaultValue: \"1\"",
+        "defaultValue: \"0.5\"",
+        "max: \"1\"",
+        "mid: \"0.5\"",
+        "gain: {",
+        "label: \"Gain Amplitude\"",
+        "bias: {",
+        "defaultValue: \"0\"",
+        "key: \"offset\"",
+        "max: \"1\"",
+        "min: \"-1\"",
+        "osc: {",
+        "defaultValue: \"0.5\"",
+        "max: \"1\"",
+        "mid: \"0.5\"",
+        "step: \"any\"",
+        "noise: {",
+        "defaultValue: \"0.5\"",
+        "key: \"level\"",
+        "label: \"Amplitude\"",
+        "max: \"1\"",
+        "mid: \"0.5\"",
+        "nonlinearSlider: false",
+        "step: \"any\"",
         "spiral: \"Spiral\"",
         "spiral: {",
         "textBox: \"Text Box\"",
@@ -3697,13 +3762,14 @@ def require_node_graph_mvp_contract() -> None:
         "const nodeGraphDefaultNodeConfigs",
         "params: nodeGraphDefaultParamsForType",
         "const nodeGraphZoomLimits",
+        "min: 0.1",
         "const fallbackNodeMetadataKindTemplates",
         "let nodeMetadataKindTemplates = Object.freeze(Object.fromEntries(",
         'amplitude: { def: 1, label: "Amplitude"',
         'label: "Decibels"',
         'decimal_bipolar: {',
         'frequency: { def: 440, label: "Frequency"',
-        "frequency: { def: 440, label: \"Frequency\", linearSmoothing: true, max: 20000, mid: 440, min: 0, step: 0",
+        "frequency: { def: 440, label: \"Frequency\", linearSmoothing: true, max: 20000, maxDigits: 5, mid: 440, min: 0, step: 0",
         'phase: {',
         'label: "Phase"',
         'wraparound: true',
@@ -3766,7 +3832,6 @@ def require_node_graph_mvp_contract() -> None:
         "function createNodeGraphWireInteractionController(deps)",
         "function beginWireDrag(event)",
         "if (event.button !== 0) {\n    return;",
-        "const nodeGraphDefaultPatchPointSizeRatio = 0.36",
         "function endpointHitboxClientRect(endpoint)",
         "const rect = element.getBoundingClientRect()",
         "const portDiameter =",
@@ -3785,8 +3850,33 @@ def require_node_graph_mvp_contract() -> None:
         "const connected = helpers.connectEndpoints(dragging.endpoint, targetEndpoint);",
         "from: helpers.endpointPoint(endpoint, port)",
         "function straightPath(from, to)",
+        "pathData: explicitPathData = null",
         "function createGradient(svg, id, from, to",
         "function drawPath(svg, options)",
+        "function nodeGraphTraceSingleMovePoint(from, points, point)",
+        "function nodeGraphTraceAppendSingleMovePoint(from, points, point)",
+        "function nodeGraphTraceFinalApproachPoint(from, points, point)",
+        "function nodeGraphTraceAppendFinalApproachPoint(from, points, point)",
+        "return { x: previous.x, y: target.y }",
+        "function nodeGraphTraceCleanFinalDestinationPoints(from, points, to)",
+        "nodeGraphTracePointBetween(target.y, start.y, end.y)",
+        "function nodeGraphSelfTraceModuleRect(nodeId)",
+        "function nodeGraphSelfTracePoints(wire, from, to)",
+        'node.querySelector(".node-header-title-row")?.getBoundingClientRect()',
+        "const distance = Math.max(nodeGraphGridWidth(), nodeGraphGridHeight()) * 0.75",
+        "const outX = from.x + fromDirection * distance",
+        "const aboveY = Math.max(0.5, rect.top - distance)",
+        "const belowTitleY = Math.max(to.y, rect.titleBottom + 0.5)",
+        "{ x: outX, y: from.y }",
+        "{ x: outX, y: aboveY }",
+        "{ x: destinationSideX, y: aboveY }",
+        "{ x: destinationSideX, y: belowTitleY }",
+        "function nodeGraphManualTracePathOptions(wire, from, to)",
+        "const previewPoint = nodeGraphTraceSingleMovePoint(trace.from, trace.points, trace.to)",
+        "nodeGraphTracePathFromPoints(from, tracePoints, to)",
+        "if (event.ctrlKey || event.metaKey)",
+        "function handleManualTracePointerDown(event)",
+        "wireType: nodeGraphWireTypes.trace",
         "function animateDestroyedWire(from, to)",
         "path.setAttribute(\"d\", helpers.straightPath(from, to))",
         "animateDestroyedWire(from, to)",
@@ -3794,6 +3884,8 @@ def require_node_graph_mvp_contract() -> None:
         "deps.burstZap(to)",
         "function connectNodeGraphPorts(",
         "function connectNodeGraphModulation(",
+        "function nodeGraphConnectionOptionsWithSelfTrace(sourceNode, destinationNode, options = {})",
+        "sourceNode !== destinationNode || options.wireType || options.tracePoints?.length",
         "function disconnectNodeGraphConnection(index, kind = \"signal\")",
         "selection.index > index",
         "setNodeGraphSelection({ ...selection, index: selection.index - 1 })",
@@ -3804,8 +3896,17 @@ def require_node_graph_mvp_contract() -> None:
         "function syncNodeGraphPatchParameterFromSlider(slider, options = {})",
         "if (options.deferUi)",
         "function syncNodeSliderReadout(slider)",
+        "function limit_decimals(",
         "function formatNodeSliderNumber(value, options = {})",
-        "Number(number.toFixed(6)).toString()",
+        "nodeSliderNumberFormatSmokeCases",
+        '{ value: 1456.6982, maxDigits: 5, expected: "1456.7" }',
+        '{ value: 220, maxDigits: 5, expected: "220.00" }',
+        '{ value: 1, maxDigits: 3, expected: "1.00" }',
+        '{ value: 12.34567, maxDigits: 5, expected: "12.346" }',
+        '{ value: 0.123456, maxDigits: 5, expected: "0.1235" }',
+        '{ value: -0.123456, maxDigits: 5, expected: "-0.1235" }',
+        '{ value: 0.123456, maxDigits: 5, showSign: true, expected: "+0.1235" }',
+        '{ value: 0.123456, maxDigits: 5, reserveSignSpace: true, expected: " 0.1235" }',
         "function parseNodeMetadataChoices(value)",
         "function formatNodeMetadataChoices(choices)",
         "function nodeSliderShouldDisplayChoices(slider)",
@@ -3821,7 +3922,9 @@ def require_node_graph_mvp_contract() -> None:
         "reserveSignSpace",
         "showPlusMinus",
         "divideChoicesVisibly",
-        "function normalizeNodeMetadataKindTemplate(template = {})",
+        "function normalizeNodeMetadataKindTemplate(template = {}, kind = \"decimal\")",
+        "function normalizeNodeGraphMetadataMaxDigits(value, kind = \"decimal\")",
+        "maxDigits",
         "Boolean(choices.length)",
         "linearSmoothing",
         "wraparound",
@@ -3882,6 +3985,8 @@ def require_node_graph_mvp_contract() -> None:
         "minHeightGu: 4",
         "minWidthGu: 4",
         "function applyNodeGraphWorkspaceView()",
+        "workspace.parentElement?.style.setProperty(\"--node-workspace-view-width\", widthCss)",
+        "workspace.parentElement?.style.removeProperty(\"--node-workspace-view-width\")",
         "const contentWidth = Math.max(0, rect.width - nodeGraphWorkspaceChromeSize(\"x\"))",
         "const contentHeight = Math.max(0, rect.height - nodeGraphWorkspaceChromeSize(\"y\"))",
         "function beginNodeGraphWorkspaceResize(event)",
@@ -3971,8 +4076,8 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphScriptReadyForGraphAction(\"redo\")",
         "if (mode !== \"script\")",
         "function recordNodeGraphHistory()",
-        'nodeGraphTooltipText(canUndo ? "history.undo" : "history.undoUnavailable")',
-        'nodeGraphTooltipText(canRedo ? "history.redo" : "history.redoUnavailable")',
+        'undo.removeAttribute("title")',
+        'redo.removeAttribute("title")',
         "function undoNodeGraphPatch()",
         "function redoNodeGraphPatch()",
         "function setNodeGraphViewMode(mode)",
@@ -4098,6 +4203,7 @@ def require_node_graph_mvp_contract() -> None:
         "ioPaddingYGu: 4 / 28",
         "ioRowGapGu: 1 / 28",
         "ioSectionMinHeightGu: 24 / 28",
+        "moduleScopeHeightGu: 2",
         "textBoxBodyMinGu: 4",
         "function nodeGraphModuleSliderBodyHeightGu(type)",
         "if (rows <= 0)",
@@ -4114,14 +4220,14 @@ def require_node_graph_mvp_contract() -> None:
         "node-action-button",
         "node-bypass-button",
         "function nodeGraphBypassGlyph(bypassed)",
-        "return \"🗲\"",
+        'return "\\u{1F5F2}"',
         "bypassButton.textContent = nodeGraphBypassGlyph(bypassed)",
         "node-execution-order-badge",
         "toggleNodeGraphModuleBypass",
         "adjustNodeGraphModuleWidthFromContext",
         "adjustNodeGraphTextBoxHeightFromContext",
         "adjustNodeGraphTextBoxTextSizeFromContext",
-        'nodeGraphApplyTooltip(actionButton, "module.actionsTitle")',
+        'nodeGraphApplyTooltip(actionButton, "module.actionsTitle", {}, { title: false })',
         "--node-grid-width-units",
         "--node-grid-height-units",
         "function registerExistingNodeGraphNodes()",
@@ -4177,6 +4283,7 @@ def require_node_graph_mvp_contract() -> None:
         "document.getElementById(\"metadataMinValue\").value = String(template.min)",
         "document.getElementById(\"metadataMidValue\").value = String(template.mid)",
         "document.getElementById(\"metadataMaxValue\").value = String(template.max)",
+        "document.getElementById(\"metadataMaxDigitsValue\").value =",
         "document.getElementById(\"metadataUnitValue\").value = template.unit",
         "document.getElementById(\"metadataChoicesValue\").value = formatNodeMetadataChoices(choices)",
         "function handleNodeMetadataKindChange()",
@@ -4227,6 +4334,7 @@ def require_node_graph_mvp_contract() -> None:
         "return 0.001",
         "return 0.01",
         "return 0.1",
+        "function reanchorNodeSliderDragAtPointer(drag, event)",
         "const resetToDefaultOnClick = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey",
         "const pointerMode = event.altKey ? \"absolute\" : \"relative\"",
         "pointerMode === \"absolute\"",
@@ -4252,7 +4360,9 @@ def require_node_graph_mvp_contract() -> None:
         "nodeSliderValueFromPointer(drag.slider, drag.surface, event.clientX)",
         "const verticalDelta = drag.startY - event.clientY",
         "const travelDelta = ((horizontalDelta + verticalDelta) / drag.width) * drag.fineScale",
-        "nodeSliderValueFromTravel(drag.slider, drag.startTravel + travelDelta)",
+        "const nextTravel = drag.startTravel + travelDelta",
+        "nodeSliderValueFromTravel(drag.slider, nextTravel)",
+        "reanchorNodeSliderDragAtPointer(drag, event)",
         'document.body.classList.add("node-slider-dragging")',
         'document.body.classList.remove("node-slider-dragging")',
         'document.addEventListener("mousemove", dragNodeSlider)',
@@ -4550,6 +4660,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphPolyBlep(phaseCycle, phaseIncrement)",
         "function nodeGraphPolyBlepSquare(phaseCycle, phaseIncrement)",
         "function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, phaseIncrement, waveform)",
+        "return 1 - phaseCycle * 2 + nodeGraphPolyBlep(phaseCycle, phaseIncrement)",
         "triangleStates",
         "function nextNodeGraphNoiseSample(runtime, nodeId)",
         'node?.type === "spiral"',
@@ -4743,7 +4854,7 @@ def require_node_graph_mvp_contract() -> None:
         "function sendNodeGraphLivePlan()",
         "function handleNodeGraphLiveWorkletMessage(event)",
         "function createNodeGraphLiveWorkletNode(context)",
-        'context.audioWorklet.addModule("./public/node-live-audio-worklet.js")',
+        'context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=edge-starting-saw-1780317600000")',
         "new AudioWorkletNode(",
         "numberOfInputs: 1",
         "function createNodeGraphLiveScriptProcessorNode(context, plan)",
@@ -4801,6 +4912,7 @@ def require_node_graph_mvp_contract() -> None:
         "moduleMode ? \"ACTIONS\"",
         "WIRE ACTIONS",
         "menu.setAttribute(\"aria-label\", wireMode ? \"Wire actions\"",
+        "nodeSceneWireTypeControl",
         "nodeSceneSelectedModule",
         "function nodeGraphWireFromSelection(selection = nodeGraphMvp.selected)",
         "function nodeGraphWireSelectionLabel(selection = nodeGraphMvp.selected)",
@@ -4825,6 +4937,46 @@ def require_node_graph_mvp_contract() -> None:
         "function deleteNodeGraphModuleFromContext()",
         "const targetNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId())",
         "function path(from, to)",
+        "function normalizeNodeGraphTracePoints(points)",
+        "Math.round((Number(value) || 0) - 0.5) + 0.5",
+        "function nodeGraphTraceWaypointAttribute(points)",
+        "function nodeGraphTracePushPoint(points, point)",
+        "function nodeGraphTraceSingleMovePoint(from, points, point)",
+        "function nodeGraphTraceAppendSingleMovePoint(from, points, point)",
+        "function nodeGraphTraceFinalApproachPoint(from, points, point)",
+        "function nodeGraphTraceAppendFinalApproachPoint(from, points, point)",
+        "return { x: previous.x, y: target.y }",
+        "function nodeGraphTraceCleanFinalDestinationPoints(from, points, to)",
+        "nodeGraphTracePointBetween(target.y, start.y, end.y)",
+        "function nodeGraphTraceOrthogonalPoints(from, points, to)",
+        "function nodeGraphTracePathFromPoints(from, points, to)",
+        "manualTrace: null",
+        "function beginManualTrace(event, port)",
+        "function cancelManualTrace()",
+        "wireType: nodeGraphWireTypes.trace",
+        "const tracePoints = normalizeNodeGraphTracePoints(trace.points)",
+        "nodeGraphTraceAppendFinalApproachPoint(trace.from, tracePoints, endpointPoint)",
+        "const cleanedTracePoints = nodeGraphTraceCleanFinalDestinationPoints(",
+        "tracePoints: cleanedTracePoints",
+        "nodeGraphTraceAppendSingleMovePoint(trace.from, trace.points, deps.clientPoint(event))",
+        "trace.to = nodeGraphTraceLastPoint(trace.from, trace.points)",
+        "replaceDuplicate: true",
+        "path.dataset.tracePoints = nodeGraphTraceWaypointAttribute(trace.points)",
+        "function nodeGraphSelfTraceModuleRect(nodeId)",
+        "function nodeGraphSelfTracePoints(wire, from, to)",
+        'node.querySelector(".node-header-title-row")?.getBoundingClientRect()',
+        "const distance = Math.max(nodeGraphGridWidth(), nodeGraphGridHeight()) * 0.75",
+        "const outX = from.x + fromDirection * distance",
+        "const aboveY = Math.max(0.5, rect.top - distance)",
+        "const belowTitleY = Math.max(to.y, rect.titleBottom + 0.5)",
+        "{ x: outX, y: from.y }",
+        "{ x: outX, y: aboveY }",
+        "{ x: destinationSideX, y: aboveY }",
+        "{ x: destinationSideX, y: belowTitleY }",
+        "manualTracePoints.length",
+        "pathData: nodeGraphTracePathFromPoints(from, tracePoints, to)",
+        "tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints)",
+        "tracePoints: normalizeNodeGraphTracePoints(modulation.tracePoints)",
         "function createGradient(svg, id, from, to, stopClass = \"node-wire-gradient-stop\", colors = null)",
         "linearGradient",
         "gradientUnits",
@@ -4832,14 +4984,20 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphPortWireColor(node, port, io)",
         "wireColors: [",
         "const nodeSliderHandleHalfWidthPx = 8",
+        "const nodeSliderHandleLeftWallClearancePx = 1",
+        "const nodeSliderHandleRightWallClearancePx = 3",
+        "function nodeSliderVisualLane(surface, slider)",
+        "function nodeSliderHandleRangeFromTravel(slider, surface, travel)",
+        "function nodeSliderTravelFromPointer(slider, surface, clientX)",
         "function nodeGraphParameterGhostSignal(node, key)",
         "const targetSlider = nodeGraphSliderForParameter(node, key)",
         "const sourceSlider = nodeGraphSliderForParameter(modulation.sourceNode, modulation.sourcePort)",
         "function syncNodeGraphGhostSliders()",
         "syncNodeGraphGhostSliders();",
         "has-ghost-slider",
-        "`calc(${position}% - ${nodeSliderHandleHalfWidthPx}px)`",
-        "`calc(${position}% + ${nodeSliderHandleHalfWidthPx}px)`",
+        "nodeSliderHandleRangeFromTravel(",
+        '`${range.start}px`',
+        '`${range.end}px`',
         "data-connection-row-index",
         "event.stopPropagation();",
         "function deleteSelectedNodeGraphItem()",
@@ -4882,18 +5040,25 @@ def require_node_graph_mvp_contract() -> None:
         "from: helpers.endpointPoint(endpoint, port)",
         "function endpointFromElement(element)",
         "parameterOutput: element.classList.contains(\"parameter-output\")",
-        "function connectEndpoints(a, b)",
+        "function connectEndpoints(a, b, options = {})",
+        "function nodeGraphConnectionOptionsWithSelfTrace(sourceNode, destinationNode, options = {})",
+        "sourceNode !== destinationNode || options.wireType || options.tracePoints?.length",
+        "options.replaceDuplicate",
+        "status: \"wire traced\"",
+        "status: \"modulation traced\"",
         "function endpointsAreDuplicate(a, b)",
         "function endpointsShouldBurst(a, b)",
+        "function endpointsShareNode(a, b)",
+        "if (endpointsShareNode(a, b))",
         "endpointsAreDuplicate(a, b)",
         "return patchPointTargetFromPoint(clientX, clientY)",
         "const target = helpers.dropTargetFromPoint(event.clientX, event.clientY)",
-        "return deps.connectModulation(a.node, a.port, b.node, b.param)",
-        "return deps.connectModulation(b.node, b.port, a.node, a.param)",
+        "return deps.connectModulation(a.node, a.port, b.node, b.param, options)",
+        "return deps.connectModulation(b.node, b.port, a.node, a.param, reversedOptions())",
         'a.io === "output" && b.io === "output"',
         'a.io === "input" && b.io === "input"',
         "function burstNodeGraphZap(point)",
-        "deps.connectPorts(b.node, b.port, a.node, a.port)",
+        "deps.connectPorts(b.node, b.port, a.node, a.port, reversedOptions())",
         "particle.textContent = \"\\u2301\"",
         "--zap-color",
         "--zap-glow",
@@ -4905,6 +5070,10 @@ def require_node_graph_mvp_contract() -> None:
         'addEventListener("click", () => zoomNodeGraphBy(nodeGraphZoomLimits.step))',
         "[data-context-module]",
         "const nodeGraphTooltipSourceUrl",
+        "const sandboxNativeTitleStorageAttribute = \"data-native-title-disabled\"",
+        "function installSandboxNativeTooltipBan()",
+        "setAttributeWithoutNativeTitle",
+        "sandboxStripNativeTitleAttributes()",
         "async function loadNodeGraphTooltips()",
         "function nodeGraphTooltipText(key, context = {})",
         "function nodeGraphApplyTooltip(element, key, context = {}, options = {})",
@@ -4921,7 +5090,8 @@ def require_node_graph_mvp_contract() -> None:
         'nodeGraphTooltipText("slider.numeric")',
         'nodeGraphTooltipText("slider.choices")',
         'nodeGraphTooltipText("module.actions")',
-        'nodeGraphTooltipText("view.switchView")',
+        'nodeGraphTooltipText("view.snapGrid")',
+        'nodeGraphTooltipText("settings.uiSettingsOpen")',
         "function setNodeInteractionHelp(text = \"\")",
         "const composedText = composeNodeInteractionHelpText(text)",
         "if (help.textContent === composedText)",
@@ -4946,7 +5116,33 @@ def require_node_graph_mvp_contract() -> None:
         "const nodeUiDevDefaultSettingsUrl = \"./public/presets/useruisettings.json\"",
         "const nodeUiDevDefaultSettingsStorageKey = \"soemdsp-sandbox.userUiSettings.startup.v5\"",
         "soemdsp-sandbox-user-ui-settings",
-        "settings_format.get(\"version\") not in (1, 2)",
+        "settings_format.get(\"version\") not in (1, 2, 3)",
+        "sliderLayout",
+        "text-inside",
+        "label-value-slider",
+        "value-unit-left",
+        "value-unit-right",
+        "label-outside",
+        "label-outside-no-unit",
+        "value-outside",
+        "unit-only",
+        "value-focus",
+        "Text Inside",
+        "Label Outside",
+        "Label Outside No Unit",
+        "Unit Only",
+        "Value Focus",
+        "sliderAmountVisible",
+        "sliderPositionVisible",
+        "nodeSliderAmountToggleButton",
+        "nodeSliderPositionToggleButton",
+        "function renderNodeGraphSliderVisibilityToggles()",
+        "function toggleNodeGraphSliderAmount()",
+        "function toggleNodeGraphSliderPosition()",
+        "function normalizeNodeGraphSliderLayout(value)",
+        "function cycleNodeGraphSliderLayout()",
+        "function createNodeUserUiSettingsSliderLayoutControl()",
+        "nodeUserSliderLayoutCycleButton",
         "ui settings view must be an object",
         "function serializeNodeUiDevSettings()",
         "function loadNodeUiDevSettingsFromScript(text)",
@@ -5008,9 +5204,29 @@ def require_node_graph_mvp_contract() -> None:
         'getElementById("nodeUiDevModuleIoSectionHeight")',
         "--node-io-section-min-height",
         'getElementById("nodeUiDevModuleNodeSize")',
+        'getElementById("nodeUiDevSliderWidth")',
+        'getElementById("nodeUiDevSliderHeight")',
+        'getElementById("nodeUiDevSliderLabelColor")',
+        'getElementById("nodeUiDevSliderValueColor")',
+        'getElementById("nodeUiDevSliderUnitColor")',
+        'getElementById("nodeUiDevSliderFillHoverColor")',
+        'getElementById("nodeUiDevSliderFillHoverAlpha")',
         "--node-port-diameter",
+        "--node-slider-width-ratio",
+        "--node-slider-readout-height",
+        "--node-slider-label-color",
+        "--node-slider-value-color",
+        "--node-slider-unit-color",
+        "--node-slider-fill-hover-rgb",
+        "--node-slider-fill-hover-alpha",
         'getElementById("nodeUiDevWirePatchPointSize")',
         "--node-wire-patch-point-size",
+        'getElementById("nodeUiDevTraceWireThickness")',
+        'getElementById("nodeUiDevChoiceDividerHeight")',
+        "--node-trace-wire-thickness",
+        "--node-choice-divider-height",
+        "function nodeSliderChoiceDividerHeight(readout, layerHeight)",
+        'getElementById("nodeUiDevChoiceSlideDebugBoxes")',
         'getElementById("nodeUiDevCloseIconSize")',
         "--panel-close-glyph-size-ratio",
         'getElementById("copyNodeUiDevSettingsButton").addEventListener("click", copyNodeUiDevSettingsToClipboard)',
@@ -5072,10 +5288,56 @@ def require_node_graph_mvp_contract() -> None:
         'node?.type === "bias"',
         'value = mixInput(nodeId) + readNodeGraphLiveEffectiveParam(',
         "disconnect-wire-button",
+        "const nodeGraphModuleScopeState",
+        "function nodeGraphModuleScopeCanvas()",
+        "function setNodeGraphModuleScopesEnabled(enabled)",
+        "function registerNodeGraphModuleScopeSlot(moduleElement, options = {})",
+        "function nodeGraphModuleScopeSlots()",
+        "function beginNodeGraphRenderedScopeCapture(options = {})",
+        "function captureNodeGraphRenderedScopeFrame(",
+        "function finishNodeGraphRenderedScopeCapture(capture)",
+        "function drawNodeGraphModuleScopes()",
+        "function scheduleNodeGraphModuleScopeDraw()",
+        "function createNodeGraphModuleScopeWebGlRenderer(canvas)",
+        "function drawNodeGraphModuleScopeBufferWebGl(renderer, rect, buffer, pixelRatio)",
+        "gl.enable(gl.SCISSOR_TEST)",
+        "gl.drawArrays(gl.LINE_STRIP",
+        "function normalizeNodeGraphPatchMonitors(monitors = [], patch = nodeGraphMvp?.patch)",
+        "function toggleNodeGraphMonitorFromPortEvent(event)",
+        "function syncNodeGraphMonitorIndicators(patch = nodeGraphMvp?.patch)",
+        "function syncNodeGraphModuleScopeCanvas()",
+        "monitors: normalizeNodeGraphPatchMonitors(patch.monitors, patch)",
+        "port.addEventListener(\"pointerdown\", toggleNodeGraphMonitorFromPortEvent, true)",
+        "function createNodeGraphModuleScopeSection(node, type)",
+        "className = \"node-module-scope-window\"",
+        "registerNodeGraphModuleScopeSlot(article, { nodeId: node, type, scopeElement: scopeSection })",
+        "const scopeCapture = beginNodeGraphRenderedScopeCapture({",
+        "captureNodeGraphRenderedScopeFrame(",
+        "finishNodeGraphRenderedScopeCapture(scopeCapture)",
+        "clearNodeGraphModuleScopeBuffers();",
         "renderedNodeGraphWavBlob(nodeGraphMvp.rendered)",
         "initNodeGraphMvp();",
     ]:
         require(snippet in node_graph_source, f"node graph source missing {snippet}")
+
+    require(
+        "monitored-port" in style_source
+        and "--node-monitor-color" in style_source
+        and "data-monitor-state" in node_graph_source,
+        "monitored ports should have a visible indicator contract",
+    )
+
+    require(
+        'data-wire-type="trace"' in index_source
+        and 'data-wire-type="wire"' not in index_source,
+        "wire actions should expose Trace but not unfinished Wire",
+    )
+    require(
+        'trace: "trace",' in wire_actions_source
+        and 'wire: "wire"' not in wire_actions_source
+        and '"actions.wireType.wire"' not in node_graph_source,
+        "production wire types should be limited to Cable and Trace",
+    )
 
     choice_divider_helper_source = slider_readout_source[
         slider_readout_source.index("function nodeSliderChoiceDividerBackground"):
@@ -5090,6 +5352,62 @@ def require_node_graph_mvp_contract() -> None:
         and "index === activeChoiceIndex" in slider_readout_source
         and "syncNodeSliderChoiceDebugSquares(readout, choices, true, Number(slider.value))" in slider_readout_source,
         "choice slider should draw only the selected choice cell",
+    )
+    require(
+        "const debugCellStrokes = cellRects.map((cell, index) => {" in slider_readout_source
+        and "node-choice-debug-cell-debug" in slider_readout_source,
+        "choice slider debug mode should keep red cell boxes for every choice",
+    )
+    require(
+        "const debugWalls = cellWallXs.map((wallX, index) => {" in slider_readout_source
+        and "node-choice-debug-wall" in slider_readout_source
+        and "...debugWalls" in slider_readout_source,
+        "choice slider debug mode should draw the source wall positions",
+    )
+    require(
+        "const engineSliderWallXs = [" in slider_readout_source
+        and "node-choice-debug-slider-wall" in slider_readout_source
+        and "...debugSliderWalls" in slider_readout_source,
+        "choice slider debug mode should draw explicit slider wall positions",
+    )
+    require(
+        'marker.setAttribute("class", "node-choice-debug-square node-choice-debug-cell node-choice-debug-cell-stroke")' in slider_readout_source
+        and 'marker.setAttribute("x", cell.left.toFixed(3))' in slider_readout_source
+        and 'marker.setAttribute("height", cell.height.toFixed(3))' in slider_readout_source
+        and "zeroBorderOutset" not in slider_readout_source
+        and "trailingStrokeOutset" not in slider_readout_source,
+        "choice slider selected stroke should use the same cell rect as debug boxes",
+    )
+    require(
+        "const segmentRects = nodeSliderChoiceCellRects(layerRect.width, layerRect.height, choices)" in slider_readout_source
+        and "const cellWallXs = [" in slider_readout_source
+        and "const cellRects = nodeSliderChoiceCellRectsFromWalls(" in slider_readout_source
+        and "layerRect.top" in slider_readout_source
+        and "...dividerLines.map((divider) => divider.x)" in slider_readout_source,
+        "choice slider cells should derive from the painted divider walls",
+    )
+    require(
+        "const strokeInset = 0.5;" in slider_readout_source
+        and "const trailingPixelCorrection = boundedEmptyPixelBorder > 0 ? 1 : 0;" in slider_readout_source
+        and "nodeSliderSnapStrokeCoordinate(boundedEmptyPixelBorder + strokeInset, viewportTop)" in slider_readout_source
+        and "nodeSliderSnapStrokeCoordinate(leftWall + boundedEmptyPixelBorder + strokeInset, viewportLeft)" in slider_readout_source,
+        "choice slider cell rect should account for SVG stroke painting outside the rect",
+    )
+    require(
+        "nodeUiDevChoiceSlideEdgeBrightness" not in node_graph_source
+        and "nodeUiDevChoiceSlideGlowLevel" not in node_graph_source
+        and "nodeUiDevChoiceSlideColor" not in node_graph_source
+        and "nodeUiDevChoiceSlideEdgeBrightness" not in index_source
+        and "nodeUiDevChoiceSlideGlowLevel" not in index_source
+        and "nodeUiDevChoiceSlideColor" not in index_source
+        and "--node-choice-slide-color" not in style_source
+        and "--node-choice-slide-edge-brightness" not in style_source
+        and "--node-slider-fill-rgb: 127 199 217;" in style_source
+        and "--node-slider-fill-alpha: 0.14;" in style_source
+        and "background: rgb(var(--node-slider-fill-rgb) / var(--node-slider-fill-alpha));" in style_source
+        and "fill: rgb(var(--node-slider-fill-rgb) / var(--node-slider-fill-alpha));" in style_source
+        and ".node-slider-readout.choices-divided.value-hovering .node-choice-debug-cell-fill" in style_source,
+        "choice slider slide element should inherit normal slider styling controls",
     )
     require(
         "((index + 1) / choices.length) * 100" in choice_divider_helper_source,
@@ -5183,6 +5501,14 @@ def require_node_graph_mvp_contract() -> None:
         require(snippet not in app_source, f"node graph obsolete interaction code should be absent: {snippet}")
 
     for snippet in [
+        "element.title = text",
+        "dataset.tooltipTitle",
+        "tooltipTitle",
+        "title !== false",
+    ]:
+        require(snippet not in tooltip_utils_source, f"native hover tooltip path should be absent: {snippet}")
+
+    for snippet in [
         "nodeGraphFindWirePickup",
         "dropPickedWire",
         "function findPickup(",
@@ -5223,8 +5549,63 @@ def require_node_graph_mvp_contract() -> None:
         "parameter readout border should disappear when not hovered",
     )
     require(
-        ".node-slider-readout:hover {\n  border-color: rgba(127, 199, 217, 0.34);" in style_source,
-        "parameter readout border should reappear on hover",
+        ".node-slider-readout:hover,\n.node-slider-readout:focus,\n.node-slider-readout:focus-visible,\n.node-slider-readout:active {\n  border-color: transparent;\n  box-shadow: none;\n  outline: none;" in style_source,
+        "parameter readout button states should not inherit global button hover strokes",
+    )
+    require(
+        ".node-slider-readout.value-hovering::before {\n  border-color: transparent;\n  box-shadow: none;\n  outline: none;" in style_source
+        and ".node-slider-readout.value-dragging::before {\n  border-color: transparent;\n  box-shadow: none;\n  outline: none;" in style_source,
+        "slider hover/drag fill should not change stroke highlight",
+    )
+    require(
+        ".node-slider-readout::before {\n  left: var(--value-start, calc(0% - 4px));\n  right: calc(100% - var(--value-end, calc(0% + 4px)));\n  border: 1px solid transparent;" in style_source,
+        "slider fill slide element should not draw a stroke highlight",
+    )
+    require(
+        ".node-slider-readout.value-hovering,\n.node-slider-readout.value-dragging {\n  border-color: transparent;\n  box-shadow: none;\n  outline: none;" in style_source,
+        "slider hovering/dragging should not change readout stroke highlight",
+    )
+    require(
+        "--node-slider-fill-hover-rgb" in style_source
+        and "--node-slider-fill-hover-alpha" in style_source,
+        "slider hover fill color/alpha variables missing",
+    )
+    require(
+        "#nodeSnapGridViewButton.active {\n  border-color: transparent;" in style_source
+        and "box-shadow: none;\n}" in style_source[
+            style_source.index("#nodeSnapGridViewButton.active {"):
+            style_source.index(".node-under-construction-view-button {")
+        ],
+        "active snap-to-grid button should not draw a stroke highlight",
+    )
+    require(
+        'document.body.classList.remove("node-boot-loading")' in boot_loading_source
+        and 'document.body.classList.add("node-boot-fading")' in boot_loading_source
+        and 'document.body.classList.remove("node-boot-fading")' in boot_loading_source
+        and 'document.body.classList.add("node-boot-ready")' in boot_loading_source
+        and "}, 333);" in boot_loading_source
+        and "}, 1000);" in boot_loading_source,
+        "boot loading veil should fade for one third of a second after the one-second hold",
+    )
+    require(
+        "--node-module-primary-text-color: rgba(243, 241, 236, 0.76);" in style_source
+        and ".node-text-box-input" in style_source
+        and ".node-header-title" in style_source
+        and "color: var(--node-module-primary-text-color);" in style_source[
+            style_source.index(".node-text-box-input {"):
+            style_source.index(".node-text-box-input::-webkit-scrollbar")
+        ]
+        and "color: var(--node-module-primary-text-color);" in style_source[
+            style_source.index(".node-header-title {"):
+            style_source.index(".dsp-node-io-section")
+        ],
+        "text box text and module title should share the halfway brightness token",
+    )
+    require(
+        "color-mix(in srgb, var(--node-slider-unit-color, #7fc7d9) 58%" in style_source
+        and ".node-slider-readout:hover .node-slider-readout-unit" in style_source
+        and ".node-slider-readout.value-dragging .node-slider-readout-unit" in style_source,
+        "slider unit readout should be dim at rest and brighten on interaction",
     )
 
     for snippet in [
@@ -5236,6 +5617,14 @@ def require_node_graph_mvp_contract() -> None:
 
     for snippet in [
         ".node-graph-workspace",
+        "body.node-boot-loading",
+        "body.node-boot-fading",
+        "body.node-boot-loading .shell",
+        ".node-boot-loading-screen",
+        "transition: opacity 333ms ease",
+        "body.node-boot-loading .node-boot-loading-screen",
+        "body.node-boot-fading .node-boot-loading-screen",
+        "body.node-boot-ready .node-boot-loading-screen",
         "--node-toolbar-button-bg-alpha: 0.62",
         "--node-min-grid-brightness-alpha: 0.045",
         "background-color: rgba(32, 37, 42, var(--node-toolbar-button-bg-alpha))",
@@ -5274,6 +5663,12 @@ def require_node_graph_mvp_contract() -> None:
         "--node-grid-heatmap",
         "--node-grid-heatmap-mask",
         ".node-graph-workspace.grid-visible",
+        ".node-module-scope-canvas",
+        ".node-graph-workspace.module-scopes-enabled .node-module-scope-canvas",
+        "--node-module-scope-height: calc(var(--node-grid-height) * 2)",
+        ".node-module-scope-window",
+        ".node-module-scope-window-surface",
+        "z-index: 2",
         "background-image:",
         "var(--node-min-grid-brightness-alpha)",
         "rgb(var(--node-grid-color-rgb) / var(--node-min-grid-brightness-alpha))",
@@ -5284,6 +5679,8 @@ def require_node_graph_mvp_contract() -> None:
         "cursor: default",
         ".node-help-stack",
         "display: flex",
+        "width: var(--node-workspace-view-width, calc(100% - 6px))",
+        "max-width: none",
         "margin: 3px auto 0",
         ".node-help-stack.tips-hidden .node-interaction-help",
         ".node-interaction-help",
@@ -5299,6 +5696,17 @@ def require_node_graph_mvp_contract() -> None:
         "--node-grid-height-units",
         ".node-settings-view",
         ".node-settings-actions",
+        "--node-front-button-hover-border",
+        "--node-front-button-hover-bg",
+        "--node-front-construction-hover-bg",
+        ".node-view-toolbar button:not(:disabled):not(.active):hover",
+        ".node-patch-community-control",
+        ".node-graph-controls button:not(.node-debug-hidden-control)",
+        ".node-settings-actions button:not(.node-settings-disabled-action)",
+        ".node-under-construction-view-button[aria-disabled=\"true\"]:hover",
+        ".node-settings-feature-action:hover",
+        "background: var(--node-front-button-hover-bg)",
+        "background: var(--node-front-construction-hover-bg)",
         "minmax(0, 4fr)",
         ".node-settings-script-action-group",
         "grid-template-columns: repeat(3, minmax(0, 1fr))",
@@ -5332,6 +5740,7 @@ def require_node_graph_mvp_contract() -> None:
         "cursor: nwse-resize",
         ".node-wiring-panel .audio-panel",
         ".node-patch-header-fields",
+        ".node-patch-community-control",
         ".node-patch-header-field",
         ".node-patch-header-field.name",
         ".node-patch-header-field.tags",
@@ -5355,7 +5764,7 @@ def require_node_graph_mvp_contract() -> None:
         "min-width: 0;",
         "grid-template-rows: var(--node-header-title-row-height) minmax(0, 1fr)",
         "border-radius: 5px",
-        "grid-template-rows: var(--node-header-height) auto minmax(0, 1fr)",
+        "grid-template-rows: var(--node-header-height) var(--node-module-scope-height) auto minmax(0, 1fr)",
         ".dsp-node-body",
         "grid-auto-rows: minmax(var(--node-body-row-height), 1fr)",
         "gap: var(--node-body-row-gap)",
@@ -5416,7 +5825,15 @@ def require_node_graph_mvp_contract() -> None:
         ".node-wiring-panel.settings-header-layout-debug .scene-context-alias-control",
         ".node-parameter-row",
         "grid-template-columns: var(--node-port-column-width) minmax(0, 1fr) var(--node-port-column-width)",
-        "grid-template-rows: minmax(0, 1fr)",
+        "grid-template-rows: var(--node-slider-readout-height)",
+        "column-gap: 0",
+        "height: max(",
+        "calc(var(--node-slider-readout-height) + (var(--node-slider-row-padding-block) * 2))",
+        "height: var(--node-slider-readout-height)",
+        "/* TODO: temporary hardcoded value */",
+        "transform: translateY(2px)",
+        "align-self: stretch",
+        "align-items: center",
         "padding: var(--node-slider-row-padding-block) 0",
         ".node-slider-readout-label",
         "font-family: \"Cascadia Mono\", \"Cascadia Code\", Consolas, \"Courier New\", monospace",
@@ -5426,12 +5843,14 @@ def require_node_graph_mvp_contract() -> None:
         ".dsp-node.bypassed",
         ".dsp-node.removed",
         ".node-drag-handle",
-        ".node-drag-handle:hover",
         ".node-drag-handle.dragging",
+        ".node-drag-handle:hover",
         ".node-action-button",
         ".node-action-button:hover",
+        "color: color-mix(in srgb, var(--accent) 58%",
         ".node-bypass-button",
         "container-type: size",
+        'content: "\\1F5F2"',
         "font-size: calc(var(--node-bypass-icon-size-ratio) * 100cqh)",
         ".node-bypass-button:hover",
         "border-color: transparent",
@@ -5439,6 +5858,8 @@ def require_node_graph_mvp_contract() -> None:
         ".node-bypass-button[aria-pressed=\"true\"]:hover",
         "rgba(122, 28, 28, 0.72)",
         ".node-execution-order-badge",
+        ".node-execution-order-badge:hover",
+        "color: color-mix(in srgb, var(--good) 62%",
         "width: 100%",
         "height: 100%",
         "min-height: 0",
@@ -5513,8 +5934,33 @@ def require_node_graph_mvp_contract() -> None:
         "body.debug-collapsed .status-strip",
         ".node-slider-readout",
         ".node-slider-readout.choices-divided",
+        ".node-slider-amount-fill",
+        ".node-graph-workspace.show-slider-amount .node-slider-amount-fill",
+        ".node-graph-workspace.hide-slider-position .node-slider-readout::before",
+        '[data-slider-layout="label-value-slider"] .node-slider-readout-label',
+        '[data-slider-layout="label-value-slider"] .node-slider-readout-value',
+        '[data-slider-layout="label-value-slider"] .node-slider-readout-unit',
+        '[data-slider-layout="value-unit-left"] .node-slider-readout-value',
+        '[data-slider-layout="value-unit-left"] .node-slider-readout-unit',
+        '[data-slider-layout="value-unit-right"] .node-slider-readout-value',
+        '[data-slider-layout="value-unit-right"] .node-slider-readout-unit',
+        '[data-slider-layout="label-outside-no-unit"] .node-slider-readout-label',
+        '[data-slider-layout="label-outside-no-unit"] .node-slider-readout-value',
+        '[data-slider-layout="label-outside-no-unit"] .node-slider-readout-unit',
+        '[data-slider-layout="value-outside"] .node-slider-readout-label',
+        '[data-slider-layout="value-outside"] .node-slider-readout-value',
+        '[data-slider-layout="value-outside"] .node-slider-readout-unit',
+        '[data-slider-layout="value-focus"] .node-slider-readout-label',
+        '[data-slider-layout="value-focus"] .node-slider-readout-value',
+        '[data-slider-layout="value-focus"] .node-slider-readout-unit',
         ".node-choice-debug-layer",
         ".node-choice-debug-square",
+        ".node-choice-debug-cell-debug",
+        ".node-choice-debug-wall",
+        ".node-choice-debug-slider-wall",
+        ".node-wiring-panel.choice-slider-debug .node-choice-debug-cell-debug",
+        ".node-wiring-panel.choice-slider-debug .node-choice-debug-wall",
+        ".node-wiring-panel.choice-slider-debug .node-choice-debug-slider-wall",
         "height: 100%",
         "padding: var(--node-slider-padding-block) var(--node-slider-padding-inline)",
         "var(--value-start",
@@ -5623,6 +6069,7 @@ def require_node_graph_mvp_contract() -> None:
         "polyBlep(phaseCycle, phaseIncrement)",
         "polyBlepSquare(phaseCycle, phaseIncrement)",
         "oscillatorSample(nodeId, phase, phaseIncrement, waveform)",
+        "return 1 - phaseCycle * 2 + this.polyBlep(phaseCycle, phaseIncrement)",
         "readRuntimeOutput(frameValues, nodeId, port = \"Out\")",
         "output[port] ?? output.Out",
         "readRuntimePortOutput(frameValues, nodeId, port = \"Out\"",
@@ -5635,7 +6082,7 @@ def require_node_graph_mvp_contract() -> None:
         "spiralRotate(inX, inY, inZ, rotX, rotY)",
         "spiralNextPhasor(state, key, frequency, offset, sampleRate, bipolar = false)",
         'node?.type === "audioInput"',
-        'this.readEffectiveParameter(node, "level", 0.35',
+        'this.readEffectiveParameter(node, "level", 0.5',
         'node?.type === "spiral"',
         "readEffectiveParameter(node, key, fallback, frame, frames, frameValues)",
         "evaluateFrame(frame, frames, inputs = [])",
@@ -5737,6 +6184,7 @@ def require_node_metadata_kinds_transport(base_url: str) -> None:
     require(amplitude.get("label") == "Amplitude", "amplitude metadata label mismatch")
     require(amplitude.get("unit") == "amp", "amplitude metadata unit mismatch")
     require(amplitude.get("linearSmoothing") is True, "amplitude linearSmoothing mismatch")
+    require(amplitude.get("maxDigits") == 3, "amplitude maxDigits mismatch")
     require(decibels.get("label") == "Decibels", "decibels metadata label mismatch")
     require(decibels.get("unit") == "dB", "decibels metadata unit mismatch")
     require(decimal_bipolar.get("unit") == "", "decimal_bipolar metadata unit mismatch")
@@ -5745,6 +6193,7 @@ def require_node_metadata_kinds_transport(base_url: str) -> None:
     require(frequency.get("unit") == "Hz", "frequency metadata unit mismatch")
     require(frequency.get("linearSmoothing") is True, "frequency linearSmoothing mismatch")
     require(frequency.get("step") == 0, "frequency metadata step should default to any")
+    require(frequency.get("maxDigits") == 5, "frequency maxDigits mismatch")
     require(phase.get("unit") == "cycle", "phase metadata unit mismatch")
     require(phase.get("wraparound") is True, "phase wraparound mismatch")
     require(phase.get("linearSmoothing") is True, "phase linearSmoothing mismatch")
