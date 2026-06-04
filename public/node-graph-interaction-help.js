@@ -3,7 +3,7 @@ function nodeInteractionHelpText(target) {
     return "";
   }
   const helpTarget = target.closest(
-    "[data-interaction-help], button, input, textarea, select, .node-slider-readout, .node-port, .node-param-port, .node-wire-hit-path, .node-wire-path, .node-execution-order-badge, .node-execution-order li[data-node], .dsp-node, #nodeGraphZoomSurface, #nodeGraphWorkspace",
+    "[data-interaction-help], [data-tooltip-key], button, input, textarea, select, .node-slider-readout, .node-port, .node-io-row, .node-param-port, .node-wire-hit-path, .node-wire-path, .node-execution-order-badge, .node-execution-order li[data-node], .dsp-node, #nodeGraphZoomSurface, #nodeGraphWorkspace",
   );
   if (!helpTarget) {
     return "";
@@ -83,6 +83,12 @@ function nodeInteractionMouseHint(element) {
       : nodeGraphTooltipText("wire.input");
     return alias ? `Alias: ${alias}\n${action}` : action;
   }
+  if (element.classList.contains("node-io-row")) {
+    const action = element.dataset.io === "output"
+      ? nodeGraphTooltipText("wire.output")
+      : nodeGraphTooltipText("wire.input");
+    return alias ? `Alias: ${alias}\n${action}` : action;
+  }
   if (element.classList.contains("node-param-port")) {
     const action = nodeGraphTooltipText("wire.modulationInput");
     return alias ? `Alias: ${alias}\n${action}` : action;
@@ -113,10 +119,10 @@ function nodeInteractionMouseHint(element) {
     return nodeGraphTooltipText("view.switchView");
   }
   if (element.id === "nodeUiViewButton") {
-    return nodeGraphTooltipText("view.uiViewDevelopment");
+    return nodeGraphTooltipText("view.switchView");
   }
   if (element.id === "nodeMidiKeyboardToggleButton") {
-    return nodeGraphTooltipText("view.midiKeyboardDevelopment");
+    return nodeGraphMvp.midiKeyboardVisible ? "Hide the mouse-playable keyboard panel." : "Show the mouse-playable keyboard panel.";
   }
   if (element.id === "nodeUndoButton" || element.id === "nodeRedoButton") {
     return nodeGraphTooltipText("history.help");

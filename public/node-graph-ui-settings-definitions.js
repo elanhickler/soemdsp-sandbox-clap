@@ -33,6 +33,8 @@ const nodeUiDevFontFamilyOptions = Object.freeze([
 
 const nodeUiDevSettingControls = Object.freeze([
   { defaultValue: true, exposeDefault: true, id: "nodeUiDevMouseLightEnabled", key: "mouseLightEnabled", type: "boolean" },
+  { defaultValue: false, exposeDefault: true, id: "nodeUiDevModularShaderEnabled", key: "modularShaderEnabled", type: "boolean" },
+  { defaultValue: false, exposeDefault: true, id: "nodeUiDevScopeBloomEnabled", key: "scopeBloomEnabled", type: "boolean" },
   { defaultValue: 100, id: "nodeUiDevSettingsHeaderTextSize", key: "settingsHeaderTextSize", max: 100, min: 0, type: "number" },
   { defaultValue: 50, id: "nodeUiDevButtonTextSize", key: "uiDevButtonTextSize", max: 100, min: 0, type: "number" },
   { defaultValue: 76, exposeDefault: true, id: "nodeUiDevLiveToggleTextSize", key: "liveToggleTextSize", max: 100, min: 0, type: "number" },
@@ -40,6 +42,7 @@ const nodeUiDevSettingControls = Object.freeze([
   { defaultValue: 14, exposeDefault: true, id: "nodeUiDevTooltipTextSize", key: "tooltipTextSize", max: 28, min: 8, type: "number" },
   { defaultValue: 0, exposeDefault: true, id: "nodeUiDevMinimumGridBrightness", key: "minimumGridBrightness", max: 100, min: 0, type: "number" },
   { defaultValue: 78, exposeDefault: true, id: "nodeUiDevModuleLightSpread", key: "moduleLightSpread", max: 220, min: 40, type: "number" },
+  { defaultValue: 18, exposeDefault: true, id: "nodeUiDevTextGlowLevel", key: "textGlowLevel", max: 100, min: 0, type: "number" },
   { defaultValue: 6, exposeDefault: true, id: "nodeUiDevModuleGridInset", key: "moduleGridInset", max: 20, min: 0, type: "number" },
   { defaultValue: 10, exposeDefault: true, id: "nodeUiDevModuleRoundness", key: "moduleRoundness", max: 100, min: 0, type: "number" },
   { defaultValue: "#ffffff", exposeDefault: true, id: "nodeUiDevGridColor", key: "gridColor", type: "color" },
@@ -95,10 +98,13 @@ const nodeUiDevSettingSections = Object.freeze([
     title: "workspace",
     ids: [
       "nodeUiDevMouseLightEnabled",
+      "nodeUiDevModularShaderEnabled",
+      "nodeUiDevScopeBloomEnabled",
       "nodeUiDevModularHeaderButtonBackground",
       "nodeUiDevTooltipTextSize",
       "nodeUiDevMinimumGridBrightness",
       "nodeUiDevModuleLightSpread",
+      "nodeUiDevTextGlowLevel",
       "nodeUiDevModuleGridInset",
       "nodeUiDevModuleRoundness",
       "nodeUiDevGridColor",

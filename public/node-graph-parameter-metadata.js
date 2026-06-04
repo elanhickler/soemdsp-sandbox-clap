@@ -18,6 +18,123 @@ function nodeGraphModuleOutputPorts(type) {
   ];
 }
 
+const nodeGraphCodeblockDefaultCode = "Out1 = In1;";
+const nodeGraphCodeblockPortNamePattern = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const nodeGraphCodeblockShadowedGlobals = Object.freeze([
+  "window",
+  "document",
+  "fetch",
+  "Function",
+  "eval",
+  "globalThis",
+  "self",
+]);
+const nodeGraphCodeblockReservedNames = Object.freeze(new Set([
+  ...nodeGraphCodeblockShadowedGlobals,
+  "arguments",
+  "await",
+  "break",
+  "case",
+  "catch",
+  "class",
+  "const",
+  "continue",
+  "debugger",
+  "default",
+  "delete",
+  "do",
+  "else",
+  "export",
+  "extends",
+  "false",
+  "finally",
+  "for",
+  "if",
+  "import",
+  "in",
+  "instanceof",
+  "let",
+  "new",
+  "null",
+  "return",
+  "super",
+  "switch",
+  "this",
+  "throw",
+  "true",
+  "try",
+  "typeof",
+  "var",
+  "void",
+  "while",
+  "with",
+  "yield",
+]));
+
+function nodeGraphCodeblockIdentifierIsValid(name) {
+  const value = String(name || "").trim();
+  return nodeGraphCodeblockPortNamePattern.test(value) &&
+    !nodeGraphCodeblockReservedNames.has(value);
+}
+
+function normalizeNodeGraphCodeblockPortList(value, fallbackPrefix = "In") {
+  const raw = Array.isArray(value)
+    ? value
+    : String(value ?? "").split(/[\s,]+/);
+  const ports = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const name = String(item || "").trim();
+    if (!nodeGraphCodeblockIdentifierIsValid(name) || seen.has(name)) {
+      continue;
+    }
+    seen.add(name);
+    ports.push(name.slice(0, 32));
+  }
+  if (!ports.length) {
+    ports.push(`${fallbackPrefix}1`);
+  }
+  return ports;
+}
+
+function normalizeNodeGraphCodeblock(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const inputs = normalizeNodeGraphCodeblockPortList(source.inputs, "In");
+  const reserved = new Set(inputs);
+  const rawOutputs = normalizeNodeGraphCodeblockPortList(source.outputs, "Out");
+  const outputs = rawOutputs.filter((port) => !reserved.has(port));
+  if (!outputs.length) {
+    let index = 1;
+    let name = "Out1";
+    while (reserved.has(name)) {
+      index += 1;
+      name = `Out${index}`;
+    }
+    outputs.push(name);
+  }
+  return {
+    code: String(source.code ?? nodeGraphCodeblockDefaultCode),
+    inputs,
+    outputs,
+  };
+}
+
+function nodeGraphPatchNodeInputPorts(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  if (patchNode?.type === "codeblock") {
+    return normalizeNodeGraphCodeblock(patchNode.codeblock).inputs;
+  }
+  return nodeGraphModuleDefinitions[patchNode?.type]?.inputs || [];
+}
+
+function nodeGraphPatchNodeOutputPorts(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  if (patchNode?.type === "codeblock") {
+    return normalizeNodeGraphCodeblock(patchNode.codeblock).outputs;
+  }
+  return nodeGraphModuleOutputPorts(patchNode?.type);
+}
+
 function nodeGraphParameterOutputPort(type, port) {
   return nodeGraphModuleDefinitions[type]?.parameters?.find(
     (parameter) => parameter.key === port,

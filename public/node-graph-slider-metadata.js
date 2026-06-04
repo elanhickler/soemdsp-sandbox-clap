@@ -114,6 +114,87 @@ function formatNodeSliderNumber(value, options = {}) {
   return options.reserveSignSpace && number >= 0 ? ` ${text}` : text;
 }
 
+function parseNodeSliderMathExpression(text) {
+  const source = String(text ?? "").trim();
+  if (!source) {
+    return NaN;
+  }
+  if (!/^[\d.eE+\-*/()\s]+$/.test(source)) {
+    return Number(source);
+  }
+
+  let index = 0;
+  const peek = () => source[index] || "";
+  const skipSpace = () => {
+    while (/\s/.test(peek())) {
+      index += 1;
+    }
+  };
+  const parseNumber = () => {
+    skipSpace();
+    const match = source.slice(index).match(/^(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][+-]?\d+)?/);
+    if (!match) {
+      return NaN;
+    }
+    index += match[0].length;
+    return Number(match[0]);
+  };
+  const parseFactor = () => {
+    skipSpace();
+    if (peek() === "+") {
+      index += 1;
+      return parseFactor();
+    }
+    if (peek() === "-") {
+      index += 1;
+      return -parseFactor();
+    }
+    if (peek() === "(") {
+      index += 1;
+      const value = parseExpression();
+      skipSpace();
+      if (peek() !== ")") {
+        return NaN;
+      }
+      index += 1;
+      return value;
+    }
+    return parseNumber();
+  };
+  const parseTerm = () => {
+    let value = parseFactor();
+    while (Number.isFinite(value)) {
+      skipSpace();
+      const operator = peek();
+      if (operator !== "*" && operator !== "/") {
+        break;
+      }
+      index += 1;
+      const right = parseFactor();
+      value = operator === "*" ? value * right : value / right;
+    }
+    return value;
+  };
+  function parseExpression() {
+    let value = parseTerm();
+    while (Number.isFinite(value)) {
+      skipSpace();
+      const operator = peek();
+      if (operator !== "+" && operator !== "-") {
+        break;
+      }
+      index += 1;
+      const right = parseTerm();
+      value = operator === "+" ? value + right : value - right;
+    }
+    return value;
+  }
+
+  const value = parseExpression();
+  skipSpace();
+  return index === source.length && Number.isFinite(value) ? value : NaN;
+}
+
 function nodeSliderShouldShowSign(slider) {
   return slider.dataset.showSign === "true";
 }

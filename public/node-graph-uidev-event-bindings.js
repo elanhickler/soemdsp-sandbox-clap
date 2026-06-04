@@ -35,7 +35,16 @@ async function bindNodeGraphUiDevSettingsEvents() {
     .getElementById("nodeUiDevMouseLightEnabled")
     .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
   document
+    .getElementById("nodeUiDevModularShaderEnabled")
+    .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevScopeBloomEnabled")
+    .addEventListener("change", syncNodeUiDevSettingsHeaderControls);
+  document
     .getElementById("nodeUiDevModuleLightSpread")
+    .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
+  document
+    .getElementById("nodeUiDevTextGlowLevel")
     .addEventListener("input", syncNodeUiDevSettingsHeaderControls);
   document
     .getElementById("nodeUiDevModuleGridInset")

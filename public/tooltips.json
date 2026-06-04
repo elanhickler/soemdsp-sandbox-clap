@@ -17,7 +17,7 @@
   "view": {
     "patchSettings": "Patch settings",
     "uiViewDevelopment": "UI View is in development",
-    "midiKeyboardDevelopment": "Digital keyboard is in development. Future control for showing or hiding a mouse-playable keyboard.",
+    "midiKeyboardDevelopment": "Show or hide the mouse-playable keyboard panel.",
     "switchView": "Mouse: click to switch view.",
     "zoomIn": "Zoom in. Click for the next integer zoom level; Shift-click adds 0.25; Ctrl/Cmd-click adds 0.10.",
     "zoomOut": "Zoom out. Click for the previous integer zoom level; Shift-click subtracts 0.25; Ctrl/Cmd-click subtracts 0.10.",
@@ -78,9 +78,10 @@
     "outputToggle": "Mouse: click to toggle live OUTPUT.",
     "executionActive": "Compiled order: {order}\nThis module runs at this step in the current execution plan.",
     "executionBypassed": "Compiled order: bypassed\nThis module is ignored by the compiled engine.",
-    "executionInactive": "Compiled order: inactive\nThis module is not reachable from Output.",
+    "executionInactive": "Compiled order: inactive\nThis module is not reachable from Output or a visual sink.",
     "executionTitleInactive": "Not in compiled execution order",
-    "executionListItem": "Compiled order {order}: {nodeName}\nSelection only happens from move handles or marquee."
+    "executionListItem": "Compiled order {order}: {nodeName}\nSelection only happens from move handles or marquee.",
+    "scopeWindow": "Oscilloscope: drag up/down to zoom in or out by changing cycles. Drag left/right to pan the waveform. Right-click for oscilloscope controls."
   },
   "wire": {
     "selected": "Mouse: click to select this wire. Delete removes selected wire.",

@@ -187,6 +187,162 @@ function createNodeUserUiSettingsSliderPositionControl() {
   });
 }
 
+function createNodeUserUiSettingsModuleButtonsControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "moduleButtonsVisible",
+    label: "Show module buttons",
+    getValue: () => nodeGraphMvp.moduleButtonsVisible !== false,
+    setValue: (visible) => {
+      nodeGraphMvp.moduleButtonsVisible = visible;
+      renderNodeGraphModuleVisibilityToggles();
+    },
+  });
+}
+
+function createNodeUserUiSettingsModuleOscilloscopeControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "moduleOscilloscopesVisible",
+    label: "Show oscilloscopes",
+    getValue: () => nodeGraphMvp.moduleOscilloscopesVisible !== false,
+    setValue: (visible) => {
+      nodeGraphMvp.moduleOscilloscopesVisible = visible;
+      renderNodeGraphModuleVisibilityToggles();
+    },
+  });
+}
+
+function createNodeUserUiSettingsModuleScopeBrightnessControl() {
+  const row = document.createElement("label");
+  row.className = "node-user-ui-setting-control number";
+  const title = document.createElement("span");
+  title.textContent = "Master oscilloscope brightness";
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = "0";
+  input.max = "16";
+  input.step = "0.01";
+  input.dataset.nodeUiViewSetting = "moduleScopeBrightness";
+  input.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness ?? 1).toFixed(2);
+  const output = document.createElement("input");
+  output.type = "number";
+  output.min = "0";
+  output.max = "16";
+  output.step = "0.01";
+  output.dataset.nodeUiViewSettingValue = "moduleScopeBrightness";
+  output.value = input.value;
+  input.addEventListener("input", () => {
+    setNodeGraphModuleScopeBrightness(input.value);
+    output.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness).toFixed(2);
+  });
+  input.addEventListener("change", () => {
+    setNodeGraphModuleScopeBrightness(input.value);
+    output.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness).toFixed(2);
+  });
+  output.addEventListener("input", () => {
+    setNodeGraphModuleScopeBrightness(output.value);
+    input.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness).toFixed(2);
+  });
+  output.addEventListener("change", () => {
+    setNodeGraphModuleScopeBrightness(output.value);
+    output.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness).toFixed(2);
+    input.value = output.value;
+  });
+  row.append(title, input, output);
+  return row;
+}
+
+function createNodeUserUiSettingsModuleScopeLineThicknessControl() {
+  const row = document.createElement("label");
+  row.className = "node-user-ui-setting-control number";
+  const title = document.createElement("span");
+  title.textContent = "Master oscilloscope line thickness";
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = "0.25";
+  input.max = "4";
+  input.step = "0.01";
+  input.dataset.nodeUiViewSetting = "moduleScopeLineThickness";
+  input.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 1).toFixed(2);
+  const output = document.createElement("input");
+  output.type = "number";
+  output.min = "0.25";
+  output.max = "4";
+  output.step = "0.01";
+  output.dataset.nodeUiViewSettingValue = "moduleScopeLineThickness";
+  output.value = input.value;
+  input.addEventListener("input", () => {
+    setNodeGraphModuleScopeLineThickness(input.value);
+    output.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness).toFixed(2);
+  });
+  input.addEventListener("change", () => {
+    setNodeGraphModuleScopeLineThickness(input.value);
+    output.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness).toFixed(2);
+  });
+  output.addEventListener("input", () => {
+    setNodeGraphModuleScopeLineThickness(output.value);
+    input.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness).toFixed(2);
+  });
+  output.addEventListener("change", () => {
+    setNodeGraphModuleScopeLineThickness(output.value);
+    output.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness).toFixed(2);
+    input.value = output.value;
+  });
+  row.append(title, input, output);
+  return row;
+}
+
+function createNodeUserUiSettingsModuleScopeFramesPerSecondControl() {
+  const row = document.createElement("label");
+  row.className = "node-user-ui-setting-control number";
+  const title = document.createElement("span");
+  title.textContent = "Master oscilloscope FPS";
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = "1";
+  input.max = "240";
+  input.step = "1";
+  input.dataset.nodeUiViewSetting = "moduleScopeFramesPerSecond";
+  input.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60));
+  const output = document.createElement("input");
+  output.type = "number";
+  output.min = "1";
+  output.max = "240";
+  output.step = "1";
+  output.dataset.nodeUiViewSettingValue = "moduleScopeFramesPerSecond";
+  output.value = input.value;
+  input.addEventListener("input", () => {
+    setNodeGraphModuleScopeFramesPerSecond(input.value);
+    output.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond));
+  });
+  input.addEventListener("change", () => {
+    setNodeGraphModuleScopeFramesPerSecond(input.value);
+    output.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond));
+  });
+  output.addEventListener("input", () => {
+    setNodeGraphModuleScopeFramesPerSecond(output.value);
+    input.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond));
+  });
+  output.addEventListener("change", () => {
+    setNodeGraphModuleScopeFramesPerSecond(output.value);
+    output.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond));
+    input.value = output.value;
+  });
+  row.append(title, input, output);
+  return row;
+}
+
+function createNodeUserUiSettingsModuleSlidersControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "moduleSlidersVisible",
+    label: "Show module sliders",
+    getValue: () => nodeGraphMvp.moduleSlidersVisible !== false,
+    setValue: (visible) => {
+      nodeGraphMvp.moduleSlidersVisible = visible;
+      renderNodeGraphModuleVisibilityToggles();
+    },
+  });
+}
+
 function createNodeUserUiSettingsSliderLayoutControl() {
   const row = document.createElement("div");
   row.className = "node-user-ui-setting-control action";
@@ -234,6 +390,12 @@ function renderNodeUserUiSettingsControls() {
       controls.push(createNodeUserUiSettingsSliderPositionControl());
     }
     if (section.title === "modules and nodes") {
+      controls.push(createNodeUserUiSettingsModuleButtonsControl());
+      controls.push(createNodeUserUiSettingsModuleOscilloscopeControl());
+      controls.push(createNodeUserUiSettingsModuleScopeBrightnessControl());
+      controls.push(createNodeUserUiSettingsModuleScopeLineThicknessControl());
+      controls.push(createNodeUserUiSettingsModuleScopeFramesPerSecondControl());
+      controls.push(createNodeUserUiSettingsModuleSlidersControl());
       controls.push(createNodeUserUiSettingsSliderLayoutControl());
     }
     for (const id of section.ids) {
@@ -275,6 +437,60 @@ function syncNodeUserUiSettingsViewControls() {
       continue;
     }
     input.checked = Boolean(nodeGraphMvp.sliderPositionVisible);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleButtonsVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = nodeGraphMvp.moduleButtonsVisible !== false;
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleOscilloscopesVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = nodeGraphMvp.moduleOscilloscopesVisible !== false;
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleSlidersVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = nodeGraphMvp.moduleSlidersVisible !== false;
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleScopeBrightness']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness ?? 1).toFixed(2);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting-value='moduleScopeBrightness']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.value = normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness ?? 1).toFixed(2);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleScopeLineThickness']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 1).toFixed(2);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting-value='moduleScopeLineThickness']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.value = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 1).toFixed(2);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleScopeFramesPerSecond']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60));
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting-value='moduleScopeFramesPerSecond']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60));
   }
   for (const button of document.querySelectorAll("[data-node-ui-view-setting='sliderLayout']")) {
     const label = nodeGraphSliderLayoutLabel(nodeGraphMvp.sliderLayout);

@@ -10,6 +10,32 @@ function closeNodeSceneContextMenu() {
   nodeGraphMvp.sceneContextTargetWire = null;
 }
 
+function closeNodeScopeContextMenu() {
+  const menu = document.getElementById("nodeScopeContextMenu");
+  if (menu) {
+    menu.hidden = true;
+  }
+  if (nodeGraphMvp.scopeContextDragging?.handle) {
+    nodeGraphMvp.scopeContextDragging.handle.classList.remove("dragging");
+  }
+  nodeGraphMvp.scopeContextDragging = null;
+  nodeGraphMvp.scopeContextTargetNode = null;
+  renderNodeGraphSceneScopeControls();
+}
+
+function closeNodeGlobalScopeMenu() {
+  const menu = document.getElementById("nodeGlobalScopeMenu");
+  if (menu) {
+    menu.hidden = true;
+  }
+  if (nodeGraphMvp.globalScopeDragging?.handle) {
+    nodeGraphMvp.globalScopeDragging.handle.classList.remove("dragging");
+  }
+  nodeGraphMvp.globalScopeDragging = null;
+  closeNodeScopeContextMenu();
+  renderNodeGraphModuleScopeBrightnessControl();
+}
+
 function positionNodeSceneContextMenu(menu, x, y, remember = false) {
   const margin = 12;
   menu.hidden = false;
@@ -35,6 +61,66 @@ function positionNodeSceneContextMenuAtSavedOr(menu, x, y) {
     hasSavedPosition ? savedPosition.top : y,
     !hasSavedPosition,
   );
+}
+
+function positionNodeScopeContextMenuAtSavedOr(menu, x, y) {
+  const savedPosition = nodeGraphMvp.scopeContextWindowPosition;
+  const hasSavedPosition =
+    Number.isFinite(Number(savedPosition?.left)) &&
+    Number.isFinite(Number(savedPosition?.top));
+  positionNodeSceneContextMenu(
+    menu,
+    hasSavedPosition ? savedPosition.left : x,
+    hasSavedPosition ? savedPosition.top : y,
+    false,
+  );
+  if (!hasSavedPosition) {
+    nodeGraphMvp.scopeContextWindowPosition = {
+      left: Number.parseFloat(menu.style.left) || menu.getBoundingClientRect().left,
+      top: Number.parseFloat(menu.style.top) || menu.getBoundingClientRect().top,
+    };
+  }
+}
+
+function positionNodeGlobalScopeMenuAtSavedOr(menu, x, y) {
+  const savedPosition = nodeGraphMvp.globalScopeWindowPosition;
+  const hasSavedPosition =
+    Number.isFinite(Number(savedPosition?.left)) &&
+    Number.isFinite(Number(savedPosition?.top));
+  positionNodeSceneContextMenu(
+    menu,
+    hasSavedPosition ? savedPosition.left : x,
+    hasSavedPosition ? savedPosition.top : y,
+    false,
+  );
+  if (!hasSavedPosition) {
+    nodeGraphMvp.globalScopeWindowPosition = {
+      left: Number.parseFloat(menu.style.left) || menu.getBoundingClientRect().left,
+      top: Number.parseFloat(menu.style.top) || menu.getBoundingClientRect().top,
+    };
+  }
+}
+
+function openNodeGlobalScopeMenu() {
+  const menu = document.getElementById("nodeGlobalScopeMenu");
+  const button = document.getElementById("nodeGlobalScopeMenuButton");
+  if (!menu || !button) {
+    return;
+  }
+  nodeGraphMvp.scopeContextTargetNode = null;
+  const rect = button.getBoundingClientRect();
+  positionNodeGlobalScopeMenuAtSavedOr(menu, rect.left, rect.bottom + 8);
+  renderNodeGraphSceneScopeControls();
+  renderNodeGraphModuleScopeBrightnessControl();
+}
+
+function toggleNodeGlobalScopeMenu() {
+  const menu = document.getElementById("nodeGlobalScopeMenu");
+  if (!menu || menu.hidden) {
+    openNodeGlobalScopeMenu();
+  } else {
+    closeNodeGlobalScopeMenu();
+  }
 }
 
 function beginNodeSceneContextMenuDrag(event) {
@@ -95,11 +181,136 @@ function endNodeSceneContextMenuDrag(event) {
   nodeGraphMvp.moduleActionDragging = null;
 }
 
+function beginNodeScopeContextMenuDrag(event) {
+  if (event.button > 0) {
+    return;
+  }
+
+  const menu = document.getElementById("nodeGlobalScopeMenu");
+  if (!menu || menu.hidden) {
+    return;
+  }
+
+  const rect = menu.getBoundingClientRect();
+  nodeGraphMvp.scopeContextDragging = {
+    handle: event.currentTarget,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    pointerId: event.pointerId ?? null,
+  };
+  event.currentTarget.classList.add("dragging");
+  if (event.pointerId !== undefined) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function beginNodeGlobalScopeMenuDrag(event) {
+  if (event.button > 0) {
+    return;
+  }
+  const menu = document.getElementById("nodeGlobalScopeMenu");
+  if (!menu || menu.hidden) {
+    return;
+  }
+  const rect = menu.getBoundingClientRect();
+  nodeGraphMvp.globalScopeDragging = {
+    handle: event.currentTarget,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    pointerId: event.pointerId ?? null,
+  };
+  event.currentTarget.classList.add("dragging");
+  if (event.pointerId !== undefined) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeGlobalScopeMenu(event) {
+  const drag = nodeGraphMvp.globalScopeDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  const menu = document.getElementById("nodeGlobalScopeMenu");
+  positionNodeSceneContextMenu(
+    menu,
+    event.clientX - drag.offsetX,
+    event.clientY - drag.offsetY,
+    false,
+  );
+  nodeGraphMvp.globalScopeWindowPosition = {
+    left: Number.parseFloat(menu.style.left) || menu.getBoundingClientRect().left,
+    top: Number.parseFloat(menu.style.top) || menu.getBoundingClientRect().top,
+  };
+  event.preventDefault();
+}
+
+function endNodeGlobalScopeMenuDrag(event) {
+  const drag = nodeGraphMvp.globalScopeDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  drag.handle.classList.remove("dragging");
+  if (event.pointerId !== undefined && drag.handle.hasPointerCapture?.(event.pointerId)) {
+    drag.handle.releasePointerCapture(event.pointerId);
+  }
+  nodeGraphMvp.globalScopeDragging = null;
+}
+
+function dragNodeScopeContextMenu(event) {
+  const drag = nodeGraphMvp.scopeContextDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+
+  const menu = document.getElementById("nodeScopeContextMenu");
+  positionNodeSceneContextMenu(
+    menu,
+    event.clientX - drag.offsetX,
+    event.clientY - drag.offsetY,
+    false,
+  );
+  nodeGraphMvp.scopeContextWindowPosition = {
+    left: Number.parseFloat(menu.style.left) || menu.getBoundingClientRect().left,
+    top: Number.parseFloat(menu.style.top) || menu.getBoundingClientRect().top,
+  };
+  event.preventDefault();
+}
+
+function endNodeScopeContextMenuDrag(event) {
+  const drag = nodeGraphMvp.scopeContextDragging;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+
+  drag.handle.classList.remove("dragging");
+  if (event.pointerId !== undefined && drag.handle.hasPointerCapture?.(event.pointerId)) {
+    drag.handle.releasePointerCapture(event.pointerId);
+  }
+  nodeGraphMvp.scopeContextDragging = null;
+}
+
 function configureNodeSceneContextMenu(mode) {
   const menu = document.getElementById("nodeSceneContextMenu");
   const title = menu.querySelector(".scene-context-title");
-  const addGroup = menu.querySelector(".scene-context-add-group");
   const copyButton = document.getElementById("nodeSceneCopyModule");
+  const addToGroupButton = document.getElementById("nodeSceneAddToGroup");
+  const addToUiButton = document.getElementById("nodeSceneAddToUi");
   const deleteButton = document.getElementById("nodeSceneDeleteModule");
   const closeButton = document.getElementById("nodeSceneCloseMenu");
   const selectedModule = document.getElementById("nodeSceneSelectedModule");
@@ -121,8 +332,26 @@ function configureNodeSceneContextMenu(mode) {
   const textBoxTextSizeValue = document.getElementById("nodeSceneTextBoxTextSizeValue");
   const textBoxTextControls = document.getElementById("nodeSceneTextBoxTextControls");
   const textBoxTextInput = document.getElementById("nodeSceneTextBoxTextInput");
+  const codeblockControls = document.getElementById("nodeSceneCodeblockControls");
+  const codeblockInputs = document.getElementById("nodeSceneCodeblockInputs");
+  const codeblockOutputs = document.getElementById("nodeSceneCodeblockOutputs");
+  const codeblockSource = document.getElementById("nodeSceneCodeblockSource");
+  const codeblockStatus = document.getElementById("nodeSceneCodeblockStatus");
+  const graphControls = document.getElementById("nodeSceneGraphControls");
+  const graphCursorX = document.getElementById("nodeSceneGraphCursorX");
+  const graphNodeIndex = document.getElementById("nodeSceneGraphNodeIndex");
+  const graphNodeX = document.getElementById("nodeSceneGraphNodeX");
+  const graphNodeY = document.getElementById("nodeSceneGraphNodeY");
+  const graphNodeContour = document.getElementById("nodeSceneGraphNodeContour");
+  const graphNodeShape = document.getElementById("nodeSceneGraphNodeShape");
+  const graphNodeList = document.getElementById("nodeSceneGraphNodeList");
+  const graphRemoveNode = document.getElementById("nodeSceneGraphRemoveNode");
   const toggleButtonsButton = document.getElementById("nodeSceneToggleButtons");
   const toggleTitleButton = document.getElementById("nodeSceneToggleTitle");
+  const imageControls = document.getElementById("nodeSceneImageControls");
+  const imageLoad = document.getElementById("nodeSceneImageLoad");
+  const imageSave = document.getElementById("nodeSceneImageSave");
+  const imageRefresh = document.getElementById("nodeSceneImageRefresh");
   const textBoxControls = document.getElementById("nodeSceneTextBoxControls");
   const textBoxSingleLine = document.getElementById("nodeSceneTextBoxSingleLine");
   const textBoxMultiline = document.getElementById("nodeSceneTextBoxMultiline");
@@ -143,6 +372,7 @@ function configureNodeSceneContextMenu(mode) {
   const targetNode = targetNodeId ? nodeGraphPatchNode(targetNodeId) : null;
   const selectedNodeIds = nodeGraphSelectedNodeIds();
   const selectedWire = wireMode ? nodeGraphWireFromSelection(nodeGraphMvp.selected) : null;
+  const targetNodeInUiView = Boolean(targetNode && nodeGraphNodeIsInUiView(targetNode.id));
   const canDelete = wireMode
     ? Boolean(selectedWire)
     : moduleMode && (
@@ -154,6 +384,8 @@ function configureNodeSceneContextMenu(mode) {
         })
     );
   const canCopy = moduleMode && targetNode?.type !== "output";
+  const canAddToUi = moduleMode && Boolean(targetNode) && !targetNodeInUiView;
+  const canGroup = moduleMode && nodeGraphModuleGroupSelection().length > 0;
   const widthGu = targetNode ? nodeGraphPatchNodeGridWidthUnits(targetNode) : 0;
   const heightGu = targetNode ? nodeGraphPatchNodeGridHeightUnits(targetNode) : 0;
   const targetNodeUi = normalizeNodeGraphPatchNodeUi(targetNode?.ui);
@@ -161,20 +393,25 @@ function configureNodeSceneContextMenu(mode) {
   const titleHidden = targetNodeUi.titleHidden;
   const textBoxLayout = normalizeNodeGraphTextBoxLayout(targetNode?.layout);
   const textBoxMode = textBoxLayout.textMode;
-  title.textContent = wireMode ? "WIRE ACTIONS" : moduleMode ? "ACTIONS" : "circuits:";
-  menu.setAttribute("aria-label", wireMode ? "Wire actions" : moduleMode ? "Module actions" : "Add module");
-  addGroup.hidden = moduleMode || wireMode;
+  title.textContent = wireMode ? "WIRE ACTIONS" : "ACTIONS";
+  menu.setAttribute("aria-label", wireMode ? "Wire actions" : "Module actions");
   copyButton.hidden = !moduleMode;
+  addToGroupButton.hidden = !moduleMode;
+  addToUiButton.hidden = !moduleMode;
   deleteButton.hidden = !(moduleMode || wireMode);
   selectedModule.hidden = !(moduleMode || wireMode);
   wireTypeControl.hidden = !wireMode;
   aliasControl.hidden = !moduleMode;
   widthControls.hidden = !moduleMode;
-  textBoxHeightControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  const canResizeHeight = moduleMode && ["textBox", "valueSlider"].includes(targetNode?.type);
+  textBoxHeightControls.hidden = !canResizeHeight;
   textBoxTextSizeControls.hidden = !(moduleMode && targetNode?.type === "textBox");
   textBoxTextControls.hidden = !(moduleMode && targetNode?.type === "textBox");
+  codeblockControls.hidden = !(moduleMode && targetNode?.type === "codeblock");
+  graphControls.hidden = !(moduleMode && targetNode?.type === "graph");
   toggleButtonsButton.hidden = !moduleMode;
   toggleTitleButton.hidden = !moduleMode;
+  imageControls.hidden = !(moduleMode && targetNode?.type === "image");
   textBoxControls.hidden = !(moduleMode && targetNode?.type === "textBox");
   textBoxHorizontalAlignControls.hidden = !(moduleMode && targetNode?.type === "textBox");
   textBoxVerticalAlignControls.hidden = !(moduleMode && targetNode?.type === "textBox");
@@ -196,6 +433,17 @@ function configureNodeSceneContextMenu(mode) {
       : targetNode
         ? nodeGraphTooltipText("actions.copyUnavailableOutput")
         : nodeGraphTooltipText("actions.copyUnavailableOneModule");
+    addToGroupButton.disabled = !canGroup;
+    addToGroupButton.title = canGroup
+      ? "Save the selected circuit as a reusable group preset."
+      : "Select one or more modules to save a group.";
+    addToUiButton.disabled = !canAddToUi;
+    addToUiButton.querySelector("span").textContent = targetNodeInUiView ? "In UI View" : "Add to UI";
+    addToUiButton.title = canAddToUi
+      ? "Show this module in UI View."
+      : targetNodeInUiView
+        ? "This module is already shown in UI View."
+        : "Right-click a module to add it to UI View.";
     deleteButton.disabled = !canDelete;
     deleteButton.title = canDelete
       ? nodeGraphTooltipText("actions.deleteModule")
@@ -208,9 +456,9 @@ function configureNodeSceneContextMenu(mode) {
     widthIncrease.disabled = !targetNode || widthGu >= nodeGraphModuleWidthLimits.maxGu;
     widthIncrease.title = nodeGraphTooltipText("actions.widthIncrease");
     textBoxHeightValue.textContent = `${heightGu} gu high`;
-    textBoxHeightDecrease.disabled = !targetNode || targetNode.type !== "textBox" || heightGu <= nodeGraphTextBoxHeightLimits.minGu;
+    textBoxHeightDecrease.disabled = !canResizeHeight || heightGu <= nodeGraphModuleHeightLimits.minGu;
     textBoxHeightDecrease.title = nodeGraphTooltipText("actions.textBoxHeightDecrease");
-    textBoxHeightIncrease.disabled = !targetNode || targetNode.type !== "textBox" || heightGu >= nodeGraphTextBoxHeightLimits.maxGu;
+    textBoxHeightIncrease.disabled = !canResizeHeight || heightGu >= nodeGraphModuleHeightLimits.maxGu;
     textBoxHeightIncrease.title = nodeGraphTooltipText("actions.textBoxHeightIncrease");
     textBoxTextSizeValue.textContent = `${textBoxLayout.textSizePercent}% text`;
     textBoxTextSizeDecrease.disabled =
@@ -231,6 +479,15 @@ function configureNodeSceneContextMenu(mode) {
     toggleTitleButton.querySelector("span").textContent = titleHidden ? "Show title" : "Hide title";
     toggleTitleButton.setAttribute("aria-pressed", titleHidden ? "true" : "false");
     toggleTitleButton.title = nodeGraphTooltipText(titleHidden ? "actions.showModuleTitle" : "actions.hideModuleTitle");
+    if (targetNode?.type === "image") {
+      const imageLayout = normalizeNodeGraphImageLayout(targetNode.layout);
+      imageLoad.disabled = false;
+      imageSave.disabled = !imageLayout.dataUrl;
+      imageRefresh.disabled = false;
+      imageLoad.title = "Load an image into this patch-local image node.";
+      imageSave.title = imageLayout.dataUrl ? "Save this image node's current image." : "Load an image before saving.";
+      imageRefresh.title = "Refresh image preview and trace texture.";
+    }
     textBoxSingleLine.setAttribute("aria-pressed", textBoxMode === "singleLine" ? "true" : "false");
     textBoxMultiline.setAttribute("aria-pressed", textBoxMode === "multiline" ? "true" : "false");
     textBoxSingleLine.title = nodeGraphTooltipText("actions.textBoxSingleLine");
@@ -238,6 +495,49 @@ function configureNodeSceneContextMenu(mode) {
     textBoxTextInput.disabled = !targetNode || targetNode.type !== "textBox";
     textBoxTextInput.value = targetNode?.type === "textBox" ? textBoxLayout.text : "";
     textBoxTextInput.title = nodeGraphTooltipText("actions.textBoxContent");
+    if (targetNode?.type === "codeblock") {
+      const codeblock = normalizeNodeGraphCodeblock(targetNode.codeblock);
+      codeblockInputs.value = codeblock.inputs.join(", ");
+      codeblockOutputs.value = codeblock.outputs.join(", ");
+      codeblockSource.value = codeblock.code;
+      const status = nodeGraphCodeblockCompileStatus(codeblock);
+      codeblockStatus.textContent = status.ok ? "code ok" : `compile error: ${status.message}`;
+    } else {
+      codeblockInputs.value = "";
+      codeblockOutputs.value = "";
+      codeblockSource.value = "";
+      codeblockStatus.textContent = "";
+    }
+    if (targetNode?.type === "graph") {
+      syncNodeGraphGraphControls(targetNode.graph);
+      graphCursorX.disabled = false;
+      graphNodeIndex.disabled = false;
+      graphNodeX.disabled = false;
+      graphNodeY.disabled = false;
+      graphNodeContour.disabled = false;
+      graphNodeShape.disabled = false;
+      graphCursorX.title = "Move the vertical graph cursor.";
+      graphNodeIndex.title = "Choose the graph node to edit.";
+      graphNodeX.title = "Set the selected node's x position.";
+      graphNodeY.title = "Set the selected node's y value.";
+      graphNodeContour.title = "Bend the selected node's outgoing segment.";
+      graphNodeShape.title = "Choose the selected node's outgoing curve shape.";
+    } else {
+      graphCursorX.value = "";
+      graphNodeIndex.replaceChildren();
+      graphNodeList.replaceChildren();
+      graphNodeX.value = "";
+      graphNodeY.value = "";
+      graphNodeContour.value = "";
+      graphNodeShape.value = "rational";
+      graphCursorX.disabled = true;
+      graphNodeIndex.disabled = true;
+      graphNodeX.disabled = true;
+      graphNodeY.disabled = true;
+      graphNodeContour.disabled = true;
+      graphNodeShape.disabled = true;
+      graphRemoveNode.disabled = true;
+    }
     textBoxAlignLeft.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "left" ? "true" : "false");
     textBoxAlignCenter.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "center" ? "true" : "false");
     textBoxAlignRight.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "right" ? "true" : "false");
@@ -265,6 +565,9 @@ function configureNodeSceneContextMenu(mode) {
       : nodeGraphTooltipText("actions.deleteWireMissing");
     copyButton.disabled = true;
     copyButton.title = nodeGraphTooltipText("actions.copyUnavailableWire");
+    addToGroupButton.disabled = true;
+    addToUiButton.disabled = true;
+    addToUiButton.querySelector("span").textContent = "Add to UI";
     widthValue.textContent = "";
     widthDecrease.disabled = true;
     widthIncrease.disabled = true;
@@ -276,11 +579,32 @@ function configureNodeSceneContextMenu(mode) {
     textBoxTextSizeIncrease.disabled = true;
     textBoxTextInput.value = "";
     textBoxTextInput.disabled = true;
+    codeblockInputs.value = "";
+    codeblockOutputs.value = "";
+    codeblockSource.value = "";
+    codeblockStatus.textContent = "";
+    graphCursorX.value = "";
+    graphNodeIndex.replaceChildren();
+    graphNodeList.replaceChildren();
+    graphNodeX.value = "";
+    graphNodeY.value = "";
+    graphNodeContour.value = "";
+    graphNodeShape.value = "rational";
+    graphCursorX.disabled = true;
+    graphNodeIndex.disabled = true;
+    graphNodeX.disabled = true;
+    graphNodeY.disabled = true;
+    graphNodeContour.disabled = true;
+    graphNodeShape.disabled = true;
+    graphRemoveNode.disabled = true;
     textBoxVerticalAlign.value = "50";
     textBoxVerticalAlignValue.textContent = "";
     textBoxVerticalAlign.disabled = true;
     toggleButtonsButton.disabled = true;
     toggleTitleButton.disabled = true;
+    imageLoad.disabled = true;
+    imageSave.disabled = true;
+    imageRefresh.disabled = true;
   } else {
     selectedModule.querySelector("span").textContent = "selected";
     selectedModule.querySelector("strong").textContent = "none";
@@ -290,6 +614,9 @@ function configureNodeSceneContextMenu(mode) {
     }
     copyButton.disabled = true;
     copyButton.title = nodeGraphTooltipText("actions.copyUnavailableModule");
+    addToGroupButton.disabled = true;
+    addToUiButton.disabled = true;
+    addToUiButton.querySelector("span").textContent = "Add to UI";
     deleteButton.disabled = true;
     deleteButton.title = nodeGraphTooltipText("actions.deleteTitle");
     widthValue.textContent = "";
@@ -303,11 +630,32 @@ function configureNodeSceneContextMenu(mode) {
     textBoxTextSizeIncrease.disabled = true;
     textBoxTextInput.value = "";
     textBoxTextInput.disabled = true;
+    codeblockInputs.value = "";
+    codeblockOutputs.value = "";
+    codeblockSource.value = "";
+    codeblockStatus.textContent = "";
+    graphCursorX.value = "";
+    graphNodeIndex.replaceChildren();
+    graphNodeList.replaceChildren();
+    graphNodeX.value = "";
+    graphNodeY.value = "";
+    graphNodeContour.value = "";
+    graphNodeShape.value = "rational";
+    graphCursorX.disabled = true;
+    graphNodeIndex.disabled = true;
+    graphNodeX.disabled = true;
+    graphNodeY.disabled = true;
+    graphNodeContour.disabled = true;
+    graphNodeShape.disabled = true;
+    graphRemoveNode.disabled = true;
     textBoxVerticalAlign.value = "50";
     textBoxVerticalAlignValue.textContent = "";
     textBoxVerticalAlign.disabled = true;
     toggleButtonsButton.disabled = true;
     toggleTitleButton.disabled = true;
+    imageLoad.disabled = true;
+    imageSave.disabled = true;
+    imageRefresh.disabled = true;
   }
 }
 
@@ -319,6 +667,7 @@ function openNodeModuleActionMenu(event) {
   }
 
   nodeGraphMvp.sceneContextPoint = null;
+  closeNodeScopeContextMenu();
   nodeGraphMvp.sceneContextTargetNode = node.dataset.node;
   nodeGraphMvp.sceneContextTargetWire = null;
   configureNodeSceneContextMenu("module");
@@ -332,7 +681,36 @@ function openNodeModuleActionMenu(event) {
   event.stopPropagation();
 }
 
+function openNodeScopeContextMenu(event) {
+  const contextScope = event.target.closest?.(".node-module-scope-window");
+  const nodeId = contextScope?.dataset?.node || "";
+  if (!nodeId || !nodeGraphPatchNode(nodeId)) {
+    return false;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  closeNodeSceneContextMenu();
+  nodeGraphMvp.sceneContextPoint = null;
+  nodeGraphMvp.sceneContextTargetNode = null;
+  nodeGraphMvp.sceneContextTargetWire = null;
+  nodeGraphMvp.scopeContextTargetNode = nodeId;
+  renderNodeGraphSceneScopeControls(nodeId);
+  positionNodeGlobalScopeMenuAtSavedOr(
+    document.getElementById("nodeGlobalScopeMenu"),
+    event.clientX,
+    event.clientY,
+  );
+  renderNodeGraphModuleScopeBrightnessControl();
+  return true;
+}
+
 function openNodeSceneContextMenu(event) {
+  if (openNodeScopeContextMenu(event)) {
+    return;
+  }
+
+  closeNodeScopeContextMenu();
   const contextWire = event.target.closest?.(".node-wire-hit-path, .node-wire-path");
   if (contextWire) {
     const index = Number(contextWire.dataset.connectionIndex);
@@ -375,13 +753,9 @@ function openNodeSceneContextMenu(event) {
 
   event.preventDefault();
   event.stopPropagation();
-  nodeGraphMvp.sceneContextPoint = nodeGraphClientPoint(event);
+  const shopPoint = nodeGraphClientPoint(event);
+  nodeGraphMvp.sceneContextPoint = shopPoint;
   nodeGraphMvp.sceneContextTargetNode = null;
   nodeGraphMvp.sceneContextTargetWire = null;
-  configureNodeSceneContextMenu("add");
-  positionNodeSceneContextMenuAtSavedOr(
-    document.getElementById("nodeSceneContextMenu"),
-    event.clientX,
-    event.clientY,
-  );
+  openNodeGraphModuleShop(shopPoint);
 }

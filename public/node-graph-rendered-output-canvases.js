@@ -2,6 +2,9 @@ function drawNodeRenderedAudio() {
   drawNodeRenderedWaveform();
   drawNodeRenderedSignalPlot();
   drawNodeRenderedVisualOutput();
+  if (typeof syncNodeGraphVideoExportControls === "function") {
+    syncNodeGraphVideoExportControls();
+  }
 }
 
 function drawNodeRenderedWaveform() {

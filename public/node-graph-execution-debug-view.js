@@ -68,7 +68,7 @@ function renderNodeGraphExecutionOrderBadges(plan) {
       badge.textContent = "--";
       badge.dataset.executionState = "inactive";
       badge.setAttribute("aria-label", `${nodeGraphNodeDisplayName(nodeId)} inactive`);
-      badge.setAttribute("title", "Inactive: not reachable from Output");
+      badge.setAttribute("title", "Inactive: not reachable from Output or visual sink");
     }
   }
 }

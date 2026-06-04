@@ -220,9 +220,11 @@ function serializeNodeGraphExecutionPlanDebug(plan) {
       soemdspMapping: nodeGraphSoemdspRuntimeMapping(plan),
       soemdspRuntimeSketch: nodeGraphSoemdspRuntimeSketch(plan),
       sourceNodes: plan.sourceNodes,
+      speakerOutputActive: Boolean(plan.speakerOutputActive),
       stateReadCount: nodeGraphStateReadCount(plan),
       storedOutputInitialValue: 0,
       valid: plan.valid,
+      visualSinks: plan.visualSinks || [],
       wireReads: nodeGraphExecutionWireReads(plan),
     },
     null,
@@ -259,8 +261,11 @@ function serializeNodeGraphExecutionPlanApiDebug(plan) {
     schedulerPolicy: "same-pass acyclic edges; patch-node-order cycle-closing edges read stored outputs",
     soemdspMapping: nodeGraphSoemdspRuntimeMapping(plan),
     soemdspRuntimeSketch: nodeGraphSoemdspRuntimeSketch(plan),
+    speakerOutputActive: Boolean(plan.speakerOutputActive),
     stateReadCount: nodeGraphStateReadCount(plan),
     valid: plan.valid,
+    visualSinkCount: (plan.visualSinks || []).length,
+    visualSinks: plan.visualSinks || [],
     wireReads: nodeGraphExecutionWireReads(plan),
   };
 }

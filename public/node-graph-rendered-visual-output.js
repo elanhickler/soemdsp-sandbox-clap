@@ -24,6 +24,56 @@ function setNodeVisualOutputExportReady(ready, title = "") {
   );
 }
 
+function nodeGraphVisualOutputSourceCanvas() {
+  return document.getElementById("nodeVisualOutputCanvas");
+}
+
+function nodeGraphVisualOutputTargetWidth(sourceCanvas = nodeGraphVisualOutputSourceCanvas()) {
+  const input = document.getElementById("nodeVisualOutputTargetWidthValue");
+  const requested = Number(input?.value);
+  const fallback = Number(sourceCanvas?.width) || 720;
+  const width = Number.isFinite(requested) && requested > 0 ? requested : fallback;
+  return Math.max(16, Math.min(8192, Math.round(width)));
+}
+
+function nodeGraphVisualOutputTargetSize(sourceCanvas = nodeGraphVisualOutputSourceCanvas()) {
+  const sourceWidth = Math.max(1, Number(sourceCanvas?.width) || 720);
+  const sourceHeight = Math.max(1, Number(sourceCanvas?.height) || 300);
+  const width = nodeGraphVisualOutputTargetWidth(sourceCanvas);
+  const height = Math.max(1, Math.round(width * (sourceHeight / sourceWidth)));
+  return { height, width };
+}
+
+function syncNodeGraphVisualOutputResolutionControls() {
+  const sourceCanvas = nodeGraphVisualOutputSourceCanvas();
+  const input = document.getElementById("nodeVisualOutputTargetWidthValue");
+  const readout = document.getElementById("nodeVisualOutputResolutionValue");
+  const size = nodeGraphVisualOutputTargetSize(sourceCanvas);
+  if (input && input.value !== String(size.width)) {
+    input.value = String(size.width);
+  }
+  if (readout) {
+    readout.textContent = `${size.width} x ${size.height}`;
+    readout.dataset.width = String(size.width);
+    readout.dataset.height = String(size.height);
+  }
+  return size;
+}
+
+function createNodeGraphVisualOutputExportCanvas(options = {}) {
+  const sourceCanvas = nodeGraphVisualOutputSourceCanvas();
+  const size = nodeGraphVisualOutputTargetSize(sourceCanvas);
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = size.width;
+  exportCanvas.height = size.height;
+  drawNodeRenderedVisualOutput({
+    canvas: exportCanvas,
+    includePlaybackCursor: options.includePlaybackCursor !== false,
+    updateUi: false,
+  });
+  return exportCanvas;
+}
+
 function drawNodeRenderedVisualOutput(options = {}) {
   const canvas = options.canvas || document.getElementById("nodeVisualOutputCanvas");
   const includePlaybackCursor = options.includePlaybackCursor !== false;
@@ -200,6 +250,9 @@ function drawNodeRenderedVisualOutput(options = {}) {
     renderNodeVisualOutputMeta({
       Frames: sourceSamples.length,
       Mode: visualSettings.mode === "auto" ? `auto ${visualMode}` : visualMode,
+      Output: syncNodeGraphVisualOutputResolutionControls()
+        ? document.getElementById("nodeVisualOutputResolutionValue")?.textContent || ""
+        : "",
       Peak: canvas.dataset.visualPeak,
       Playback: playbackFrame === null ? "idle" : `frame ${playbackFrame}`,
       Patch: canvas.dataset.visualPatchFingerprint,
@@ -225,14 +278,7 @@ function saveNodeGraphVisualOutputPng() {
     setNodeVisualOutputExportReady(false);
     return;
   }
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = canvas.width;
-  exportCanvas.height = canvas.height;
-  drawNodeRenderedVisualOutput({
-    canvas: exportCanvas,
-    includePlaybackCursor: false,
-    updateUi: false,
-  });
+  const exportCanvas = createNodeGraphVisualOutputExportCanvas({ includePlaybackCursor: false });
   exportCanvas.toBlob((blob) => {
     if (!blob) {
       if (status) {

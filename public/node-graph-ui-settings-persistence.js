@@ -24,11 +24,59 @@ function normalizeNodeUiDevSettings(settings = {}) {
     }
   }
   const gridVisible = view.gridVisible ?? controls.gridVisible ?? controls.showGrid ?? nodeGraphMvp.gridVisible;
+  const moduleButtonsVisible = Boolean(view.moduleButtonsVisible ?? nodeGraphMvp.moduleButtonsVisible);
+  const moduleOscilloscopesVisible = Boolean(view.moduleOscilloscopesVisible ?? nodeGraphMvp.moduleOscilloscopesVisible);
+  const moduleSlidersVisible = Boolean(view.moduleSlidersVisible ?? nodeGraphMvp.moduleSlidersVisible);
+  const moduleScopeBrightness = normalizeNodeGraphModuleScopeBrightness(
+    view.moduleScopeBrightness ?? nodeGraphMvp.moduleScopeBrightness ?? 1,
+  );
+  const moduleScopeBackgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(
+    view.moduleScopeBackgroundColor ?? nodeGraphMvp.moduleScopeBackgroundColor ?? "#000000",
+  );
+  const moduleScopeBackgroundOverride = Boolean(
+    view.moduleScopeBackgroundOverride ?? nodeGraphMvp.moduleScopeBackgroundOverride,
+  );
+  const moduleScopeDotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(
+    view.moduleScopeDotCore1Size ?? view.moduleScopeDotCore ?? nodeGraphMvp.moduleScopeDotCore1Size ?? 0.18,
+    0.18,
+  );
+  const moduleScopeDotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(
+    view.moduleScopeDotCore1Brightness ?? nodeGraphMvp.moduleScopeDotCore1Brightness ?? 1,
+    1,
+  );
+  const moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(
+    view.moduleScopeDotCore1Color ?? nodeGraphMvp.moduleScopeDotCore1Color ?? "#fff6e1",
+    "#fff6e1",
+  );
+  const moduleScopeDotCore2Size = normalizeNodeGraphModuleScopeDotCoreSize(
+    view.moduleScopeDotCore2Size ?? view.moduleScopeDotGlow ?? nodeGraphMvp.moduleScopeDotCore2Size ?? 0.74,
+    0.74,
+  );
+  const moduleScopeDotCore2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(
+    view.moduleScopeDotCore2Brightness ?? nodeGraphMvp.moduleScopeDotCore2Brightness ?? 0.45,
+    0.45,
+  );
+  const moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(
+    view.moduleScopeDotCore2Color ?? nodeGraphMvp.moduleScopeDotCore2Color ?? "#ffd28b",
+    "#ffd28b",
+  );
+  const moduleScopeFramesPerSecond = normalizeNodeGraphModuleScopeFramesPerSecond(
+    view.moduleScopeFramesPerSecond ?? nodeGraphMvp.moduleScopeFramesPerSecond ?? 60,
+  );
+  const moduleScopeLineThickness = normalizeNodeGraphModuleScopeLineThickness(
+    view.moduleScopeLineThickness ?? nodeGraphMvp.moduleScopeLineThickness ?? 1,
+  );
+  const moduleScopeTraceColor = normalizeNodeGraphModuleScopeTraceColor(
+    view.moduleScopeTraceColor ?? nodeGraphMvp.moduleScopeTraceColor ?? "#3de0ff",
+  );
   const sliderLayout = normalizeNodeGraphSliderLayout(view.sliderLayout ?? nodeGraphMvp.sliderLayout);
   const sliderAmountVisible = Boolean(view.sliderAmountVisible ?? nodeGraphMvp.sliderAmountVisible);
   const sliderPositionVisible = Boolean(
     view.sliderPositionVisible ??
     nodeGraphMvp.sliderPositionVisible
+  );
+  const moduleCatalogVisibility = normalizeNodeGraphModuleCatalogVisibility(
+    view.moduleCatalogVisibility ?? settings.moduleCatalogVisibility ?? nodeGraphMvp.moduleCatalogVisibility,
   );
   return {
     format: {
@@ -50,9 +98,25 @@ function normalizeNodeUiDevSettings(settings = {}) {
     nodeColors: normalizedColors,
     view: {
       gridVisible: Boolean(gridVisible),
+      moduleButtonsVisible,
+      moduleOscilloscopesVisible,
+      moduleSlidersVisible,
+      moduleScopeBrightness,
+      moduleScopeBackgroundColor,
+      moduleScopeBackgroundOverride,
+      moduleScopeDotCore1Size,
+      moduleScopeDotCore1Brightness,
+      moduleScopeDotCore1Color,
+      moduleScopeDotCore2Size,
+      moduleScopeDotCore2Brightness,
+      moduleScopeDotCore2Color,
+      moduleScopeFramesPerSecond,
+      moduleScopeLineThickness,
+      moduleScopeTraceColor,
       sliderLayout,
       sliderAmountVisible,
       sliderPositionVisible,
+      moduleCatalogVisibility,
     },
   };
 }
@@ -87,9 +151,25 @@ function readNodeUiDevSettingsFromControls() {
     nodeColors,
     view: {
       gridVisible: Boolean(nodeGraphMvp.gridVisible),
+      moduleButtonsVisible: Boolean(nodeGraphMvp.moduleButtonsVisible),
+      moduleOscilloscopesVisible: Boolean(nodeGraphMvp.moduleOscilloscopesVisible),
+      moduleSlidersVisible: Boolean(nodeGraphMvp.moduleSlidersVisible),
+      moduleScopeBrightness: normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness ?? 1),
+      moduleScopeBackgroundColor: normalizeNodeGraphModuleScopeBackgroundColor(nodeGraphMvp.moduleScopeBackgroundColor ?? "#000000"),
+      moduleScopeBackgroundOverride: Boolean(nodeGraphMvp.moduleScopeBackgroundOverride),
+      moduleScopeDotCore1Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore1Size ?? 0.18, 0.18),
+      moduleScopeDotCore1Brightness: normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore1Brightness ?? 1, 1),
+      moduleScopeDotCore1Color: normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore1Color ?? "#fff6e1", "#fff6e1"),
+      moduleScopeDotCore2Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore2Size ?? 0.74, 0.74),
+      moduleScopeDotCore2Brightness: normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore2Brightness ?? 0.45, 0.45),
+      moduleScopeDotCore2Color: normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore2Color ?? "#ffd28b", "#ffd28b"),
+      moduleScopeFramesPerSecond: normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60),
+      moduleScopeLineThickness: normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 1),
+      moduleScopeTraceColor: normalizeNodeGraphModuleScopeTraceColor(nodeGraphMvp.moduleScopeTraceColor ?? "#3de0ff"),
       sliderLayout: normalizeNodeGraphSliderLayout(nodeGraphMvp.sliderLayout),
       sliderAmountVisible: Boolean(nodeGraphMvp.sliderAmountVisible),
       sliderPositionVisible: Boolean(nodeGraphMvp.sliderPositionVisible),
+      moduleCatalogVisibility: nodeGraphModuleCatalogVisibility(),
     },
   });
 }
@@ -139,10 +219,28 @@ function applyNodeUiDevSettings(settings) {
     }
   }
   nodeGraphMvp.gridVisible = Boolean(normalized.view.gridVisible);
+  nodeGraphMvp.moduleButtonsVisible = Boolean(normalized.view.moduleButtonsVisible);
+  nodeGraphMvp.moduleOscilloscopesVisible = Boolean(normalized.view.moduleOscilloscopesVisible);
+  nodeGraphMvp.moduleSlidersVisible = Boolean(normalized.view.moduleSlidersVisible);
+  nodeGraphMvp.moduleScopeBrightness = normalizeNodeGraphModuleScopeBrightness(normalized.view.moduleScopeBrightness);
+  nodeGraphMvp.moduleScopeBackgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(normalized.view.moduleScopeBackgroundColor);
+  nodeGraphMvp.moduleScopeBackgroundOverride = Boolean(normalized.view.moduleScopeBackgroundOverride);
+  nodeGraphMvp.moduleScopeDotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore1Size, 0.18);
+  nodeGraphMvp.moduleScopeDotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(normalized.view.moduleScopeDotCore1Brightness, 1);
+  nodeGraphMvp.moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(normalized.view.moduleScopeDotCore1Color, "#fff6e1");
+  nodeGraphMvp.moduleScopeDotCore2Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore2Size, 0.74);
+  nodeGraphMvp.moduleScopeDotCore2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(normalized.view.moduleScopeDotCore2Brightness, 0.45);
+  nodeGraphMvp.moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(normalized.view.moduleScopeDotCore2Color, "#ffd28b");
+  nodeGraphMvp.moduleScopeFramesPerSecond = normalizeNodeGraphModuleScopeFramesPerSecond(normalized.view.moduleScopeFramesPerSecond);
+  nodeGraphMvp.moduleScopeLineThickness = normalizeNodeGraphModuleScopeLineThickness(normalized.view.moduleScopeLineThickness);
+  nodeGraphMvp.moduleScopeTraceColor = normalizeNodeGraphModuleScopeTraceColor(normalized.view.moduleScopeTraceColor);
   nodeGraphMvp.sliderLayout = normalizeNodeGraphSliderLayout(normalized.view.sliderLayout);
   nodeGraphMvp.sliderAmountVisible = Boolean(normalized.view.sliderAmountVisible);
   nodeGraphMvp.sliderPositionVisible = Boolean(normalized.view.sliderPositionVisible);
+  applyNodeGraphModuleCatalogVisibility(normalized.view.moduleCatalogVisibility);
   renderNodeGraphGridToggle();
+  renderNodeGraphModuleVisibilityToggles();
+  renderNodeGraphModuleScopeBrightnessControl();
   renderNodeGraphSliderVisibilityToggles();
   renderNodeGraphSliderLayout();
   syncNodeUiDevSettingsHeaderControls();
@@ -212,6 +310,12 @@ async function loadNodeUiDevDefaultSettings() {
   const storedSettings = loadNodeUiDevLocalDefaultSettings();
   if (storedSettings) {
     applyNodeUiDevSettings(storedSettings);
+    const storedCatalogVisibility = loadNodeGraphModuleCatalogVisibilityLocal();
+    if (storedCatalogVisibility) {
+      applyNodeGraphModuleCatalogVisibility(storedCatalogVisibility);
+    }
+    loadNodeGraphModuleStoreStateLocal();
+    loadNodeGraphModuleScopeSettingsLocal();
     document.documentElement.dataset.nodeUiDevSettingsSource = "local";
     return;
   }
@@ -222,6 +326,12 @@ async function loadNodeUiDevDefaultSettings() {
         throw new Error(`HTTP ${response.status}`);
       }
       applyNodeUiDevSettings(loadNodeUiDevSettingsFromScript(await response.text()));
+      const storedCatalogVisibility = loadNodeGraphModuleCatalogVisibilityLocal();
+      if (storedCatalogVisibility) {
+        applyNodeGraphModuleCatalogVisibility(storedCatalogVisibility);
+      }
+      loadNodeGraphModuleStoreStateLocal();
+      loadNodeGraphModuleScopeSettingsLocal();
       document.documentElement.dataset.nodeUiDevSettingsSource = "fetch";
       return;
     } catch {
@@ -231,6 +341,12 @@ async function loadNodeUiDevDefaultSettings() {
   const bundledSettings = loadNodeUiDevBundledDefaultSettings();
   document.documentElement.dataset.nodeUiDevSettingsSource = bundledSettings ? "bundled" : "controls";
   applyNodeUiDevSettings(bundledSettings || readNodeUiDevSettingsFromControls());
+  const storedCatalogVisibility = loadNodeGraphModuleCatalogVisibilityLocal();
+  if (storedCatalogVisibility) {
+    applyNodeGraphModuleCatalogVisibility(storedCatalogVisibility);
+  }
+  loadNodeGraphModuleStoreStateLocal();
+  loadNodeGraphModuleScopeSettingsLocal();
 }
 
 async function copyNodeUiDevSettingsToClipboard() {

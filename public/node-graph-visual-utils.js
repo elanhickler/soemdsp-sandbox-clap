@@ -24,6 +24,34 @@ function normalizeNodeGraphPatchVisual(visual = {}) {
   };
 }
 
+const nodeGraphElementLightRoles = Object.freeze({
+  none: "none",
+  source: "source",
+  text: "text",
+});
+
+function clearNodeGraphElementLightRole(element) {
+  if (!element) {
+    return;
+  }
+  element.classList.remove("node-light-source", "node-light-text", "node-no-light");
+  delete element.dataset.nodeLight;
+}
+
+function setNodeGraphElementLightRole(element, role = "source") {
+  if (!element) {
+    return;
+  }
+  clearNodeGraphElementLightRole(element);
+  const normalizedRole = nodeGraphElementLightRoles[role] || nodeGraphElementLightRoles.source;
+  element.dataset.nodeLight = normalizedRole;
+  if (normalizedRole === "none") {
+    element.classList.add("node-no-light");
+    return;
+  }
+  element.classList.add(normalizedRole === "text" ? "node-light-text" : "node-light-source");
+}
+
 function nodeGraphVisualThemeColors(theme = "cyan-violet") {
   switch (theme) {
     case "ember-gold":

@@ -7,7 +7,7 @@ function nodeGraphWireModeHelp(mode) {
     case "bypassed":
       return "bypassed: compiler ignores the touched node or wire";
     case "inactive":
-      return "inactive: not reachable from Output";
+      return "inactive: not reachable from Output or visual sink";
     default:
       return "unknown wire execution mode";
   }

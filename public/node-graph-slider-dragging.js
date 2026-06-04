@@ -27,6 +27,7 @@ function syncNodeGraphPatchMetadataFromSlider(slider, options = {}) {
   };
   syncNodeGraphScriptView(options.status || "metadata synced", true);
   renderNodeGraphExecutionPlanDebug();
+  syncNodeGraphFilterCurveDisplays();
   scheduleNodeGraphLiveParameterSync();
   if (options.record) {
     recordNodeGraphHistory();
@@ -68,6 +69,7 @@ function syncNodeGraphPatchParameterFromSlider(slider, options = {}) {
   syncNodeGraphScriptView(options.status || "parameter synced", true);
   renderNodeGraphExecutionPlanDebug();
   syncNodeGraphGhostSliders();
+  syncNodeGraphFilterCurveDisplays();
   if (options.record) {
     recordNodeGraphHistory();
   } else {
@@ -82,7 +84,7 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
 
   const normalizedValue = String(rawValue).trim();
   const choiceIndex = nodeSliderChoiceIndexFromText(slider, normalizedValue);
-  const value = choiceIndex ?? Number(normalizedValue);
+  const value = choiceIndex ?? parseNodeSliderMathExpression(normalizedValue);
   if (!Number.isFinite(value)) {
     syncNodeSliderReadout(slider);
     return;
@@ -107,6 +109,7 @@ function setNodeSliderValue(slider, value) {
   );
   syncNodeSliderReadout(slider);
   syncNodeGraphPatchParameterFromSlider(slider, { deferUi: true });
+  syncNodeGraphFilterCurveDisplays();
   syncNodeGraphGhostSliders();
   markNodeGraphRenderPending();
   scheduleNodeGraphLiveParameterSync();
@@ -118,7 +121,9 @@ function nodeSliderSegmentValueFromPointer(slider, surface, clientX) {
     return null;
   }
   const rect = surface.getBoundingClientRect();
-  const progress = clampNodeSliderValue((clientX - rect.left) / Math.max(1, rect.width), 0, 0.999999);
+  const width = Math.max(1, nodeSliderElementLayoutWidth(surface));
+  const scale = nodeSliderElementVisualScale(surface);
+  const progress = clampNodeSliderValue(((clientX - rect.left) / scale) / width, 0, 0.999999);
   const index = Math.min(choices.length - 1, Math.floor(progress * choices.length));
   return Number(slider.min) + index;
 }
@@ -205,6 +210,7 @@ function beginNodeSliderDrag(event) {
     startX: event.clientX,
     startY: event.clientY,
     fineScale: nodeSliderFineTuneScale(event),
+    visualScale: nodeSliderElementVisualScale(surface),
     width: lane.travelWidth,
   };
   surface.classList.add("value-dragging");
@@ -240,7 +246,8 @@ function dragNodeSlider(event) {
     if (Math.abs(horizontalDelta) > 1 || Math.abs(verticalDelta) > 1) {
       drag.moved = true;
     }
-    const travelDelta = ((horizontalDelta + verticalDelta) / drag.width) * drag.fineScale;
+    const visualTravelWidth = Math.max(1, drag.width * (Number(drag.visualScale) || 1));
+    const travelDelta = ((horizontalDelta + verticalDelta) / visualTravelWidth) * drag.fineScale;
     const nextTravel = drag.startTravel + travelDelta;
     setNodeSliderValue(
       drag.slider,

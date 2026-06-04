@@ -136,9 +136,37 @@ function nodeSliderTravelFromValue(slider, value) {
   return normalizedValue ** (1 / exponent);
 }
 
+function nodeSliderElementLayoutWidth(element) {
+  const width = Number(element?.clientWidth || element?.offsetWidth || 0);
+  if (Number.isFinite(width) && width > 0) {
+    return width;
+  }
+  const rectWidth = Number(element?.getBoundingClientRect?.().width) || 0;
+  const zoom = Math.max(0.01, Number(nodeGraphMvp?.zoom) || 1);
+  return Math.max(0, rectWidth / zoom);
+}
+
+function nodeSliderElementLayoutHeight(element) {
+  const height = Number(element?.clientHeight || element?.offsetHeight || 0);
+  if (Number.isFinite(height) && height > 0) {
+    return height;
+  }
+  const rectHeight = Number(element?.getBoundingClientRect?.().height) || 0;
+  const zoom = Math.max(0.01, Number(nodeGraphMvp?.zoom) || 1);
+  return Math.max(0, rectHeight / zoom);
+}
+
+function nodeSliderElementVisualScale(element) {
+  const layoutWidth = nodeSliderElementLayoutWidth(element);
+  const rectWidth = Number(element?.getBoundingClientRect?.().width) || 0;
+  if (!Number.isFinite(layoutWidth) || !Number.isFinite(rectWidth) || layoutWidth <= 0 || rectWidth <= 0) {
+    return 1;
+  }
+  return Math.max(0.01, rectWidth / layoutWidth);
+}
+
 function nodeSliderVisualLane(surface, slider) {
-  const rect = surface?.getBoundingClientRect?.() || { width: 0 };
-  const width = Math.max(0, Number(rect.width) || 0);
+  const width = nodeSliderElementLayoutWidth(surface);
   const handleHalfWidth = Math.min(nodeSliderHandleHalfWidthPx, width / 2);
   const maxClearance = Math.max(0, width / 2 - handleHalfWidth);
   const leftClearance = nodeSliderShouldWraparound(slider)
@@ -180,7 +208,8 @@ function nodeSliderHandleRangeFromTravel(slider, surface, travel) {
 function nodeSliderTravelFromPointer(slider, surface, clientX) {
   const rect = surface.getBoundingClientRect();
   const lane = nodeSliderVisualLane(surface, slider);
-  const x = clientX - rect.left;
+  const scale = nodeSliderElementVisualScale(surface);
+  const x = (clientX - rect.left) / scale;
   const rawTravel = nodeSliderShouldWraparound(slider)
     ? x / lane.width
     : (x - lane.inset) / lane.travelWidth;

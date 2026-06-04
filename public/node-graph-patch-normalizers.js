@@ -16,6 +16,23 @@ function normalizeNodeGraphPatchAudio(audio = {}) {
   };
 }
 
+function normalizeNodeGraphPatchTiming(timing = {}) {
+  const tempoBpm = Math.round(Number(timing?.tempoBpm));
+  const numerator = Math.round(Number(timing?.timeSignatureNumerator));
+  const denominator = Math.round(Number(timing?.timeSignatureDenominator));
+  return {
+    tempoBpm: Number.isFinite(tempoBpm)
+      ? Math.max(1, Math.min(320, tempoBpm))
+      : 120,
+    timeSignatureDenominator: Number.isFinite(denominator)
+      ? Math.max(1, Math.min(32, denominator))
+      : 4,
+    timeSignatureNumerator: Number.isFinite(numerator)
+      ? Math.max(1, Math.min(32, numerator))
+      : 4,
+  };
+}
+
 function normalizeNodeGraphPatchGrid(grid = {}) {
   const fallbackSize = Number(grid?.sizePx);
   const fallback = Number.isFinite(fallbackSize) && fallbackSize > 0
@@ -65,4 +82,42 @@ function normalizeNodeGraphPatchView(view = {}) {
       ? Math.max(0, widthGu)
       : 0,
   };
+}
+
+function normalizeNodeGraphPatchUiItems(uiItems = [], options = {}) {
+  if (!Array.isArray(uiItems)) {
+    return [];
+  }
+
+  const nodeIds = options.nodeIds instanceof Set ? options.nodeIds : null;
+  const seen = new Set();
+  return uiItems
+    .map((item, index) => {
+      const source = item && typeof item === "object" ? item : {};
+      const sourceNodeId = String(source.sourceNodeId || "").trim();
+      if (nodeIds && (!sourceNodeId || !nodeIds.has(sourceNodeId))) {
+        return null;
+      }
+      const idSource = String(source.id || "").trim() || `ui-${index + 1}`;
+      const id = idSource.replace(/[^a-z0-9_-]/gi, "-").slice(0, 64) || `ui-${index + 1}`;
+      if (seen.has(id)) {
+        return null;
+      }
+      seen.add(id);
+      const x = Math.round(Number(source.x));
+      const y = Math.round(Number(source.y));
+      const w = Math.round(Number(source.w));
+      const h = Math.round(Number(source.h));
+      const label = nodeGraphOneLineText(source.label).slice(0, 64) || sourceNodeId || id;
+      return {
+        h: Number.isFinite(h) ? Math.max(28, Math.min(240, h)) : 44,
+        id,
+        label,
+        sourceNodeId,
+        w: Number.isFinite(w) ? Math.max(64, Math.min(360, w)) : 132,
+        x: Number.isFinite(x) ? Math.max(0, Math.min(2000, x)) : 24,
+        y: Number.isFinite(y) ? Math.max(0, Math.min(2000, y)) : 24,
+      };
+    })
+    .filter(Boolean);
 }

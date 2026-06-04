@@ -22,6 +22,8 @@ function syncNodeUiDevNodeColorControls() {
 function syncNodeUiDevSettingsHeaderControls() {
   const settingsView = document.getElementById("nodeSettingsView");
   const mouseLightEnabledInput = document.getElementById("nodeUiDevMouseLightEnabled");
+  const modularShaderEnabledInput = document.getElementById("nodeUiDevModularShaderEnabled");
+  const scopeBloomEnabledInput = document.getElementById("nodeUiDevScopeBloomEnabled");
   const textSizeInput = document.getElementById("nodeUiDevSettingsHeaderTextSize");
   const textSizeValue = document.getElementById("nodeUiDevSettingsHeaderTextSizeValue");
   const uiDevTextSizeInput = document.getElementById("nodeUiDevButtonTextSize");
@@ -36,6 +38,8 @@ function syncNodeUiDevSettingsHeaderControls() {
   const minimumGridBrightnessValue = document.getElementById("nodeUiDevMinimumGridBrightnessValue");
   const moduleLightSpreadInput = document.getElementById("nodeUiDevModuleLightSpread");
   const moduleLightSpreadValue = document.getElementById("nodeUiDevModuleLightSpreadValue");
+  const textGlowLevelInput = document.getElementById("nodeUiDevTextGlowLevel");
+  const textGlowLevelValue = document.getElementById("nodeUiDevTextGlowLevelValue");
   const moduleGridInsetInput = document.getElementById("nodeUiDevModuleGridInset");
   const moduleGridInsetValue = document.getElementById("nodeUiDevModuleGridInsetValue");
   const moduleRoundnessInput = document.getElementById("nodeUiDevModuleRoundness");
@@ -111,6 +115,8 @@ function syncNodeUiDevSettingsHeaderControls() {
   if (
     !settingsView ||
     !mouseLightEnabledInput ||
+    !modularShaderEnabledInput ||
+    !scopeBloomEnabledInput ||
     !textSizeInput ||
     !textSizeValue ||
     !uiDevTextSizeInput ||
@@ -125,6 +131,8 @@ function syncNodeUiDevSettingsHeaderControls() {
     !minimumGridBrightnessValue ||
     !moduleLightSpreadInput ||
     !moduleLightSpreadValue ||
+    !textGlowLevelInput ||
+    !textGlowLevelValue ||
     !moduleGridInsetInput ||
     !moduleGridInsetValue ||
     !moduleRoundnessInput ||
@@ -202,6 +210,8 @@ function syncNodeUiDevSettingsHeaderControls() {
   }
 
   const mouseLightEnabled = Boolean(mouseLightEnabledInput.checked);
+  const modularShaderEnabled = Boolean(modularShaderEnabledInput.checked);
+  const scopeBloomEnabled = Boolean(scopeBloomEnabledInput.checked);
   const textPercent = Math.max(0, Math.min(100, Number(textSizeInput.value) || 0));
   const uiDevTextPercent = Math.max(0, Math.min(100, Number(uiDevTextSizeInput.value) || 0));
   const liveToggleTextPercent = Math.max(0, Math.min(100, Number(liveToggleTextSizeInput.value) || 0));
@@ -215,6 +225,7 @@ function syncNodeUiDevSettingsHeaderControls() {
     Math.min(100, Number(minimumGridBrightnessInput.value) || 0),
   );
   const moduleLightSpreadPercent = Math.max(40, Math.min(220, Number(moduleLightSpreadInput.value) || 78));
+  const textGlowLevelPercent = Math.max(0, Math.min(100, Number(textGlowLevelInput.value) || 0));
   const moduleGridInsetPx = Math.max(0, Math.min(20, Number(moduleGridInsetInput.value) || 0));
   const moduleRoundnessPercent = Math.max(0, Math.min(100, Number(moduleRoundnessInput.value) || 0));
   const gridColor = normalizeNodeUiDevColor(gridColorInput.value, "#ffffff");
@@ -274,6 +285,19 @@ function syncNodeUiDevSettingsHeaderControls() {
   document
     .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-mouse-light-amount", mouseLightEnabled ? "0.79" : "0");
+  if (typeof setNodeGraphShaderScriptEnabled === "function") {
+    setNodeGraphShaderScriptEnabled(modularShaderEnabled, { persist: false });
+  }
+  if (typeof nodeGraphMvp !== "undefined" && nodeGraphMvp) {
+    const previousScopeBloomEnabled = Boolean(nodeGraphMvp.scopeBloomEnabled);
+    nodeGraphMvp.scopeBloomEnabled = scopeBloomEnabled;
+    document
+      .getElementById("nodeGraphWorkspace")
+      ?.classList.toggle("scope-bloom-enabled", scopeBloomEnabled);
+    if (previousScopeBloomEnabled !== scopeBloomEnabled && typeof scheduleNodeGraphModuleScopeDraw === "function") {
+      scheduleNodeGraphModuleScopeDraw();
+    }
+  }
   document
     .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-mouse-light-spread", "0.05");
@@ -283,6 +307,12 @@ function syncNodeUiDevSettingsHeaderControls() {
   document
     .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-module-light-spread", String(moduleLightSpreadPercent / 100));
+  document
+    .getElementById("nodeGraphWorkspace")
+    ?.style.setProperty("--node-text-light-level", String(textGlowLevelPercent / 100));
+  document
+    .getElementById("nodeWiringPanel")
+    ?.style.setProperty("--node-text-light-level", String(textGlowLevelPercent / 100));
   document
     .getElementById("nodeGraphWorkspace")
     ?.style.setProperty("--node-module-grid-inset", `${moduleGridInsetPx}px`);
@@ -393,6 +423,7 @@ function syncNodeUiDevSettingsHeaderControls() {
   tooltipTextSizeValue.textContent = `${tooltipTextSizePx}px`;
   minimumGridBrightnessValue.textContent = `${minimumGridBrightnessPercent}%`;
   moduleLightSpreadValue.textContent = `${moduleLightSpreadPercent}%`;
+  textGlowLevelValue.textContent = `${textGlowLevelPercent}%`;
   moduleGridInsetValue.textContent = `${moduleGridInsetPx}px`;
   moduleRoundnessValue.textContent = `${moduleRoundnessPercent}%`;
   gridColorValue.textContent = gridColor;

@@ -23,10 +23,13 @@ function sendNodeGraphEnvironmentCommand(command) {
 }
 
 function handleNodeGraphDocumentClick(event) {
+  if (completeNodeGraphModulePlacement(event)) {
+    return;
+  }
   const target = event.target;
   if (
     !(target instanceof Element) ||
-    target.closest("#nodeGraphWorkspace, #nodeSceneContextMenu, #nodeParameterMetadataPopover")
+    target.closest("#nodeGraphWorkspace, #nodeSceneContextMenu, #nodeScopeContextMenu, #nodeGlobalScopeMenu, #nodeParameterMetadataPopover")
   ) {
     return;
   }

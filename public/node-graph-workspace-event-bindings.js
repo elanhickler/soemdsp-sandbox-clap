@@ -7,6 +7,9 @@ function bindNodeGraphWorkspaceInteractionEvents() {
     .addEventListener("contextmenu", openNodeSceneContextMenu);
   document
     .getElementById("nodeGraphWorkspace")
+    .addEventListener("pointerdown", completeNodeGraphModulePlacement, true);
+  document
+    .getElementById("nodeGraphWorkspace")
     .addEventListener("auxclick", preventNodeGraphMiddleMouseAuxClick);
   document
     .getElementById("nodeGraphWorkspace")
@@ -52,6 +55,7 @@ function bindNodeGraphWorkspaceInteractionEvents() {
     .addEventListener("pointerdown", beginNodeGraphWorkspaceResize);
 
   document.addEventListener("pointermove", nodeGraphWireInteractions.dragWire);
+  document.addEventListener("pointermove", dragNodeGraphModulePlacement);
   document.addEventListener("pointerup", nodeGraphWireInteractions.endWireDrag);
   document.addEventListener("pointercancel", nodeGraphWireInteractions.endWireDrag);
   document.addEventListener("pointermove", dragNodeGraphWorkspaceResize);

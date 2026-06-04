@@ -1,8 +1,106 @@
 function bindNodeGraphHeaderControlEvents() {
+  bindNodeGraphShaderScriptEvents();
+  renderNodeGraphPatchTimingControls();
+  const closeNodeGraphModuleBrowser = () => {
+    nodeGraphMvp.sceneContextPoint = null;
+    closeNodeGraphModuleCollectionsMenu();
+    setNodeGraphViewMode("modular");
+  };
   document.getElementById("nodeDeleteButton").addEventListener("click", deleteSelectedNodeGraphItem);
   document.getElementById("nodeUndoButton").addEventListener("click", undoNodeGraphPatch);
   document.getElementById("nodeRedoButton").addEventListener("click", redoNodeGraphPatch);
+  document.getElementById("nodeVisibilityMenuButton").addEventListener("click", toggleNodeGraphVisibilityMenu);
+  document.getElementById("nodeVisibilityMenuClose").addEventListener("click", () => setNodeGraphVisibilityMenuOpen(false));
   document.getElementById("nodeGridToggleButton").addEventListener("click", toggleNodeGraphGridVisibility);
+  document.getElementById("nodeVideoViewButton").addEventListener("click", toggleNodeGraphVideoView);
+  document.getElementById("nodeMappingViewButton").addEventListener("click", () => setNodeGraphViewMode("mapping"));
+  document.getElementById("nodeMidiKeyboardToggleButton").addEventListener("click", toggleNodeGraphMidiKeyboard);
+  document.getElementById("nodeMacroControlsToggleButton").addEventListener("click", toggleNodeGraphMacroControls);
+  document.getElementById("nodeModuleButtonsToggleButton").addEventListener("click", toggleNodeGraphModuleButtonsVisibility);
+  document.getElementById("nodeOscilloscopeToggleButton").addEventListener("click", toggleNodeGraphOscilloscopeVisibility);
+  document.getElementById("nodeGlobalScopeMenuButton").addEventListener("click", toggleNodeGlobalScopeMenu);
+  document.getElementById("nodeGlobalScopeCloseMenu").addEventListener("click", closeNodeGlobalScopeMenu);
+  document.getElementById("nodeGlobalScopeDragHandle").addEventListener("pointerdown", beginNodeGlobalScopeMenuDrag);
+  document.getElementById("nodeMasterScopeBackgroundOverride").addEventListener("click", () => {
+    setNodeGraphModuleScopeBackgroundOverride(!nodeGraphMvp.moduleScopeBackgroundOverride);
+  });
+  document
+    .getElementById("nodeMasterScopeBackgroundColor")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeBackgroundColor(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeBrightness")
+    .addEventListener("input", handleNodeGraphModuleScopeBrightnessInput);
+  document
+    .getElementById("nodeMasterScopeBrightness")
+    .addEventListener("change", handleNodeGraphModuleScopeBrightnessInput);
+  document
+    .getElementById("nodeMasterScopeBurn")
+    .addEventListener("input", handleNodeGraphModuleScopeBurnInput);
+  document
+    .getElementById("nodeMasterScopeBurn")
+    .addEventListener("change", handleNodeGraphModuleScopeBurnInput);
+  document
+    .getElementById("nodeMasterScopeFps")
+    .addEventListener("input", handleNodeGraphModuleScopeFramesPerSecondInput);
+  document
+    .getElementById("nodeMasterScopeFps")
+    .addEventListener("change", handleNodeGraphModuleScopeFramesPerSecondInput);
+  document
+    .getElementById("nodeMasterScopeTraceColor")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeTraceColor(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeTraceColor")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeTraceColor(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore1Size")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeDotCore1Size(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore1Size")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeDotCore1Size(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore1Brightness")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeDotCore1Brightness(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore1Brightness")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeDotCore1Brightness(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore1Color")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeDotCore1Color(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore1Color")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeDotCore1Color(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore2Size")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeDotCore2Size(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore2Size")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeDotCore2Size(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore2Brightness")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeDotCore2Brightness(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore2Brightness")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeDotCore2Brightness(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore2Color")
+    .addEventListener("input", (event) => setNodeGraphModuleScopeDotCore2Color(event.currentTarget.value));
+  document
+    .getElementById("nodeMasterScopeDotCore2Color")
+    .addEventListener("change", (event) => setNodeGraphModuleScopeDotCore2Color(event.currentTarget.value));
+  document
+    .querySelectorAll("#nodeGlobalScopeMenu input[type='number'][data-global-scope-input]")
+    .forEach((input) => {
+      input.addEventListener("dblclick", beginNodeGraphScopeNumberEdit);
+      input.addEventListener("pointerdown", beginNodeGraphScopeNumberDrag);
+      input.addEventListener("lostpointercapture", endNodeGraphScopeNumberDrag);
+    });
+  document
+    .getElementById("nodeMasterScopeLineThickness")
+    .addEventListener("input", handleNodeGraphModuleScopeLineThicknessInput);
+  document
+    .getElementById("nodeMasterScopeLineThickness")
+    .addEventListener("change", handleNodeGraphModuleScopeLineThicknessInput);
+  document.getElementById("nodeModuleSlidersToggleButton").addEventListener("click", toggleNodeGraphModuleSlidersVisibility);
   document.getElementById("nodeTooltipToggleButton").addEventListener("click", toggleNodeGraphTooltipVisibility);
   document.getElementById("nodeUserUiSettingsButton").addEventListener("click", toggleNodeUserUiSettings);
   document
@@ -39,8 +137,35 @@ function bindNodeGraphHeaderControlEvents() {
     .getElementById("nodeModularViewButton")
     .addEventListener("click", () => setNodeGraphViewMode("modular"));
   document
+    .getElementById("nodeModuleShopButton")
+    .addEventListener("click", () => {
+      const shopVisible =
+        !document.getElementById("nodeModuleShopView").hidden ||
+        !document.getElementById("nodeModuleDepartmentView").hidden;
+      nodeGraphMvp.sceneContextPoint = null;
+      setNodeGraphViewMode(shopVisible ? "modular" : "shop");
+    });
+  document
+    .getElementById("nodeGraphEmptyModuleButton")
+    .addEventListener("click", () => openNodeGraphModuleShop(null));
+  document.getElementById("nodeModuleShopClose").addEventListener("click", closeNodeGraphModuleBrowser);
+  document.getElementById("nodeModuleDepartmentClose").addEventListener("click", closeNodeGraphModuleBrowser);
+  document
+    .getElementById("nodeModuleDepartmentSearchShell")
+    .addEventListener("contextmenu", openNodeGraphModuleCollectionsMenu);
+  document
+    .getElementById("nodeModuleCollectionsClose")
+    .addEventListener("click", closeNodeGraphModuleCollectionsMenu);
+  document.addEventListener("pointerdown", handleNodeGraphModuleCollectionsPointerDown);
+  document
     .getElementById("nodeModularOnlyViewButton")
     .addEventListener("click", () => setNodeGraphViewMode("modular-only"));
+  document
+    .getElementById("nodeUiViewButton")
+    .addEventListener("click", () => {
+      const uiVisible = nodeGraphUiViewIsActive();
+      setNodeGraphViewMode(uiVisible ? "modular" : "ui");
+    });
   document
     .getElementById("nodeSnapGridViewButton")
     .addEventListener("click", handleNodeGraphSnapGridButtonClick);

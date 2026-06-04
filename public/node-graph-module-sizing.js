@@ -23,6 +23,18 @@ const nodeGraphTextBoxHeightLimits = Object.freeze({
 });
 
 function nodeGraphDefaultModuleGridWidthUnits(type) {
+  if (nodeGraphModuleDefinitions[type]?.layout === "sliderWidget") {
+    return 6;
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "visualScope") {
+    return 7;
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "graph") {
+    return 8;
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
+    return 8;
+  }
   return 7;
 }
 
@@ -106,6 +118,50 @@ function nodeGraphModuleRequiredHeightUnitsForUi(type, ui = {}) {
   if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
     return nodeGraphModuleHeaderHeightUnits(ui) + nodeGraphModuleLayout.textBoxBodyMinGu;
   }
+  if (nodeGraphModuleDefinitions[type]?.layout === "image") {
+    return (
+      nodeGraphModuleHeaderHeightUnits(ui) +
+      nodeGraphModuleLayout.moduleScopeHeightGu +
+      nodeGraphModuleIoSectionHeightGu(type) +
+      nodeGraphModuleLayout.fitCushionGu
+    );
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "visualScope") {
+    return (
+      nodeGraphModuleHeaderHeightUnits(ui) +
+      nodeGraphModuleGridWidthUnits(type) +
+      nodeGraphModuleIoSectionHeightGu(type) +
+      nodeGraphModuleLayout.fitCushionGu
+    );
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "graph") {
+    return (
+      nodeGraphModuleHeaderHeightUnits(ui) +
+      nodeGraphModuleLayout.moduleScopeHeightGu * 1.5 +
+      nodeGraphModuleIoSectionHeightGu(type) +
+      nodeGraphModuleLayout.fitCushionGu +
+      nodeGraphModuleLayout.moduleGridInsetGu * 2
+    );
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "sliderWidget") {
+    return (
+      nodeGraphModuleHeaderHeightUnits(ui) +
+      nodeGraphModuleLayout.moduleScopeHeightGu +
+      nodeGraphModuleIoSectionHeightGu(type) +
+      nodeGraphModuleLayout.fitCushionGu +
+      nodeGraphModuleLayout.moduleGridInsetGu * 2
+    );
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
+    return (
+      nodeGraphModuleHeaderHeightUnits(ui) +
+      nodeGraphModuleLayout.moduleScopeHeightGu * 1.5 +
+      nodeGraphModuleIoSectionHeightGu(type) +
+      nodeGraphModuleSliderBodyHeightGu(type) +
+      nodeGraphModuleLayout.fitCushionGu +
+      nodeGraphModuleLayout.moduleGridInsetGu * 2
+    );
+  }
   return (
     nodeGraphModuleHeaderHeightUnits(ui) +
     nodeGraphModuleLayout.moduleScopeHeightGu +
@@ -122,6 +178,21 @@ function nodeGraphModuleGridHeightUnits(type) {
 
 function nodeGraphModuleGridHeightUnitsForUi(type, ui = {}) {
   if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
+    return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "image") {
+    return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "visualScope") {
+    return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "graph") {
+    return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "sliderWidget") {
+    return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
     return Math.ceil(nodeGraphModuleRequiredHeightUnitsForUi(type, ui));
   }
   const headerReduction = nodeGraphModuleLayout.headerHeightGu - nodeGraphModuleHeaderHeightUnits(ui);

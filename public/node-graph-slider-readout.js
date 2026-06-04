@@ -6,7 +6,7 @@ function syncNodeSliderPortalHandle(readout, slider, position, enabled) {
     return;
   }
 
-  const width = readout.getBoundingClientRect().width;
+  const width = nodeSliderElementLayoutWidth(readout);
   if (!Number.isFinite(width) || width <= 0) {
     readout.style.setProperty("--portal-left-width", "0px");
     readout.style.setProperty("--portal-right-width", "0px");
@@ -23,7 +23,7 @@ function syncNodeSliderPortalHandle(readout, slider, position, enabled) {
 }
 
 function nodeSliderChoiceDividerBackground(readout, choices) {
-  const width = Math.floor(readout.getBoundingClientRect().width);
+  const width = Math.floor(nodeSliderElementLayoutWidth(readout));
   const dividerColor = "rgba(243, 241, 236, 0.2)";
   const dividerLayers = Array.from({ length: Math.max(0, choices.length - 1) }, (_, index) => {
     if (!Number.isFinite(width) || width <= 0) {
@@ -64,21 +64,35 @@ function nodeSliderChoiceCellRects(width, height, choices) {
   });
 }
 
-function nodeSliderChoiceCellRectsFromWalls(wallXs, height, viewportLeft, viewportTop, emptyPixelBorder = 0) {
+function nodeSliderChoiceCellRectsFromWalls(wallXs, height, viewportLeft, viewportTop, emptyPixelBorder = 0, visualScale = 1) {
   const boundedEmptyPixelBorder = Math.max(0, Math.min(8, Number(emptyPixelBorder) || 0));
   const strokeInset = 0.5;
   const trailingPixelCorrection = boundedEmptyPixelBorder > 0 ? 1 : 0;
   return wallXs.slice(0, -1).map((leftWall, index) => {
     const rightWall = wallXs[index + 1];
-    const left = nodeSliderSnapStrokeCoordinate(leftWall + boundedEmptyPixelBorder + strokeInset, viewportLeft);
+    const left = nodeSliderSnapStrokeCoordinate(
+      leftWall + boundedEmptyPixelBorder + strokeInset,
+      viewportLeft,
+      1,
+      visualScale,
+    );
     const right = nodeSliderSnapStrokeCoordinate(
       rightWall - boundedEmptyPixelBorder - strokeInset - trailingPixelCorrection,
       viewportLeft,
+      1,
+      visualScale,
     );
-    const top = nodeSliderSnapStrokeCoordinate(boundedEmptyPixelBorder + strokeInset, viewportTop);
+    const top = nodeSliderSnapStrokeCoordinate(
+      boundedEmptyPixelBorder + strokeInset,
+      viewportTop,
+      1,
+      visualScale,
+    );
     const bottom = nodeSliderSnapStrokeCoordinate(
       height - boundedEmptyPixelBorder - strokeInset - trailingPixelCorrection,
       viewportTop,
+      1,
+      visualScale,
     );
     return {
       height: Math.max(0, bottom - top),
@@ -117,17 +131,18 @@ function nodeSliderChoiceDividerHeight(readout, layerHeight) {
   return Math.max(0, Math.min(layerHeight, heightAtOneToOne / zoom));
 }
 
-function nodeSliderSnapStrokeCoordinate(localPosition, viewportOrigin, strokeWidth = 1) {
+function nodeSliderSnapStrokeCoordinate(localPosition, viewportOrigin, strokeWidth = 1, visualScale = 1) {
   const dpr = window.devicePixelRatio || 1;
-  const strokeCenter = viewportOrigin + localPosition;
+  const scale = Math.max(0.01, Number(visualScale) || 1);
+  const strokeCenter = viewportOrigin + localPosition * scale;
   const offset = strokeWidth % 2 === 0 ? 0 : 0.5;
   const snappedStrokeCenter = (Math.round(strokeCenter * dpr - offset) + offset) / dpr;
-  return snappedStrokeCenter - viewportOrigin;
+  return (snappedStrokeCenter - viewportOrigin) / scale;
 }
 
-function nodeSliderSnapStrokeSpan(start, end, viewportOrigin, strokeWidth = 1) {
-  const snappedStart = nodeSliderSnapStrokeCoordinate(start, viewportOrigin, strokeWidth);
-  const snappedEnd = nodeSliderSnapStrokeCoordinate(end, viewportOrigin, strokeWidth);
+function nodeSliderSnapStrokeSpan(start, end, viewportOrigin, strokeWidth = 1, visualScale = 1) {
+  const snappedStart = nodeSliderSnapStrokeCoordinate(start, viewportOrigin, strokeWidth, visualScale);
+  const snappedEnd = nodeSliderSnapStrokeCoordinate(end, viewportOrigin, strokeWidth, visualScale);
   return {
     start: snappedStart,
     size: Math.max(0, snappedEnd - snappedStart),
@@ -150,34 +165,38 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled, selectedInd
   }
 
   const layerRect = layer.getBoundingClientRect();
+  const layerWidth = nodeSliderElementLayoutWidth(layer);
+  const layerHeight = nodeSliderElementLayoutHeight(layer);
+  const layerScale = nodeSliderElementVisualScale(layer);
   const emptyPixelBorder = nodeSliderReadCssNumber(readout, "--node-choice-slide-empty-border", 0, 0, 8);
-  layer.setAttribute("viewBox", `0 0 ${layerRect.width.toFixed(3)} ${layerRect.height.toFixed(3)}`);
+  layer.setAttribute("viewBox", `0 0 ${layerWidth.toFixed(3)} ${layerHeight.toFixed(3)}`);
   layer.setAttribute("preserveAspectRatio", "none");
-  const segmentRects = nodeSliderChoiceCellRects(layerRect.width, layerRect.height, choices);
-  const dividerHeight = nodeSliderChoiceDividerHeight(readout, layerRect.height);
-  const dividerTop = (layerRect.height - dividerHeight) * 0.5;
+  const segmentRects = nodeSliderChoiceCellRects(layerWidth, layerHeight, choices);
+  const dividerHeight = nodeSliderChoiceDividerHeight(readout, layerHeight);
+  const dividerTop = (layerHeight - dividerHeight) * 0.5;
   const dividerLines = nodeSliderChoiceDividerLinesFromCells(segmentRects).map((divider, index) => ({
     ...divider,
     height: dividerHeight,
     index,
     top: dividerTop,
-    x: nodeSliderSnapStrokeCoordinate(divider.x, layerRect.left),
+    x: nodeSliderSnapStrokeCoordinate(divider.x, layerRect.left, 1, layerScale),
   }));
   const cellWallXs = [
     0,
     ...dividerLines.map((divider) => divider.x),
-    layerRect.width,
+    layerWidth,
   ];
   const engineSliderWallXs = [
-    nodeSliderSnapStrokeCoordinate(0.5, layerRect.left),
-    nodeSliderSnapStrokeCoordinate(Math.max(0.5, layerRect.width - 0.5), layerRect.left),
+    nodeSliderSnapStrokeCoordinate(0.5, layerRect.left, 1, layerScale),
+    nodeSliderSnapStrokeCoordinate(Math.max(0.5, layerWidth - 0.5), layerRect.left, 1, layerScale),
   ];
   const cellRects = nodeSliderChoiceCellRectsFromWalls(
     cellWallXs,
-    layerRect.height,
+    layerHeight,
     layerRect.left,
     layerRect.top,
     emptyPixelBorder,
+    layerScale,
   );
   const activeChoiceIndex = Math.max(
     0,
@@ -201,7 +220,7 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled, selectedInd
     marker.setAttribute("x1", wallX.toFixed(3));
     marker.setAttribute("x2", wallX.toFixed(3));
     marker.setAttribute("y1", "0");
-    marker.setAttribute("y2", layerRect.height.toFixed(3));
+    marker.setAttribute("y2", layerHeight.toFixed(3));
     return marker;
   });
   const debugSliderWalls = engineSliderWallXs.map((wallX, index) => {
@@ -211,7 +230,7 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled, selectedInd
     marker.setAttribute("x1", wallX.toFixed(3));
     marker.setAttribute("x2", wallX.toFixed(3));
     marker.setAttribute("y1", "0");
-    marker.setAttribute("y2", layerRect.height.toFixed(3));
+    marker.setAttribute("y2", layerHeight.toFixed(3));
     return marker;
   });
   const selectedCellRects = cellRects
@@ -263,6 +282,15 @@ function syncNodeSliderChoiceDebugSquares(readout, choices, enabled, selectedInd
     ...debugWalls,
     ...debugSliderWalls,
   );
+}
+
+function syncNodeGraphSliderReadouts() {
+  for (const slider of document.querySelectorAll(".dsp-node input[data-param]")) {
+    syncNodeSliderReadout(slider);
+  }
+  if (typeof syncNodeGraphGhostSliders === "function") {
+    syncNodeGraphGhostSliders();
+  }
 }
 
 function syncNodeSliderReadout(slider) {

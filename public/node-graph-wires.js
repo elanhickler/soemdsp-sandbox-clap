@@ -6,6 +6,13 @@
       if (!element) {
         return null;
       }
+      if (element.classList?.contains("node-io-row")) {
+        return {
+          io: element.dataset.io,
+          node: element.dataset.node,
+          port: element.dataset.port,
+        };
+      }
       if (element.classList?.contains("modulation-input")) {
         return {
           io: "modulation",
@@ -23,6 +30,13 @@
         };
       }
       return null;
+    }
+
+    function visualEndpointElement(element) {
+      if (element?.classList?.contains("node-io-row")) {
+        return element.querySelector(".node-port") || element;
+      }
+      return element || null;
     }
 
     function endpointsMatch(a, b) {
@@ -183,8 +197,10 @@
       return null;
     }
 
-    function endpointHitboxClientRect(endpoint) {
-      const element = elementForEndpoint(endpoint);
+    function endpointHitboxClientRect(endpoint, hitboxElement = null) {
+      const element = hitboxElement?.classList?.contains("node-io-row")
+        ? hitboxElement
+        : elementForEndpoint(endpoint);
       if (!element) {
         return null;
       }
@@ -231,8 +247,8 @@
       };
     }
 
-    function pointInEndpointHitbox(endpoint, clientX, clientY) {
-      const rect = endpointHitboxClientRect(endpoint);
+    function pointInEndpointHitbox(endpoint, clientX, clientY, hitboxElement = null) {
+      const rect = endpointHitboxClientRect(endpoint, hitboxElement);
       if (!rect) {
         return false;
       }
@@ -242,12 +258,14 @@
     function patchPointTargetFromPoint(clientX, clientY) {
       let best = null;
       let bestDistance = Infinity;
-      for (const target of document.querySelectorAll(".node-port, .node-param-port.modulation-input")) {
+      for (const target of document.querySelectorAll(".node-port, .node-io-row, .node-param-port.modulation-input")) {
         const endpoint = endpointFromElement(target);
-        const rect = endpointHitboxClientRect(endpoint);
-        const elementRect = target.getBoundingClientRect();
+        const rect = endpointHitboxClientRect(endpoint, target);
+        const visualElement = visualEndpointElement(target);
+        const elementRect = visualElement?.getBoundingClientRect();
         if (
           !rect ||
+          !elementRect ||
           clientX < rect.left ||
           clientX > rect.right ||
           clientY < rect.top ||
@@ -386,7 +404,7 @@
       createGradient,
       dropTargetFromPoint,
       drawPath,
-      dragVisualElement: (element) => element || null,
+      dragVisualElement: visualEndpointElement,
       endpointFromElement,
       endpointPoint,
       endpointsAreParameterAudioMismatch,
@@ -434,7 +452,7 @@
 
     function beginManualTrace(event, port) {
       const endpoint = helpers.endpointFromElement(port);
-      if (!endpoint || !helpers.pointInEndpointHitbox(endpoint, event.clientX, event.clientY)) {
+      if (!endpoint || !helpers.pointInEndpointHitbox(endpoint, event.clientX, event.clientY, port)) {
         return false;
       }
       const visualPort = helpers.dragVisualElement(port);
@@ -558,7 +576,7 @@
         return;
       }
       const visualPort = helpers.dragVisualElement(port);
-      if (!helpers.pointInEndpointHitbox(endpoint, event.clientX, event.clientY)) {
+      if (!helpers.pointInEndpointHitbox(endpoint, event.clientX, event.clientY, port)) {
         return;
       }
       state.dragging = {
@@ -587,7 +605,7 @@
       if (
         event.button !== 0 ||
         state.dragging ||
-        target?.closest?.(".node-port, .node-param-port.modulation-input, .node-slider-readout, input, textarea, select")
+        target?.closest?.(".node-port, .node-io-row, .node-param-port.modulation-input, .node-slider-readout, input, textarea, select")
       ) {
         return;
       }
@@ -659,7 +677,7 @@
         setHoveredPatchPoint(null);
         return;
       }
-      const directTarget = target.closest?.(".node-port, .node-param-port.modulation-input");
+      const directTarget = target.closest?.(".node-port, .node-io-row, .node-param-port.modulation-input");
       if (directTarget) {
         setHoveredPatchPoint(directTarget);
         return;

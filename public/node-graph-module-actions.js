@@ -77,10 +77,10 @@ function nodeGraphFindCopiedModuleGridPoint(sourceNode, nodes = nodeGraphMvp.pat
   return { gx: candidate.gx, gy: candidate.gy + maxSearchRows };
 }
 
-function showNodeGraphModule(node, point = null) {
+function showNodeGraphModule(node, point = null, options = {}) {
   const type = node;
   if (type === "output" || !Object.hasOwn(nodeGraphModuleDefinitions, type)) {
-    return;
+    return "";
   }
 
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
@@ -93,7 +93,8 @@ function showNodeGraphModule(node, point = null) {
     gx: gridPoint.gx,
     gy: gridPoint.gy,
   }));
-  commitNodeGraphPatch(patch, { status: "module added" });
+  commitNodeGraphPatch(patch, { status: options.status || "module added" });
+  return id;
 }
 
 function showPaletteNode(node) {
@@ -101,8 +102,255 @@ function showPaletteNode(node) {
 }
 
 function addNodeGraphModuleFromContext(event) {
-  showNodeGraphModule(event.currentTarget.dataset.contextModule, nodeGraphMvp.sceneContextPoint);
+  beginNodeGraphModulePlacement(event.currentTarget.dataset.contextModule, nodeGraphMvp.sceneContextPoint);
   closeNodeSceneContextMenu();
+}
+
+function addNodeGraphModuleFromShop(button) {
+  const type = button.dataset.contextModule;
+  if (!type) {
+    return;
+  }
+  const point = nodeGraphMvp.sceneContextPoint;
+  setNodeGraphViewMode("modular");
+  beginNodeGraphModulePlacement(type, point);
+  nodeGraphMvp.sceneContextPoint = null;
+}
+
+function nodeGraphModulePlacementPixelFromCursor(cursorPoint, element) {
+  const width = element?.offsetWidth || nodeGraphGridWidth() * 6;
+  const height = element?.offsetHeight || nodeGraphGridHeight() * 6;
+  return {
+    x: cursorPoint.x - width * 0.5,
+    y: cursorPoint.y - Math.min(height * 0.45, nodeGraphGridHeight() * 3),
+  };
+}
+
+function positionNodeGraphPendingModuleAtCursor(cursorPoint) {
+  const placement = nodeGraphMvp.modulePlacement;
+  if (!placement) {
+    return false;
+  }
+  const element = nodeGraphNodeElement(placement.nodeId);
+  if (!element) {
+    nodeGraphMvp.modulePlacement = null;
+    return false;
+  }
+  const point = nodeGraphModulePlacementPixelFromCursor(cursorPoint, element);
+  positionNodeGraphNode(element, point, { clamp: true, snap: false });
+  placement.cursorPoint = cursorPoint;
+  placement.point = point;
+  drawNodeGraphWires();
+  scheduleNodeGraphModuleScopeDraw();
+  return true;
+}
+
+function beginNodeGraphModulePlacement(type, point = null) {
+  if (!type || type === "output" || !Object.hasOwn(nodeGraphModuleDefinitions, type)) {
+    return "";
+  }
+  if (nodeGraphMvp.modulePlacement?.nodeId) {
+    finishNodeGraphModulePlacementAtCurrentPosition("module placed");
+  }
+
+  const cursorPoint = point || nodeGraphGridToPixel(defaultNodeGraphModuleGridPoint(type));
+  const id = showNodeGraphModule(type, cursorPoint, { status: "module added: click to place" });
+  if (!id) {
+    return "";
+  }
+
+  const element = nodeGraphNodeElement(id);
+  nodeGraphMvp.modulePlacement = {
+    cursorPoint,
+    nodeId: id,
+    point: cursorPoint,
+    type,
+  };
+  element?.classList.add("placing", "dragging");
+  setNodeGraphNodeSelection([id]);
+  positionNodeGraphPendingModuleAtCursor(cursorPoint);
+  return id;
+}
+
+function finishNodeGraphModulePlacementAtCurrentPosition(status = "module placed") {
+  const placement = nodeGraphMvp.modulePlacement;
+  if (!placement?.nodeId) {
+    return false;
+  }
+  const element = nodeGraphNodeElement(placement.nodeId);
+  if (!element) {
+    nodeGraphMvp.modulePlacement = null;
+    return false;
+  }
+
+  element.classList.remove("placing", "dragging");
+  const x = Number.parseFloat(element.style.getPropertyValue("--node-x")) || 0;
+  const y = Number.parseFloat(element.style.getPropertyValue("--node-y")) || 0;
+  const gridPoint = nodeGraphPixelToGrid({ x, y });
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const patchNode = patch.nodes.find((candidate) => candidate.id === placement.nodeId);
+  if (patchNode) {
+    patchNode.gx = gridPoint.gx;
+    patchNode.gy = gridPoint.gy;
+  }
+  nodeGraphMvp.modulePlacement = null;
+  commitNodeGraphPatch(patch, { status });
+  clearNodeGraphSelection();
+  return true;
+}
+
+function dragNodeGraphModulePlacement(event) {
+  if (!nodeGraphMvp.modulePlacement) {
+    return;
+  }
+  positionNodeGraphPendingModuleAtCursor(nodeGraphClientPoint(event));
+}
+
+function completeNodeGraphModulePlacement(event) {
+  if (!nodeGraphMvp.modulePlacement) {
+    return false;
+  }
+  if (event.button !== undefined && event.button !== 0) {
+    return false;
+  }
+  const target = event.target;
+  if (!(target instanceof Element) || !target.closest("#nodeGraphWorkspace")) {
+    return false;
+  }
+  positionNodeGraphPendingModuleAtCursor(nodeGraphClientPoint(event));
+  finishNodeGraphModulePlacementAtCurrentPosition();
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
+}
+
+function handleNodeGraphModuleStoreClick(event) {
+  const backButton = event.target.closest("[data-store-back]");
+  if (backButton) {
+    setNodeGraphModuleStoreDepartment("");
+    return;
+  }
+  const departmentButton = event.target.closest("[data-store-department]");
+  if (departmentButton) {
+    setNodeGraphModuleStoreDepartment(departmentButton.dataset.storeDepartment);
+    return;
+  }
+  const addButton = event.target.closest("[data-context-module]");
+  if (addButton) {
+    addNodeGraphModuleFromShop(addButton);
+    return;
+  }
+  const groupButton = event.target.closest("[data-context-group]");
+  if (groupButton) {
+    addNodeGraphModuleGroupFromBrowser(groupButton.dataset.contextGroup);
+    return;
+  }
+  const toggleButton = event.target.closest("[data-store-toggle-module]");
+  if (toggleButton) {
+    setNodeGraphModuleCatalogVisibility(
+      toggleButton.dataset.storeToggleModule,
+      toggleButton.dataset.visible === "true",
+    );
+  }
+}
+
+function nodeGraphModuleGroupSelection() {
+  const targetNodeId = nodeGraphModuleActionTargetNodeId();
+  const selectedIds = [...nodeGraphSelectedNodeIds()].filter((id) => nodeGraphPatchNode(id));
+  return selectedIds.length ? selectedIds : targetNodeId ? [targetNodeId] : [];
+}
+
+function saveNodeGraphSelectionAsModuleGroup() {
+  const selectedIds = new Set(nodeGraphModuleGroupSelection());
+  const sourceNodes = nodeGraphMvp.patch.nodes.filter((node) => selectedIds.has(node.id) && node.type !== "output");
+  if (!sourceNodes.length) {
+    return;
+  }
+  const names = sourceNodes.map((node) => nodeGraphNodeDisplayName(node.id)).join(" + ");
+  const groupName = names.length > 48 ? `${names.slice(0, 45)}...` : names;
+  const groups = loadNodeGraphModuleGroupsLocal();
+  groups[groupName] = {
+    createdAt: new Date().toISOString(),
+    nodes: sourceNodes.map((node) => ({
+      ...node,
+      paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
+      params: { ...(node.params || {}) },
+    })),
+    connections: nodeGraphMvp.patch.connections
+      .filter((connection) => selectedIds.has(connection.sourceNode) && selectedIds.has(connection.destinationNode))
+      .map((connection) => ({ ...connection })),
+    modulations: nodeGraphMvp.patch.modulations
+      .filter((modulation) => selectedIds.has(modulation.sourceNode) && selectedIds.has(modulation.destinationNode))
+      .map((modulation) => ({ ...modulation })),
+  };
+  saveNodeGraphModuleGroupsLocal(groups);
+  renderNodeGraphModuleStoreCatalog();
+  configureNodeSceneContextMenu("module");
+}
+
+function addNodeGraphModuleGroupFromBrowser(name) {
+  const group = loadNodeGraphModuleGroupsLocal()[name];
+  if (!group?.nodes?.length) {
+    return;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const counts = nextNodeGraphTypeCounts(patch.nodes);
+  const sourceNodes = group.nodes.filter((node) => Object.hasOwn(nodeGraphModuleDefinitions, node.type));
+  if (!sourceNodes.length) {
+    return;
+  }
+  const minGx = Math.min(...sourceNodes.map((node) => Number(node.gx) || 0));
+  const minGy = Math.min(...sourceNodes.map((node) => Number(node.gy) || 0));
+  const anchor = nodeGraphMvp.sceneContextPoint
+    ? nodeGraphPixelToGrid(nodeGraphMvp.sceneContextPoint)
+    : defaultNodeGraphModuleGridPoint(sourceNodes[0].type);
+  const idMap = {};
+  for (const sourceNode of sourceNodes) {
+    counts[sourceNode.type] = (counts[sourceNode.type] || 0) + 1;
+    const id = `${sourceNode.type}-${counts[sourceNode.type]}`;
+    idMap[sourceNode.id] = id;
+    const sizingOptions = {
+      ...(Object.hasOwn(sourceNode, "heightGu") ? { heightGu: sourceNode.heightGu } : {}),
+      ...(Object.hasOwn(sourceNode, "widthGu") ? { widthGu: sourceNode.widthGu } : {}),
+    };
+    patch.nodes.push({
+      ...createNodeGraphPatchNode(sourceNode.type, {
+        alias: sourceNode.alias,
+        gx: anchor.gx + ((Number(sourceNode.gx) || 0) - minGx),
+        gy: anchor.gy + ((Number(sourceNode.gy) || 0) - minGy),
+        id,
+        layout: sourceNode.layout,
+        graph: sourceNode.graph,
+        codeblock: sourceNode.codeblock,
+        ui: sourceNode.ui,
+        ...sizingOptions,
+      }),
+      ...(sourceNode.type === "graph"
+        ? { graph: normalizeNodeGraphGraph(sourceNode.graph) }
+        : {}),
+      ...(sourceNode.type === "codeblock"
+        ? { codeblock: normalizeNodeGraphCodeblock(sourceNode.codeblock) }
+        : {}),
+      paramMeta: cloneNodeGraphParamMeta(sourceNode.paramMeta),
+      params: { ...(sourceNode.params || {}) },
+    });
+  }
+  patch.connections.push(...(group.connections || [])
+    .filter((connection) => idMap[connection.sourceNode] && idMap[connection.destinationNode])
+    .map((connection) => ({
+      ...connection,
+      destinationNode: idMap[connection.destinationNode],
+      sourceNode: idMap[connection.sourceNode],
+    })));
+  patch.modulations.push(...(group.modulations || [])
+    .filter((modulation) => idMap[modulation.sourceNode] && idMap[modulation.destinationNode])
+    .map((modulation) => ({
+      ...modulation,
+      destinationNode: idMap[modulation.destinationNode],
+      sourceNode: idMap[modulation.sourceNode],
+    })));
+  setNodeGraphViewMode("modular");
+  commitNodeGraphPatch(patch, { status: "group added" });
 }
 
 function copyNodeGraphModule(sourceNode) {
@@ -118,11 +366,24 @@ function copyNodeGraphModule(sourceNode) {
       gy: gridPoint.gy,
       id,
       layout: sourceNode.layout,
+      graph: sourceNode.graph,
+      codeblock: sourceNode.codeblock,
       ui: sourceNode.ui,
       ...(Object.hasOwn(sourceNode, "widthGu") ? { widthGu: sourceNode.widthGu } : {}),
       ...(Object.hasOwn(sourceNode, "heightGu") ? { heightGu: sourceNode.heightGu } : {}),
     }),
-    ...(sourceNode.layout ? { layout: normalizeNodeGraphTextBoxLayout(sourceNode.layout) } : {}),
+    ...(sourceNode.type === "textBox"
+      ? { layout: normalizeNodeGraphTextBoxLayout(sourceNode.layout) }
+      : {}),
+    ...(sourceNode.type === "image"
+      ? { layout: normalizeNodeGraphImageLayout(sourceNode.layout) }
+      : {}),
+    ...(sourceNode.type === "graph"
+      ? { graph: normalizeNodeGraphGraph(sourceNode.graph) }
+      : {}),
+    ...(sourceNode.type === "codeblock"
+      ? { codeblock: normalizeNodeGraphCodeblock(sourceNode.codeblock) }
+      : {}),
     paramMeta: cloneNodeGraphParamMeta(sourceNode.paramMeta),
     params: { ...(sourceNode.params || {}) },
   });
@@ -140,6 +401,43 @@ function copyNodeGraphModuleFromContext() {
     }
   }
   configureNodeSceneContextMenu("module");
+}
+
+function addNodeGraphModuleToUiFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode) {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const uiItems = normalizeNodeGraphPatchUiItems(patch.uiItems);
+  if (uiItems.some((item) => item.sourceNodeId === sourceNode.id)) {
+    closeNodeSceneContextMenu();
+    setNodeGraphViewMode("ui");
+    return;
+  }
+  const nextIndex = uiItems.length + 1;
+  const idBase = `ui-${sourceNode.id}`.replace(/[^a-z0-9_-]/gi, "-").slice(0, 58) || "ui-module";
+  let id = idBase;
+  let suffix = 2;
+  const existingIds = new Set(uiItems.map((item) => item.id));
+  while (existingIds.has(id)) {
+    id = `${idBase}-${suffix}`;
+    suffix += 1;
+  }
+  uiItems.push({
+    h: 44,
+    id,
+    label: nodeGraphPatchNodeTitle(sourceNode),
+    sourceNodeId: sourceNode.id,
+    w: 132,
+    x: 24 + ((nextIndex - 1) % 4) * 156,
+    y: 24 + Math.floor((nextIndex - 1) / 4) * 68,
+  });
+  patch.uiItems = uiItems;
+  commitNodeGraphPatch(patch, { status: "module added to ui view" });
+  closeNodeSceneContextMenu();
+  setNodeGraphViewMode("ui");
 }
 
 function deleteNodeGraphSelectionFromContext() {
@@ -187,7 +485,7 @@ function adjustNodeGraphModuleWidthFromContext(delta) {
 
 function adjustNodeGraphTextBoxHeightFromContext(delta) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode) {
     return;
   }
 
@@ -197,19 +495,23 @@ function adjustNodeGraphTextBoxHeightFromContext(delta) {
     return;
   }
   const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(targetNode);
-  const nextHeightGu = normalizeNodeGraphTextBoxHeightUnits(currentHeightGu + delta);
+  const nextHeightGu = normalizeNodeGraphModuleHeightUnits(
+    targetNode.type,
+    currentHeightGu + delta,
+    targetNode.ui,
+  );
   if (nextHeightGu === currentHeightGu) {
     configureNodeSceneContextMenu("module");
     return;
   }
 
-  const defaultHeightGu = nodeGraphModuleGridHeightUnitsForUi("textBox", targetNode.ui);
+  const defaultHeightGu = nodeGraphModuleGridHeightUnitsForUi(targetNode.type, targetNode.ui);
   if (nextHeightGu === defaultHeightGu) {
     delete targetNode.heightGu;
   } else {
     targetNode.heightGu = nextHeightGu;
   }
-  commitNodeGraphPatch(patch, { status: "text box height changed" });
+  commitNodeGraphPatch(patch, { status: "module height changed" });
   configureNodeSceneContextMenu("module");
 }
 
@@ -264,6 +566,396 @@ function setNodeGraphModuleAliasFromContext({ record = true } = {}) {
   if (document.activeElement === input) {
     input.focus();
     input.setSelectionRange?.(input.value.length, input.value.length);
+  }
+}
+
+function nodeGraphGraphTargetFromContext(patch = cloneNodeGraphPatch(nodeGraphMvp.patch)) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "graph") {
+    return { patch, targetNode: null };
+  }
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode || targetNode.type !== "graph") {
+    return { patch, targetNode: null };
+  }
+  targetNode.graph = normalizeNodeGraphGraph(targetNode.graph);
+  return { patch, targetNode };
+}
+
+function selectedNodeGraphGraphIndex(graph, fallback = undefined) {
+  const input = document.getElementById("nodeSceneGraphNodeIndex");
+  const rawIndex = Number(input?.value);
+  const maxIndex = Math.max(0, (graph?.nodes?.length || 1) - 1);
+  const hasFallback = Number.isFinite(Number(fallback));
+  const index = hasFallback
+    ? Number(fallback)
+    : Number.isFinite(rawIndex)
+      ? rawIndex
+      : maxIndex;
+  return Math.max(0, Math.min(maxIndex, Math.round(index)));
+}
+
+function populateNodeGraphGraphNodeIndexSelect(graph, selectedIndex = selectedNodeGraphGraphIndex(graph)) {
+  const select = document.getElementById("nodeSceneGraphNodeIndex");
+  if (!select) {
+    return;
+  }
+  const graphData = normalizeNodeGraphGraph(graph);
+  select.replaceChildren();
+  graphData.nodes.forEach((node, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = `${index + 1}: x ${node.x.toFixed(3)}`;
+    select.append(option);
+  });
+  select.value = String(selectedNodeGraphGraphIndex(graphData, selectedIndex));
+}
+
+function createNodeGraphGraphRowNumberInput(index, field, value, options = {}) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(options.min ?? 0);
+  input.max = String(options.max ?? 1);
+  input.step = String(options.step ?? 0.001);
+  input.inputMode = "decimal";
+  input.autocomplete = "off";
+  input.value = Number(value).toFixed(3);
+  input.dataset.graphNodeRow = String(index);
+  input.dataset.graphNodeField = field;
+  input.setAttribute("aria-label", `Graph node ${index + 1} ${field}`);
+  return input;
+}
+
+function createNodeGraphGraphRowShapeSelect(index, value) {
+  const select = document.createElement("select");
+  select.dataset.graphNodeRow = String(index);
+  select.dataset.graphNodeField = "shape";
+  select.setAttribute("aria-label", `Graph node ${index + 1} shape`);
+  for (const shape of nodeGraphGraphShapes) {
+    const option = document.createElement("option");
+    option.value = shape;
+    option.textContent = shape;
+    select.append(option);
+  }
+  select.value = normalizeNodeGraphGraphShape(value);
+  return select;
+}
+
+function renderNodeGraphGraphNodeList(graph, selectedIndex = selectedNodeGraphGraphIndex(graph)) {
+  const list = document.getElementById("nodeSceneGraphNodeList");
+  if (!list) {
+    return;
+  }
+  const graphData = normalizeNodeGraphGraph(graph);
+  const activeIndex = selectedNodeGraphGraphIndex(graphData, selectedIndex);
+  list.replaceChildren();
+  const header = document.createElement("div");
+  header.className = "scene-context-graph-node-row scene-context-graph-node-row-header";
+  for (const label of ["node", "x", "y", "curve", "shape"]) {
+    const span = document.createElement("span");
+    span.textContent = label;
+    header.append(span);
+  }
+  list.append(header);
+  graphData.nodes.forEach((node, index) => {
+    const row = document.createElement("div");
+    row.className = "scene-context-graph-node-row";
+    row.dataset.graphNodeRow = String(index);
+    row.dataset.selected = index === activeIndex ? "true" : "false";
+
+    const label = document.createElement("button");
+    label.type = "button";
+    label.textContent = String(index + 1);
+    label.dataset.graphNodeSelect = String(index);
+    label.setAttribute("aria-pressed", index === activeIndex ? "true" : "false");
+    row.append(label);
+    row.append(createNodeGraphGraphRowNumberInput(index, "x", node.x));
+    row.append(createNodeGraphGraphRowNumberInput(index, "y", node.y));
+    row.append(createNodeGraphGraphRowNumberInput(index, "c", node.c, { min: -0.999, max: 0.999 }));
+    row.append(createNodeGraphGraphRowShapeSelect(index, node.shape));
+    list.append(row);
+  });
+}
+
+function syncNodeGraphGraphControls(graph, selectedIndex = selectedNodeGraphGraphIndex(graph)) {
+  const graphData = normalizeNodeGraphGraph(graph);
+  const index = selectedNodeGraphGraphIndex(graphData, selectedIndex);
+  const node = graphData.nodes[index] || graphData.nodes.at(-1);
+  populateNodeGraphGraphNodeIndexSelect(graphData, index);
+  renderNodeGraphGraphNodeList(graphData, index);
+  const cursorInput = document.getElementById("nodeSceneGraphCursorX");
+  const xInput = document.getElementById("nodeSceneGraphNodeX");
+  const yInput = document.getElementById("nodeSceneGraphNodeY");
+  const contourInput = document.getElementById("nodeSceneGraphNodeContour");
+  const shapeInput = document.getElementById("nodeSceneGraphNodeShape");
+  const removeButton = document.getElementById("nodeSceneGraphRemoveNode");
+  if (cursorInput) {
+    cursorInput.value = graphData.cursorX.toFixed(3);
+  }
+  if (xInput) {
+    xInput.value = node.x.toFixed(3);
+  }
+  if (yInput) {
+    yInput.value = node.y.toFixed(3);
+  }
+  if (contourInput) {
+    contourInput.value = node.c.toFixed(3);
+  }
+  if (shapeInput) {
+    shapeInput.value = normalizeNodeGraphGraphShape(node.shape);
+  }
+  if (removeButton) {
+    removeButton.disabled = graphData.nodes.length <= 2;
+  }
+}
+
+function setNodeGraphGraphSelectedIndex(index) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "graph") {
+    return;
+  }
+  const graph = normalizeNodeGraphGraph(sourceNode.graph);
+  syncNodeGraphGraphControls(graph, nodeGraphGraphNodeIndexFromValue(graph, index));
+}
+
+function commitNodeGraphGraphEdit(patch, targetNode, status, options = {}) {
+  let selectedIndex = selectedNodeGraphGraphIndex(targetNode.graph, options.selectedIndex);
+  targetNode.graph = normalizeNodeGraphGraph(targetNode.graph);
+  if (Number.isFinite(options.selectedX)) {
+    selectedIndex = targetNode.graph.nodes.reduce((bestIndex, node, index) => {
+      const best = targetNode.graph.nodes[bestIndex];
+      return Math.abs(node.x - options.selectedX) < Math.abs(best.x - options.selectedX)
+        ? index
+        : bestIndex;
+    }, 0);
+  }
+  commitNodeGraphPatch(patch, { record: options.record ?? true, status });
+  syncNodeGraphGraphControls(targetNode.graph, selectedIndex);
+}
+
+function setNodeGraphGraphCursorFromContext({ record = true } = {}) {
+  const { patch, targetNode } = nodeGraphGraphTargetFromContext();
+  if (!targetNode) {
+    return;
+  }
+  const input = document.getElementById("nodeSceneGraphCursorX");
+  targetNode.graph = normalizeNodeGraphGraph({
+    ...targetNode.graph,
+    cursorX: normalizeNodeGraphGraphNumber(input?.value, targetNode.graph.cursorX),
+  });
+  commitNodeGraphGraphEdit(patch, targetNode, "graph cursor changed", { record });
+}
+
+function setNodeGraphGraphNodeFromContext({ record = true } = {}) {
+  const { patch, targetNode } = nodeGraphGraphTargetFromContext();
+  if (!targetNode) {
+    return;
+  }
+  const graph = normalizeNodeGraphGraph(targetNode.graph);
+  const selectedIndex = selectedNodeGraphGraphIndex(graph);
+  const node = graph.nodes[selectedIndex];
+  graph.nodes[selectedIndex] = normalizeNodeGraphGraphNode({
+    c: document.getElementById("nodeSceneGraphNodeContour")?.value ?? node.c,
+    shape: document.getElementById("nodeSceneGraphNodeShape")?.value ?? node.shape,
+    x: document.getElementById("nodeSceneGraphNodeX")?.value ?? node.x,
+    y: document.getElementById("nodeSceneGraphNodeY")?.value ?? node.y,
+  }, selectedIndex);
+  targetNode.graph = graph;
+  commitNodeGraphGraphEdit(patch, targetNode, "graph node changed", { record, selectedIndex });
+}
+
+function selectNodeGraphGraphNodeFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "graph") {
+    return;
+  }
+  syncNodeGraphGraphControls(sourceNode.graph);
+}
+
+function setNodeGraphGraphNodeListValueFromContext(event, { record = true } = {}) {
+  const field = event.target?.dataset?.graphNodeField;
+  const rowIndex = event.target?.dataset?.graphNodeRow;
+  if (!field || rowIndex === undefined) {
+    return;
+  }
+  const { patch, targetNode } = nodeGraphGraphTargetFromContext();
+  if (!targetNode) {
+    return;
+  }
+  const graph = normalizeNodeGraphGraph(targetNode.graph);
+  const selectedIndex = nodeGraphGraphNodeIndexFromValue(graph, rowIndex);
+  const node = graph.nodes[selectedIndex];
+  graph.nodes[selectedIndex] = normalizeNodeGraphGraphNode({
+    ...node,
+    [field]: event.target.value,
+  }, selectedIndex);
+  targetNode.graph = graph;
+  commitNodeGraphGraphEdit(patch, targetNode, "graph node changed", { record, selectedIndex });
+}
+
+function handleNodeGraphGraphNodeListClick(event) {
+  const selectButton = event.target?.closest?.("[data-graph-node-select]");
+  if (!selectButton) {
+    return;
+  }
+  setNodeGraphGraphSelectedIndex(selectButton.dataset.graphNodeSelect);
+}
+
+function handleNodeGraphGraphNodeListInput(event) {
+  setNodeGraphGraphNodeListValueFromContext(event, { record: false });
+}
+
+function handleNodeGraphGraphNodeListChange(event) {
+  setNodeGraphGraphNodeListValueFromContext(event, { record: true });
+}
+
+function addNodeGraphGraphNodeFromContext() {
+  const { patch, targetNode } = nodeGraphGraphTargetFromContext();
+  if (!targetNode) {
+    return;
+  }
+  const graph = normalizeNodeGraphGraph(targetNode.graph);
+  const x = normalizeNodeGraphGraphNumber(graph.cursorX, 0.5);
+  graph.nodes.push({
+    c: 0,
+    shape: "rational",
+    x,
+    y: normalizeNodeGraphGraphNumber(nodeGraphGraphValueAt(graph, x), 0),
+  });
+  targetNode.graph = graph;
+  commitNodeGraphGraphEdit(patch, targetNode, "graph node added", {
+    selectedX: x,
+  });
+}
+
+function removeNodeGraphGraphNodeFromContext() {
+  const { patch, targetNode } = nodeGraphGraphTargetFromContext();
+  if (!targetNode) {
+    return;
+  }
+  const graph = normalizeNodeGraphGraph(targetNode.graph);
+  if (graph.nodes.length <= 2) {
+    return;
+  }
+  const selectedIndex = selectedNodeGraphGraphIndex(graph);
+  graph.nodes.splice(selectedIndex, 1);
+  targetNode.graph = graph;
+  commitNodeGraphGraphEdit(patch, targetNode, "graph node removed", {
+    selectedIndex: Math.max(0, selectedIndex - 1),
+  });
+}
+
+function resetNodeGraphGraphFromContext() {
+  const { patch, targetNode } = nodeGraphGraphTargetFromContext();
+  if (!targetNode) {
+    return;
+  }
+  targetNode.graph = normalizeNodeGraphGraph();
+  commitNodeGraphGraphEdit(patch, targetNode, "graph reset", { selectedIndex: 1 });
+}
+
+function nodeGraphCodeblockBuildFunctionBody(codeblock) {
+  const inputs = codeblock.inputs
+    .map((port, index) => `const ${port} = __inputs[${index}] || 0;`)
+    .join("\n");
+  const outputs = codeblock.outputs.map((port) => `let ${port} = 0;`).join("\n");
+  const writes = codeblock.outputs
+    .map((port) => `__outputs[${JSON.stringify(port)}] = ${port};`)
+    .join("\n");
+  const shadows = nodeGraphCodeblockShadowedGlobals
+    .filter((name) => name !== "eval")
+    .map((name) => `const ${name} = undefined;`)
+    .join("\n");
+  return `"use strict";\n${shadows}\n${inputs}\n${outputs}\n${codeblock.code}\n${writes}\nreturn __outputs;`;
+}
+
+function nodeGraphCodeblockCompileStatus(codeblock) {
+  try {
+    const normalized = normalizeNodeGraphCodeblock(codeblock);
+    Function(
+      "__inputs",
+      "__outputs",
+      nodeGraphCodeblockBuildFunctionBody(normalized),
+    );
+    return { ok: true, message: "code ok" };
+  } catch (error) {
+    return { ok: false, message: error?.message || "compile error" };
+  }
+}
+
+function nodeGraphCodeblockPortsFromInput(id, fallbackPrefix) {
+  return normalizeNodeGraphCodeblockPortList(
+    document.getElementById(id)?.value,
+    fallbackPrefix,
+  );
+}
+
+function pruneNodeGraphConnectionsForCodeblockPortChange(patch, nodeId, inputs, outputs) {
+  const inputSet = new Set(inputs);
+  const outputSet = new Set(outputs);
+  patch.connections = (patch.connections || []).filter((connection) => {
+    if (connection.destinationNode === nodeId && !inputSet.has(connection.destinationPort)) {
+      return false;
+    }
+    if (connection.sourceNode === nodeId && !outputSet.has(connection.sourcePort)) {
+      return false;
+    }
+    return true;
+  });
+  patch.modulations = (patch.modulations || []).filter((modulation) => (
+    modulation.sourceNode !== nodeId || outputSet.has(modulation.sourcePort)
+  ));
+}
+
+function applyNodeGraphCodeblockPortsFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "codeblock") {
+    return;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const current = normalizeNodeGraphCodeblock(targetNode.codeblock);
+  const next = normalizeNodeGraphCodeblock({
+    ...current,
+    inputs: nodeGraphCodeblockPortsFromInput("nodeSceneCodeblockInputs", "In"),
+    outputs: nodeGraphCodeblockPortsFromInput("nodeSceneCodeblockOutputs", "Out"),
+  });
+  targetNode.codeblock = next;
+  pruneNodeGraphConnectionsForCodeblockPortChange(patch, targetNode.id, next.inputs, next.outputs);
+  commitNodeGraphPatch(patch, { status: "codeblock ports changed" });
+  configureNodeSceneContextMenu("module");
+}
+
+function setNodeGraphCodeblockSourceFromContext({ record = true } = {}) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "codeblock") {
+    return;
+  }
+  const sourceInput = document.getElementById("nodeSceneCodeblockSource");
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const codeblock = normalizeNodeGraphCodeblock(targetNode.codeblock);
+  targetNode.codeblock = normalizeNodeGraphCodeblock({
+    ...codeblock,
+    code: sourceInput?.value ?? nodeGraphCodeblockDefaultCode,
+  });
+  const status = nodeGraphCodeblockCompileStatus(targetNode.codeblock);
+  const statusOutput = document.getElementById("nodeSceneCodeblockStatus");
+  if (statusOutput) {
+    statusOutput.textContent = status.ok ? "code ok" : `compile error: ${status.message}`;
+  }
+  commitNodeGraphPatch(patch, {
+    record,
+    status: status.ok ? "codeblock code changed" : "codeblock compile error",
+  });
+  if (document.activeElement === sourceInput) {
+    sourceInput.focus();
   }
 }
 
@@ -356,6 +1048,90 @@ function setNodeGraphTextBoxVerticalAlignFromContext({ record = true } = {}) {
   if (document.activeElement === input) {
     input.focus();
   }
+}
+
+function loadNodeGraphImageFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "image") {
+    return;
+  }
+  const input = document.getElementById("nodeSceneImageFileInput");
+  if (!input) {
+    return;
+  }
+  input.dataset.targetNode = sourceNode.id;
+  input.value = "";
+  input.click();
+}
+
+function handleNodeGraphImageFileInputChange(event) {
+  const input = event.currentTarget;
+  const targetNodeId = input.dataset.targetNode || nodeGraphModuleActionTargetNodeId();
+  const sourceNode = nodeGraphPatchNode(targetNodeId);
+  const file = input.files?.[0];
+  if (!sourceNode || sourceNode.type !== "image" || !file) {
+    return;
+  }
+  if (!nodeGraphImageAcceptedTypes.includes(file.type)) {
+    setNodeInteractionHelp("Image type not supported.");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = normalizeNodeGraphImageDataUrl(reader.result);
+    if (!dataUrl) {
+      setNodeInteractionHelp("Image is too large or invalid.");
+      return;
+    }
+    const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+    const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+    if (!targetNode) {
+      return;
+    }
+    targetNode.layout = normalizeNodeGraphImageLayout({
+      dataUrl,
+      fileName: file.name || "trace-image",
+      refreshedAt: Date.now(),
+    });
+    commitNodeGraphPatch(patch, { status: "image loaded" });
+    configureNodeSceneContextMenu("module");
+    scheduleNodeGraphModuleScopeDraw();
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveNodeGraphImageFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  const layout = normalizeNodeGraphImageLayout(sourceNode?.layout);
+  if (!sourceNode || sourceNode.type !== "image" || !layout.dataUrl) {
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = layout.dataUrl;
+  link.download = nodeGraphImageFileName(layout);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setNodeInteractionHelp("Image saved.");
+}
+
+function refreshNodeGraphImageFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "image") {
+    return;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  targetNode.layout = normalizeNodeGraphImageLayout({
+    ...targetNode.layout,
+    refreshedAt: Date.now(),
+  });
+  commitNodeGraphPatch(patch, { record: false, status: "image refreshed" });
+  refreshNodeGraphImageBodies();
+  scheduleNodeGraphModuleScopeDraw();
 }
 
 function toggleNodeGraphModuleButtonsFromContext() {

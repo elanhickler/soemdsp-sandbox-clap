@@ -64,11 +64,22 @@ function cloneNodeGraphPatch(patch) {
         ...(nodeGraphModuleDefinitions[node.type]?.layout === "textBox"
           ? { layout: normalizeNodeGraphTextBoxLayout(node.layout) }
           : {}),
+        ...(nodeGraphModuleDefinitions[node.type]?.layout === "image"
+          ? { layout: normalizeNodeGraphImageLayout(node.layout) }
+          : {}),
+        ...(node.type === "graph"
+          ? { graph: normalizeNodeGraphGraph(node.graph) }
+          : {}),
+        ...(node.type === "codeblock"
+          ? { codeblock: normalizeNodeGraphCodeblock(node.codeblock) }
+          : {}),
         paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
         params: { ...(node.params || {}) },
         ...(ui.buttonsHidden || ui.titleHidden ? { ui } : {}),
       };
     }),
+    timing: normalizeNodeGraphPatchTiming(patch.timing),
+    uiItems: normalizeNodeGraphPatchUiItems(patch.uiItems),
     view: normalizeNodeGraphPatchView(patch.view),
     visual: normalizeNodeGraphPatchVisual(patch.visual),
     windows: normalizeNodeGraphPatchWindows(patch.windows),

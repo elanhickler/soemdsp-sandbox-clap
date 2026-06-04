@@ -7,6 +7,7 @@ function setNodeGraphLiveEvidence(kind = "idle", details = {}) {
     connectionCount: Number(details.connectionCount ?? planEvidence.connectionCount) || 0,
     currentPatchFingerprint,
     engine: nodeGraphMvp.live.usesWorklet ? "worklet" : nodeGraphMvp.live.runtime ? "fallback" : "idle",
+    engineSampleRate: Number(details.engineSampleRate ?? planEvidence.engineSampleRate) || 0,
     feedbackConnectionCount: Number(details.feedbackConnectionCount ?? planEvidence.feedbackConnectionCount) || 0,
     feedbackModulationCount: Number(details.feedbackModulationCount ?? planEvidence.feedbackModulationCount) || 0,
     feedbackModulations: [
@@ -20,12 +21,116 @@ function setNodeGraphLiveEvidence(kind = "idle", details = {}) {
     message: String(details.message || ""),
     modulationCount: Number(details.modulationCount ?? planEvidence.modulationCount) || 0,
     nodeCount: Number(details.nodeCount ?? planEvidence.nodeCount) || 0,
+    oversamplingRatio: Number(details.oversamplingRatio ?? planEvidence.oversamplingRatio) || 1,
     parameterCount: Number(details.parameterCount) || 0,
     patchFingerprint,
     planSerial: Number(details.planSerial) || nodeGraphMvp.live.planSerial || 0,
+    sampleRate: Number(details.sampleRate ?? planEvidence.sampleRate) || 0,
     sessionId: nodeGraphMvp.live.sessionId,
+    speakerOutputActive: Boolean(details.speakerOutputActive ?? planEvidence.speakerOutputActive),
     stateReadCount: Number(details.stateReadCount ?? planEvidence.stateReadCount) || 0,
+    visualControls: {
+      ...(planEvidence.visualControls || {}),
+      ...(details.visualControls || {}),
+    },
+    visualSinkCount: Number(details.visualSinkCount ?? planEvidence.visualSinkCount) || 0,
+    visualSinks: (details.visualSinks || planEvidence.visualSinks || []).map((sink) => ({
+      ...sink,
+      inputs: (sink.inputs || []).map((input) => ({ ...input })),
+    })),
   };
+}
+
+function nodeGraphBadValueMonitorEnabled() {
+  return Boolean(nodeGraphMvp.badValueMonitor?.enabled);
+}
+
+function nodeGraphBadValueMonitorEvents() {
+  return Array.isArray(nodeGraphMvp.badValueMonitor?.events)
+    ? nodeGraphMvp.badValueMonitor.events
+    : [];
+}
+
+function renderNodeGraphBadValueMonitorEvidence() {
+  const monitor = nodeGraphMvp.badValueMonitor || { enabled: false, events: [] };
+  const button = document.getElementById("nodeBadValueMonitorButton");
+  const status = document.getElementById("nodeBadValueMonitorStatus");
+  const list = document.getElementById("nodeBadValueMonitorEvidence");
+  const events = nodeGraphBadValueMonitorEvents();
+  if (button) {
+    button.setAttribute("aria-pressed", String(Boolean(monitor.enabled)));
+    button.textContent = monitor.enabled ? "BADVAL Armed" : "BADVAL Monitor";
+  }
+  if (status) {
+    status.textContent = events.length
+      ? `badval ${events.length}`
+      : monitor.enabled
+        ? "badval armed"
+        : "badval off";
+    status.className = `pill ${events.length ? "warn" : monitor.enabled ? "good" : ""}`.trim();
+  }
+  if (!list) {
+    return;
+  }
+  list.replaceChildren();
+  if (!monitor.enabled && !events.length) {
+    const item = document.createElement("li");
+    item.textContent = "monitor off";
+    list.append(item);
+    return;
+  }
+  if (!events.length) {
+    const item = document.createElement("li");
+    item.textContent = "armed; no bad values observed";
+    list.append(item);
+    return;
+  }
+  for (const event of events.slice(-8).reverse()) {
+    const item = document.createElement("li");
+    item.dataset.badValueReason = event.reason || "bad";
+    item.textContent = [
+      `#${event.serial}`,
+      event.engine || "engine",
+      event.nodeId ? `node ${event.nodeId}` : "",
+      event.source || "dsp",
+      event.reason || "bad",
+      event.count > 1 ? `x${event.count}` : "",
+    ].filter(Boolean).join(" / ");
+    list.append(item);
+  }
+}
+
+function setNodeGraphBadValueMonitorEnabled(enabled) {
+  nodeGraphMvp.badValueMonitor = {
+    enabled: Boolean(enabled),
+    events: [],
+    serial: 0,
+  };
+  renderNodeGraphBadValueMonitorEvidence();
+}
+
+function toggleNodeGraphBadValueMonitor() {
+  setNodeGraphBadValueMonitorEnabled(!nodeGraphBadValueMonitorEnabled());
+}
+
+function nodeGraphRecordBadValueEvent(details = {}) {
+  if (!nodeGraphBadValueMonitorEnabled() && !details.force) {
+    return;
+  }
+  const monitor = nodeGraphMvp.badValueMonitor;
+  monitor.serial = (monitor.serial || 0) + 1;
+  monitor.events = [
+    ...nodeGraphBadValueMonitorEvents(),
+    {
+      count: Math.max(1, Number(details.count) || 1),
+      engine: String(details.engine || (nodeGraphMvp.live.usesWorklet ? "worklet" : "runtime")),
+      nodeId: String(details.nodeId || ""),
+      reason: String(details.reason || "bad"),
+      serial: monitor.serial,
+      source: String(details.source || "dsp"),
+    },
+  ].slice(-24);
+  renderNodeGraphBadValueMonitorEvidence();
 }
 
 function setNodeGraphLiveBlockedError(kind, error, options = {}) {

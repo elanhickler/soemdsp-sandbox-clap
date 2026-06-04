@@ -8,6 +8,47 @@ function nextNodeGraphNoiseSample(runtime, nodeId) {
   return (seed / 0xffffffff) * 2 - 1;
 }
 
+function nodeGraphNoiseSeedKey(nodeId, seedValue, channel = "") {
+  const seed = Math.max(0, Math.min(99999, Math.floor(Number(seedValue) || 0)));
+  return `${nodeId}${channel ? `:${channel}` : ""}:seed:${seed}`;
+}
+
+function nextNodeGraphSeededNoiseSample(runtime, nodeId, seedValue, channel = "") {
+  runtime.noiseSeedKeys ||= new Map();
+  const noiseId = channel ? `${nodeId}:${channel}` : nodeId;
+  const seedKey = nodeGraphNoiseSeedKey(nodeId, seedValue, channel);
+  if (runtime.noiseSeedKeys.get(noiseId) !== seedKey) {
+    runtime.noiseSeedKeys.set(noiseId, seedKey);
+    runtime.noiseSeeds.set(noiseId, nodeGraphStableSeed(seedKey));
+  }
+  return nextNodeGraphNoiseSample(runtime, noiseId);
+}
+
+function nodeGraphNoiseSampleHoldSample(runtime, state, nodeId, seedValue, speed, sampleRate) {
+  const rate = Math.max(1, Number(sampleRate) || nodeGraphMvp.sampleRate || 44100);
+  const safeSpeed = clampNodeSliderValue(Number(speed) || 0, 0, 1);
+  const seedKey = nodeGraphNoiseSeedKey(nodeId, seedValue);
+  if (state.seedKey !== seedKey) {
+    state.seedKey = seedKey;
+    state.initialized = false;
+    state.phase = 0;
+  }
+  if (!state.initialized) {
+    state.held = nextNodeGraphSeededNoiseSample(runtime, nodeId, seedValue);
+    state.initialized = true;
+  }
+  const clockRate = safeSpeed * rate * 0.5;
+  if (clockRate <= 0) {
+    return state.held;
+  }
+  state.phase += clockRate / rate;
+  while (state.phase >= 1) {
+    state.phase -= 1;
+    state.held = nextNodeGraphSeededNoiseSample(runtime, nodeId, seedValue);
+  }
+  return state.held;
+}
+
 function nodeGraphPolyBlep(phaseCycle, phaseIncrement) {
   const dt = clampNodeSliderValue(Math.abs(Number(phaseIncrement) || 0), 1e-6, 0.5);
   if (phaseCycle < dt) {

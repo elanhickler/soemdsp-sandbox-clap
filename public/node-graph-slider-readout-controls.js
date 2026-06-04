@@ -62,7 +62,7 @@ function beginNodeSliderReadoutEdit(readout) {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "node-slider-readout-input";
-  input.inputMode = nodeSliderShouldDisplayChoices(slider) ? "text" : "decimal";
+  input.inputMode = "text";
   input.value = nodeSliderChoiceLabel(slider) ?? formatNodeSliderNumber(slider.value, {
     kind: slider.dataset.kind,
     maxDigits: slider.dataset.maxDigits,
@@ -100,8 +100,9 @@ function updateNodeSliderValueHover(readout, event) {
   }
 
   const rect = readout.getBoundingClientRect();
-  const width = Math.max(1, rect.width);
-  const x = event.clientX - rect.left;
+  const scale = nodeSliderElementVisualScale(readout);
+  const width = Math.max(1, nodeSliderElementLayoutWidth(readout));
+  const x = (event.clientX - rect.left) / scale;
   const choices = parseNodeMetadataChoices(slider.dataset.choices || "");
   const usesChoiceSegment = (
     nodeSliderShouldDisplayChoices(slider) &&

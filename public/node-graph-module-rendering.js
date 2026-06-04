@@ -13,6 +13,20 @@ function ensureNodeGraphDragHandle(node) {
   actions.prepend(handle);
 }
 
+function handleNodeGraphIoRowMonitorPointerDown(event) {
+  if (event.target.closest(".node-port")) {
+    return;
+  }
+  toggleNodeGraphMonitorFromPortEvent(event);
+}
+
+function handleNodeGraphIoRowWirePointerDown(event) {
+  if (event.target.closest(".node-port")) {
+    return;
+  }
+  nodeGraphWireInteractions.beginWireDrag(event);
+}
+
 function attachNodeGraphNodeEvents(node) {
   ensureNodeGraphDragHandle(node);
   node.querySelector(".node-drag-handle")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
@@ -31,6 +45,10 @@ function attachNodeGraphNodeEvents(node) {
     port.addEventListener("pointerdown", toggleNodeGraphMonitorFromPortEvent, true);
     port.addEventListener("pointerdown", nodeGraphWireInteractions.beginWireDrag);
   }
+  for (const row of node.querySelectorAll(".node-io-row")) {
+    row.addEventListener("pointerdown", handleNodeGraphIoRowMonitorPointerDown, true);
+    row.addEventListener("pointerdown", handleNodeGraphIoRowWirePointerDown);
+  }
   for (const slider of node.querySelectorAll('input[type="range"]')) {
     createNodeSliderReadout(slider);
     slider.addEventListener("input", () => {
@@ -38,6 +56,10 @@ function attachNodeGraphNodeEvents(node) {
       syncNodeGraphPatchParameterFromSlider(slider);
       syncNodeGraphGhostSliders();
       markNodeGraphRenderPending();
+      scheduleNodeGraphModuleScopeDraw();
+      if (typeof scheduleNodeGraphFilterCurveDraw === "function") {
+        scheduleNodeGraphFilterCurveDraw();
+      }
       scheduleNodeGraphLiveParameterSync();
     });
   }
@@ -45,16 +67,76 @@ function attachNodeGraphNodeEvents(node) {
 
 function createNodeGraphModuleElement(type, node) {
   const definition = nodeGraphModuleDefinitions[type];
+  const patchNode = nodeGraphPatchNode(node) || { id: node, type };
+  const inputPorts = nodeGraphPatchNodeInputPorts(patchNode);
+  const outputPorts = nodeGraphPatchNodeOutputPorts(patchNode).filter(
+    (port) => !(definition.parameters || []).some((parameter) => parameter.key === port),
+  );
   const article = document.createElement("article");
-  article.className = `dsp-node${definition.output ? " output-node" : ""}${definition.layout === "textBox" ? " text-box-layout" : ""}`;
+  article.className = `dsp-node${definition.output ? " output-node" : ""}${definition.layout === "textBox" ? " text-box-layout" : ""}${definition.layout === "image" ? " image-node-layout" : ""}${definition.layout === "visualScope" ? " visual-scope-layout" : ""}${definition.layout === "graph" ? " graph-node-layout" : ""}${definition.layout === "filterCurve" ? " filter-curve-layout" : ""}${definition.layout === "sliderWidget" ? " slider-widget-layout" : ""}`;
   article.dataset.node = node;
   article.dataset.nodeType = type;
-  article.style.setProperty("--node-grid-width-units", String(nodeGraphModuleGridWidthUnits(type)));
-  article.style.setProperty("--node-grid-height-units", String(nodeGraphModuleGridHeightUnits(type)));
+  article.dataset.portSignature = `${inputPorts.join(",")}=>${outputPorts.join(",")}`;
+  article.style.setProperty("--node-grid-width-units", String(nodeGraphPatchNodeGridWidthUnits(patchNode)));
+  article.style.setProperty("--node-grid-height-units", String(nodeGraphPatchNodeGridHeightUnits(patchNode)));
 
   article.append(createNodeGraphModuleHeader(type, node, definition));
   if (definition.layout === "textBox") {
     article.append(createNodeGraphTextBoxBody(node));
+  } else if (definition.layout === "image") {
+    article.append(createNodeGraphImageBody(node));
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    ioSection.append(document.createElement("div"));
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
+  } else if (definition.layout === "visualScope") {
+    const scopeSection = createNodeGraphModuleScopeSection(node, type);
+    scopeSection.classList.add("node-module-square-scope-window");
+    article.append(scopeSection);
+    registerNodeGraphModuleScopeSlot(article, { nodeId: node, type, scopeElement: scopeSection });
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(document.createElement("div"));
+    article.append(ioSection);
+  } else if (definition.layout === "graph") {
+    const graphSection = document.createElement("div");
+    graphSection.className = "node-module-graph-display";
+    graphSection.dataset.graphNode = node;
+    graphSection.setAttribute("aria-label", `${nodeGraphNodeDisplayName(node)} graph display`);
+    article.append(graphSection);
+    renderNodeGraphGraphDisplay(graphSection, patchNode.graph);
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
+  } else if (definition.layout === "sliderWidget") {
+    article.append(createNodeGraphSliderWidgetBody(node, type));
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section node-slider-widget-io-section";
+    ioSection.append(document.createElement("div"));
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
+  } else if (definition.layout === "filterCurve") {
+    article.append(createNodeGraphFilterCurveDisplay(node, type));
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
   } else {
     const scopeSection = createNodeGraphModuleScopeSection(node, type);
     article.append(scopeSection);
@@ -62,8 +144,8 @@ function createNodeGraphModuleElement(type, node) {
 
     const ioSection = document.createElement("div");
     ioSection.className = "dsp-node-io-section";
-    const inputColumn = createNodeGraphIoColumn(node, type, definition.inputs, "input");
-    const outputColumn = createNodeGraphIoColumn(node, type, definition.outputs, "output");
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     if (inputColumn) {
       ioSection.append(inputColumn);
     } else {
@@ -85,7 +167,7 @@ function createNodeGraphModuleElement(type, node) {
     article.append(stateBadge);
   }
 
-  if (definition.parameters?.length) {
+  if (definition.parameters?.length && definition.layout !== "sliderWidget") {
     const body = document.createElement("div");
     body.className = "dsp-node-body";
 
@@ -104,11 +186,14 @@ function registerExistingNodeGraphNodes() {
   for (const node of document.querySelectorAll(".dsp-node")) {
     node.dataset.nodeType ||= node.dataset.node;
     nodeGraphMvp.activeNodes.add(node.dataset.node);
-    registerNodeGraphModuleScopeSlot(node, {
-      nodeId: node.dataset.node,
-      scopeElement: node.querySelector(".node-module-scope-window"),
-      type: node.dataset.nodeType,
-    });
+    const scopeElement = node.querySelector(".node-module-scope-window");
+    if (scopeElement) {
+      registerNodeGraphModuleScopeSlot(node, {
+        nodeId: node.dataset.node,
+        scopeElement,
+        type: node.dataset.nodeType,
+      });
+    }
     attachNodeGraphNodeEvents(node);
   }
 }

@@ -25,28 +25,21 @@ function createNodeGraphPatchNode(type, options = {}) {
   }
   if (nodeGraphModuleDefinitions[type]?.layout === "textBox") {
     node.layout = normalizeNodeGraphTextBoxLayout(options.layout);
+  } else if (nodeGraphModuleDefinitions[type]?.layout === "image") {
+    node.layout = normalizeNodeGraphImageLayout(options.layout);
+  }
+  if (type === "graph") {
+    node.graph = normalizeNodeGraphGraph(options.graph);
+  }
+  if (type === "codeblock") {
+    node.codeblock = normalizeNodeGraphCodeblock(options.codeblock);
   }
   return node;
 }
 
-const nodeGraphDefaultNodeConfigs = Object.freeze([
-  createNodeGraphPatchNode("osc", { id: "osc", gx: 1, gy: 1 }),
-  createNodeGraphPatchNode("noise", { id: "noise", gx: 0, gy: 11 }),
-  {
-    ...createNodeGraphPatchNode("gain", { id: "gain", gx: 11, gy: 2 }),
-    params: { ...nodeGraphDefaultParamsForType("gain"), amount: 1 },
-  },
-  {
-    ...createNodeGraphPatchNode("output", { id: "output", gx: 22, gy: 9 }),
-    params: { ...nodeGraphDefaultParamsForType("output"), volume: 0.1 },
-  },
-]);
+const nodeGraphDefaultNodeConfigs = Object.freeze([]);
 
-const nodeGraphDefaultConnections = Object.freeze([
-  { sourceNode: "osc", sourcePort: "Out", destinationNode: "gain", destinationPort: "In" },
-  { sourceNode: "gain", sourcePort: "Out", destinationNode: "output", destinationPort: "Left" },
-  { sourceNode: "gain", sourcePort: "Out", destinationNode: "output", destinationPort: "Right" },
-]);
+const nodeGraphDefaultConnections = Object.freeze([]);
 
 const nodeGraphDefaultPatch = Object.freeze({
   audio: {
@@ -71,6 +64,11 @@ const nodeGraphDefaultPatch = Object.freeze({
     theme: "cyan-violet",
     trail: 0.35,
   },
+  timing: {
+    tempoBpm: 120,
+    timeSignatureDenominator: 4,
+    timeSignatureNumerator: 4,
+  },
   windows: {
     metadata: { left: null, top: null },
     moduleActions: { left: null, top: null },
@@ -81,4 +79,5 @@ const nodeGraphDefaultPatch = Object.freeze({
   connections: nodeGraphDefaultConnections.map((connection) => ({ ...connection })),
   modulations: [],
   monitors: [],
+  uiItems: [],
 });

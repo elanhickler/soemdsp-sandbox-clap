@@ -40,22 +40,24 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
       issues.push("connection references missing node");
       continue;
     }
-    const sourceOutputs = nodeGraphModuleOutputPorts(source.type);
-    const destinationInputs = nodeGraphModuleDefinitions[destination.type]?.inputs || [];
+    const sourceOutputs = nodeGraphPatchNodeOutputPorts(source);
+    const destinationPort = nodeGraphCanonicalInputPort(destination.type, connection.destinationPort);
+    const destinationInputs = nodeGraphPatchNodeInputPorts(destination);
     if (!sourceOutputs.includes(connection.sourcePort)) {
       issues.push(`connection source port invalid: ${connection.sourceNode}.${connection.sourcePort}`);
       continue;
     }
-    if (!destinationInputs.includes(connection.destinationPort)) {
+    if (!destinationInputs.includes(destinationPort)) {
       issues.push(`connection destination port invalid: ${connection.destinationNode}.${connection.destinationPort}`);
       continue;
     }
     if (bypassedNodes.has(connection.sourceNode) || bypassedNodes.has(connection.destinationNode)) {
       continue;
     }
-    const key = nodeGraphInputKey(connection.destinationNode, connection.destinationPort);
+    const canonicalConnection = { ...connection, destinationPort };
+    const key = nodeGraphInputKey(connection.destinationNode, destinationPort);
     const connections = inputConnections.get(key) || [];
-    connections.push({ ...connection });
+    connections.push(canonicalConnection);
     inputConnections.set(key, connections);
     addDependency(dependencies, connection.destinationNode, connection.sourceNode);
   }
@@ -67,7 +69,7 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
       issues.push("modulation references missing node");
       continue;
     }
-    const sourceOutputs = nodeGraphModuleOutputPorts(source.type);
+    const sourceOutputs = nodeGraphPatchNodeOutputPorts(source);
     const destinationParameters = nodeGraphModuleDefinitions[destination.type]?.parameters || [];
     if (!sourceOutputs.includes(modulation.sourcePort)) {
       issues.push(`modulation source port invalid: ${modulation.sourceNode}.${modulation.sourcePort}`);
@@ -89,7 +91,13 @@ function nodeGraphBuildDependencyMap(patch = nodeGraphMvp.patch) {
 
   return {
     bypassedNodes: [...bypassedNodes],
-    connections: (patch.connections || []).map((connection) => ({ ...connection })),
+    connections: (patch.connections || []).map((connection) => {
+      const destination = nodeMap.get(connection.destinationNode);
+      const destinationPort = destination
+        ? nodeGraphCanonicalInputPort(destination.type, connection.destinationPort)
+        : connection.destinationPort;
+      return { ...connection, destinationPort };
+    }),
     dependencies,
     inputConnections,
     issues,
@@ -255,11 +263,30 @@ function nodeGraphBuildSchedulingDependencies(planGraph, reachableNodes) {
   return { feedbackConnections, feedbackModulations, orderDependencies };
 }
 
+function nodeGraphActiveVisualSinkExists(visualSinks = []) {
+  return visualSinks.some((sink) =>
+    sink.hasParameters || (sink.inputs || []).some((input) => input.connected),
+  );
+}
+
+function nodeGraphValidateRuntimeRoute(issues, options = {}) {
+  const hasOutputNode = Boolean(options.hasOutputNode);
+  const hasOutputSpeakerInput = Boolean(options.hasOutputSpeakerInput);
+  const hasActiveVisualSink = Boolean(options.hasActiveVisualSink);
+  if (!hasOutputNode && !hasActiveVisualSink) {
+    issues.push("output node missing");
+  }
+  if (hasOutputNode && !hasOutputSpeakerInput && !hasActiveVisualSink) {
+    issues.push("missing Output speaker input");
+  }
+}
+
 function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const graph = nodeGraphBuildDependencyMap(patch);
   const issues = [...graph.issues];
   const outputNode = "output";
   const reachableNodes = new Set();
+  const passthroughTypes = new Set(["badvalMonitor", "bandpass", "bias", "cookbookFilter", "gain", "highpass", "ladderFilter", "lowpass", "sampleHold", "slewLimiter"]);
 
   function markReachable(nodeId) {
     if (reachableNodes.has(nodeId) || !graph.nodeMap.has(nodeId)) {
@@ -271,30 +298,116 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     }
   }
 
-  if (!graph.nodeMap.has(outputNode)) {
-    issues.push("output node missing");
-  } else {
+  const hasOutputNode = graph.nodeMap.has(outputNode);
+  if (hasOutputNode) {
     markReachable(outputNode);
   }
-
+  for (const node of graph.nodes) {
+    if (nodeGraphModuleDefinitions[node.type]?.visualSink) {
+      markReachable(node.id);
+    }
+    if (
+      nodeGraphModuleDefinitions[node.type]?.monitorSink &&
+      (graph.inputConnections.get(nodeGraphInputKey(node.id, "In")) || []).length > 0
+    ) {
+      markReachable(node.id);
+    }
+  }
+  const visualSinks = nodeGraphCompiledVisualSinks(graph, reachableNodes);
+  const hasActiveVisualSink = nodeGraphActiveVisualSinkExists(visualSinks);
   const hasOutputSpeakerInput = nodeGraphOutputInputPorts.some(
     (port) => (graph.inputConnections.get(nodeGraphInputKey(outputNode, port)) || []).length > 0,
   );
-  if (!hasOutputSpeakerInput) {
-    issues.push("missing Output speaker input");
-  }
+  nodeGraphValidateRuntimeRoute(issues, {
+    hasActiveVisualSink,
+    hasOutputNode,
+    hasOutputSpeakerInput,
+  });
 
   for (const nodeId of reachableNodes) {
     const type = graph.nodeMap.get(nodeId)?.type;
-    if (type === "gain" || type === "bias") {
+    if (passthroughTypes.has(type)) {
       const inputCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "In")) || []).length;
       if (!inputCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} input`);
       }
+    } else if (type === "expAdsr") {
+      const gateCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Gate")) || []).length;
+      if (!gateCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} gate`);
+      }
+    } else if (type === "linearEnvelope") {
+      const gateCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Gate")) || []).length;
+      if (!gateCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} gate`);
+      }
+    } else if (type === "pluckEnvelope") {
+      const triggerCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Trigger")) || []).length;
+      if (!triggerCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} trigger`);
+      }
+    } else if (type === "vactrolEnvelope") {
+      const lightCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Light")) || []).length;
+      if (!lightCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} light`);
+      }
+    } else if (type === "flowerChildEnvelopeFollower") {
+      const inputCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "In")) || []).length;
+      if (!inputCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} input`);
+      }
+    } else if (type === "delayedTrigger") {
+      const triggerCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Trigger")) || []).length;
+      if (!triggerCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} trigger`);
+      }
+    } else if (type === "triggerCounter") {
+      const triggerCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Trigger")) || []).length;
+      if (!triggerCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} trigger`);
+      }
+    } else if (type === "stepSequencer") {
+      const triggerCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Trigger")) || []).length;
+      if (!triggerCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} trigger`);
+      }
+    } else if (type === "triggerDivider") {
+      const triggerCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Trigger")) || []).length;
+      if (!triggerCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} trigger`);
+      }
+    } else if (type === "clockDivider") {
+      const clockCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Clock")) || []).length;
+      if (!clockCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} clock`);
+      }
     } else if (
       type !== "audioInput" &&
+      type !== "bloomGlow" &&
+      type !== "chromaColor" &&
+      type !== "clock" &&
+      type !== "clockDivider" &&
+      type !== "codeblock" &&
+      type !== "delayedTrigger" &&
+      type !== "fractalBrownianNoise" &&
+      type !== "flowerChildEnvelopeFollower" &&
+      type !== "keyboardController" &&
+      type !== "linearEnvelope" &&
+      type !== "midiNotePitch" &&
+      type !== "midiOut" &&
+      type !== "noiseGenerator" &&
       type !== "osc" &&
+      type !== "pluckEnvelope" &&
+      type !== "randomWalk" &&
+      type !== "rgbaHsla" &&
+      type !== "sandboxVisuals" &&
+      type !== "stepSequencer" &&
+      type !== "triggerCounter" &&
+      type !== "triggerDivider" &&
+      type !== "vactrolEnvelope" &&
+      type !== "visualOscilloscope" &&
       type !== "spiral" &&
+      type !== "stereoNoise" &&
       type !== "noise" &&
       type !== "output"
     ) {
@@ -307,7 +420,17 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const order = topology.order.filter((nodeId) => reachableNodes.has(nodeId));
   const sourceNodes = order.filter((nodeId) => {
     const type = graph.nodeMap.get(nodeId)?.type;
-    return type === "audioInput" || type === "osc" || type === "spiral" || type === "noise";
+    return type === "audioInput" ||
+      type === "clock" ||
+      type === "fractalBrownianNoise" ||
+      type === "keyboardController" ||
+      type === "midiOut" ||
+      type === "noiseGenerator" ||
+      type === "osc" ||
+      type === "randomWalk" ||
+      type === "spiral" ||
+      type === "stereoNoise" ||
+      type === "noise";
   });
   const inactiveNodes = graph.nodes
     .filter((node) => !reachableNodes.has(node.id))
@@ -332,14 +455,33 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     order,
     outputNode,
     reachableNodes: [...reachableNodes],
+    speakerOutputActive: hasOutputNode && hasOutputSpeakerInput,
     sourceNodes,
     valid: uniqueIssues.length === 0,
+    visualSinks,
   };
+}
+
+function nodeGraphCompiledVisualSinks(graph, reachableNodes) {
+  return graph.nodes
+    .filter((node) =>
+      reachableNodes.has(node.id) &&
+      nodeGraphModuleDefinitions[node.type]?.visualSink
+    )
+    .map((node) => ({
+      hasParameters: (nodeGraphModuleDefinitions[node.type]?.parameters || []).length > 0,
+      inputs: nodeGraphModuleVisualInputs(node.type).map((input) => ({
+        ...input,
+        connected: (graph.inputConnections.get(nodeGraphInputKey(node.id, input.port)) || []).length > 0,
+      })),
+      nodeId: node.id,
+      type: node.type,
+    }));
 }
 
 function nodeGraphNodeSignalOutputRequired(graph, nodeId) {
   const node = graph.nodeMap.get(nodeId);
-  const signalOutputs = new Set(nodeGraphModuleDefinitions[node?.type]?.outputs || []);
+  const signalOutputs = new Set(nodeGraphPatchNodeOutputPorts(node));
   if (!signalOutputs.size) {
     return false;
   }
@@ -367,6 +509,8 @@ function nodeGraphValidate() {
     ),
     sourceNode: plan.sourceNodes[0] || "",
     sourceNodes: plan.sourceNodes,
+    speakerOutputActive: Boolean(plan.speakerOutputActive),
     valid: plan.valid,
+    visualSinks: plan.visualSinks || [],
   };
 }

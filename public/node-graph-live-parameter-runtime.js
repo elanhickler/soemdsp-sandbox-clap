@@ -27,13 +27,20 @@ function readNodeGraphRuntimeOutput(runtime, frameValues, nodeId, port = "Out") 
     ? frameValues.get(nodeId)
     : runtime.nodeOutputs?.get(nodeId);
   if (output && typeof output === "object") {
-    return Number(output[port] ?? output.Out ?? 0) || 0;
+    return Number(output[port] ?? output.Out ?? 0);
   }
-  return Number(output) || 0;
+  return output === undefined || output === null ? 0 : Number(output);
 }
 
 function normalizeNodeGraphParameterOutputValue(value, metadata = {}) {
   return nodeGraphParameterValueToNormalizedSignal(value, metadata);
+}
+
+function normalizeNodeGraphParameterModulationInput(value, metadata = {}) {
+  const number = Number(value) || 0;
+  return normalizeNodeMetadataKind(metadata.kind) === "frequency" && metadata.nonlinearSlider
+    ? clampNodeSliderValue(number, -1, 1)
+    : clampNodeSliderValue(number, 0, 1);
 }
 
 function nodeGraphParameterSkewExponent(metadata = {}) {
@@ -83,6 +90,16 @@ function nodeGraphNormalizedSignalToParameterValue(signal, metadata = {}) {
   return nodeGraphApplyParameterBounds(min + range * normalizedValue, metadata);
 }
 
+function nodeGraphApplyParameterModulation(base, modulationSignal, metadata = {}) {
+  if (normalizeNodeMetadataKind(metadata.kind) === "frequency" && metadata.nonlinearSlider) {
+    const baseFrequency = Math.max(0.000001, Number(base) || 0.000001);
+    const octaves = (Number(modulationSignal) || 0) / 0.1;
+    return nodeGraphApplyParameterBounds(baseFrequency * (2 ** octaves), metadata);
+  }
+  const baseSignal = nodeGraphParameterValueToNormalizedSignal(base, metadata);
+  return nodeGraphNormalizedSignalToParameterValue(baseSignal + modulationSignal, metadata);
+}
+
 function readNodeGraphRuntimePortOutput(runtime, frameValues, nodeId, port = "Out", frame = 0, frames = 1) {
   const node = runtime.nodes?.get(nodeId);
   const parameter = nodeGraphParameterOutputPort(node?.type, port);
@@ -115,16 +132,15 @@ function readNodeGraphLiveEffectiveParam(
   const modulations = runtime.modulationConnections?.get(nodeGraphParameterKey(node?.id, key)) || [];
   const modulationSignal = modulations.reduce(
     (sum, modulation) =>
-      sum + clampNodeSliderValue(readNodeGraphRuntimePortOutput(
+      sum + normalizeNodeGraphParameterModulationInput(readNodeGraphRuntimePortOutput(
         runtime,
         frameValues,
         modulation.sourceNode,
         modulation.sourcePort,
         frame,
         frames,
-      ), 0, 1),
+      ), metadata),
     0,
   );
-  const baseSignal = nodeGraphParameterValueToNormalizedSignal(base, metadata);
-  return nodeGraphNormalizedSignalToParameterValue(baseSignal + modulationSignal, metadata);
+  return nodeGraphApplyParameterModulation(base, modulationSignal, metadata);
 }

@@ -15,14 +15,25 @@ function nodeGraphOutputClipCountText(count = 0) {
 }
 
 function nodeGraphClampOutputSample(value) {
+  if (typeof nodeGraphBadValueReason === "function" && nodeGraphBadValueReason(value)) {
+    return 0;
+  }
+  if (!Number.isFinite(Number(value))) {
+    return 0;
+  }
   return Math.max(
     -nodeGraphOutputClipLimit,
-    Math.min(nodeGraphOutputClipLimit, value),
+    Math.min(nodeGraphOutputClipLimit, Number(value)),
   );
 }
 
 function nodeGraphOutputSampleClipped(value) {
-  return value < -nodeGraphOutputClipLimit || value > nodeGraphOutputClipLimit;
+  return (
+    (typeof nodeGraphBadValueReason === "function" && Boolean(nodeGraphBadValueReason(value))) ||
+    !Number.isFinite(Number(value)) ||
+    value < -nodeGraphOutputClipLimit ||
+    value > nodeGraphOutputClipLimit
+  );
 }
 
 function nodeGraphTemporaryPrefilterForResample(samples, sourceRate, outputRate) {
@@ -85,13 +96,16 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   const stateReadCount = Number(details.stateReadCount) || 0;
   const clipCount = Number(details.clipCount) || 0;
   const protectionMuteCount = Number(details.protectionMuteCount) || 0;
+  const badNumberCount = Number(details.badNumberCount) || 0;
   const durationSeconds = frames > 0 && sampleRate > 0 ? frames / sampleRate : 0;
   const clipText = clipCount ? ` / ${nodeGraphOutputClipCountText(clipCount)}` : "";
   const protectionText = protectionMuteCount ? ` / protected ${protectionMuteCount}` : "";
-  audioStats.textContent = `peak ${peak.toFixed(3)} / rms ${rms.toFixed(3)}${clipText}${protectionText}`;
-  audioStats.className = `pill ${clipCount || protectionMuteCount ? "warn" : ""}`.trim();
+  const badNumberText = badNumberCount ? ` / bad ${badNumberCount}` : "";
+  audioStats.textContent = `peak ${peak.toFixed(3)} / rms ${rms.toFixed(3)}${clipText}${protectionText}${badNumberText}`;
+  audioStats.className = `pill ${clipCount || protectionMuteCount || badNumberCount ? "warn" : ""}`.trim();
   audioStats.dataset.renderClips = String(clipCount);
   audioStats.dataset.renderProtectionMutes = String(protectionMuteCount);
+  audioStats.dataset.renderBadNumbers = String(badNumberCount);
   audioStats.dataset.renderFrames = String(frames);
   audioStats.dataset.renderSampleRate = String(sampleRate);
   audioStats.dataset.renderEngineSampleRate = String(engineSampleRate);
@@ -101,15 +115,16 @@ function setNodeGraphAudioStats(peak = 0, rms = 0, details = {}) {
   const stateReadText = stateReadCount ? ` / ${nodeGraphStateReadText(stateReadCount)}` : "";
   const clipTitle = clipCount ? ` / ${nodeGraphOutputClipCountText(clipCount)}` : "";
   const protectionTitle = protectionMuteCount ? ` / ear protection muted ${protectionMuteCount} frames` : "";
+  const badNumberTitle = badNumberCount ? ` / bad numbers recovered ${badNumberCount}` : "";
   audioStats.title = frames > 0
-    ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz output / ${nodeGraphFormatSampleRate(engineSampleRate)} engine / ${nodeGraphFormatOversamplingRatio(oversamplingRatio)}${stateReadText}${clipTitle}${protectionTitle}`
+    ? `Rendered sample: ${frames} frames / ${durationSeconds.toFixed(3)}s / ${sampleRate} Hz output / ${nodeGraphFormatSampleRate(engineSampleRate)} engine / ${nodeGraphFormatOversamplingRatio(oversamplingRatio)}${stateReadText}${clipTitle}${protectionTitle}${badNumberTitle}`
     : "Rendered sample unavailable";
 }
 
 function markNodeGraphRenderPending(summary = "") {
   stopNodeGraphRenderedPlayback();
   nodeGraphMvp.rendered = null;
-  clearNodeGraphModuleScopeBuffers();
+  clearNodeGraphRenderedModuleScopeBuffers();
   clearNodeGraphRenderedAudioElement();
   labelPrimaryAudioTitle("Render Sample creates preview audio here", false);
   document.getElementById("nodeGraphRenderStatus").textContent = "render pending";
@@ -124,6 +139,10 @@ function markNodeGraphRenderPending(summary = "") {
 }
 
 function renderNodeGraphAudio() {
+  if (nodeGraphEarProtectionIsTripped()) {
+    nodeGraphTripEarProtection({ source: "render" });
+    return;
+  }
   if (!nodeGraphScriptReadyForGraphAction("render")) {
     markNodeGraphRenderScriptBlocked();
     return;
@@ -254,7 +273,13 @@ function renderNodeGraphAudio() {
     protectionMuteCount,
     sourceNodes: validation.sourceNodes,
     stateReadCount,
+    badNumberCount: runtime.badNumberCount || 0,
   };
+  if (protectionMuteCount > 0) {
+    nodeGraphTripEarProtection({ source: "render", protectionMuteCount });
+    nodeGraphMvp.rendered = null;
+    return;
+  }
   syncNodeGraphRenderedAudioElement();
   renderStatus.textContent = "render ready";
   renderStatus.className = "pill good";
@@ -266,6 +291,7 @@ function renderNodeGraphAudio() {
     oversamplingRatio: audio.oversamplingRatio,
     protectionMuteCount,
     stateReadCount,
+    badNumberCount: runtime.badNumberCount || 0,
   });
   renderNodeGraphExecutionPlanDebug();
   const outputSummary = document.getElementById("nodeOutputSummary");

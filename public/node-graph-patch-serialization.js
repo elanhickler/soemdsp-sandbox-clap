@@ -10,6 +10,8 @@ function serializeNodeGraphPatch(patch = nodeGraphMvp.patch) {
       modulations: patch.modulations || [],
       monitors: normalizeNodeGraphPatchMonitors(patch.monitors, patch),
       nodes: patch.nodes,
+      timing: normalizeNodeGraphPatchTiming(patch.timing),
+      uiItems: normalizeNodeGraphPatchUiItems(patch.uiItems),
       view: normalizeNodeGraphPatchView(patch.view),
       visual: normalizeNodeGraphPatchVisual(patch.visual),
     },

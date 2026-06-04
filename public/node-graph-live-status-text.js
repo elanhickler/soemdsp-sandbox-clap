@@ -19,7 +19,9 @@ function nodeGraphLivePlanStatusText(plan, serial = nodeGraphMvp.live.planSerial
   const feedbackCount = nodeGraphStateReadCount(plan);
   const feedbackText = feedbackCount ? ` / ${nodeGraphStateReadText(feedbackCount)}` : "";
   const fingerprintText = plan.patchFingerprint ? ` / fp ${plan.patchFingerprint}` : "";
-  return `plan${serialText} ${plan.nodes.length} nodes / ${plan.connections.length} wires / ${plan.modulations.length} mods${feedbackText}${fingerprintText}`;
+  const visualText = (plan.visualSinks || []).length ? ` / ${(plan.visualSinks || []).length} visual` : "";
+  const routeText = plan.speakerOutputActive ? "" : visualText ? " / visual-only" : "";
+  return `plan${serialText} ${plan.nodes.length} nodes / ${plan.connections.length} wires / ${plan.modulations.length} mods${visualText}${routeText}${feedbackText}${fingerprintText}`;
 }
 
 function nodeGraphLiveBlockedStatusText(kind, error) {
@@ -54,7 +56,13 @@ function nodeGraphLivePlanEvidenceDetails(plan, details = {}) {
     modulationCount: plan.modulations.length,
     nodeCount: plan.nodes.length,
     patchFingerprint: plan.patchFingerprint,
+    speakerOutputActive: Boolean(plan.speakerOutputActive),
     stateReadCount: nodeGraphStateReadCount(plan),
+    visualSinkCount: (plan.visualSinks || []).length,
+    visualSinks: (plan.visualSinks || []).map((sink) => ({
+      ...sink,
+      inputs: (sink.inputs || []).map((input) => ({ ...input })),
+    })),
     ...details,
   };
 }
@@ -84,6 +92,12 @@ function nodeGraphLivePlanAppliedStatusText(message) {
   const feedbackCount = (Number(message.feedbackConnectionCount) || 0) +
     (Number(message.feedbackModulationCount) || 0);
   const feedbackText = feedbackCount ? ` / ${nodeGraphStateReadText(feedbackCount)}` : "";
+  const oversamplingRatio = Number(message.oversamplingRatio) || 1;
+  const oversamplingText = oversamplingRatio > 1
+    ? ` / ${nodeGraphFormatOversamplingRatio(oversamplingRatio)} live`
+    : "";
   const fingerprintText = message.patchFingerprint ? ` / fp ${message.patchFingerprint}` : "";
-  return `plan${serialText} ${Number(message.nodeCount) || 0} nodes / ${Number(message.connectionCount) || 0} wires / ${Number(message.modulationCount) || 0} mods${feedbackText}${fingerprintText}`;
+  const visualText = Number(message.visualSinkCount) ? ` / ${Number(message.visualSinkCount)} visual` : "";
+  const routeText = message.speakerOutputActive ? "" : visualText ? " / visual-only" : "";
+  return `plan${serialText} ${Number(message.nodeCount) || 0} nodes / ${Number(message.connectionCount) || 0} wires / ${Number(message.modulationCount) || 0} mods${visualText}${routeText}${feedbackText}${oversamplingText}${fingerprintText}`;
 }

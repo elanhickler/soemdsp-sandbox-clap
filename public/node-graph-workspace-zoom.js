@@ -7,6 +7,9 @@ function applyNodeGraphZoom() {
   workspace.dataset.zoom = nodeGraphZoom().toFixed(2);
   applyNodeGraphWorkspaceView();
   updateNodeGraphGridHeatmap();
+  if (typeof syncNodeGraphSliderReadouts === "function") {
+    syncNodeGraphSliderReadouts();
+  }
   const zoomOutButton = document.getElementById("nodeZoomOutButton");
   const zoomResetButton = document.getElementById("nodeZoomResetButton");
   const zoomInButton = document.getElementById("nodeZoomInButton");

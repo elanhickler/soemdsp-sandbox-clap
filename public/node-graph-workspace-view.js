@@ -20,6 +20,232 @@ function setNodeGraphPan(x, y) {
   applyNodeGraphPan();
 }
 
+function nodeGraphVisualControlValue(value, fallback = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || Math.abs(number) > 999999999) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1, Math.abs(number)));
+}
+
+function nodeGraphVisualControlSignedValue(value, fallback = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || Math.abs(number) > 999999999) {
+    return fallback;
+  }
+  return Math.max(-1, Math.min(1, number));
+}
+
+function nodeGraphVisualHslToRgb(hue, saturation, lightness) {
+  const h = ((Number(hue) || 0) % 1 + 1) % 1;
+  const s = Math.max(0, Math.min(1, Number(saturation) || 0));
+  const l = Math.max(0, Math.min(1, Number(lightness) || 0));
+  if (s <= 0) {
+    return [l, l, l];
+  }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (offset) => {
+    let t = h + offset;
+    if (t < 0) {
+      t += 1;
+    }
+    if (t > 1) {
+      t -= 1;
+    }
+    if (t < 1 / 6) {
+      return p + (q - p) * 6 * t;
+    }
+    if (t < 1 / 2) {
+      return q;
+    }
+    if (t < 2 / 3) {
+      return p + (q - p) * (2 / 3 - t) * 6;
+    }
+    return p;
+  };
+  return [channel(1 / 3), channel(0), channel(-1 / 3)];
+}
+
+function nodeGraphSetVisualControls(values = {}) {
+  const current = nodeGraphMvp.visualControls || {};
+  nodeGraphMvp.visualControls = {
+    ...current,
+    blue: nodeGraphVisualControlValue(values.blue, current.blue || 0),
+    chromaAlpha: nodeGraphVisualControlValue(values.chromaAlpha, current.chromaAlpha || 0),
+    chromaDrift: nodeGraphVisualControlValue(values.chromaDrift, current.chromaDrift || 0),
+    chromaHue: nodeGraphVisualControlValue(values.chromaHue, current.chromaHue || 0),
+    chromaLightness: nodeGraphVisualControlValue(values.chromaLightness, current.chromaLightness || 0),
+    chromaSaturation: nodeGraphVisualControlValue(values.chromaSaturation, current.chromaSaturation || 0),
+    chromaSpread: nodeGraphVisualControlValue(values.chromaSpread, current.chromaSpread || 0),
+    green: nodeGraphVisualControlValue(values.green, current.green || 0),
+    red: nodeGraphVisualControlValue(values.red, current.red || 0),
+    scopePaused: nodeGraphVisualControlValue(values.scopePaused, current.scopePaused || 0),
+    scopeTracesOff: nodeGraphVisualControlValue(values.scopeTracesOff, current.scopeTracesOff || 0),
+    screenDim: nodeGraphVisualControlValue(values.screenDim, current.screenDim || 0),
+    screenShake: nodeGraphVisualControlValue(values.screenShake, current.screenShake || 0),
+    visualBloom: nodeGraphVisualControlValue(values.visualBloom, current.visualBloom || 0),
+    visualBrightness: nodeGraphVisualControlValue(values.visualBrightness, current.visualBrightness || 0),
+    visualGlow: nodeGraphVisualControlValue(values.visualGlow, current.visualGlow || 0),
+    x: nodeGraphVisualControlSignedValue(values.x, current.x || 0),
+    y: nodeGraphVisualControlSignedValue(values.y, current.y || 0),
+  };
+  if (
+    nodeGraphMvp.visualControls.scopeTracesOff > 0.5 &&
+    current.scopeTracesOff <= 0.5 &&
+    typeof clearNodeGraphModuleScopeCanvas === "function"
+  ) {
+    clearNodeGraphModuleScopeCanvas();
+  }
+  if (
+    nodeGraphMvp.visualControls.scopePaused <= 0.5 &&
+    current.scopePaused > 0.5 &&
+    typeof scheduleNodeGraphModuleScopeDraw === "function"
+  ) {
+    scheduleNodeGraphModuleScopeDraw();
+  }
+  nodeGraphScheduleVisualControlAnimation();
+}
+
+function nodeGraphClearVisualControls() {
+  if (nodeGraphMvp.visualControlAnimationFrame) {
+    window.cancelAnimationFrame(nodeGraphMvp.visualControlAnimationFrame);
+  }
+  nodeGraphMvp.visualControlAnimationFrame = 0;
+  nodeGraphMvp.visualControls = {
+    blue: 0,
+    chromaAlpha: 0,
+    chromaDrift: 0,
+    chromaHue: 0,
+    chromaLightness: 0,
+    chromaSaturation: 0,
+    chromaSpread: 0,
+    green: 0,
+    red: 0,
+    scopePaused: 0,
+    scopeTracesOff: 0,
+    screenDim: 0,
+    screenShake: 0,
+    visualBloom: 0,
+    visualBrightness: 0,
+    visualGlow: 0,
+    x: 0,
+    y: 0,
+  };
+  nodeGraphMvp.visualControlState = {
+    directX: 0,
+    directY: 0,
+    screenShakeX: 0,
+    screenShakeY: 0,
+  };
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  workspace?.style.setProperty("--node-visual-shake-x", "0px");
+  workspace?.style.setProperty("--node-visual-shake-y", "0px");
+  workspace?.style.setProperty("--node-visual-bloom", "0");
+  workspace?.style.setProperty("--node-visual-brightness", "0");
+  workspace?.style.setProperty("--node-visual-glow", "0");
+  workspace?.style.setProperty("--node-visual-wash-alpha", "0");
+  workspace?.style.setProperty("--node-visual-wash-rgb", "0 0 0");
+  if (workspace) {
+    workspace.dataset.visualBloom = "0";
+    workspace.dataset.visualBrightness = "0";
+    workspace.dataset.visualChromaAlpha = "0";
+    workspace.dataset.visualGlow = "0";
+    workspace.dataset.visualScreenShake = "0";
+    workspace.dataset.visualScreenDim = "0";
+    workspace.dataset.visualScopePaused = "0";
+  }
+}
+
+function nodeGraphScheduleVisualControlAnimation() {
+  if (nodeGraphMvp.visualControlAnimationFrame) {
+    return;
+  }
+  nodeGraphMvp.visualControlAnimationFrame = window.requestAnimationFrame(nodeGraphAnimateVisualControls);
+}
+
+function nodeGraphAnimateVisualControls(time = performance.now()) {
+  nodeGraphMvp.visualControlAnimationFrame = 0;
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!workspace) {
+    return;
+  }
+  const controls = nodeGraphMvp.visualControls || {};
+  const screenShake = nodeGraphVisualControlValue(controls.screenShake, 0);
+  const directX = nodeGraphVisualControlSignedValue(controls.x, 0) * 22;
+  const directY = nodeGraphVisualControlSignedValue(controls.y, 0) * 22;
+  const screenDim = nodeGraphVisualControlValue(controls.screenDim, 0);
+  const red = nodeGraphVisualControlValue(controls.red, 0);
+  const green = nodeGraphVisualControlValue(controls.green, 0);
+  const blue = nodeGraphVisualControlValue(controls.blue, 0);
+  const chromaAlpha = nodeGraphVisualControlValue(controls.chromaAlpha, 0);
+  const chromaDrift = nodeGraphVisualControlValue(controls.chromaDrift, 0);
+  const chromaHue = nodeGraphVisualControlValue(controls.chromaHue, 0);
+  const chromaLightness = nodeGraphVisualControlValue(controls.chromaLightness, 0);
+  const chromaSaturation = nodeGraphVisualControlValue(controls.chromaSaturation, 0);
+  const chromaSpread = nodeGraphVisualControlValue(controls.chromaSpread, 0);
+  const scopePaused = nodeGraphVisualControlValue(controls.scopePaused, 0);
+  const scopeTracesOff = nodeGraphVisualControlValue(controls.scopeTracesOff, 0);
+  const visualBloom = nodeGraphVisualControlValue(controls.visualBloom, 0);
+  const visualBrightness = nodeGraphVisualControlValue(controls.visualBrightness, 0);
+  const visualGlow = nodeGraphVisualControlValue(controls.visualGlow, 0);
+  const amplitude = screenShake * screenShake * 22;
+  let x = 0;
+  let y = 0;
+  if (amplitude > 0.001) {
+    x = (
+      Math.sin(time * 0.0217) +
+      Math.sin(time * 0.0471 + 1.9) * 0.47 +
+      Math.sin(time * 0.0833 + 4.1) * 0.22
+    ) * amplitude;
+    y = (
+      Math.sin(time * 0.0189 + 2.7) +
+      Math.sin(time * 0.0529 + 0.4) * 0.43 +
+      Math.sin(time * 0.0777 + 3.2) * 0.24
+    ) * amplitude;
+  }
+  const finalX = x + directX;
+  const finalY = y + directY;
+  nodeGraphMvp.visualControlState = {
+    directX,
+    directY,
+    screenShakeX: x,
+    screenShakeY: y,
+  };
+  workspace.style.setProperty("--node-visual-shake-x", `${finalX.toFixed(3)}px`);
+  workspace.style.setProperty("--node-visual-shake-y", `${finalY.toFixed(3)}px`);
+  workspace.style.setProperty("--node-visual-bloom", visualBloom.toFixed(4));
+  workspace.style.setProperty("--node-visual-brightness", visualBrightness.toFixed(4));
+  workspace.style.setProperty("--node-visual-glow", visualGlow.toFixed(4));
+  const chromaMotion = (time * 0.000035 * chromaDrift) + (Math.sin(time * 0.0017) * chromaSpread * 0.08);
+  const chromaRgb = nodeGraphVisualHslToRgb(
+    chromaHue + chromaMotion,
+    chromaSaturation,
+    chromaLightness,
+  );
+  const colorMix = chromaAlpha;
+  const washRed = red * (1 - colorMix) + chromaRgb[0] * colorMix;
+  const washGreen = green * (1 - colorMix) + chromaRgb[1] * colorMix;
+  const washBlue = blue * (1 - colorMix) + chromaRgb[2] * colorMix;
+  const washAlpha = Math.max(screenDim, chromaAlpha);
+  workspace.style.setProperty("--node-visual-wash-alpha", washAlpha.toFixed(4));
+  workspace.style.setProperty(
+    "--node-visual-wash-rgb",
+    `${Math.round(washRed * 255)} ${Math.round(washGreen * 255)} ${Math.round(washBlue * 255)}`,
+  );
+  workspace.dataset.visualScreenShake = String(Number(screenShake.toFixed(4)));
+  workspace.dataset.visualScreenDim = String(Number(washAlpha.toFixed(4)));
+  workspace.dataset.visualBloom = String(Number(visualBloom.toFixed(4)));
+  workspace.dataset.visualBrightness = String(Number(visualBrightness.toFixed(4)));
+  workspace.dataset.visualChromaAlpha = String(Number(chromaAlpha.toFixed(4)));
+  workspace.dataset.visualGlow = String(Number(visualGlow.toFixed(4)));
+  workspace.dataset.visualScopePaused = String(Number(scopePaused.toFixed(4)));
+  workspace.dataset.visualScopeTracesOff = String(Number(scopeTracesOff.toFixed(4)));
+  if (screenShake > 0.0001 || visualBloom > 0.0001 || visualGlow > 0.0001 || chromaAlpha > 0.0001) {
+    nodeGraphScheduleVisualControlAnimation();
+  }
+}
+
 function snapNodeGraphWorkspaceEdgesToGrid(zoom = nodeGraphZoom()) {
   const workspace = document.getElementById("nodeGraphWorkspace");
   if (!workspace) {
@@ -255,6 +481,9 @@ function endNodeGraphWorkspaceResize(event) {
 
 function handleNodeGraphWindowResize() {
   applyNodeGraphWorkspaceView();
+  if (typeof syncNodeGraphSliderReadouts === "function") {
+    syncNodeGraphSliderReadouts();
+  }
   drawNodeGraphWires();
 }
 

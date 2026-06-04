@@ -21,7 +21,12 @@ function nodeGraphBuildLivePlan() {
     order: [...compiled.order],
     outputNode: compiled.outputNode,
     patchFingerprint: nodeGraphPatchFingerprint(),
+    speakerOutputActive: Boolean(compiled.speakerOutputActive),
     sourceNodes: [...compiled.sourceNodes],
+    visualSinks: (compiled.visualSinks || []).map((sink) => ({
+      ...sink,
+      inputs: (sink.inputs || []).map((input) => ({ ...input })),
+    })),
   };
 }
 
@@ -40,12 +45,19 @@ function nodeGraphBuildLiveParameterNodes(activeNodeIds = null) {
           : nodeGraphParameterFallback(node.type, parameter.key);
         paramMeta[parameter.key] = nodeGraphReadPatchParameterMetadata(node, parameter.key);
       }
-      return {
+      const runtimeNode = {
         id: node.id,
         paramMeta,
         params,
+        scopeInputPort: Object.hasOwn(definition, "scopeInputPort")
+          ? definition.scopeInputPort
+          : (definition.inputs || [])[0] || "",
         type: node.type,
       };
+      if (node.type === "codeblock") {
+        runtimeNode.codeblock = normalizeNodeGraphCodeblock(node.codeblock);
+      }
+      return runtimeNode;
     });
 }
 
@@ -66,20 +78,121 @@ function createNodeGraphLiveRuntime(plan) {
     modulationConnections.set(key, modulations);
   }
   const phases = new Map();
+  const noiseSeedKeys = new Map();
   const noiseSeeds = new Map();
+  const oscResetStates = new Map();
+  const bandpassStates = new Map();
+  const clockStates = new Map();
+  const codeblockFunctions = new Map();
+  const cookbookFilterStates = new Map();
+  const clockDividerStates = new Map();
+  const delayedTriggerStates = new Map();
+  const expAdsrStates = new Map();
+  const fractalBrownianNoiseStates = new Map();
+  const flowerChildEnvelopeFollowerStates = new Map();
+  const highpassStates = new Map();
+  const ladderFilterStates = new Map();
+  const linearEnvelopeStates = new Map();
+  const lowpassStates = new Map();
+  const noiseGeneratorStates = new Map();
+  const noiseSampleHoldStates = new Map();
+  const pluckEnvelopeStates = new Map();
+  const randomClockStates = new Map();
+  const randomWalkStates = new Map();
+  const sampleHoldStates = new Map();
+  const slewLimiterStates = new Map();
+  const stepSequencerStates = new Map();
   const spiralStates = new Map();
   const smoothers = new Map();
+  const triggerCounterStates = new Map();
+  const triggerDividerStates = new Map();
   const triangleStates = new Map();
+  const vactrolEnvelopeStates = new Map();
+  const visualControlState = createNodeGraphVisualControlState();
   for (const node of plan.nodes || []) {
     if (node.type === "osc") {
       phases.set(node.id, 0);
+      oscResetStates.set(node.id, createNodeGraphOscResetState());
       triangleStates.set(node.id, 0);
     }
     if (node.type === "osc" || node.type === "noise") {
       noiseSeeds.set(node.id, nodeGraphStableSeed(node.id));
     }
+    if (node.type === "stereoNoise") {
+      noiseSeeds.set(`${node.id}:left`, nodeGraphStableSeed(`${node.id}:left`));
+      noiseSeeds.set(`${node.id}:right`, nodeGraphStableSeed(`${node.id}:right`));
+    }
     if (node.type === "spiral") {
       spiralStates.set(node.id, createJerobeamSpiralState());
+    }
+    if (node.type === "highpass") {
+      highpassStates.set(node.id, createNodeGraphHighpassState());
+    }
+    if (node.type === "lowpass") {
+      lowpassStates.set(node.id, createNodeGraphLowpassState());
+    }
+    if (node.type === "bandpass") {
+      bandpassStates.set(node.id, createNodeGraphBandpassState());
+    }
+    if (node.type === "cookbookFilter") {
+      cookbookFilterStates.set(node.id, createNodeGraphCookbookFilterState());
+    }
+    if (node.type === "ladderFilter") {
+      ladderFilterStates.set(node.id, createNodeGraphLadderFilterState());
+    }
+    if (node.type === "clock") {
+      clockStates.set(node.id, createNodeGraphClockState());
+    }
+    if (node.type === "clockDivider") {
+      clockDividerStates.set(node.id, createNodeGraphTriggerDividerState());
+    }
+    if (node.type === "delayedTrigger") {
+      delayedTriggerStates.set(node.id, createNodeGraphDelayedTriggerState());
+    }
+    if (node.type === "randomClock") {
+      randomClockStates.set(node.id, createNodeGraphRandomClockState());
+    }
+    if (node.type === "sampleHold") {
+      sampleHoldStates.set(node.id, createNodeGraphSampleHoldState());
+    }
+    if (node.type === "slewLimiter") {
+      slewLimiterStates.set(node.id, createNodeGraphSlewLimiterState());
+    }
+    if (node.type === "expAdsr") {
+      expAdsrStates.set(node.id, createNodeGraphExpAdsrState());
+    }
+    if (node.type === "linearEnvelope") {
+      linearEnvelopeStates.set(node.id, createNodeGraphLinearEnvelopeState());
+    }
+    if (node.type === "noiseGenerator") {
+      noiseGeneratorStates.set(node.id, createNodeGraphNoiseGeneratorState());
+    }
+    if (node.type === "noise") {
+      noiseSampleHoldStates.set(node.id, createNodeGraphNoiseSampleHoldState());
+    }
+    if (node.type === "randomWalk") {
+      randomWalkStates.set(node.id, createNodeGraphRandomWalkState());
+    }
+    if (node.type === "fractalBrownianNoise") {
+      fractalBrownianNoiseStates.set(node.id, createNodeGraphFractalBrownianNoiseState());
+    }
+    if (node.type === "flowerChildEnvelopeFollower") {
+      flowerChildEnvelopeFollowerStates.set(node.id, createNodeGraphFlowerChildEnvelopeFollowerState());
+    }
+    if (node.type === "pluckEnvelope") {
+      pluckEnvelopeStates.set(node.id, createNodeGraphPluckEnvelopeState());
+    }
+    if (node.type === "stepSequencer") {
+      stepSequencerStates.set(node.id, createNodeGraphStepSequencerState());
+    }
+    if (node.type === "triggerCounter") {
+      triggerCounterStates.set(node.id, createNodeGraphTriggerCounterState());
+    }
+    if (node.type === "triggerDivider") {
+      triggerDividerStates.set(node.id, createNodeGraphTriggerDividerState());
+    }
+    if (node.type === "vactrolEnvelope") {
+      vactrolEnvelopeStates.set(node.id, createNodeGraphVactrolEnvelopeState());
     }
     for (const [key, value] of Object.entries(node.params || {})) {
       smoothers.set(
@@ -90,21 +203,57 @@ function createNodeGraphLiveRuntime(plan) {
   }
   return {
     inputConnections,
+    badNumberCount: 0,
+    bandpassStates,
+    clockDividerStates,
+    clockStates,
+    codeblockFunctions,
+    cookbookFilterStates,
+    delayedTriggerStates,
+    expAdsrStates,
+    fractalBrownianNoiseStates,
+    flowerChildEnvelopeFollowerStates,
+    ladderFilterStates,
+    linearEnvelopeStates,
     meterCounter: 0,
     meterClipCount: 0,
     meterPeak: 0,
     meterSamples: 0,
     meterSquareSum: 0,
     modulationConnections,
+    macroControls: Array.isArray(nodeGraphMvp?.macroControls) ? [...nodeGraphMvp.macroControls] : new Array(10).fill(0),
+    pitchModWheelSignal: {
+      mod: Math.max(0, Math.min(1, Number(nodeGraphMvp?.modWheelSignal) || 0)),
+      pitch: Math.max(-1, Math.min(1, Number(nodeGraphMvp?.pitchWheelSignal) || 0)),
+    },
+    midiKeyboardSignal: null,
     nodeOutputs: new Map((plan.nodes || []).map((node) => [node.id, 0])),
     nodes,
+    oscResetStates,
+    noiseSeedKeys,
     noiseSeeds,
+    noiseGeneratorStates,
+    noiseSampleHoldStates,
+    pluckEnvelopeStates,
+    randomClockStates,
+    highpassStates,
+    lowpassStates,
     order: [...(plan.order || [])],
     outputNode: plan.outputNode || "output",
     phases,
+    randomWalkStates,
+    sampleHoldStates,
+    slewLimiterStates,
+    scopeInputs: new Map(),
     smoothers,
     spiralStates,
+    stepSequencerStates,
+    triggerCounterStates,
+    triggerDividerStates,
     triangleStates,
+    vactrolEnvelopeStates,
+    visualControls: visualControlState.controls,
+    visualControlStates: visualControlState.states,
   };
 }
 
@@ -130,12 +279,97 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.nodeOutputs) {
     runtime.nodeOutputs = new Map();
   }
+  if (!runtime.scopeInputs) {
+    runtime.scopeInputs = new Map();
+  }
+  if (!runtime.noiseSeedKeys) {
+    runtime.noiseSeedKeys = new Map();
+  }
+  if (!runtime.noiseSeeds) {
+    runtime.noiseSeeds = new Map();
+  }
+  if (!runtime.oscResetStates) {
+    runtime.oscResetStates = new Map();
+  }
   if (!runtime.spiralStates) {
     runtime.spiralStates = new Map();
+  }
+  if (!runtime.highpassStates) {
+    runtime.highpassStates = new Map();
+  }
+  if (!runtime.lowpassStates) {
+    runtime.lowpassStates = new Map();
+  }
+  if (!runtime.ladderFilterStates) {
+    runtime.ladderFilterStates = new Map();
+  }
+  if (!runtime.linearEnvelopeStates) {
+    runtime.linearEnvelopeStates = new Map();
+  }
+  if (!runtime.bandpassStates) {
+    runtime.bandpassStates = new Map();
+  }
+  if (!runtime.clockStates) {
+    runtime.clockStates = new Map();
+  }
+  if (!runtime.codeblockFunctions) {
+    runtime.codeblockFunctions = new Map();
+  }
+  if (!runtime.cookbookFilterStates) {
+    runtime.cookbookFilterStates = new Map();
+  }
+  if (!runtime.clockDividerStates) {
+    runtime.clockDividerStates = new Map();
+  }
+  if (!runtime.delayedTriggerStates) {
+    runtime.delayedTriggerStates = new Map();
+  }
+  if (!runtime.sampleHoldStates) {
+    runtime.sampleHoldStates = new Map();
+  }
+  if (!runtime.slewLimiterStates) {
+    runtime.slewLimiterStates = new Map();
+  }
+  if (!runtime.expAdsrStates) {
+    runtime.expAdsrStates = new Map();
+  }
+  if (!runtime.noiseGeneratorStates) {
+    runtime.noiseGeneratorStates = new Map();
+  }
+  if (!runtime.noiseSampleHoldStates) {
+    runtime.noiseSampleHoldStates = new Map();
+  }
+  if (!runtime.randomWalkStates) {
+    runtime.randomWalkStates = new Map();
+  }
+  if (!runtime.randomClockStates) {
+    runtime.randomClockStates = new Map();
+  }
+  if (!runtime.fractalBrownianNoiseStates) {
+    runtime.fractalBrownianNoiseStates = new Map();
+  }
+  if (!runtime.flowerChildEnvelopeFollowerStates) {
+    runtime.flowerChildEnvelopeFollowerStates = new Map();
+  }
+  if (!runtime.pluckEnvelopeStates) {
+    runtime.pluckEnvelopeStates = new Map();
+  }
+  if (!runtime.stepSequencerStates) {
+    runtime.stepSequencerStates = new Map();
+  }
+  if (!runtime.triggerDividerStates) {
+    runtime.triggerDividerStates = new Map();
+  }
+  if (!runtime.triggerCounterStates) {
+    runtime.triggerCounterStates = new Map();
   }
   if (!runtime.triangleStates) {
     runtime.triangleStates = new Map();
   }
+  if (!runtime.vactrolEnvelopeStates) {
+    runtime.vactrolEnvelopeStates = new Map();
+  }
+  resetNodeGraphRuntimeVisualControls(runtime);
   for (const node of plan.nodes || []) {
     if (!runtime.nodeOutputs.has(node.id)) {
       runtime.nodeOutputs.set(node.id, 0);
@@ -143,14 +377,97 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     if (node.type === "osc" && !runtime.phases.has(node.id)) {
       runtime.phases.set(node.id, 0);
     }
+    if (node.type === "osc" && !runtime.oscResetStates.has(node.id)) {
+      runtime.oscResetStates.set(node.id, createNodeGraphOscResetState());
+    }
     if (node.type === "osc" && !runtime.triangleStates.has(node.id)) {
       runtime.triangleStates.set(node.id, 0);
     }
     if ((node.type === "osc" || node.type === "noise") && !runtime.noiseSeeds.has(node.id)) {
       runtime.noiseSeeds.set(node.id, nodeGraphStableSeed(node.id));
     }
+    if (node.type === "stereoNoise") {
+      if (!runtime.noiseSeeds.has(`${node.id}:left`)) {
+        runtime.noiseSeeds.set(`${node.id}:left`, nodeGraphStableSeed(`${node.id}:left`));
+      }
+      if (!runtime.noiseSeeds.has(`${node.id}:right`)) {
+        runtime.noiseSeeds.set(`${node.id}:right`, nodeGraphStableSeed(`${node.id}:right`));
+      }
+    }
     if (node.type === "spiral" && !runtime.spiralStates.has(node.id)) {
       runtime.spiralStates.set(node.id, createJerobeamSpiralState());
+    }
+    if (node.type === "highpass" && !runtime.highpassStates.has(node.id)) {
+      runtime.highpassStates.set(node.id, createNodeGraphHighpassState());
+    }
+    if (node.type === "lowpass" && !runtime.lowpassStates.has(node.id)) {
+      runtime.lowpassStates.set(node.id, createNodeGraphLowpassState());
+    }
+    if (node.type === "bandpass" && !runtime.bandpassStates.has(node.id)) {
+      runtime.bandpassStates.set(node.id, createNodeGraphBandpassState());
+    }
+    if (node.type === "cookbookFilter" && !runtime.cookbookFilterStates.has(node.id)) {
+      runtime.cookbookFilterStates.set(node.id, createNodeGraphCookbookFilterState());
+    }
+    if (node.type === "ladderFilter" && !runtime.ladderFilterStates.has(node.id)) {
+      runtime.ladderFilterStates.set(node.id, createNodeGraphLadderFilterState());
+    }
+    if (node.type === "clock" && !runtime.clockStates.has(node.id)) {
+      runtime.clockStates.set(node.id, createNodeGraphClockState());
+    }
+    if (node.type === "clockDivider" && !runtime.clockDividerStates.has(node.id)) {
+      runtime.clockDividerStates.set(node.id, createNodeGraphTriggerDividerState());
+    }
+    if (node.type === "delayedTrigger" && !runtime.delayedTriggerStates.has(node.id)) {
+      runtime.delayedTriggerStates.set(node.id, createNodeGraphDelayedTriggerState());
+    }
+    if (node.type === "randomClock" && !runtime.randomClockStates.has(node.id)) {
+      runtime.randomClockStates.set(node.id, createNodeGraphRandomClockState());
+    }
+    if (node.type === "sampleHold" && !runtime.sampleHoldStates.has(node.id)) {
+      runtime.sampleHoldStates.set(node.id, createNodeGraphSampleHoldState());
+    }
+    if (node.type === "slewLimiter" && !runtime.slewLimiterStates.has(node.id)) {
+      runtime.slewLimiterStates.set(node.id, createNodeGraphSlewLimiterState());
+    }
+    if (node.type === "expAdsr" && !runtime.expAdsrStates.has(node.id)) {
+      runtime.expAdsrStates.set(node.id, createNodeGraphExpAdsrState());
+    }
+    if (node.type === "linearEnvelope" && !runtime.linearEnvelopeStates.has(node.id)) {
+      runtime.linearEnvelopeStates.set(node.id, createNodeGraphLinearEnvelopeState());
+    }
+    if (node.type === "noiseGenerator" && !runtime.noiseGeneratorStates.has(node.id)) {
+      runtime.noiseGeneratorStates.set(node.id, createNodeGraphNoiseGeneratorState());
+    }
+    if (node.type === "noise" && !runtime.noiseSampleHoldStates.has(node.id)) {
+      runtime.noiseSampleHoldStates.set(node.id, createNodeGraphNoiseSampleHoldState());
+    }
+    if (node.type === "randomWalk" && !runtime.randomWalkStates.has(node.id)) {
+      runtime.randomWalkStates.set(node.id, createNodeGraphRandomWalkState());
+    }
+    if (node.type === "fractalBrownianNoise" && !runtime.fractalBrownianNoiseStates.has(node.id)) {
+      runtime.fractalBrownianNoiseStates.set(node.id, createNodeGraphFractalBrownianNoiseState());
+    }
+    if (
+      node.type === "flowerChildEnvelopeFollower" &&
+      !runtime.flowerChildEnvelopeFollowerStates.has(node.id)
+    ) {
+      runtime.flowerChildEnvelopeFollowerStates.set(node.id, createNodeGraphFlowerChildEnvelopeFollowerState());
+    }
+    if (node.type === "pluckEnvelope" && !runtime.pluckEnvelopeStates.has(node.id)) {
+      runtime.pluckEnvelopeStates.set(node.id, createNodeGraphPluckEnvelopeState());
+    }
+    if (node.type === "triggerDivider" && !runtime.triggerDividerStates.has(node.id)) {
+      runtime.triggerDividerStates.set(node.id, createNodeGraphTriggerDividerState());
+    }
+    if (node.type === "stepSequencer" && !runtime.stepSequencerStates.has(node.id)) {
+      runtime.stepSequencerStates.set(node.id, createNodeGraphStepSequencerState());
+    }
+    if (node.type === "triggerCounter" && !runtime.triggerCounterStates.has(node.id)) {
+      runtime.triggerCounterStates.set(node.id, createNodeGraphTriggerCounterState());
+    }
+    if (node.type === "vactrolEnvelope" && !runtime.vactrolEnvelopeStates.has(node.id)) {
+      runtime.vactrolEnvelopeStates.set(node.id, createNodeGraphVactrolEnvelopeState());
     }
     for (const [key, value] of Object.entries(node.params || {})) {
       const smootherKey = nodeGraphParameterKey(node.id, key);
@@ -170,14 +487,26 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
       runtime.phases.delete(id);
     }
   }
+  for (const id of [...runtime.oscResetStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.oscResetStates.delete(id);
+    }
+  }
   for (const id of [...runtime.triangleStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.triangleStates.delete(id);
     }
   }
   for (const id of [...runtime.noiseSeeds.keys()]) {
-    if (!nodeIds.has(id)) {
+    const nodeId = String(id).split(":")[0];
+    if (!nodeIds.has(nodeId)) {
       runtime.noiseSeeds.delete(id);
+    }
+  }
+  for (const id of [...runtime.noiseSeedKeys.keys()]) {
+    const nodeId = String(id).split(":")[0];
+    if (!nodeIds.has(nodeId)) {
+      runtime.noiseSeedKeys.delete(id);
     }
   }
   for (const id of [...runtime.nodeOutputs.keys()]) {
@@ -185,9 +514,134 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
       runtime.nodeOutputs.delete(id);
     }
   }
+  for (const id of [...runtime.scopeInputs.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.scopeInputs.delete(id);
+    }
+  }
   for (const id of [...runtime.spiralStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.spiralStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.highpassStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.highpassStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.lowpassStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.lowpassStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.linearEnvelopeStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.linearEnvelopeStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.bandpassStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.bandpassStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.clockStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.clockStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.codeblockFunctions.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.codeblockFunctions.delete(id);
+    }
+  }
+  for (const id of [...runtime.cookbookFilterStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.cookbookFilterStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.ladderFilterStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.ladderFilterStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.clockDividerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.clockDividerStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.delayedTriggerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.delayedTriggerStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.sampleHoldStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.sampleHoldStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.slewLimiterStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.slewLimiterStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.expAdsrStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.expAdsrStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.noiseGeneratorStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.noiseGeneratorStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.noiseSampleHoldStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.noiseSampleHoldStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.randomWalkStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.randomWalkStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.randomClockStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.randomClockStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.fractalBrownianNoiseStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.fractalBrownianNoiseStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.flowerChildEnvelopeFollowerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.flowerChildEnvelopeFollowerStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.pluckEnvelopeStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.pluckEnvelopeStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.stepSequencerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.stepSequencerStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.triggerCounterStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.triggerCounterStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.triggerDividerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.triggerDividerStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.vactrolEnvelopeStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.vactrolEnvelopeStates.delete(id);
     }
   }
   for (const key of [...runtime.smoothers.keys()]) {

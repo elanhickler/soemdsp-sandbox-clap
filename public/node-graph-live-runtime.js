@@ -1,4 +1,4 @@
-function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error") {
+﻿function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error") {
   setNodeGraphLiveOutputMuted(true);
   nodeGraphMvp.live.runtime = null;
   setNodeGraphLiveEvidence("processor-error", {
@@ -290,6 +290,13 @@ function toggleNodeGraphLiveInput() {
 }
 
 async function setNodeGraphLiveOutputEnabled(enabled) {
+  if (enabled && nodeGraphEarProtectionIsTripped()) {
+    nodeGraphMvp.live.outputEnabled = false;
+    nodeGraphTripEarProtection({ source: "live" });
+    renderNodeGraphLiveControls(false);
+    renderNodeGraphExecutionPlanDebug();
+    return;
+  }
   const outputEnabled = Boolean(enabled);
   const serial = nodeGraphMvp.live.outputToggleSerial + 1;
   nodeGraphMvp.live.outputToggleSerial = serial;
@@ -320,6 +327,10 @@ async function setNodeGraphLiveOutputEnabled(enabled) {
 }
 
 function toggleNodeGraphLiveOutput() {
+  if (nodeGraphEarProtectionIsTripped()) {
+    nodeGraphTripEarProtection({ source: "live" });
+    return;
+  }
   setNodeGraphLiveOutputEnabled(!nodeGraphMvp.live.outputEnabled);
 }
 
@@ -355,6 +366,7 @@ function renderNodeGraphLiveScriptBlock(event) {
     nodeGraphMvp.live.inputMeterSquareSum += (inputLeft * inputLeft + inputRight * inputRight) * 0.5;
     nodeGraphMvp.live.inputMeterSamples += 1;
     const frameOutput = evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames);
+    captureNodeGraphLiveModuleScopeFrame(runtime, sampleRate);
     if (nodeGraphOutputSampleClipped(frameOutput.left)) {
       runtime.meterClipCount += 1;
     }
@@ -368,6 +380,10 @@ function renderNodeGraphLiveScriptBlock(event) {
     };
     if (protectedFrame.muted) {
       runtime.meterProtectionMuteCount = (runtime.meterProtectionMuteCount || 0) + 1;
+      nodeGraphTripEarProtection({
+        source: "live",
+        protectionMuteCount: runtime.meterProtectionMuteCount,
+      });
     }
     const left = nodeGraphClampOutputSample(protectedFrame.left);
     const right = nodeGraphClampOutputSample(protectedFrame.right);
@@ -380,6 +396,30 @@ function renderNodeGraphLiveScriptBlock(event) {
     }
   }
   runtime.externalInput = null;
+  nodeGraphSetVisualControls(runtime.visualControls || { screenShake: 0 });
+  if (nodeGraphMvp.live.lastEvidence) {
+    nodeGraphMvp.live.lastEvidence.visualControls = {
+      ...(nodeGraphMvp.live.lastEvidence.visualControls || {}),
+      blue: Number(runtime.visualControls?.blue) || 0,
+      chromaAlpha: Number(runtime.visualControls?.chromaAlpha) || 0,
+      chromaDrift: Number(runtime.visualControls?.chromaDrift) || 0,
+      chromaHue: Number(runtime.visualControls?.chromaHue) || 0,
+      chromaLightness: Number(runtime.visualControls?.chromaLightness) || 0,
+      chromaSaturation: Number(runtime.visualControls?.chromaSaturation) || 0,
+      chromaSpread: Number(runtime.visualControls?.chromaSpread) || 0,
+      green: Number(runtime.visualControls?.green) || 0,
+      red: Number(runtime.visualControls?.red) || 0,
+      scopePaused: Number(runtime.visualControls?.scopePaused) || 0,
+      scopeTracesOff: Number(runtime.visualControls?.scopeTracesOff) || 0,
+      screenDim: Number(runtime.visualControls?.screenDim) || 0,
+      screenShake: Number(runtime.visualControls?.screenShake) || 0,
+      visualBloom: Number(runtime.visualControls?.visualBloom) || 0,
+      visualBrightness: Number(runtime.visualControls?.visualBrightness) || 0,
+      visualGlow: Number(runtime.visualControls?.visualGlow) || 0,
+      x: Number(runtime.visualControls?.x) || 0,
+      y: Number(runtime.visualControls?.y) || 0,
+    };
+  }
   finishNodeGraphParameterSmoothing(runtime.smoothers);
   runtime.meterCounter += frames;
   if (runtime.meterCounter >= sampleRate / 10) {
@@ -392,6 +432,7 @@ function renderNodeGraphLiveScriptBlock(event) {
       Math.sqrt(runtime.meterSquareSum / Math.max(1, runtime.meterSamples)),
       runtime.meterClipCount,
       runtime.meterProtectionMuteCount || 0,
+      runtime.badNumberCount || 0,
     );
     runtime.meterCounter = 0;
     nodeGraphMvp.live.inputMeterPeak = 0;
@@ -399,6 +440,7 @@ function renderNodeGraphLiveScriptBlock(event) {
     nodeGraphMvp.live.inputMeterSquareSum = 0;
     runtime.meterClipCount = 0;
     runtime.meterProtectionMuteCount = 0;
+    runtime.badNumberCount = 0;
     runtime.meterPeak = 0;
     runtime.meterSamples = 0;
     runtime.meterSquareSum = 0;
@@ -420,7 +462,24 @@ function handleNodeGraphLiveWorkletMessage(event) {
       Number(message.rms) || 0,
       Number(message.clipCount) || 0,
       Number(message.protectionMuteCount) || 0,
+      Number(message.badNumberCount) || 0,
     );
+    if (Number(message.badNumberCount) > 0) {
+      nodeGraphRecordBadValueEvent({
+        count: Number(message.badNumberCount) || 1,
+        engine: "worklet",
+        force: Boolean(message.lastBadValueNodeId),
+        nodeId: message.lastBadValueNodeId || "",
+        reason: message.lastBadValueReason || "bad",
+        source: message.lastBadValueSource || "worklet meter",
+      });
+    }
+    if (Number(message.protectionMuteCount) > 0) {
+      nodeGraphTripEarProtection({
+        source: "worklet",
+        protectionMuteCount: Number(message.protectionMuteCount) || 0,
+      });
+    }
   } else if (message.type === "planApplied") {
     if (
       message.sessionId !== nodeGraphMvp.live.sessionId ||
@@ -432,6 +491,61 @@ function handleNodeGraphLiveWorkletMessage(event) {
     setNodeGraphLiveEvidence("plan-applied", message);
     setNodeGraphLivePlanStatus(nodeGraphLivePlanAppliedStatusText(message), "good");
     setNodeGraphLivePlanTitle(nodeGraphLivePlanScheduleTitle(message.order));
+  } else if (message.type === "scope") {
+    if (message.sessionId !== nodeGraphMvp.live.sessionId || !nodeGraphMvp.live.node) {
+      return;
+    }
+    pushNodeGraphLiveModuleScopeSnapshot(message.values || [], {
+      patchFingerprint: message.patchFingerprint || nodeGraphPatchFingerprint(),
+      sampleRate: message.sampleRate || nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
+    });
+  } else if (message.type === "visualControls") {
+    if (message.sessionId !== nodeGraphMvp.live.sessionId || !nodeGraphMvp.live.node) {
+      return;
+    }
+    nodeGraphSetVisualControls({
+      blue: Number(message.blue) || 0,
+      chromaAlpha: Number(message.chromaAlpha) || 0,
+      chromaDrift: Number(message.chromaDrift) || 0,
+      chromaHue: Number(message.chromaHue) || 0,
+      chromaLightness: Number(message.chromaLightness) || 0,
+      chromaSaturation: Number(message.chromaSaturation) || 0,
+      chromaSpread: Number(message.chromaSpread) || 0,
+      green: Number(message.green) || 0,
+      red: Number(message.red) || 0,
+      scopePaused: Number(message.scopePaused) || 0,
+      scopeTracesOff: Number(message.scopeTracesOff) || 0,
+      screenDim: Number(message.screenDim) || 0,
+      screenShake: Number(message.screenShake) || 0,
+      visualBloom: Number(message.visualBloom) || 0,
+      visualBrightness: Number(message.visualBrightness) || 0,
+      visualGlow: Number(message.visualGlow) || 0,
+      x: Number(message.x) || 0,
+      y: Number(message.y) || 0,
+    });
+    if (nodeGraphMvp.live.lastEvidence) {
+      nodeGraphMvp.live.lastEvidence.visualControls = {
+        ...(nodeGraphMvp.live.lastEvidence.visualControls || {}),
+        blue: Number(message.blue) || 0,
+        chromaAlpha: Number(message.chromaAlpha) || 0,
+        chromaDrift: Number(message.chromaDrift) || 0,
+        chromaHue: Number(message.chromaHue) || 0,
+        chromaLightness: Number(message.chromaLightness) || 0,
+        chromaSaturation: Number(message.chromaSaturation) || 0,
+        chromaSpread: Number(message.chromaSpread) || 0,
+        green: Number(message.green) || 0,
+        red: Number(message.red) || 0,
+        scopePaused: Number(message.scopePaused) || 0,
+        scopeTracesOff: Number(message.scopeTracesOff) || 0,
+        screenDim: Number(message.screenDim) || 0,
+        screenShake: Number(message.screenShake) || 0,
+        visualBloom: Number(message.visualBloom) || 0,
+        visualBrightness: Number(message.visualBrightness) || 0,
+        visualGlow: Number(message.visualGlow) || 0,
+        x: Number(message.x) || 0,
+        y: Number(message.y) || 0,
+      };
+    }
   } else if (message.type === "paramsApplied") {
     if (
       message.sessionId !== nodeGraphMvp.live.sessionId ||
@@ -453,19 +567,31 @@ function sendNodeGraphLivePlan() {
 
   try {
     const plan = nodeGraphBuildLivePlan();
+    const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
     nodeGraphMvp.live.activeNodeIds = new Set(plan.order);
+    beginNodeGraphLiveModuleScopeCapture(plan, {
+      sampleRate: nodeGraphMvp.live.usesWorklet
+        ? audio.clampedEngineSampleRate
+        : nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
+    });
     nodeGraphMvp.live.planSerial += 1;
     nodeGraphMvp.live.planEvidence = nodeGraphLivePlanEvidenceDetails(plan, {
+      engineSampleRate: audio.clampedEngineSampleRate,
+      oversamplingRatio: audio.oversamplingRatio,
       planSerial: nodeGraphMvp.live.planSerial,
+      sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
     });
     if (nodeGraphMvp.live.usesWorklet) {
       setNodeGraphLiveEvidence("plan-sent", nodeGraphMvp.live.planEvidence);
       setNodeGraphLivePlanStatus(nodeGraphLivePlanSentStatusText(), "warn");
       setNodeGraphLivePlanTitle(nodeGraphLivePlanScheduleTitle(plan.order));
       nodeGraphMvp.live.node?.port?.postMessage({
+        engineSampleRate: audio.clampedEngineSampleRate,
+        oversamplingRatio: audio.oversamplingRatio,
         plan,
         patchFingerprint: plan.patchFingerprint,
         planSerial: nodeGraphMvp.live.planSerial,
+        sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
         sessionId: nodeGraphMvp.live.sessionId,
         type: "setPlan",
       });
@@ -509,6 +635,7 @@ function sendNodeGraphLiveParameterUpdate() {
   try {
     const nodes = nodeGraphBuildLiveParameterNodes(nodeGraphMvp.live.activeNodeIds);
     const patchFingerprint = nodeGraphPatchFingerprint();
+    updateNodeGraphLiveModuleScopeFingerprint(patchFingerprint);
     nodeGraphMvp.live.planSerial += 1;
     if (nodeGraphMvp.live.usesWorklet) {
       setNodeGraphLiveEvidence("params-sent", {
@@ -547,6 +674,59 @@ function sendNodeGraphLiveParameterUpdate() {
     clearNodeGraphLiveStatusTitle();
   } catch (error) {
     setNodeGraphLiveBlockedError("params", error, { schedule: false });
+  }
+}
+
+function sendNodeGraphLiveMidiKeyboardSignal(signal = nodeGraphMvp.midiKeyboardSignal) {
+  const payload = signal && typeof signal === "object" ? { ...signal } : null;
+  if (nodeGraphMvp.live.runtime) {
+    nodeGraphMvp.live.runtime.midiKeyboardSignal = payload;
+  }
+  if (nodeGraphMvp.live.usesWorklet && nodeGraphMvp.live.node?.port) {
+    nodeGraphMvp.live.node.port.postMessage({
+      signal: payload,
+      type: "setMidiKeyboardSignal",
+    });
+  }
+}
+
+function sendNodeGraphLiveMacroControls(values = nodeGraphMvp.macroControls) {
+  const payload = Array.from({ length: 10 }, (_, index) => (
+    Math.max(0, Math.min(1, Number(values?.[index]) || 0))
+  ));
+  if (nodeGraphMvp.live.runtime) {
+    nodeGraphMvp.live.runtime.macroControls = payload;
+  }
+  if (nodeGraphMvp.live.usesWorklet && nodeGraphMvp.live.node?.port) {
+    nodeGraphMvp.live.node.port.postMessage({
+      values: payload,
+      type: "setMacroControls",
+    });
+  }
+}
+
+function nodeGraphPitchModWheelPayload() {
+  return {
+    mod: Math.max(0, Math.min(1, Number(nodeGraphMvp.modWheelSignal) || 0)),
+    pitch: Math.max(-1, Math.min(1, Number(nodeGraphMvp.pitchWheelSignal) || 0)),
+  };
+}
+
+function sendNodeGraphLivePitchModWheelSignal(signal = nodeGraphPitchModWheelPayload()) {
+  const source = signal && typeof signal === "object" ? signal : {};
+  const pitch = Number(source.pitch);
+  const payload = {
+    mod: Math.max(0, Math.min(1, Number(source.mod) || 0)),
+    pitch: Math.max(-1, Math.min(1, Number.isFinite(pitch) ? pitch : 0)),
+  };
+  if (nodeGraphMvp.live.runtime) {
+    nodeGraphMvp.live.runtime.pitchModWheelSignal = payload;
+  }
+  if (nodeGraphMvp.live.usesWorklet && nodeGraphMvp.live.node?.port) {
+    nodeGraphMvp.live.node.port.postMessage({
+      signal: payload,
+      type: "setPitchModWheelSignal",
+    });
   }
 }
 
@@ -612,6 +792,10 @@ async function stopNodeGraphLiveAudio() {
   nodeGraphMvp.live.sessionId += 1;
   nodeGraphMvp.live.syncMode = "";
   nodeGraphMvp.live.usesWorklet = false;
+  if (typeof clearNodeGraphModuleScopeBuffers === "function") {
+    clearNodeGraphModuleScopeBuffers();
+  }
+  nodeGraphClearVisualControls();
 
   try {
     liveNode?.port?.postMessage({ type: "stop" });
@@ -640,7 +824,7 @@ async function createNodeGraphLiveWorkletNode(context) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
-  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=ear-protection-1780345200000");
+  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=amplitude-defaults-1780800300000");
   const workletNode = new AudioWorkletNode(
     context,
     "node-live-audio-processor",
@@ -755,6 +939,12 @@ async function syncNodeGraphLiveInputSource() {
 }
 
 async function startNodeGraphLiveAudio(outputSerial = nodeGraphMvp.live.outputToggleSerial) {
+  if (nodeGraphEarProtectionIsTripped()) {
+    nodeGraphTripEarProtection({ source: "live" });
+    renderNodeGraphLiveControls(false);
+    renderNodeGraphExecutionPlanDebug();
+    return;
+  }
   if (nodeGraphLiveOutputStartCancelled(outputSerial)) {
     renderNodeGraphLiveControls(false);
     renderNodeGraphExecutionPlanDebug();
@@ -834,6 +1024,8 @@ async function startNodeGraphLiveAudio(outputSerial = nodeGraphMvp.live.outputTo
       return;
     }
     sendNodeGraphLivePlan();
+    sendNodeGraphLiveMacroControls();
+    sendNodeGraphLivePitchModWheelSignal();
     if (usesWorklet) {
       setNodeGraphLiveEngineStatus("engine worklet", "good");
       setNodeGraphLiveEngineTitle();

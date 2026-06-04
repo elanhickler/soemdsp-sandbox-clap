@@ -75,12 +75,46 @@ function createNodeGraphModuleScopeSection(node, type) {
   section.className = "node-module-scope-window";
   section.dataset.node = node;
   section.dataset.nodeType = type;
-  section.setAttribute("aria-hidden", "true");
+  section.dataset.tooltipKey = "module.scopeWindow";
+  section.setAttribute("aria-label", `${nodeGraphNodeDisplayName(node)} scope`);
+  if (typeof nodeGraphApplyTooltip === "function") {
+    nodeGraphApplyTooltip(section, "module.scopeWindow");
+  }
 
   const surface = document.createElement("div");
   surface.className = "node-module-scope-window-surface";
   section.append(surface);
+
+  if (type === "clock") {
+    const ledShell = document.createElement("div");
+    ledShell.className = "node-clock-led-shell";
+    ledShell.setAttribute("aria-hidden", "true");
+
+    const led = document.createElement("div");
+    led.className = "node-clock-led";
+    led.dataset.ledState = "off";
+    ledShell.append(led);
+    section.append(ledShell);
+  }
+
+  const analyzer = document.createElement("div");
+  analyzer.className = "node-module-scope-analyzer";
+  analyzer.hidden = true;
+  section.append(analyzer);
   return section;
+}
+
+function createNodeGraphSliderWidgetBody(node, type) {
+  const definition = nodeGraphModuleDefinitions[type];
+  const body = document.createElement("div");
+  body.className = "node-slider-widget-body";
+  const parameter = definition?.parameters?.[0];
+  if (parameter) {
+    const row = createNodeGraphParameter(node, type, parameter);
+    row.classList.add("node-slider-widget-row");
+    body.append(row);
+  }
+  return body;
 }
 
 function createNodeGraphParameter(node, type, parameter) {
