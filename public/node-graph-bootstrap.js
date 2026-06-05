@@ -19,6 +19,7 @@ async function initNodeGraphMvp() {
   renderNodeGraphGridToggle();
   bindNodeGraphMacroControlsPanelEvents();
   bindNodeGraphMidiKeyboardPanelEvents();
+  bindNodeGraphMetadataPopoverEvents();
   renderNodeGraphMacroControls();
   renderNodeGraphMidiKeyboardToggle();
   renderNodeGraphModuleVisibilityToggles();

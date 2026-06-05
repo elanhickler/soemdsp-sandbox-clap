@@ -8,6 +8,11 @@
     "editText": "Mouse: click to edit, drag to select text.",
     "interact": "Mouse: interact for details."
   },
+  "constraints": {
+    "cpu": "Show CPU-constrained controls. These can make the processor work harder; for example, Additive Osc Harmonics.",
+    "ram": "Show RAM-constrained controls. These can increase memory pressure, buffers, or stored data.",
+    "gpu": "Show GPU-constrained controls. These can make visual rendering or shader work heavier."
+  },
   "workspace": {
     "pan": "Mouse: middle-drag to move the modular view freely. Ctrl+middle-drag or Alt+middle-drag slowly zooms, including over modules and controls. Right-click empty space opens the add module dialog. Ctrl+Shift+G aligns the view to the grid.",
     "resize": "Mouse: drag to resize workspace by grid units.",
@@ -16,7 +21,6 @@
   },
   "view": {
     "patchSettings": "Patch settings",
-    "uiViewDevelopment": "UI View is in development",
     "midiKeyboardDevelopment": "Show or hide the mouse-playable keyboard panel.",
     "switchView": "Mouse: click to switch view.",
     "zoomIn": "Zoom in. Click for the next integer zoom level; Shift-click adds 0.25; Ctrl/Cmd-click adds 0.10.",

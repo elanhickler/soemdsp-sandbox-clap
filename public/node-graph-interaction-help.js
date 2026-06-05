@@ -118,9 +118,6 @@ function nodeInteractionMouseHint(element) {
   if (element.id === "nodeModularViewButton" || element.id === "nodeModularOnlyViewButton") {
     return nodeGraphTooltipText("view.switchView");
   }
-  if (element.id === "nodeUiViewButton") {
-    return nodeGraphTooltipText("view.switchView");
-  }
   if (element.id === "nodeMidiKeyboardToggleButton") {
     return nodeGraphMvp.midiKeyboardVisible ? "Hide the mouse-playable keyboard panel." : "Show the mouse-playable keyboard panel.";
   }

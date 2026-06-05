@@ -49,6 +49,106 @@ function normalizeNodeGraphPatchGrid(grid = {}) {
   };
 }
 
+const nodeGraphDefaultCameraColors = Object.freeze([
+  "#ff3333",
+  "#3399ff",
+  "#38c46b",
+  "#9b5cff",
+]);
+
+const nodeGraphDefaultCameraFrame = Object.freeze({
+  height: 489,
+  width: 868,
+  x: 0,
+  y: 0,
+});
+
+const nodeGraphCameraFrameLimits = Object.freeze({
+  minHeight: 80,
+  minWidth: 120,
+});
+
+const nodeGraphDefaultCameraResolution = Object.freeze({
+  height: 1080,
+  width: 1920,
+});
+
+function normalizeNodeGraphCameraResolution(value, fallback) {
+  const resolution = Math.round(Number(value));
+  return Number.isFinite(resolution) ? Math.max(16, Math.min(16384, resolution)) : fallback;
+}
+
+function normalizeNodeGraphCameraMidiTrigger(trigger = null) {
+  const source = trigger && typeof trigger === "object" ? trigger : {};
+  const type = source.type === "cc" ? "cc" : source.type === "note" ? "note" : "";
+  if (!type) {
+    return null;
+  }
+  const channel = Math.round(Number(source.channel));
+  const number = Math.round(Number(source.number));
+  return {
+    channel: Number.isFinite(channel) ? Math.max(1, Math.min(16, channel)) : 1,
+    number: Number.isFinite(number) ? Math.max(0, Math.min(127, number)) : 0,
+    type,
+    valueMode: source.valueMode === "threshold" ? "threshold" : "select",
+  };
+}
+
+function normalizeNodeGraphCamera(camera = {}, index = 0) {
+  const source = camera && typeof camera === "object" ? camera : {};
+  const fallbackId = `camera-${index + 1}`;
+  const id = String(source.id || fallbackId).trim().replace(/[^a-z0-9_-]/gi, "-").slice(0, 64) || fallbackId;
+  const color = String(source.color || nodeGraphDefaultCameraColors[index % nodeGraphDefaultCameraColors.length] || "#ff3333").trim();
+  const x = Math.round(Number(source.x));
+  const y = Math.round(Number(source.y));
+  const width = Math.round(Number(source.width));
+  const resolutionWidth = normalizeNodeGraphCameraResolution(
+    source.resolutionWidth,
+    nodeGraphDefaultCameraResolution.width,
+  );
+  const resolutionHeight = normalizeNodeGraphCameraResolution(
+    source.resolutionHeight,
+    nodeGraphDefaultCameraResolution.height,
+  );
+  const aspectRatio = Math.max(0.01, resolutionWidth / resolutionHeight);
+  const safeWidth = Number.isFinite(width)
+    ? Math.max(nodeGraphCameraFrameLimits.minWidth, Math.min(4000, width))
+    : nodeGraphDefaultCameraFrame.width;
+  const safeHeight = Math.max(nodeGraphCameraFrameLimits.minHeight, Math.round(safeWidth / aspectRatio));
+  return {
+    color: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : nodeGraphDefaultCameraColors[index % nodeGraphDefaultCameraColors.length],
+    enabled: source.enabled !== false,
+    height: Math.min(4000, safeHeight),
+    id,
+    midiTrigger: normalizeNodeGraphCameraMidiTrigger(source.midiTrigger),
+    name: nodeGraphOneLineText(source.name).slice(0, 64) || `Camera ${index + 1}`,
+    resolutionHeight,
+    resolutionWidth,
+    width: Math.min(4000, Math.round(Math.min(4000, safeHeight) * aspectRatio)),
+    x: Number.isFinite(x) ? Math.max(0, Math.min(10000, x)) : nodeGraphDefaultCameraFrame.x,
+    y: Number.isFinite(y) ? Math.max(0, Math.min(10000, y)) : nodeGraphDefaultCameraFrame.y,
+  };
+}
+
+function normalizeNodeGraphPatchCameras(cameras = [], activeCameraId = "") {
+  const source = Array.isArray(cameras) && cameras.length ? cameras : [{}];
+  const seen = new Set();
+  const normalized = source.map((camera, index) => normalizeNodeGraphCamera(camera, index))
+    .filter((camera) => {
+      if (seen.has(camera.id)) {
+        return false;
+      }
+      seen.add(camera.id);
+      return true;
+    });
+  const safeCameras = normalized.length ? normalized : [normalizeNodeGraphCamera({}, 0)];
+  const active = String(activeCameraId || "").trim();
+  return {
+    activeCameraId: safeCameras.some((camera) => camera.id === active) ? active : safeCameras[0].id,
+    cameras: safeCameras,
+  };
+}
+
 function normalizeNodeGraphWindowPosition(position = {}) {
   const source = position && typeof position === "object" ? position : {};
   const left = source.left === null || source.left === undefined ? NaN : Number(source.left);

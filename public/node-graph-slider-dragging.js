@@ -179,7 +179,12 @@ function beginNodeSliderDrag(event) {
     return;
   }
 
-  const surface = event.currentTarget;
+  const surface = event.currentTarget?.classList?.contains("node-slider-readout")
+    ? event.currentTarget
+    : event.target?.closest?.(".node-slider-readout");
+  if (!surface) {
+    return;
+  }
   const slider = document.getElementById(surface.dataset.sliderTarget);
   if (!slider) {
     return;
@@ -221,6 +226,7 @@ function beginNodeSliderDrag(event) {
     surface.setPointerCapture(event.pointerId);
   }
   event.preventDefault();
+  event.stopPropagation();
 }
 
 function dragNodeSlider(event) {

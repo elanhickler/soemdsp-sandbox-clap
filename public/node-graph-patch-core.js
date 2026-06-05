@@ -6,22 +6,22 @@ function normalizeNodeGraphPatchParameter(type, key, value, metadata = null) {
   const parameter = nodeGraphModuleDefinitions[type]?.parameters?.find(
     (candidate) => candidate.key === key,
   );
-  if (!parameter) {
+  if (!parameter && type !== "clapPlugin") {
     return null;
   }
   const number = Number(value);
-  const fallback = Number(metadata?.def ?? parameter.defaultValue);
+  const fallback = Number(metadata?.def ?? parameter?.defaultValue);
   const candidate = Number.isFinite(number)
     ? number
     : Number.isFinite(fallback)
       ? fallback
       : 0;
-  const min = Number(metadata?.min ?? parameter.min);
-  const max = Number(metadata?.max ?? parameter.max);
+  const min = Number(metadata?.min ?? parameter?.min);
+  const max = Number(metadata?.max ?? parameter?.max);
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
     return candidate;
   }
-  return metadata?.wraparound || parameter.wraparound
+  return metadata?.wraparound || parameter?.wraparound
     ? wrapNodeSliderValue(candidate, min, max)
     : clampNodeSliderValue(candidate, min, max);
 }
@@ -40,6 +40,7 @@ function validateNodeGraphPatch(patch) {
     }
   }
 
+  const cameraState = normalizeNodeGraphPatchCameras(patch.cameras, patch.activeCameraId);
   const grid = normalizeNodeGraphPatchGrid(patch.grid);
   if (!Number.isFinite(grid.widthPx) || grid.widthPx <= 0) {
     throw new Error("grid.widthPx must be a positive number");
@@ -48,8 +49,8 @@ function validateNodeGraphPatch(patch) {
     throw new Error("grid.heightPx must be a positive number");
   }
 
-  if (!Array.isArray(patch.nodes) || patch.nodes.length === 0) {
-    throw new Error("nodes must be a non-empty array");
+  if (!Array.isArray(patch.nodes)) {
+    throw new Error("nodes must be an array");
   }
 
   const ids = new Set();
@@ -102,6 +103,24 @@ function validateNodeGraphPatch(patch) {
         metadata,
       );
     }
+    if (type === "clapPlugin") {
+      for (const [key, sourceMetadata] of Object.entries(node.paramMeta || {})) {
+        if (Object.hasOwn(paramMeta, key)) {
+          continue;
+        }
+        const metadata = normalizeNodeGraphPatchParameterMetadata(type, key, sourceMetadata);
+        if (!metadata) {
+          continue;
+        }
+        paramMeta[key] = metadata;
+        params[key] = normalizeNodeGraphPatchParameter(
+          type,
+          key,
+          Object.hasOwn(node.params || {}, key) ? node.params[key] : metadata.def,
+          metadata,
+        );
+      }
+    }
     ids.add(id);
     const normalizedNode = {
       gx,
@@ -127,6 +146,12 @@ function validateNodeGraphPatch(patch) {
     if (type === "codeblock") {
       normalizedNode.codeblock = normalizeNodeGraphCodeblock(node.codeblock);
     }
+    if (type === "moduleGroup") {
+      normalizedNode.moduleGroup = normalizeNodeGraphModuleGroup(node.moduleGroup);
+    }
+    if (type === "clapPlugin") {
+      normalizedNode.clap = normalizeNodeGraphClapPluginBinding(node.clap);
+    }
     const ui = nodeGraphModuleDefinitions[type].layout === "textBox" && !Object.hasOwn(node, "ui")
       ? { buttonsHidden: true }
       : normalizeNodeGraphPatchNodeUi(node.ui);
@@ -135,10 +160,6 @@ function validateNodeGraphPatch(patch) {
     }
     return normalizedNode;
   });
-
-  if (!ids.has("output")) {
-    throw new Error("output node missing");
-  }
 
   const uiItems = normalizeNodeGraphPatchUiItems(patch.uiItems, { nodeIds: ids });
 
@@ -167,7 +188,7 @@ function validateNodeGraphPatch(patch) {
   const connectionKeys = new Set();
   const connections = Array.isArray(patch.connections) ? patch.connections.map((connection) => {
     const sourceNode = String(connection.sourceNode || "").trim();
-    const sourcePort = String(connection.sourcePort || "").trim();
+    let sourcePort = String(connection.sourcePort || "").trim();
     const destinationNode = String(connection.destinationNode || "").trim();
     let destinationPort = String(connection.destinationPort || "").trim();
     const sourceType = nodes.find((node) => node.id === sourceNode)?.type;
@@ -175,6 +196,7 @@ function validateNodeGraphPatch(patch) {
     if (!sourceType || !destinationType) {
       throw new Error("connection references missing node");
     }
+    sourcePort = nodeGraphCanonicalOutputPort(sourceType, sourcePort);
     if (!nodeGraphPatchNodeOutputPorts(nodes.find((node) => node.id === sourceNode)).includes(sourcePort)) {
       throw new Error(`connection source port invalid: ${sourceNode}.${sourcePort}`);
     }
@@ -207,7 +229,7 @@ function validateNodeGraphPatch(patch) {
   const modulationKeys = new Set();
   const modulations = Array.isArray(patch.modulations) ? patch.modulations.map((modulation) => {
     const sourceNode = String(modulation.sourceNode || "").trim();
-    const sourcePort = String(modulation.sourcePort || "").trim();
+    let sourcePort = String(modulation.sourcePort || "").trim();
     const destinationNode = String(modulation.destinationNode || "").trim();
     const destinationParam = String(modulation.destinationParam || "").trim();
     if (!sourceNode || !sourcePort || !destinationNode || !destinationParam) {
@@ -218,10 +240,12 @@ function validateNodeGraphPatch(patch) {
     if (!sourceType || !destinationType) {
       throw new Error("modulation references missing node");
     }
+    sourcePort = nodeGraphCanonicalOutputPort(sourceType, sourcePort);
     if (!nodeGraphPatchNodeOutputPorts(nodes.find((node) => node.id === sourceNode)).includes(sourcePort)) {
       throw new Error(`modulation source port invalid: ${sourceNode}.${sourcePort}`);
     }
-    if (!(nodeGraphModuleDefinitions[destinationType].parameters || []).some((parameter) => parameter.key === destinationParam)) {
+    const destinationPatchNode = nodes.find((node) => node.id === destinationNode);
+    if (!nodeGraphPatchNodeParameterDefinitions(destinationPatchNode).some((parameter) => parameter.key === destinationParam)) {
       throw new Error(`modulation destination parameter invalid: ${destinationNode}.${destinationParam}`);
     }
     const key = `${sourceNode}.${sourcePort}->${destinationNode}.${destinationParam}`;
@@ -252,8 +276,10 @@ function validateNodeGraphPatch(patch) {
   }
 
   return {
+    activeCameraId: cameraState.activeCameraId,
     audio: normalizeNodeGraphPatchAudio(patch.audio),
     bypassedNodes,
+    cameras: cameraState.cameras,
     connections,
     format: { ...nodeGraphPatchFormat },
     grid,
@@ -292,8 +318,7 @@ function nodeGraphPatchNodeIsVisible(nodeId) {
   const node = nodeGraphPatchNode(nodeId);
   return Boolean(
     node &&
-    nodeGraphModuleShouldBeVisible(node) &&
-    (!nodeGraphUiViewIsActive() || nodeGraphNodeIsInUiView(nodeId)),
+    nodeGraphModuleShouldBeVisible(node),
   );
 }
 
@@ -387,11 +412,22 @@ function applyNodeGraphPatchToDom() {
       syncNodeGraphTextBoxElement(element, patchNode);
     } else if (nodeGraphModuleDefinitions[patchNode.type]?.layout === "graph") {
       syncNodeGraphGraphElement(element, patchNode);
+    } else if (
+      nodeGraphModuleDefinitions[patchNode.type]?.layout === "clapPlugin" &&
+      typeof syncNodeGraphClapPluginElement === "function"
+    ) {
+      syncNodeGraphClapPluginElement(element, patchNode);
     }
   }
   syncNodeGraphInputModuleLiveState();
+  if (typeof renderNodeGraphCameraView === "function") {
+    renderNodeGraphCameraView();
+  }
   syncNodeGraphHeaderTimingWidgets();
   updateNodeGraphGridHeatmap();
+  if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
+    scheduleNodeGraphModuleScopeDraw();
+  }
 }
 
 function commitNodeGraphPatch(patch, options = {}) {
@@ -406,7 +442,6 @@ function commitNodeGraphPatch(patch, options = {}) {
   syncNodeGraphFilterCurveDisplays();
   renderNodeGraphVisualSettings();
   syncNodeGraphSettingsView();
-  renderNodeGraphUiView();
   const scriptStatus = nodeGraphPatchScriptStatus(
     options.status || "script synced",
     options.ok ?? true,

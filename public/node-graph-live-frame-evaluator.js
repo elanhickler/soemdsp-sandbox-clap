@@ -254,6 +254,8 @@ function nodeGraphCompileCodeblockFunction(runtime, node) {
   const fn = Function(
     "__inputs",
     "__outputs",
+    "__state",
+    "__context",
     nodeGraphCodeblockBuildFunctionBody(codeblock),
   );
   const compiled = {
@@ -262,12 +264,13 @@ function nodeGraphCompileCodeblockFunction(runtime, node) {
     inputs: new Array(codeblock.inputs.length).fill(0),
     key,
     output: nodeGraphCreateCodeblockOutputObject(codeblock),
+    state: Object.create(null),
   };
   runtime.codeblockFunctions?.set(node.id, compiled);
   return compiled;
 }
 
-function nodeGraphEvaluateCodeblock(runtime, node, mixInput) {
+function nodeGraphEvaluateCodeblock(runtime, node, mixInput, sampleRate = nodeGraphMvp?.sampleRate || 44100, frame = 0, frames = 1) {
   let compiled = null;
   try {
     compiled = nodeGraphCompileCodeblockFunction(runtime, node);
@@ -275,7 +278,7 @@ function nodeGraphEvaluateCodeblock(runtime, node, mixInput) {
     nodeGraphMarkRuntimeBadNumber(runtime, node.id, `codeblock compile error ${error?.message || ""}`);
     return {};
   }
-  const { codeblock, fn, inputs, output } = compiled;
+  const { codeblock, fn, inputs, output, state } = compiled;
   try {
     for (let index = 0; index < codeblock.inputs.length; index += 1) {
       const port = codeblock.inputs[index];
@@ -290,7 +293,12 @@ function nodeGraphEvaluateCodeblock(runtime, node, mixInput) {
     for (const port of codeblock.outputs) {
       output[port] = 0;
     }
-    fn(inputs, output);
+    fn(inputs, output, state, {
+      frame,
+      frames,
+      sampleRate,
+      time: (Number(frame) || 0) / (Number(sampleRate) || 44100),
+    });
     for (const port of codeblock.outputs) {
       output[port] = nodeGraphSafeFilterNumber(
         output[port],
@@ -308,6 +316,41 @@ function nodeGraphEvaluateCodeblock(runtime, node, mixInput) {
     }
     return output;
   }
+}
+
+function nodeGraphEvaluateModuleGroup(runtime, node, mixInput, sampleRate, frame, frames) {
+  const group = node.moduleGroup?.kind === "moduleGroup"
+    ? node.moduleGroup
+    : normalizeNodeGraphModuleGroup(node.moduleGroup);
+  if (!group.sourcePatch) {
+    return {};
+  }
+  let groupRuntime = runtime.moduleGroupRuntimes?.get(node.id);
+  if (!groupRuntime) {
+    try {
+      groupRuntime = createNodeGraphLiveRuntime(nodeGraphBuildLivePlanForPatch(group.sourcePatch));
+      runtime.moduleGroupRuntimes?.set(node.id, groupRuntime);
+    } catch (error) {
+      nodeGraphMarkRuntimeBadNumber(runtime, node.id, `module group plan error ${error?.message || ""}`);
+      return {};
+    }
+  }
+  groupRuntime.externalGroupInputs = new Map(
+    group.inputs.map((input) => [input.nodeId, mixInput(node.id, input.name)]),
+  );
+  const groupFrame = evaluateNodeGraphPlanFrame(groupRuntime, sampleRate, frame, frames);
+  const output = {};
+  for (const endpoint of group.outputs) {
+    output[endpoint.name] = readNodeGraphRuntimePortOutput(
+      groupRuntime,
+      groupFrame.frameValues,
+      endpoint.nodeId,
+      endpoint.port || "Out",
+      frame,
+      frames,
+    );
+  }
+  return output;
 }
 
 function nodeGraphVisualControlIntensity(value, runtime, nodeId, source = "visual control") {
@@ -1442,7 +1485,11 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const node = runtime.nodes.get(nodeId);
     let value = 0;
 
-    if (node?.type === "audioInput") {
+    if (node?.type === "groupInput") {
+      value = {
+        Out: Number(runtime.externalGroupInputs?.get(nodeId)) || 0,
+      };
+    } else if (node?.type === "audioInput") {
       const input = runtime.externalInput || {};
       const leftChannel = input.left || input.right || null;
       const rightChannel = input.right || input.left || null;
@@ -1514,14 +1561,16 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         null,
         "osc increment input",
       );
-      const phaseIncrement = (frequency / sampleRate) + incrementInput;
-      value = nodeGraphOscillatorWaveformSample(
+      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
+        mixInput(nodeId, "0.1V/Oct"),
         runtime,
         nodeId,
-        phase + phaseOffset,
-        phaseIncrement,
-        waveform,
-      ) * readNodeGraphLiveEffectiveParam(
+        null,
+        "osc 0.1v/oct input",
+      ), -1, 1);
+      const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+      const phaseIncrement = (pitchedFrequency / sampleRate) + incrementInput;
+      const level = readNodeGraphLiveEffectiveParam(
         runtime,
         node,
         "level",
@@ -1530,6 +1579,86 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
+      const selected = nodeGraphOscillatorWaveformSample(
+        runtime,
+        nodeId,
+        phase + phaseOffset,
+        phaseIncrement,
+        waveform,
+      ) * level;
+      value = {
+        Out: selected,
+        Saw: nodeGraphOscillatorWaveformSample(runtime, `${nodeId}:saw`, phase + phaseOffset, phaseIncrement, 0) * level,
+        Square: nodeGraphOscillatorWaveformSample(runtime, `${nodeId}:square`, phase + phaseOffset, phaseIncrement, 1) * level,
+        Tri: nodeGraphOscillatorWaveformSample(runtime, `${nodeId}:tri`, phase + phaseOffset, phaseIncrement, 2) * level,
+        Sine: nodeGraphOscillatorWaveformSample(runtime, `${nodeId}:sine`, phase + phaseOffset, phaseIncrement, 3) * level,
+      };
+      runtime.phases.set(
+        nodeId,
+        wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
+      );
+    } else if (node?.type === "additiveOsc") {
+      const resetState = runtime.oscResetStates.get(nodeId) || createNodeGraphOscResetState();
+      runtime.oscResetStates.set(nodeId, resetState);
+      const resetValue = nodeGraphSafeFilterNumber(
+        mixInput(nodeId, "Reset"),
+        runtime,
+        nodeId,
+        resetState,
+        "additive osc reset",
+      );
+      const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
+      resetState.lastReset = resetValue;
+      const phase = resetEdge ? 0 : runtime.phases.get(nodeId) || 0;
+      const phaseOffset = nodeGraphPhaseRadians(readNodeGraphLiveEffectiveParam(
+        runtime,
+        node,
+        "phase",
+        0,
+        frame,
+        frames,
+        frameValues,
+      ));
+      const frequency = readNodeGraphLiveEffectiveParam(
+        runtime,
+        node,
+        "frequency",
+        220,
+        frame,
+        frames,
+        frameValues,
+      );
+      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
+        mixInput(nodeId, "0.1V/Oct"),
+        runtime,
+        nodeId,
+        null,
+        "additive osc 0.1v/oct input",
+      ), -1, 1);
+      const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+      const incrementInput = nodeGraphSafeFilterNumber(
+        mixInput(nodeId, "Increment"),
+        runtime,
+        nodeId,
+        null,
+        "additive osc increment input",
+      );
+      const phaseIncrement = (pitchedFrequency / sampleRate) + incrementInput;
+      const additiveSample = nodeGraphAdditiveOscillatorSample(
+        runtime,
+        nodeId,
+        phase + phaseOffset,
+        {
+          frequency: pitchedFrequency,
+          dampingCurve: readNodeGraphLiveEffectiveParam(runtime, node, "dampingCurve", 0, frame, frames, frameValues),
+          harmonics: readNodeGraphLiveEffectiveParam(runtime, node, "harmonics", 32, frame, frames, frameValues),
+          level: readNodeGraphLiveEffectiveParam(runtime, node, "level", 0.35, frame, frames, frameValues),
+          modA: readNodeGraphLiveEffectiveParam(runtime, node, "modA", 0.5, frame, frames, frameValues),
+          waveform: readNodeGraphLiveEffectiveParam(runtime, node, "waveform", 1, frame, frames, frameValues),
+        },
+        sampleRate,
+      );
+      value = { Out: additiveSample };
       runtime.phases.set(
         nodeId,
         wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
@@ -1852,6 +1981,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       const keyboardRate = Math.max(1, Number(sampleRate) || nodeGraphMvp.sampleRate || 44100);
       value = {
         "1 Sample Gate": Number(signal?.gatePulse) > 0 ? 1 : 0,
+        "0.1V/Oct": Math.max(0, Math.min(1, Number(signal?.tenthVoltPerOctave) || midi / 120)),
         Double: Math.max(0, Math.min(1, Number(signal?.midiNormalized) || midi / 127)),
         Frequency: frequency,
         Gate: Number(signal?.gate) > 0 ? 1 : 0,
@@ -1886,8 +2016,10 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
+    } else if (node?.type === "moduleGroup") {
+      value = nodeGraphEvaluateModuleGroup(runtime, node, mixInput, sampleRate, frame, frames);
     } else if (node?.type === "codeblock") {
-      value = nodeGraphEvaluateCodeblock(runtime, node, mixInput);
+      value = nodeGraphEvaluateCodeblock(runtime, node, mixInput, sampleRate, frame, frames);
     } else if (node?.type === "graph") {
       value = nodeGraphGraphValueAt(node.graph, mixInput(nodeId));
     } else if (node?.type === "bias") {
@@ -2313,6 +2445,30 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       };
     } else if (node?.type === "badvalMonitor") {
       value = nodeGraphBadValueMonitorSample(mixInput(nodeId), runtime, nodeId);
+    } else if (node?.type === "groupOutput") {
+      value = {
+        Out: mixInput(nodeId, "In"),
+      };
+    } else if (node?.type === "clapPlugin") {
+      const externalOutput = runtime.externalClapOutputs?.get(nodeId);
+      if (externalOutput) {
+        const absoluteFrame = Number.isFinite(runtime.absoluteFrame) ? runtime.absoluteFrame : frame;
+        value = {};
+        for (const [port, samples] of Object.entries(externalOutput)) {
+          value[port] = nodeGraphSafeFilterNumber(
+            Number(samples?.[absoluteFrame]) || 0,
+            runtime,
+            nodeId,
+            null,
+            `CLAP ${port} output`,
+          );
+        }
+      } else {
+        value = {
+          Left: 0,
+          Right: 0,
+        };
+      }
     } else if (node?.type === "output") {
       const mono = mixInput(nodeId, "Mono");
       const left = mixInput(nodeId, "Left");
@@ -2322,13 +2478,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
 
     frameValues.set(nodeId, value);
     runtime.nodeOutputs?.set(nodeId, value);
-    if (runtime.scopeInputs) {
-      if (node?.scopeInputPort) {
-        runtime.scopeInputs.set(nodeId, mixInput(nodeId, node.scopeInputPort));
-      } else {
-        runtime.scopeInputs.delete(nodeId);
-      }
-    }
   }
 
   const outputNode = runtime.nodes.get(runtime.outputNode || "output");

@@ -372,7 +372,6 @@ function configureNodeSceneContextMenu(mode) {
   const targetNode = targetNodeId ? nodeGraphPatchNode(targetNodeId) : null;
   const selectedNodeIds = nodeGraphSelectedNodeIds();
   const selectedWire = wireMode ? nodeGraphWireFromSelection(nodeGraphMvp.selected) : null;
-  const targetNodeInUiView = Boolean(targetNode && nodeGraphNodeIsInUiView(targetNode.id));
   const canDelete = wireMode
     ? Boolean(selectedWire)
     : moduleMode && (
@@ -384,7 +383,6 @@ function configureNodeSceneContextMenu(mode) {
         })
     );
   const canCopy = moduleMode && targetNode?.type !== "output";
-  const canAddToUi = moduleMode && Boolean(targetNode) && !targetNodeInUiView;
   const canGroup = moduleMode && nodeGraphModuleGroupSelection().length > 0;
   const widthGu = targetNode ? nodeGraphPatchNodeGridWidthUnits(targetNode) : 0;
   const heightGu = targetNode ? nodeGraphPatchNodeGridHeightUnits(targetNode) : 0;
@@ -397,7 +395,9 @@ function configureNodeSceneContextMenu(mode) {
   menu.setAttribute("aria-label", wireMode ? "Wire actions" : "Module actions");
   copyButton.hidden = !moduleMode;
   addToGroupButton.hidden = !moduleMode;
-  addToUiButton.hidden = !moduleMode;
+  if (addToUiButton) {
+    addToUiButton.hidden = true;
+  }
   deleteButton.hidden = !(moduleMode || wireMode);
   selectedModule.hidden = !(moduleMode || wireMode);
   wireTypeControl.hidden = !wireMode;
@@ -437,13 +437,11 @@ function configureNodeSceneContextMenu(mode) {
     addToGroupButton.title = canGroup
       ? "Save the selected circuit as a reusable group preset."
       : "Select one or more modules to save a group.";
-    addToUiButton.disabled = !canAddToUi;
-    addToUiButton.querySelector("span").textContent = targetNodeInUiView ? "In UI View" : "Add to UI";
-    addToUiButton.title = canAddToUi
-      ? "Show this module in UI View."
-      : targetNodeInUiView
-        ? "This module is already shown in UI View."
-        : "Right-click a module to add it to UI View.";
+    if (addToUiButton) {
+      addToUiButton.disabled = true;
+      addToUiButton.querySelector("span").textContent = "";
+      addToUiButton.title = "";
+    }
     deleteButton.disabled = !canDelete;
     deleteButton.title = canDelete
       ? nodeGraphTooltipText("actions.deleteModule")
@@ -566,8 +564,10 @@ function configureNodeSceneContextMenu(mode) {
     copyButton.disabled = true;
     copyButton.title = nodeGraphTooltipText("actions.copyUnavailableWire");
     addToGroupButton.disabled = true;
-    addToUiButton.disabled = true;
-    addToUiButton.querySelector("span").textContent = "Add to UI";
+    if (addToUiButton) {
+      addToUiButton.disabled = true;
+      addToUiButton.querySelector("span").textContent = "";
+    }
     widthValue.textContent = "";
     widthDecrease.disabled = true;
     widthIncrease.disabled = true;
@@ -615,8 +615,10 @@ function configureNodeSceneContextMenu(mode) {
     copyButton.disabled = true;
     copyButton.title = nodeGraphTooltipText("actions.copyUnavailableModule");
     addToGroupButton.disabled = true;
-    addToUiButton.disabled = true;
-    addToUiButton.querySelector("span").textContent = "Add to UI";
+    if (addToUiButton) {
+      addToUiButton.disabled = true;
+      addToUiButton.querySelector("span").textContent = "";
+    }
     deleteButton.disabled = true;
     deleteButton.title = nodeGraphTooltipText("actions.deleteTitle");
     widthValue.textContent = "";

@@ -1,8 +1,11 @@
 function serializeNodeGraphPatch(patch = nodeGraphMvp.patch) {
+  const cameraState = normalizeNodeGraphPatchCameras(patch.cameras, patch.activeCameraId);
   return JSON.stringify(
     {
+      activeCameraId: cameraState.activeCameraId,
       audio: normalizeNodeGraphPatchAudio(patch.audio),
       bypassedNodes: patch.bypassedNodes || [],
+      cameras: cameraState.cameras,
       connections: patch.connections,
       format: { ...nodeGraphPatchFormat },
       grid: patch.grid,

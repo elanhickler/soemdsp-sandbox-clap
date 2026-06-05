@@ -560,6 +560,25 @@ function handleNodeGraphLiveWorkletMessage(event) {
   }
 }
 
+function nodeGraphLiveClapNodes(plan = {}) {
+  return (plan.nodes || []).filter((node) => node?.type === "clapPlugin");
+}
+
+function nodeGraphLiveClapNodeTitle(node) {
+  return nodeGraphPatchNodeTitle(nodeGraphPatchNode(node?.id) || node);
+}
+
+function assertNodeGraphLivePlanSupportsClap(plan = {}) {
+  const clapNodes = nodeGraphLiveClapNodes(plan);
+  if (!clapNodes.length) {
+    return;
+  }
+  const names = clapNodes.map((node) => nodeGraphLiveClapNodeTitle(node)).join(", ");
+  const error = new Error(`Live Audio does not route CLAP Plugin nodes yet. Use Render Sample for CLAP processing: ${names}`);
+  error.issues = clapNodes.map((node) => `Live Audio CLAP routing unavailable: ${nodeGraphLiveClapNodeTitle(node)}`);
+  throw error;
+}
+
 function sendNodeGraphLivePlan() {
   if (!nodeGraphMvp.live.node && !nodeGraphMvp.live.context) {
     return;
@@ -567,6 +586,7 @@ function sendNodeGraphLivePlan() {
 
   try {
     const plan = nodeGraphBuildLivePlan();
+    assertNodeGraphLivePlanSupportsClap(plan);
     const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
     nodeGraphMvp.live.activeNodeIds = new Set(plan.order);
     beginNodeGraphLiveModuleScopeCapture(plan, {
@@ -824,7 +844,7 @@ async function createNodeGraphLiveWorkletNode(context) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
-  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=amplitude-defaults-1780800300000");
+  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=codeblock-state-context-1");
   const workletNode = new AudioWorkletNode(
     context,
     "node-live-audio-processor",
@@ -971,6 +991,7 @@ async function startNodeGraphLiveAudio(outputSerial = nodeGraphMvp.live.outputTo
     }
 
     const plan = nodeGraphBuildLivePlan();
+    assertNodeGraphLivePlanSupportsClap(plan);
     const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextConstructor) {
       throw new Error("Web Audio API unavailable");

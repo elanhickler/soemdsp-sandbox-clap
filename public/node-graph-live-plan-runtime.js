@@ -30,6 +30,30 @@ function nodeGraphBuildLivePlan() {
   };
 }
 
+function nodeGraphBuildLivePlanForPatch(patch) {
+  const normalizedPatch = validateNodeGraphPatch(patch);
+  const compiled = compileNodeGraphExecutionPlan(normalizedPatch);
+  if (!compiled.valid) {
+    const error = new Error(compiled.issues.join(", "));
+    error.issues = [...compiled.issues];
+    throw error;
+  }
+  const activeNodeIds = nodeGraphActiveNodeIds(compiled);
+  return {
+    connections: nodeGraphActiveSignalConnections(compiled).map((connection) => ({ ...connection })),
+    feedbackConnections: compiled.feedbackConnections.map((connection) => ({ ...connection })),
+    feedbackModulations: compiled.feedbackModulations.map((modulation) => ({ ...modulation })),
+    modulations: nodeGraphActiveModulations(compiled).map((modulation) => ({ ...modulation })),
+    nodes: nodeGraphBuildLiveParameterNodesForPatch(normalizedPatch, activeNodeIds),
+    order: [...compiled.order],
+    outputNode: compiled.outputNode,
+    patchFingerprint: nodeGraphPatchFingerprint(normalizedPatch),
+    speakerOutputActive: Boolean(compiled.speakerOutputActive),
+    sourceNodes: [...compiled.sourceNodes],
+    visualSinks: [],
+  };
+}
+
 function nodeGraphBuildLiveParameterNodes(activeNodeIds = null) {
   const activeIds = activeNodeIds instanceof Set ? activeNodeIds : null;
   return nodeGraphMvp.patch.nodes
@@ -45,17 +69,100 @@ function nodeGraphBuildLiveParameterNodes(activeNodeIds = null) {
           : nodeGraphParameterFallback(node.type, parameter.key);
         paramMeta[parameter.key] = nodeGraphReadPatchParameterMetadata(node, parameter.key);
       }
+      if (node.type === "clapPlugin") {
+        for (const [key, metadata] of Object.entries(node.paramMeta || {})) {
+          if (Object.hasOwn(paramMeta, key)) {
+            continue;
+          }
+          const normalizedMetadata = normalizeNodeGraphPatchParameterMetadata(node.type, key, metadata);
+          if (!normalizedMetadata) {
+            continue;
+          }
+          paramMeta[key] = normalizedMetadata;
+          params[key] = normalizeNodeGraphPatchParameter(
+            node.type,
+            key,
+            Object.hasOwn(node.params || {}, key) ? node.params[key] : normalizedMetadata.def,
+            normalizedMetadata,
+          );
+        }
+      }
       const runtimeNode = {
         id: node.id,
         paramMeta,
         params,
-        scopeInputPort: Object.hasOwn(definition, "scopeInputPort")
-          ? definition.scopeInputPort
-          : (definition.inputs || [])[0] || "",
         type: node.type,
       };
       if (node.type === "codeblock") {
         runtimeNode.codeblock = normalizeNodeGraphCodeblock(node.codeblock);
+      }
+      if (node.type === "moduleGroup") {
+        runtimeNode.moduleGroup = normalizeNodeGraphModuleGroup(node.moduleGroup);
+        if (runtimeNode.moduleGroup.sourcePatch) {
+          runtimeNode.moduleGroupPlan = nodeGraphBuildLivePlanForPatch(runtimeNode.moduleGroup.sourcePatch);
+        }
+      }
+      if (node.type === "clapPlugin") {
+        runtimeNode.clap = normalizeNodeGraphClapPluginBinding(node.clap);
+      }
+      return runtimeNode;
+    });
+}
+
+function nodeGraphBuildLiveParameterNodesForPatch(patch, activeNodeIds = null) {
+  const activeIds = activeNodeIds instanceof Set ? activeNodeIds : null;
+  return (patch.nodes || [])
+    .filter((node) => !activeIds || activeIds.has(node.id))
+    .map((node) => {
+      const definition = nodeGraphModuleDefinitions[node.type];
+      const params = {};
+      const paramMeta = {};
+      for (const parameter of definition.parameters || []) {
+        const value = Number(node.params?.[parameter.key]);
+        params[parameter.key] = Number.isFinite(value)
+          ? value
+          : nodeGraphParameterFallback(node.type, parameter.key);
+        paramMeta[parameter.key] = normalizeNodeGraphPatchParameterMetadata(
+          node.type,
+          parameter.key,
+          node.paramMeta?.[parameter.key],
+        ) || nodeGraphParameterDefinitionMetadata(parameter);
+      }
+      if (node.type === "clapPlugin") {
+        for (const [key, metadata] of Object.entries(node.paramMeta || {})) {
+          if (Object.hasOwn(paramMeta, key)) {
+            continue;
+          }
+          const normalizedMetadata = normalizeNodeGraphPatchParameterMetadata(node.type, key, metadata);
+          if (!normalizedMetadata) {
+            continue;
+          }
+          paramMeta[key] = normalizedMetadata;
+          params[key] = normalizeNodeGraphPatchParameter(
+            node.type,
+            key,
+            Object.hasOwn(node.params || {}, key) ? node.params[key] : normalizedMetadata.def,
+            normalizedMetadata,
+          );
+        }
+      }
+      const runtimeNode = {
+        id: node.id,
+        paramMeta,
+        params,
+        type: node.type,
+      };
+      if (node.type === "codeblock") {
+        runtimeNode.codeblock = normalizeNodeGraphCodeblock(node.codeblock);
+      }
+      if (node.type === "moduleGroup") {
+        runtimeNode.moduleGroup = normalizeNodeGraphModuleGroup(node.moduleGroup);
+        if (runtimeNode.moduleGroup.sourcePatch) {
+          runtimeNode.moduleGroupPlan = nodeGraphBuildLivePlanForPatch(runtimeNode.moduleGroup.sourcePatch);
+        }
+      }
+      if (node.type === "clapPlugin") {
+        runtimeNode.clap = normalizeNodeGraphClapPluginBinding(node.clap);
       }
       return runtimeNode;
     });
@@ -94,6 +201,7 @@ function createNodeGraphLiveRuntime(plan) {
   const ladderFilterStates = new Map();
   const linearEnvelopeStates = new Map();
   const lowpassStates = new Map();
+  const moduleGroupRuntimes = new Map();
   const noiseGeneratorStates = new Map();
   const noiseSampleHoldStates = new Map();
   const pluckEnvelopeStates = new Map();
@@ -194,6 +302,13 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "vactrolEnvelope") {
       vactrolEnvelopeStates.set(node.id, createNodeGraphVactrolEnvelopeState());
     }
+    if (node.type === "moduleGroup" && node.moduleGroup?.sourcePatch) {
+      try {
+        moduleGroupRuntimes.set(node.id, createNodeGraphLiveRuntime(nodeGraphBuildLivePlanForPatch(node.moduleGroup.sourcePatch)));
+      } catch (_error) {
+        moduleGroupRuntimes.delete(node.id);
+      }
+    }
     for (const [key, value] of Object.entries(node.params || {})) {
       smoothers.set(
         nodeGraphParameterKey(node.id, key),
@@ -222,6 +337,7 @@ function createNodeGraphLiveRuntime(plan) {
     meterSquareSum: 0,
     modulationConnections,
     macroControls: Array.isArray(nodeGraphMvp?.macroControls) ? [...nodeGraphMvp.macroControls] : new Array(10).fill(0),
+    moduleGroupRuntimes,
     pitchModWheelSignal: {
       mod: Math.max(0, Math.min(1, Number(nodeGraphMvp?.modWheelSignal) || 0)),
       pitch: Math.max(-1, Math.min(1, Number(nodeGraphMvp?.pitchWheelSignal) || 0)),
@@ -244,7 +360,6 @@ function createNodeGraphLiveRuntime(plan) {
     randomWalkStates,
     sampleHoldStates,
     slewLimiterStates,
-    scopeInputs: new Map(),
     smoothers,
     spiralStates,
     stepSequencerStates,
@@ -279,9 +394,6 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.nodeOutputs) {
     runtime.nodeOutputs = new Map();
   }
-  if (!runtime.scopeInputs) {
-    runtime.scopeInputs = new Map();
-  }
   if (!runtime.noiseSeedKeys) {
     runtime.noiseSeedKeys = new Map();
   }
@@ -299,6 +411,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   }
   if (!runtime.lowpassStates) {
     runtime.lowpassStates = new Map();
+  }
+  if (!runtime.moduleGroupRuntimes) {
+    runtime.moduleGroupRuntimes = new Map();
   }
   if (!runtime.ladderFilterStates) {
     runtime.ladderFilterStates = new Map();
@@ -469,6 +584,13 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     if (node.type === "vactrolEnvelope" && !runtime.vactrolEnvelopeStates.has(node.id)) {
       runtime.vactrolEnvelopeStates.set(node.id, createNodeGraphVactrolEnvelopeState());
     }
+    if (node.type === "moduleGroup" && node.moduleGroup?.sourcePatch && !runtime.moduleGroupRuntimes.has(node.id)) {
+      try {
+        runtime.moduleGroupRuntimes.set(node.id, createNodeGraphLiveRuntime(nodeGraphBuildLivePlanForPatch(node.moduleGroup.sourcePatch)));
+      } catch (_error) {
+        runtime.moduleGroupRuntimes.delete(node.id);
+      }
+    }
     for (const [key, value] of Object.entries(node.params || {})) {
       const smootherKey = nodeGraphParameterKey(node.id, key);
       const metadata = node.paramMeta?.[key];
@@ -514,11 +636,6 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
       runtime.nodeOutputs.delete(id);
     }
   }
-  for (const id of [...runtime.scopeInputs.keys()]) {
-    if (!nodeIds.has(id)) {
-      runtime.scopeInputs.delete(id);
-    }
-  }
   for (const id of [...runtime.spiralStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.spiralStates.delete(id);
@@ -532,6 +649,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.lowpassStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.lowpassStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.moduleGroupRuntimes.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.moduleGroupRuntimes.delete(id);
     }
   }
   for (const id of [...runtime.linearEnvelopeStates.keys()]) {

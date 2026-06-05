@@ -68,12 +68,13 @@ function attachNodeGraphNodeEvents(node) {
 function createNodeGraphModuleElement(type, node) {
   const definition = nodeGraphModuleDefinitions[type];
   const patchNode = nodeGraphPatchNode(node) || { id: node, type };
+  const parameterDefinitions = nodeGraphPatchNodeParameterDefinitions(patchNode);
   const inputPorts = nodeGraphPatchNodeInputPorts(patchNode);
   const outputPorts = nodeGraphPatchNodeOutputPorts(patchNode).filter(
-    (port) => !(definition.parameters || []).some((parameter) => parameter.key === port),
+    (port) => !parameterDefinitions.some((parameter) => parameter.key === port),
   );
   const article = document.createElement("article");
-  article.className = `dsp-node${definition.output ? " output-node" : ""}${definition.layout === "textBox" ? " text-box-layout" : ""}${definition.layout === "image" ? " image-node-layout" : ""}${definition.layout === "visualScope" ? " visual-scope-layout" : ""}${definition.layout === "graph" ? " graph-node-layout" : ""}${definition.layout === "filterCurve" ? " filter-curve-layout" : ""}${definition.layout === "sliderWidget" ? " slider-widget-layout" : ""}`;
+  article.className = `dsp-node${definition.output ? " output-node" : ""}${definition.layout === "textBox" ? " text-box-layout" : ""}${definition.layout === "image" ? " image-node-layout" : ""}${definition.layout === "visualScope" ? " visual-scope-layout" : ""}${definition.layout === "graph" ? " graph-node-layout" : ""}${definition.layout === "filterCurve" ? " filter-curve-layout" : ""}${definition.layout === "sliderWidget" ? " slider-widget-layout" : ""}${definition.layout === "clapPlugin" ? " clap-plugin-layout" : ""}`;
   article.dataset.node = node;
   article.dataset.nodeType = type;
   article.dataset.portSignature = `${inputPorts.join(",")}=>${outputPorts.join(",")}`;
@@ -125,6 +126,18 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.className = "dsp-node-io-section node-slider-widget-io-section";
     ioSection.append(document.createElement("div"));
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
+  } else if (definition.layout === "clapPlugin") {
+    if (typeof createNodeGraphClapPluginBody === "function") {
+      article.append(createNodeGraphClapPluginBody(node));
+    }
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
     article.append(ioSection);
   } else if (definition.layout === "filterCurve") {

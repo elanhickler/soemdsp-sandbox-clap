@@ -34,6 +34,7 @@ function nextNodeGraphTypeCounts(nodes = nodeGraphMvp.patch.nodes) {
     counts[node.type] = Math.max(counts[node.type] || 0, count);
   }
   return {
+    additiveOsc: counts.additiveOsc || 0,
     audioInput: counts.audioInput || 0,
     badvalMonitor: counts.badvalMonitor || 0,
     bandpass: counts.bandpass || 0,
@@ -46,10 +47,13 @@ function nextNodeGraphTypeCounts(nodes = nodeGraphMvp.patch.nodes) {
     flowerChildEnvelopeFollower: counts.flowerChildEnvelopeFollower || 0,
     fractalBrownianNoise: counts.fractalBrownianNoise || 0,
     gain: counts.gain || 0,
+    groupInput: counts.groupInput || 0,
+    groupOutput: counts.groupOutput || 0,
     highpass: counts.highpass || 0,
     ladderFilter: counts.ladderFilter || 0,
     linearEnvelope: counts.linearEnvelope || 0,
     lowpass: counts.lowpass || 0,
+    moduleGroup: counts.moduleGroup || 0,
     noise: counts.noise || 0,
     noiseGenerator: counts.noiseGenerator || 0,
     osc: counts.osc || 0,

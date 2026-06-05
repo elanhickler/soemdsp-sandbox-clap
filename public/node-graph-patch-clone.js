@@ -22,6 +22,57 @@ function normalizeNodeGraphPatchNodeAlias(alias) {
   return String(alias ?? "").trim().slice(0, 64);
 }
 
+function normalizeNodeGraphClapAudioPorts(ports = []) {
+  if (!Array.isArray(ports)) {
+    return [];
+  }
+  return ports.slice(0, 32).map((port, index) => {
+    const source = port && typeof port === "object" ? port : {};
+    const id = Number(source.id);
+    const sourceIndex = Number(source.index);
+    const channelCount = Number(source.channelCount);
+    return {
+      channelCount: Number.isFinite(channelCount) ? Math.max(0, Math.min(64, Math.round(channelCount))) : 0,
+      flags: Number.isFinite(Number(source.flags)) ? Math.round(Number(source.flags)) : 0,
+      id: Number.isFinite(id) ? Math.round(id) : index,
+      inPlacePair: Number.isFinite(Number(source.inPlacePair)) ? Math.round(Number(source.inPlacePair)) : -1,
+      index: Number.isFinite(sourceIndex) ? Math.round(sourceIndex) : index,
+      name: String(source.name || "").trim().slice(0, 128),
+      portType: String(source.portType || "").trim().slice(0, 128),
+    };
+  });
+}
+
+function normalizeNodeGraphClapPluginBinding(clap = {}) {
+  const source = clap && typeof clap === "object" ? clap : {};
+  const catalogId = String(source.catalogId ?? source.pluginId ?? "").trim().slice(0, 128);
+  const clapId = String(source.clapId ?? "").trim().slice(0, 256);
+  const path = String(source.path ?? "").trim().slice(0, 2048);
+  const name = String(source.name ?? "").trim().slice(0, 128);
+  const vendor = String(source.vendor ?? "").trim().slice(0, 128);
+  const instanceId = String(source.instanceId ?? "").trim().slice(0, 128);
+  const stateBase64 = String(source.stateBase64 ?? "").trim().slice(0, 6_000_000);
+  const stateByteCount = Number(source.stateByteCount);
+  const stateSavedAt = String(source.stateSavedAt ?? "").trim().slice(0, 64);
+  const binding = {};
+  if (catalogId) binding.catalogId = catalogId;
+  if (clapId) binding.clapId = clapId;
+  if (path) binding.path = path;
+  if (name) binding.name = name;
+  if (vendor) binding.vendor = vendor;
+  if (instanceId) binding.instanceId = instanceId;
+  if (stateBase64 && /^[A-Za-z0-9+/=]+$/.test(stateBase64)) binding.stateBase64 = stateBase64;
+  if (Number.isFinite(stateByteCount) && stateByteCount >= 0) {
+    binding.stateByteCount = Math.floor(stateByteCount);
+  }
+  if (stateSavedAt) binding.stateSavedAt = stateSavedAt;
+  const audioInputs = normalizeNodeGraphClapAudioPorts(source.audioInputs);
+  const audioOutputs = normalizeNodeGraphClapAudioPorts(source.audioOutputs);
+  if (audioInputs.length) binding.audioInputs = audioInputs;
+  if (audioOutputs.length) binding.audioOutputs = audioOutputs;
+  return binding;
+}
+
 function nodeGraphDefaultNodeTitle(type, id) {
   return id === type
     ? nodeGraphNodeLabels[type]
@@ -33,13 +84,26 @@ function nodeGraphPatchNodeTitle(node) {
   if (!patchNode) {
     return nodeGraphNodeLabels[nodeGraphNodeType(node)] || String(node || "");
   }
+  if (patchNode.type === "moduleGroup") {
+    return normalizeNodeGraphPatchNodeAlias(patchNode.alias) ||
+      normalizeNodeGraphModuleGroup(patchNode.moduleGroup).name ||
+      nodeGraphNodeLabels.moduleGroup;
+  }
+  if (patchNode.type === "clapPlugin") {
+    return normalizeNodeGraphPatchNodeAlias(patchNode.alias) ||
+      normalizeNodeGraphClapPluginBinding(patchNode.clap).name ||
+      nodeGraphNodeLabels.clapPlugin;
+  }
   return normalizeNodeGraphPatchNodeAlias(patchNode.alias) || nodeGraphDefaultNodeTitle(patchNode.type, patchNode.id);
 }
 
 function cloneNodeGraphPatch(patch) {
+  const cameraState = normalizeNodeGraphPatchCameras(patch.cameras, patch.activeCameraId);
   return {
+    activeCameraId: cameraState.activeCameraId,
     audio: normalizeNodeGraphPatchAudio(patch.audio),
     bypassedNodes: Array.isArray(patch.bypassedNodes) ? [...patch.bypassedNodes] : [],
+    cameras: cameraState.cameras,
     connections: (patch.connections || []).map((connection) => ({
       ...connection,
       tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints),
@@ -72,6 +136,12 @@ function cloneNodeGraphPatch(patch) {
           : {}),
         ...(node.type === "codeblock"
           ? { codeblock: normalizeNodeGraphCodeblock(node.codeblock) }
+          : {}),
+        ...(node.type === "moduleGroup"
+          ? { moduleGroup: normalizeNodeGraphModuleGroup(node.moduleGroup) }
+          : {}),
+        ...(node.type === "clapPlugin"
+          ? { clap: normalizeNodeGraphClapPluginBinding(node.clap) }
           : {}),
         paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
         params: { ...(node.params || {}) },

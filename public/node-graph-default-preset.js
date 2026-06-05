@@ -3,7 +3,7 @@ const nodeGraphDefaultPresetStorageKey = "soemdsp-sandbox.defaultPatch.live.v2";
 
 async function loadNodeGraphDefaultPresetPatch() {
   const storedPatch = loadNodeGraphLocalDefaultPresetPatch();
-  if (storedPatch) {
+  if (nodeGraphDefaultPresetPatchIsUsable(storedPatch)) {
     return storedPatch;
   }
   try {
@@ -11,10 +11,20 @@ async function loadNodeGraphDefaultPresetPatch() {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    return loadNodeGraphPatchFromScript(await response.text());
+    const fetchedPatch = loadNodeGraphPatchFromScript(await response.text());
+    return nodeGraphDefaultPresetPatchIsUsable(fetchedPatch)
+      ? fetchedPatch
+      : cloneNodeGraphPatch(nodeGraphDefaultPatch);
   } catch {
     return cloneNodeGraphPatch(nodeGraphDefaultPatch);
   }
+}
+
+function nodeGraphDefaultPresetPatchIsUsable(patch) {
+  if (!patch || !Array.isArray(patch.nodes)) {
+    return false;
+  }
+  return patch.nodes.some((node) => node?.id === "output" && node?.type === "output");
 }
 
 function nodeGraphLocalDefaultPresetAllowed() {

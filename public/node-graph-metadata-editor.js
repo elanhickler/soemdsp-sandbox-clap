@@ -109,6 +109,7 @@ function fillNodeMetadataPopover(slider) {
 function openNodeMetadataPopover(event, readout) {
   event.preventDefault();
   event.stopPropagation();
+  bindNodeGraphMetadataPopoverEvents();
   const slider = document.getElementById(readout.dataset.sliderTarget);
   if (!slider) {
     return;
@@ -132,6 +133,34 @@ function closeNodeMetadataPopover() {
   }
   nodeGraphMvp.metadataDragging = null;
   nodeGraphMvp.metadataEditorTarget = null;
+}
+
+function bindNodeGraphMetadataPopoverEvents() {
+  const popover = document.getElementById("nodeParameterMetadataPopover");
+  if (popover && popover.dataset.metadataPopoverBound !== "true") {
+    popover.dataset.metadataPopoverBound = "true";
+    popover.addEventListener("input", handleNodeMetadataEditorInput);
+  }
+  const closeButton = document.getElementById("metadataPopoverClose");
+  if (closeButton && closeButton.dataset.metadataCloseBound !== "true") {
+    closeButton.dataset.metadataCloseBound = "true";
+    closeButton.addEventListener("click", closeNodeMetadataPopover);
+  }
+  const dragHandle = document.getElementById("metadataPopoverDragHandle");
+  if (dragHandle && dragHandle.dataset.metadataDragBound !== "true") {
+    dragHandle.dataset.metadataDragBound = "true";
+    dragHandle.addEventListener("pointerdown", beginNodeMetadataPopoverDrag);
+  }
+  const defaultButton = document.getElementById("metadataSetDefaultButton");
+  if (defaultButton && defaultButton.dataset.metadataDefaultBound !== "true") {
+    defaultButton.dataset.metadataDefaultBound = "true";
+    defaultButton.addEventListener("click", setNodeMetadataDefaultsFromKind);
+  }
+  const kindInput = document.getElementById("metadataKindValue");
+  if (kindInput && kindInput.dataset.metadataKindBound !== "true") {
+    kindInput.dataset.metadataKindBound = "true";
+    kindInput.addEventListener("change", handleNodeMetadataKindChange);
+  }
 }
 
 function readNodeMetadataEditorValues(slider) {
@@ -224,3 +253,5 @@ function handleNodeMetadataEditorInput() {
   syncNodeMetadataMidVisibility();
   applyNodeMetadataEditor();
 }
+
+bindNodeGraphMetadataPopoverEvents();

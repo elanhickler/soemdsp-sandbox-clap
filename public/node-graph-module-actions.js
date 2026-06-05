@@ -79,7 +79,7 @@ function nodeGraphFindCopiedModuleGridPoint(sourceNode, nodes = nodeGraphMvp.pat
 
 function showNodeGraphModule(node, point = null, options = {}) {
   const type = node;
-  if (type === "output" || !Object.hasOwn(nodeGraphModuleDefinitions, type)) {
+  if (!Object.hasOwn(nodeGraphModuleDefinitions, type)) {
     return "";
   }
 
@@ -146,7 +146,7 @@ function positionNodeGraphPendingModuleAtCursor(cursorPoint) {
 }
 
 function beginNodeGraphModulePlacement(type, point = null) {
-  if (!type || type === "output" || !Object.hasOwn(nodeGraphModuleDefinitions, type)) {
+  if (!type || !Object.hasOwn(nodeGraphModuleDefinitions, type)) {
     return "";
   }
   if (nodeGraphMvp.modulePlacement?.nodeId) {
@@ -262,15 +262,47 @@ function nodeGraphModuleGroupSelection() {
 
 function saveNodeGraphSelectionAsModuleGroup() {
   const selectedIds = new Set(nodeGraphModuleGroupSelection());
-  const sourceNodes = nodeGraphMvp.patch.nodes.filter((node) => selectedIds.has(node.id) && node.type !== "output");
+  const selectionActive = selectedIds.size > 0;
+  const sourceNodes = nodeGraphMvp.patch.nodes.filter((node) =>
+    (selectionActive ? selectedIds.has(node.id) : node.type !== "output") &&
+    node.type !== "output"
+  );
   if (!sourceNodes.length) {
+    return;
+  }
+  if (!sourceNodes.some((node) => node.type === "groupInput") || !sourceNodes.some((node) => node.type === "groupOutput")) {
+    setNodeGraphScriptStatus("module group needs Group Input and Group Output", false);
     return;
   }
   const names = sourceNodes.map((node) => nodeGraphNodeDisplayName(node.id)).join(" + ");
   const groupName = names.length > 48 ? `${names.slice(0, 45)}...` : names;
+  const sourceNodeIds = new Set(sourceNodes.map((node) => node.id));
+  const sourcePatch = validateNodeGraphPatch({
+    ...cloneNodeGraphPatch(nodeGraphMvp.patch),
+    bypassedNodes: (nodeGraphMvp.patch.bypassedNodes || []).filter((nodeId) => sourceNodeIds.has(nodeId)),
+    connections: nodeGraphMvp.patch.connections
+      .filter((connection) => sourceNodeIds.has(connection.sourceNode) && sourceNodeIds.has(connection.destinationNode))
+      .map((connection) => ({ ...connection })),
+    modulations: nodeGraphMvp.patch.modulations
+      .filter((modulation) => sourceNodeIds.has(modulation.sourceNode) && sourceNodeIds.has(modulation.destinationNode))
+      .map((modulation) => ({ ...modulation })),
+    nodes: sourceNodes,
+    uiItems: [],
+  });
+  const inferred = nodeGraphModuleGroupInterfaceFromPatch(sourcePatch);
   const groups = loadNodeGraphModuleGroupsLocal();
   groups[groupName] = {
     createdAt: new Date().toISOString(),
+    defaultSize: { heightGu: 6, widthGu: 8 },
+    description: "",
+    id: `group-${nodeGraphStableSeed(`${groupName}:${Date.now()}`).toString(16)}`,
+    inputs: inferred.inputs,
+    kind: "moduleGroup",
+    name: groupName,
+    outputs: inferred.outputs,
+    parameters: [],
+    sourcePatch,
+    // Legacy expansion fields stay for compatibility with older saved circuit UI code.
     nodes: sourceNodes.map((node) => ({
       ...node,
       paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
@@ -290,11 +322,29 @@ function saveNodeGraphSelectionAsModuleGroup() {
 
 function addNodeGraphModuleGroupFromBrowser(name) {
   const group = loadNodeGraphModuleGroupsLocal()[name];
-  if (!group?.nodes?.length) {
+  if (!group?.nodes?.length && !group?.sourcePatch?.nodes?.length) {
     return;
   }
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
   const counts = nextNodeGraphTypeCounts(patch.nodes);
+  if (group.kind === "moduleGroup" && group.sourcePatch) {
+    counts.moduleGroup = (counts.moduleGroup || 0) + 1;
+    const moduleGroup = normalizeNodeGraphModuleGroup(group);
+    const anchor = nodeGraphMvp.sceneContextPoint
+      ? nodeGraphPixelToGrid(nodeGraphMvp.sceneContextPoint)
+      : defaultNodeGraphModuleGridPoint("moduleGroup");
+    patch.nodes.push(createNodeGraphPatchNode("moduleGroup", {
+      gx: anchor.gx,
+      gy: anchor.gy,
+      heightGu: moduleGroup.defaultSize.heightGu,
+      id: `moduleGroup-${counts.moduleGroup}`,
+      moduleGroup,
+      widthGu: moduleGroup.defaultSize.widthGu,
+    }));
+    setNodeGraphViewMode("modular");
+    commitNodeGraphPatch(patch, { status: "module group added" });
+    return;
+  }
   const sourceNodes = group.nodes.filter((node) => Object.hasOwn(nodeGraphModuleDefinitions, node.type));
   if (!sourceNodes.length) {
     return;
@@ -855,6 +905,15 @@ function resetNodeGraphGraphFromContext() {
 }
 
 function nodeGraphCodeblockBuildFunctionBody(codeblock) {
+  const context = [
+    "const state = __state;",
+    "const __ctx = __context || {};",
+    "const sampleRate = Number(__ctx.sampleRate) || 44100;",
+    "const frame = Number(__ctx.frame) || 0;",
+    "const frames = Number(__ctx.frames) || 1;",
+    "const time = Number(__ctx.time) || 0;",
+    "const dt = 1 / sampleRate;",
+  ].join("\n");
   const inputs = codeblock.inputs
     .map((port, index) => `const ${port} = __inputs[${index}] || 0;`)
     .join("\n");
@@ -866,7 +925,7 @@ function nodeGraphCodeblockBuildFunctionBody(codeblock) {
     .filter((name) => name !== "eval")
     .map((name) => `const ${name} = undefined;`)
     .join("\n");
-  return `"use strict";\n${shadows}\n${inputs}\n${outputs}\n${codeblock.code}\n${writes}\nreturn __outputs;`;
+  return `"use strict";\n${shadows}\n${context}\n${inputs}\n${outputs}\n${codeblock.code}\n${writes}\nreturn __outputs;`;
 }
 
 function nodeGraphCodeblockCompileStatus(codeblock) {
@@ -875,6 +934,8 @@ function nodeGraphCodeblockCompileStatus(codeblock) {
     Function(
       "__inputs",
       "__outputs",
+      "__state",
+      "__context",
       nodeGraphCodeblockBuildFunctionBody(normalized),
     );
     return { ok: true, message: "code ok" };

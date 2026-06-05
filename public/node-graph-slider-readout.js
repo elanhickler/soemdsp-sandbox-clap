@@ -66,6 +66,7 @@ function nodeSliderChoiceCellRects(width, height, choices) {
 
 function nodeSliderChoiceCellRectsFromWalls(wallXs, height, viewportLeft, viewportTop, emptyPixelBorder = 0, visualScale = 1) {
   const boundedEmptyPixelBorder = Math.max(0, Math.min(8, Number(emptyPixelBorder) || 0));
+  const bottomExtensionPx = 2;
   const strokeInset = 0.5;
   const trailingPixelCorrection = boundedEmptyPixelBorder > 0 ? 1 : 0;
   return wallXs.slice(0, -1).map((leftWall, index) => {
@@ -89,7 +90,7 @@ function nodeSliderChoiceCellRectsFromWalls(wallXs, height, viewportLeft, viewpo
       visualScale,
     );
     const bottom = nodeSliderSnapStrokeCoordinate(
-      height - boundedEmptyPixelBorder - strokeInset - trailingPixelCorrection,
+      height - boundedEmptyPixelBorder - strokeInset - trailingPixelCorrection + bottomExtensionPx,
       viewportTop,
       1,
       visualScale,

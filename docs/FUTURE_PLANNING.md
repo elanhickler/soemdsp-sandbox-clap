@@ -2,6 +2,22 @@
 
 This file collects project-shaping ideas that should survive day-to-day implementation without becoming immediate scope.
 
+## WebUI CLAP Host
+
+The CLAP-hosting path should use a local native companion app, not browser-native plugin loading.
+
+Primary note:
+
+```text
+docs/WEBUI_CLAP_HOST_PLAN.md
+```
+
+Planning shelf:
+
+```text
+C:\Users\argit\Documents\_PROGRAMMING\CODEGUIDE\agents\DIRECTOR\planning\webui-clap-host.md
+```
+
 ## Trace Pathfinding
 
 Trace-style wires will eventually need pathfinding to become useful as a circuit-board-like connection mode.

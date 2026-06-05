@@ -23,6 +23,17 @@ function nodeGraphApplyParameterBounds(value, metadata = {}) {
 }
 
 function readNodeGraphRuntimeOutput(runtime, frameValues, nodeId, port = "Out") {
+  const tailInputFrames = Number(runtime.tailInputFrames);
+  const absoluteFrame = Number(runtime.absoluteFrame);
+  const tailSilencedNodeIds = runtime.tailSilencedNodeIds;
+  if (
+    Number.isFinite(tailInputFrames) &&
+    Number.isFinite(absoluteFrame) &&
+    absoluteFrame >= tailInputFrames &&
+    tailSilencedNodeIds?.has(nodeId)
+  ) {
+    return 0;
+  }
   const output = frameValues?.has(nodeId)
     ? frameValues.get(nodeId)
     : runtime.nodeOutputs?.get(nodeId);
@@ -102,7 +113,7 @@ function nodeGraphApplyParameterModulation(base, modulationSignal, metadata = {}
 
 function readNodeGraphRuntimePortOutput(runtime, frameValues, nodeId, port = "Out", frame = 0, frames = 1) {
   const node = runtime.nodes?.get(nodeId);
-  const parameter = nodeGraphParameterOutputPort(node?.type, port);
+  const parameter = nodeGraphParameterOutputPort(node, port);
   if (!parameter) {
     return readNodeGraphRuntimeOutput(runtime, frameValues, nodeId, port);
   }

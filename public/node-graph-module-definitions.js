@@ -2,7 +2,11 @@ const nodeGraphNodeLabels = Object.freeze({
   audioInput: "Input",
   codeblock: "Codeblock",
   graph: "Graph",
+  groupInput: "Group Input",
+  groupOutput: "Group Output",
+  moduleGroup: "Module Group",
   osc: "Osc",
+  additiveOsc: "Additive Osc",
   clock: "Clock",
   clockDivider: "Clock Divider",
   delayedTrigger: "Delayed Trigger",
@@ -16,6 +20,7 @@ const nodeGraphNodeLabels = Object.freeze({
   noiseGenerator: "Noise Generator",
   randomWalk: "Random Walk",
   fractalBrownianNoise: "Fractal Brownian Noise",
+  clapPlugin: "CLAP Plugin",
   gain: "Gain",
   bias: "Bias",
   valueSlider: "Value Slider",
@@ -75,10 +80,26 @@ const nodeGraphModuleDefinitions = Object.freeze({
     outputs: ["Out"],
     parameters: [],
   },
-  osc: {
-    inputs: ["Reset", "Increment"],
+  groupInput: {
     outputs: ["Out"],
-    scopeInputPort: "",
+    parameters: [],
+  },
+  groupOutput: {
+    inputs: ["In"],
+    outputs: ["Out"],
+    parameters: [],
+  },
+  moduleGroup: {
+    inputs: [],
+    outputs: [],
+    parameters: [],
+  },
+  osc: {
+    inputs: ["Reset", "0.1V/Oct", "Increment"],
+    outputAliases: {
+      Out: "Saw",
+    },
+    outputs: ["Saw", "Square", "Tri", "Sine"],
     parameters: [
       {
         choices: ["Saw", "Square", "Triangle", "Sine", "Noise"],
@@ -127,6 +148,52 @@ const nodeGraphModuleDefinitions = Object.freeze({
         nonlinearSlider: false,
         step: "any",
       },
+    ],
+  },
+  additiveOsc: {
+    inputs: ["Reset", "0.1V/Oct", "Increment"],
+    outputs: ["Out"],
+    parameters: [
+      {
+        choices: ["Sine", "Sawtooth", "Square", "Triangle", "SawSquare", "DoubleSaw", "TriSaw", "Organ"],
+        defaultValue: "1",
+        displayChoices: true,
+        divideChoicesVisibly: true,
+        key: "waveform",
+        label: "Waveform",
+        linearSmoothing: false,
+        max: "7",
+        mid: "3",
+        min: "0",
+        step: "1",
+      },
+      {
+        defaultValue: "440",
+        key: "frequency",
+        kind: "frequency",
+        label: "Frequency",
+        max: "20000",
+        mid: "440",
+        min: "0",
+        step: "any",
+        unit: "Hz",
+      },
+      {
+        defaultValue: "0",
+        key: "phase",
+        kind: "phase",
+        label: "Phase",
+        max: "1",
+        mid: "0.5",
+        min: "0",
+        step: "0.01",
+        unit: "cycle",
+        wraparound: true,
+      },
+      { defaultValue: "0.5", key: "modA", label: "Mod A", max: "1", mid: "0.5", min: "0", step: "any" },
+      { constraint: "cpu", defaultValue: "32", key: "harmonics", label: "Harmonics", max: "1024", mid: "32", min: "1", step: "1" },
+      { defaultValue: "0", key: "dampingCurve", label: "Damping Curve", max: "1", mid: "0", min: "-1", step: "any" },
+      { defaultValue: "0.35", key: "level", label: "Level", max: "1", mid: "0.35", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
   spiral: {
@@ -528,6 +595,12 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "1", key: "level", label: "Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
+  clapPlugin: {
+    inputs: ["Left", "Right"],
+    layout: "clapPlugin",
+    outputs: ["Left", "Right"],
+    parameters: [],
+  },
   gain: {
     inputs: ["In"],
     outputs: ["Out"],
@@ -838,7 +911,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     parameters: [],
   },
   keyboardController: {
-    outputs: ["Gate", "1 Sample Gate", "Key", "Q", "MIDI", "Double", "Increment", "Frequency", "Pitch", "X", "Y"],
+    outputs: ["Gate", "1 Sample Gate", "Key", "Q", "MIDI", "Double", "0.1V/Oct", "Increment", "Frequency", "Pitch", "X", "Y"],
     parameters: [],
   },
   macroControls: {
@@ -1136,7 +1209,6 @@ const nodeGraphModuleDefinitions = Object.freeze({
     layout: "visualScope",
     outputs: [],
     parameters: [],
-    scopeInputPort: "In",
     visualInputs: [
       { key: "visualOscilloscope", label: "In", port: "In" },
     ],
@@ -1212,6 +1284,11 @@ function nodeGraphModuleVisualInputs(type) {
 function nodeGraphCanonicalInputPort(type, port) {
   const value = String(port || "").trim();
   return nodeGraphModuleDefinitions[type]?.inputAliases?.[value] || value;
+}
+
+function nodeGraphCanonicalOutputPort(type, port) {
+  const value = String(port || "").trim();
+  return nodeGraphModuleDefinitions[type]?.outputAliases?.[value] || value;
 }
 
 function nodeGraphModuleVisualInputKey(type, port) {

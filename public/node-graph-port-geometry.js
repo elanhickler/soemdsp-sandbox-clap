@@ -1,5 +1,18 @@
+function nodeGraphCanonicalPortForNode(node, port, io) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  const type = patchNode?.type || (typeof node === "string" ? nodeGraphPatchNodeType(node) : "");
+  if (io === "input") {
+    return nodeGraphCanonicalInputPort(type, port);
+  }
+  if (io === "output") {
+    return nodeGraphCanonicalOutputPort(type, port);
+  }
+  return String(port || "").trim();
+}
+
 function nodeGraphPortSelector(node, port, io) {
-  return `.node-port.${io}[data-node="${CSS.escape(node)}"][data-port="${CSS.escape(port)}"]`;
+  const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
+  return `.node-port.${io}[data-node="${CSS.escape(node)}"][data-port="${CSS.escape(canonicalPort)}"]`;
 }
 
 function nodeGraphModulationPortSelector(node, parameter) {
@@ -7,8 +20,9 @@ function nodeGraphModulationPortSelector(node, parameter) {
 }
 
 function markNodeGraphPortConnected(node, port, io) {
+  const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
   nodeGraphZoomSurface()
-    ?.querySelector(nodeGraphPortSelector(node, port, io))
+    ?.querySelector(nodeGraphPortSelector(node, canonicalPort, io))
     ?.classList.add("connected-port");
 }
 
@@ -20,7 +34,8 @@ function markNodeGraphModulationPortConnected(node, parameter) {
 
 function nodeGraphPortCenter(node, port, io) {
   const surface = nodeGraphZoomSurface();
-  const element = surface.querySelector(nodeGraphPortSelector(node, port, io));
+  const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
+  const element = surface.querySelector(nodeGraphPortSelector(node, canonicalPort, io));
   return nodeGraphElementCenter(element, io);
 }
 
@@ -60,13 +75,14 @@ function nodeGraphCssColor(property, fallback) {
 }
 
 function nodeGraphPortWireColor(node, port, io) {
+  const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
   if (io === "input") {
     return nodeGraphCssColor("--node-input-fill", "#7fc7d9");
   }
   if (io === "modulation") {
     return nodeGraphCssColor("--node-mod-input-fill", "#b184ff");
   }
-  if (nodeGraphParameterOutputPort(nodeGraphPatchNodeType(node), port)) {
+  if (nodeGraphParameterOutputPort(nodeGraphPatchNode(node) || nodeGraphPatchNodeType(node), canonicalPort)) {
     return nodeGraphCssColor("--node-param-output-fill", "#66e0a3");
   }
   return nodeGraphCssColor("--node-output-fill", "#e2a86d");

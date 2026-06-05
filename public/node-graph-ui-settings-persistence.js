@@ -27,47 +27,38 @@ function normalizeNodeUiDevSettings(settings = {}) {
   const moduleButtonsVisible = Boolean(view.moduleButtonsVisible ?? nodeGraphMvp.moduleButtonsVisible);
   const moduleOscilloscopesVisible = Boolean(view.moduleOscilloscopesVisible ?? nodeGraphMvp.moduleOscilloscopesVisible);
   const moduleSlidersVisible = Boolean(view.moduleSlidersVisible ?? nodeGraphMvp.moduleSlidersVisible);
-  const moduleScopeBrightness = normalizeNodeGraphModuleScopeBrightness(
-    view.moduleScopeBrightness ?? nodeGraphMvp.moduleScopeBrightness ?? 1,
-  );
   const moduleScopeBackgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(
     view.moduleScopeBackgroundColor ?? nodeGraphMvp.moduleScopeBackgroundColor ?? "#000000",
   );
-  const moduleScopeBackgroundOverride = Boolean(
-    view.moduleScopeBackgroundOverride ?? nodeGraphMvp.moduleScopeBackgroundOverride,
-  );
   const moduleScopeDotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(
-    view.moduleScopeDotCore1Size ?? view.moduleScopeDotCore ?? nodeGraphMvp.moduleScopeDotCore1Size ?? 0.18,
-    0.18,
+    view.moduleScopeDotCore1Size ?? view.moduleScopeDotCore ?? nodeGraphMvp.moduleScopeDotCore1Size ?? 0.5,
+    0.5,
   );
   const moduleScopeDotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(
-    view.moduleScopeDotCore1Brightness ?? nodeGraphMvp.moduleScopeDotCore1Brightness ?? 1,
-    1,
+    view.moduleScopeDotCore1Brightness ?? nodeGraphMvp.moduleScopeDotCore1Brightness ?? 2,
+    2,
   );
   const moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(
-    view.moduleScopeDotCore1Color ?? nodeGraphMvp.moduleScopeDotCore1Color ?? "#fff6e1",
-    "#fff6e1",
+    view.moduleScopeDotCore1Color ?? nodeGraphMvp.moduleScopeDotCore1Color ?? "#ffffff",
+    "#ffffff",
   );
   const moduleScopeDotCore2Size = normalizeNodeGraphModuleScopeDotCoreSize(
-    view.moduleScopeDotCore2Size ?? view.moduleScopeDotGlow ?? nodeGraphMvp.moduleScopeDotCore2Size ?? 0.74,
-    0.74,
+    view.moduleScopeDotCore2Size ?? view.moduleScopeDotGlow ?? nodeGraphMvp.moduleScopeDotCore2Size ?? 4,
+    4,
   );
   const moduleScopeDotCore2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(
     view.moduleScopeDotCore2Brightness ?? nodeGraphMvp.moduleScopeDotCore2Brightness ?? 0.45,
     0.45,
   );
   const moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(
-    view.moduleScopeDotCore2Color ?? nodeGraphMvp.moduleScopeDotCore2Color ?? "#ffd28b",
-    "#ffd28b",
+    view.moduleScopeDotCore2Color ?? nodeGraphMvp.moduleScopeDotCore2Color ?? "#ff0000",
+    "#ff0000",
   );
   const moduleScopeFramesPerSecond = normalizeNodeGraphModuleScopeFramesPerSecond(
     view.moduleScopeFramesPerSecond ?? nodeGraphMvp.moduleScopeFramesPerSecond ?? 60,
   );
   const moduleScopeLineThickness = normalizeNodeGraphModuleScopeLineThickness(
-    view.moduleScopeLineThickness ?? nodeGraphMvp.moduleScopeLineThickness ?? 1,
-  );
-  const moduleScopeTraceColor = normalizeNodeGraphModuleScopeTraceColor(
-    view.moduleScopeTraceColor ?? nodeGraphMvp.moduleScopeTraceColor ?? "#3de0ff",
+    view.moduleScopeLineThickness ?? nodeGraphMvp.moduleScopeLineThickness ?? 2,
   );
   const sliderLayout = normalizeNodeGraphSliderLayout(view.sliderLayout ?? nodeGraphMvp.sliderLayout);
   const sliderAmountVisible = Boolean(view.sliderAmountVisible ?? nodeGraphMvp.sliderAmountVisible);
@@ -101,9 +92,7 @@ function normalizeNodeUiDevSettings(settings = {}) {
       moduleButtonsVisible,
       moduleOscilloscopesVisible,
       moduleSlidersVisible,
-      moduleScopeBrightness,
       moduleScopeBackgroundColor,
-      moduleScopeBackgroundOverride,
       moduleScopeDotCore1Size,
       moduleScopeDotCore1Brightness,
       moduleScopeDotCore1Color,
@@ -112,7 +101,6 @@ function normalizeNodeUiDevSettings(settings = {}) {
       moduleScopeDotCore2Color,
       moduleScopeFramesPerSecond,
       moduleScopeLineThickness,
-      moduleScopeTraceColor,
       sliderLayout,
       sliderAmountVisible,
       sliderPositionVisible,
@@ -154,18 +142,15 @@ function readNodeUiDevSettingsFromControls() {
       moduleButtonsVisible: Boolean(nodeGraphMvp.moduleButtonsVisible),
       moduleOscilloscopesVisible: Boolean(nodeGraphMvp.moduleOscilloscopesVisible),
       moduleSlidersVisible: Boolean(nodeGraphMvp.moduleSlidersVisible),
-      moduleScopeBrightness: normalizeNodeGraphModuleScopeBrightness(nodeGraphMvp.moduleScopeBrightness ?? 1),
       moduleScopeBackgroundColor: normalizeNodeGraphModuleScopeBackgroundColor(nodeGraphMvp.moduleScopeBackgroundColor ?? "#000000"),
-      moduleScopeBackgroundOverride: Boolean(nodeGraphMvp.moduleScopeBackgroundOverride),
-      moduleScopeDotCore1Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore1Size ?? 0.18, 0.18),
-      moduleScopeDotCore1Brightness: normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore1Brightness ?? 1, 1),
-      moduleScopeDotCore1Color: normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore1Color ?? "#fff6e1", "#fff6e1"),
-      moduleScopeDotCore2Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore2Size ?? 0.74, 0.74),
+      moduleScopeDotCore1Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore1Size ?? 0.5, 0.5),
+      moduleScopeDotCore1Brightness: normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore1Brightness ?? 2, 2),
+      moduleScopeDotCore1Color: normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore1Color ?? "#ffffff", "#ffffff"),
+      moduleScopeDotCore2Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore2Size ?? 4, 4),
       moduleScopeDotCore2Brightness: normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore2Brightness ?? 0.45, 0.45),
-      moduleScopeDotCore2Color: normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore2Color ?? "#ffd28b", "#ffd28b"),
+      moduleScopeDotCore2Color: normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore2Color ?? "#ff0000", "#ff0000"),
       moduleScopeFramesPerSecond: normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60),
-      moduleScopeLineThickness: normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 1),
-      moduleScopeTraceColor: normalizeNodeGraphModuleScopeTraceColor(nodeGraphMvp.moduleScopeTraceColor ?? "#3de0ff"),
+      moduleScopeLineThickness: normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 2),
       sliderLayout: normalizeNodeGraphSliderLayout(nodeGraphMvp.sliderLayout),
       sliderAmountVisible: Boolean(nodeGraphMvp.sliderAmountVisible),
       sliderPositionVisible: Boolean(nodeGraphMvp.sliderPositionVisible),
@@ -222,18 +207,15 @@ function applyNodeUiDevSettings(settings) {
   nodeGraphMvp.moduleButtonsVisible = Boolean(normalized.view.moduleButtonsVisible);
   nodeGraphMvp.moduleOscilloscopesVisible = Boolean(normalized.view.moduleOscilloscopesVisible);
   nodeGraphMvp.moduleSlidersVisible = Boolean(normalized.view.moduleSlidersVisible);
-  nodeGraphMvp.moduleScopeBrightness = normalizeNodeGraphModuleScopeBrightness(normalized.view.moduleScopeBrightness);
   nodeGraphMvp.moduleScopeBackgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(normalized.view.moduleScopeBackgroundColor);
-  nodeGraphMvp.moduleScopeBackgroundOverride = Boolean(normalized.view.moduleScopeBackgroundOverride);
-  nodeGraphMvp.moduleScopeDotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore1Size, 0.18);
-  nodeGraphMvp.moduleScopeDotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(normalized.view.moduleScopeDotCore1Brightness, 1);
-  nodeGraphMvp.moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(normalized.view.moduleScopeDotCore1Color, "#fff6e1");
-  nodeGraphMvp.moduleScopeDotCore2Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore2Size, 0.74);
+  nodeGraphMvp.moduleScopeDotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore1Size, 0.5);
+  nodeGraphMvp.moduleScopeDotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(normalized.view.moduleScopeDotCore1Brightness, 2);
+  nodeGraphMvp.moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(normalized.view.moduleScopeDotCore1Color, "#ffffff");
+  nodeGraphMvp.moduleScopeDotCore2Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore2Size, 4);
   nodeGraphMvp.moduleScopeDotCore2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(normalized.view.moduleScopeDotCore2Brightness, 0.45);
-  nodeGraphMvp.moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(normalized.view.moduleScopeDotCore2Color, "#ffd28b");
+  nodeGraphMvp.moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(normalized.view.moduleScopeDotCore2Color, "#ff0000");
   nodeGraphMvp.moduleScopeFramesPerSecond = normalizeNodeGraphModuleScopeFramesPerSecond(normalized.view.moduleScopeFramesPerSecond);
   nodeGraphMvp.moduleScopeLineThickness = normalizeNodeGraphModuleScopeLineThickness(normalized.view.moduleScopeLineThickness);
-  nodeGraphMvp.moduleScopeTraceColor = normalizeNodeGraphModuleScopeTraceColor(normalized.view.moduleScopeTraceColor);
   nodeGraphMvp.sliderLayout = normalizeNodeGraphSliderLayout(normalized.view.sliderLayout);
   nodeGraphMvp.sliderAmountVisible = Boolean(normalized.view.sliderAmountVisible);
   nodeGraphMvp.sliderPositionVisible = Boolean(normalized.view.sliderPositionVisible);

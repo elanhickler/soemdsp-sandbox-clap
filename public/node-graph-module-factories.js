@@ -121,6 +121,10 @@ function createNodeGraphParameter(node, type, parameter) {
   const row = document.createElement("div");
   row.className = "node-parameter-row";
   row.dataset.param = parameter.key;
+  const constraint = normalizeNodeGraphResourceConstraint(parameter.constraint);
+  if (constraint) {
+    row.dataset.nodeConstraint = constraint;
+  }
   row.append(createNodeParameterModulationPort(node, type, parameter));
 
   const label = document.createElement("label");
@@ -165,4 +169,9 @@ function createNodeGraphParameter(node, type, parameter) {
   row.append(label);
   row.append(createNodeParameterOutputPort(node, type, parameter));
   return row;
+}
+
+function normalizeNodeGraphResourceConstraint(value) {
+  const constraint = String(value || "").trim().toLowerCase();
+  return ["cpu", "ram", "gpu"].includes(constraint) ? constraint : "";
 }

@@ -26,19 +26,5 @@ function bindNodeGraphSettingsFormEvents() {
     field.addEventListener("change", commitNodeGraphSettingsHistory);
   }
   document.getElementById("toggleDebugButton").addEventListener("click", toggleDebugSections);
-  document
-    .getElementById("nodeParameterMetadataPopover")
-    .addEventListener("input", handleNodeMetadataEditorInput);
-  document
-    .getElementById("metadataKindValue")
-    .addEventListener("change", handleNodeMetadataKindChange);
-  document
-    .getElementById("metadataPopoverClose")
-    .addEventListener("click", closeNodeMetadataPopover);
-  document
-    .getElementById("metadataPopoverDragHandle")
-    .addEventListener("pointerdown", beginNodeMetadataPopoverDrag);
-  document
-    .getElementById("metadataSetDefaultButton")
-    .addEventListener("click", setNodeMetadataDefaultsFromKind);
+  bindNodeGraphMetadataPopoverEvents();
 }

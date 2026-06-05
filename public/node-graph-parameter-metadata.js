@@ -18,6 +18,128 @@ function nodeGraphModuleOutputPorts(type) {
   ];
 }
 
+function nodeGraphPatchNodeParameterDefinitions(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  const definition = nodeGraphModuleDefinitions[patchNode?.type];
+  if (!definition) {
+    return [];
+  }
+  const parameters = [...(definition.parameters || [])];
+  if (patchNode?.type === "clapPlugin") {
+    for (const [key, sourceMetadata] of Object.entries(patchNode.paramMeta || {})) {
+      if (parameters.some((parameter) => parameter.key === key)) {
+        continue;
+      }
+      const metadata = normalizeNodeGraphPatchParameterMetadata(patchNode.type, key, sourceMetadata);
+      if (!metadata?.clapParamId && metadata?.clapParamId !== 0) {
+        continue;
+      }
+      parameters.push({
+        ...metadata,
+        defaultValue: metadata.def,
+        key,
+        label: metadata.clapParamName || metadata.label || key,
+      });
+    }
+  }
+  return parameters;
+}
+
+function nodeGraphClapAudioPortLaneNames(ports = [], fallback = []) {
+  if (!Array.isArray(ports) || ports.length === 0) {
+    return [...fallback];
+  }
+  const used = new Set();
+  const names = [];
+  const unique = (base) => {
+    const cleanBase = String(base || "").trim() || "Port";
+    let name = cleanBase;
+    let index = 2;
+    while (used.has(name)) {
+      name = `${cleanBase} ${index}`;
+      index += 1;
+    }
+    used.add(name);
+    return name;
+  };
+  for (const port of ports) {
+    const source = port && typeof port === "object" ? port : {};
+    const base = String(source.name || "").trim() || `Port ${names.length + 1}`;
+    const channelCount = Math.max(1, Math.min(64, Math.round(Number(source.channelCount) || 1)));
+    if (channelCount === 1) {
+      names.push(unique(base));
+    } else if (channelCount === 2) {
+      names.push(unique(`${base} L`));
+      names.push(unique(`${base} R`));
+    } else {
+      for (let channel = 1; channel <= channelCount; channel += 1) {
+        names.push(unique(`${base} ${channel}`));
+      }
+    }
+  }
+  return names.length ? names : [...fallback];
+}
+
+function nodeGraphModuleGroupEndpointName(node, fallback, used = new Set()) {
+  const base = normalizeNodeGraphPatchNodeAlias(node?.alias) ||
+    String(node?.label || "").trim() ||
+    fallback;
+  let name = base || fallback;
+  let index = 2;
+  while (used.has(name)) {
+    name = `${base || fallback} ${index}`;
+    index += 1;
+  }
+  used.add(name);
+  return name;
+}
+
+function nodeGraphModuleGroupInterfaceFromPatch(sourcePatch = {}) {
+  const inputs = [];
+  const outputs = [];
+  const inputNames = new Set();
+  const outputNames = new Set();
+  for (const node of sourcePatch.nodes || []) {
+    if (node.type === "groupInput") {
+      inputs.push({
+        name: nodeGraphModuleGroupEndpointName(node, inputs.length ? `In ${inputs.length + 1}` : "In", inputNames),
+        nodeId: node.id,
+        port: "Out",
+      });
+    } else if (node.type === "groupOutput") {
+      outputs.push({
+        name: nodeGraphModuleGroupEndpointName(node, outputs.length ? `Out ${outputs.length + 1}` : "Out", outputNames),
+        nodeId: node.id,
+        port: "Out",
+      });
+    }
+  }
+  return { inputs, outputs };
+}
+
+function normalizeNodeGraphModuleGroup(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const sourcePatch = source.sourcePatch && typeof source.sourcePatch === "object"
+    ? cloneNodeGraphPatch(source.sourcePatch)
+    : null;
+  const inferred = nodeGraphModuleGroupInterfaceFromPatch(sourcePatch || {});
+  return {
+    defaultSize: {
+      heightGu: Math.max(4, Number(source.defaultSize?.heightGu) || 6),
+      widthGu: Math.max(5, Number(source.defaultSize?.widthGu) || 8),
+    },
+    description: String(source.description || ""),
+    id: String(source.id || `group-${nodeGraphStableSeed(source.name || "module-group").toString(16)}`),
+    inputs: Array.isArray(source.inputs) && source.inputs.length ? source.inputs.map((input) => ({ ...input })) : inferred.inputs,
+    kind: "moduleGroup",
+    name: String(source.name || "Module Group"),
+    outputs: Array.isArray(source.outputs) && source.outputs.length ? source.outputs.map((output) => ({ ...output })) : inferred.outputs,
+    parameters: Array.isArray(source.parameters) ? source.parameters.map((parameter) => ({ ...parameter })) : [],
+    preview: source.preview && typeof source.preview === "object" ? { ...source.preview } : {},
+    sourcePatch,
+  };
+}
+
 const nodeGraphCodeblockDefaultCode = "Out1 = In1;";
 const nodeGraphCodeblockPortNamePattern = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const nodeGraphCodeblockShadowedGlobals = Object.freeze([
@@ -31,6 +153,11 @@ const nodeGraphCodeblockShadowedGlobals = Object.freeze([
 ]);
 const nodeGraphCodeblockReservedNames = Object.freeze(new Set([
   ...nodeGraphCodeblockShadowedGlobals,
+  "__context",
+  "__ctx",
+  "__inputs",
+  "__outputs",
+  "__state",
   "arguments",
   "await",
   "break",
@@ -48,6 +175,8 @@ const nodeGraphCodeblockReservedNames = Object.freeze(new Set([
   "extends",
   "false",
   "finally",
+  "frame",
+  "frames",
   "for",
   "if",
   "import",
@@ -57,10 +186,13 @@ const nodeGraphCodeblockReservedNames = Object.freeze(new Set([
   "new",
   "null",
   "return",
+  "sampleRate",
   "super",
   "switch",
+  "state",
   "this",
   "throw",
+  "time",
   "true",
   "try",
   "typeof",
@@ -69,6 +201,7 @@ const nodeGraphCodeblockReservedNames = Object.freeze(new Set([
   "while",
   "with",
   "yield",
+  "dt",
 ]));
 
 function nodeGraphCodeblockIdentifierIsValid(name) {
@@ -124,6 +257,15 @@ function nodeGraphPatchNodeInputPorts(node) {
   if (patchNode?.type === "codeblock") {
     return normalizeNodeGraphCodeblock(patchNode.codeblock).inputs;
   }
+  if (patchNode?.type === "moduleGroup") {
+    return normalizeNodeGraphModuleGroup(patchNode.moduleGroup).inputs.map((input) => input.name);
+  }
+  if (patchNode?.type === "clapPlugin") {
+    return nodeGraphClapAudioPortLaneNames(
+      patchNode.clap?.audioInputs,
+      nodeGraphModuleDefinitions.clapPlugin?.inputs || [],
+    );
+  }
   return nodeGraphModuleDefinitions[patchNode?.type]?.inputs || [];
 }
 
@@ -132,11 +274,44 @@ function nodeGraphPatchNodeOutputPorts(node) {
   if (patchNode?.type === "codeblock") {
     return normalizeNodeGraphCodeblock(patchNode.codeblock).outputs;
   }
+  if (patchNode?.type === "moduleGroup") {
+    return normalizeNodeGraphModuleGroup(patchNode.moduleGroup).outputs.map((output) => output.name);
+  }
+  if (patchNode?.type === "clapPlugin") {
+    return [
+      ...nodeGraphClapAudioPortLaneNames(
+        patchNode.clap?.audioOutputs,
+        nodeGraphModuleDefinitions.clapPlugin?.outputs || [],
+      ),
+      ...nodeGraphPatchNodeParameterDefinitions(patchNode).map((parameter) => parameter.key),
+    ];
+  }
   return nodeGraphModuleOutputPorts(patchNode?.type);
 }
 
-function nodeGraphParameterOutputPort(type, port) {
-  return nodeGraphModuleDefinitions[type]?.parameters?.find(
+function nodeGraphPatchNodeClapAudioInputPorts(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  return nodeGraphClapAudioPortLaneNames(
+    patchNode?.clap?.audioInputs,
+    nodeGraphModuleDefinitions.clapPlugin?.inputs || [],
+  );
+}
+
+function nodeGraphPatchNodeClapAudioOutputPorts(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  return nodeGraphClapAudioPortLaneNames(
+    patchNode?.clap?.audioOutputs,
+    nodeGraphModuleDefinitions.clapPlugin?.outputs || [],
+  );
+}
+
+function nodeGraphParameterOutputPort(typeOrNode, port) {
+  if (typeOrNode && typeof typeOrNode === "object") {
+    return nodeGraphPatchNodeParameterDefinitions(typeOrNode).find(
+      (parameter) => parameter.key === port,
+    ) || null;
+  }
+  return nodeGraphModuleDefinitions[typeOrNode]?.parameters?.find(
     (parameter) => parameter.key === port,
   ) || null;
 }
@@ -237,11 +412,41 @@ function nodeGraphDefaultParamMetaForType(type) {
   return metadata;
 }
 
+function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
+  const source = metadata && typeof metadata === "object" ? metadata : {};
+  const min = Number.isFinite(Number(source.min)) ? Number(source.min) : 0;
+  const max = Number.isFinite(Number(source.max)) && Number(source.max) > min
+    ? Number(source.max)
+    : min + 1;
+  const def = Number.isFinite(Number(source.def)) ? Number(source.def) : min;
+  return {
+    choices: Array.isArray(source.choices) ? source.choices : [],
+    def,
+    displayChoices: Boolean(source.displayChoices),
+    divideChoicesVisibly: Boolean(source.divideChoicesVisibly),
+    kind: normalizeNodeMetadataKind(source.kind || "decimal"),
+    linearSmoothing: Object.hasOwn(source, "linearSmoothing") ? Boolean(source.linearSmoothing) : true,
+    max,
+    maxDigits: normalizeNodeGraphMetadataMaxDigits(source.maxDigits, source.kind || "decimal"),
+    mid: Number.isFinite(Number(source.mid)) ? Number(source.mid) : (min + max) / 2,
+    min,
+    nonlinearSlider: Boolean(source.nonlinearSlider),
+    showSign: Boolean(source.showSign),
+    step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 0,
+    unit: String(source.unit || ""),
+    wraparound: Boolean(source.wraparound),
+  };
+}
+
 function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
   const parameter = nodeGraphModuleDefinitions[type]?.parameters?.find(
     (candidate) => candidate.key === key,
   );
-  const fallback = nodeGraphParameterDefinitionMetadata(parameter);
+  const fallback = parameter
+    ? nodeGraphParameterDefinitionMetadata(parameter)
+    : type === "clapPlugin"
+      ? nodeGraphClapPatchParameterFallbackMetadata(key, metadata)
+      : null;
   if (!fallback) {
     return null;
   }
@@ -268,7 +473,7 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
     Object.hasOwn(source, "choices") ? source.choices : fallback.choices,
     fallback.choices,
   );
-  return {
+  const normalized = {
     choices,
     def: clampNodeSliderValue(Number.isFinite(def) ? def : fallback.def, min, max),
     displayChoices: Object.hasOwn(source, "displayChoices")
@@ -298,4 +503,15 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
       ? Boolean(source.wraparound)
       : fallback.wraparound,
   };
+  if (type === "clapPlugin") {
+    const clapParamId = Number(source.clapParamId);
+    const clapParamIndex = Number(source.clapParamIndex);
+    return {
+      ...normalized,
+      ...(Number.isFinite(clapParamId) ? { clapParamId: Math.round(clapParamId) } : {}),
+      ...(Number.isFinite(clapParamIndex) ? { clapParamIndex: Math.round(clapParamIndex) } : {}),
+      clapParamName: String(source.clapParamName || key).slice(0, 128),
+    };
+  }
+  return normalized;
 }
