@@ -88,7 +88,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     parameters: [],
   },
   graph: {
-    inputs: ["In"],
+    inputs: ["In", "Reset"],
     layout: "graph",
     outputs: ["Out"],
     parameters: [

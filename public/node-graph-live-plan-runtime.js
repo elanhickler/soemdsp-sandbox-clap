@@ -188,6 +188,7 @@ function createNodeGraphLiveRuntime(plan) {
   const noiseSeedKeys = new Map();
   const noiseSeeds = new Map();
   const oscResetStates = new Map();
+  const graphLfoStates = new Map();
   const bandpassStates = new Map();
   const clockStates = new Map();
   const codeblockFunctions = new Map();
@@ -252,6 +253,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "clock") {
       clockStates.set(node.id, createNodeGraphClockState());
+    }
+    if (node.type === "graph") {
+      graphLfoStates.set(node.id, createNodeGraphGraphLfoState());
     }
     if (node.type === "clockDivider") {
       clockDividerStates.set(node.id, createNodeGraphTriggerDividerState());
@@ -330,6 +334,7 @@ function createNodeGraphLiveRuntime(plan) {
     expAdsrStates,
     fractalBrownianNoiseStates,
     flowerChildEnvelopeFollowerStates,
+    graphLfoStates,
     ladderFilterStates,
     linearEnvelopeStates,
     meterCounter: 0,
@@ -414,6 +419,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   }
   if (!runtime.oscResetStates) {
     runtime.oscResetStates = new Map();
+  }
+  if (!runtime.graphLfoStates) {
+    runtime.graphLfoStates = new Map();
   }
   if (!runtime.oscillatorLastPhaseIncrements) {
     runtime.oscillatorLastPhaseIncrements = new Map();
@@ -548,6 +556,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     if (node.type === "clock" && !runtime.clockStates.has(node.id)) {
       runtime.clockStates.set(node.id, createNodeGraphClockState());
     }
+    if (node.type === "graph" && !runtime.graphLfoStates.has(node.id)) {
+      runtime.graphLfoStates.set(node.id, createNodeGraphGraphLfoState());
+    }
     if (node.type === "clockDivider" && !runtime.clockDividerStates.has(node.id)) {
       runtime.clockDividerStates.set(node.id, createNodeGraphTriggerDividerState());
     }
@@ -630,6 +641,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.oscResetStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.oscResetStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.graphLfoStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.graphLfoStates.delete(id);
     }
   }
   for (const id of [...runtime.triangleStates.keys()]) {

@@ -30,6 +30,13 @@ function createNodeGraphOscResetState() {
   };
 }
 
+function createNodeGraphGraphLfoState() {
+  return {
+    lastReset: 0,
+    resetFrame: 0,
+  };
+}
+
 function createNodeGraphSlewLimiterState() {
   return {
     initialized: false,
@@ -1512,7 +1519,21 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const absoluteFrame = Number.isFinite(runtime.absoluteFrame) ? runtime.absoluteFrame : frame;
     const rate = Math.max(0, readNodeGraphLiveEffectiveParam(runtime, node, "rate", 1, frame, frames, frameValues));
     const phase = readNodeGraphLiveEffectiveParam(runtime, node, "phase", 0, frame, frames, frameValues);
-    return wrapNodeSliderValue((absoluteFrame / safeRate) * rate + phase, 0, 1);
+    const state = runtime.graphLfoStates.get(nodeId) || createNodeGraphGraphLfoState();
+    runtime.graphLfoStates.set(nodeId, state);
+    const resetValue = nodeGraphSafeFilterNumber(
+      mixInput(nodeId, "Reset"),
+      runtime,
+      nodeId,
+      state,
+      "graph lfo reset",
+    );
+    if (state.lastReset <= 0 && resetValue > 0) {
+      state.resetFrame = absoluteFrame;
+    }
+    state.lastReset = resetValue;
+    const resetFrame = Number.isFinite(state.resetFrame) ? state.resetFrame : 0;
+    return wrapNodeSliderValue(((absoluteFrame - resetFrame) / safeRate) * rate + phase, 0, 1);
   };
 
   for (const nodeId of runtime.order || []) {

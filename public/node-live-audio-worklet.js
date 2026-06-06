@@ -59,6 +59,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.noiseGeneratorStates = new Map();
     this.noiseSampleHoldStates = new Map();
     this.oscResetStates = new Map();
+    this.graphLfoStates = new Map();
     this.oscillatorLastPhaseIncrements = new Map();
     this.oscillatorStoppedSamples = new Map();
     this.outputNode = "output";
@@ -264,6 +265,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.noiseGeneratorStates = new Map();
     this.noiseSampleHoldStates = new Map();
     this.oscResetStates = new Map();
+    this.graphLfoStates = new Map();
     this.pluckEnvelopeStates = new Map();
     this.randomClockStates = new Map();
     this.randomWalkStates = new Map();
@@ -362,6 +364,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "clock" && !this.clockStates.has(id)) {
         this.clockStates.set(id, this.createClockState());
       }
+      if (node?.type === "graph" && !this.graphLfoStates.has(id)) {
+        this.graphLfoStates.set(id, this.createGraphLfoState());
+      }
       if (node?.type === "clockDivider" && !this.clockDividerStates.has(id)) {
         this.clockDividerStates.set(id, this.createTriggerDividerState());
       }
@@ -438,6 +443,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const id of [...this.oscResetStates.keys()]) {
       if (!ids.has(id)) {
         this.oscResetStates.delete(id);
+      }
+    }
+    for (const id of [...this.graphLfoStates.keys()]) {
+      if (!ids.has(id)) {
+        this.graphLfoStates.delete(id);
       }
     }
     for (const id of [...this.triangleStates.keys()]) {
@@ -1567,6 +1577,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createGraphLfoState() {
+    return {
+      lastReset: 0,
+      resetFrame: 0,
+    };
+  }
+
   createSlewLimiterState() {
     return {
       initialized: false,
@@ -2002,6 +2019,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.noiseGeneratorStates = new Map();
     runtime.noiseSampleHoldStates = new Map();
     runtime.oscResetStates = new Map();
+    runtime.graphLfoStates = new Map();
     runtime.outputNode = plan?.outputNode || "output";
     runtime.patchFingerprint = plan?.patchFingerprint || "";
     runtime.phases = new Map();
@@ -2064,6 +2082,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
       if (node?.type === "clock") this.clockStates.set(id, this.createClockState());
+      if (node?.type === "graph") this.graphLfoStates.set(id, this.createGraphLfoState());
       if (node?.type === "clockDivider") this.clockDividerStates.set(id, this.createTriggerDividerState());
       if (node?.type === "delayedTrigger") this.delayedTriggerStates.set(id, this.createDelayedTriggerState());
       if (node?.type === "randomClock") this.randomClockStates.set(id, this.createRandomClockState());
@@ -3436,7 +3455,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       const rateValue = Math.max(0, this.readEffectiveParameter(node, "rate", 1, frame, frames, frameValues));
       const phaseValue = this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues);
-      return this.wrapValue((Number(inputFrame) / safeRate) * rateValue + phaseValue, 0, 1);
+      const state = this.graphLfoStates.get(nodeId) || this.createGraphLfoState();
+      this.graphLfoStates.set(nodeId, state);
+      const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), state);
+      const currentFrame = Number(inputFrame) || 0;
+      if (state.lastReset <= 0 && resetValue > 0) {
+        state.resetFrame = currentFrame;
+      }
+      state.lastReset = resetValue;
+      const resetFrame = Number.isFinite(state.resetFrame) ? state.resetFrame : 0;
+      return this.wrapValue(((currentFrame - resetFrame) / safeRate) * rateValue + phaseValue, 0, 1);
     };
 
     for (const nodeId of this.order) {
