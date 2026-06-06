@@ -3221,8 +3221,16 @@ function nodeGraphModuleScopeCenteredSquareRect(rect) {
   };
 }
 
-function nodeGraphModuleScopeDrawingRect(rect) {
-  return nodeGraphModuleScopeCenteredSquareRect(rect);
+function nodeGraphModuleScopeDrawingRect(rect, buffer = null) {
+  if (buffer?.nodeGraphScopeXy) {
+    return nodeGraphModuleScopeCenteredSquareRect(rect);
+  }
+  return {
+    height: Math.max(1, Number(rect?.height) || 0),
+    left: Number(rect?.left) || 0,
+    top: Number(rect?.top) || 0,
+    width: Math.max(1, Number(rect?.width) || 0),
+  };
 }
 
 function nodeGraphModuleScopeXyPoints(buffer, rect, canvas, pixelRatio, slot) {
@@ -4155,7 +4163,7 @@ function drawNodeGraphModuleScopes() {
         top: rect.top - workspaceRect.top,
         width: rect.width,
       };
-      const drawRect = nodeGraphModuleScopeDrawingRect(fullScopeRect);
+      const drawRect = nodeGraphModuleScopeDrawingRect(fullScopeRect, buffer);
       const zoomScale = nodeGraphModuleScopeZoomScale();
       return {
         buffer,
