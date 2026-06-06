@@ -2395,7 +2395,7 @@ function createNodeGraphModuleScopeWebGlRenderer(canvas) {
       vec4 dotSample = uUseDotTexture ? texture2D(uDotTexture, gl_PointCoord) : vec4(1.0);
       vec3 traceColor = uUseDotTexture ? dotSample.rgb : uColor;
       float textureAlpha = uUseDotTexture ? dotSample.a : 1.0;
-      float alpha = clamp((gaussian * 0.82 + core * 0.18) * textureAlpha * afterglow * uIntensity, 0.0, 0.46);
+      float alpha = clamp((gaussian * 0.82 + core * 0.18) * textureAlpha * afterglow * uIntensity, 0.0, 1.0);
       gl_FragColor = vec4(traceColor * alpha, alpha);
     }
   `);
@@ -3138,21 +3138,21 @@ function nodeGraphModuleScopeGeneratedDotTextureData(
   core1SizeValue,
   core1BrightnessValue,
   size = 64,
-  core1ColorValue = "#ffa3a8",
+  core1ColorValue = "#ffffff",
   core2SizeValue = nodeGraphMvp?.moduleScopeDotCore2Size,
   core2BrightnessValue = nodeGraphMvp?.moduleScopeDotCore2Brightness,
-  core2ColorValue = "#444444",
+  core2ColorValue = "#17002f",
   lineThicknessValue = nodeGraphMvp?.moduleScopeLineThickness,
 ) {
   const core1Size = normalizeNodeGraphModuleScopeDotCoreSize(core1SizeValue, 3.18);
   const core1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(core1BrightnessValue, 4.5);
   const core1Color = nodeGraphScopeHexColorToRgb(
-    normalizeNodeGraphModuleScopeDotCoreColor(core1ColorValue ?? "#ffa3a8", "#ffa3a8"),
+    normalizeNodeGraphModuleScopeDotCoreColor(core1ColorValue ?? "#ffffff", "#ffffff"),
   );
   const core2Size = normalizeNodeGraphModuleScopeDotCoreSize(core2SizeValue, 4);
   const core2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(core2BrightnessValue, 0.45);
   const core2Color = nodeGraphScopeHexColorToRgb(
-    normalizeNodeGraphModuleScopeDotCoreColor(core2ColorValue ?? "#444444", "#444444"),
+    normalizeNodeGraphModuleScopeDotCoreColor(core2ColorValue ?? "#17002f", "#17002f"),
   );
   const lineThickness = normalizeNodeGraphModuleScopeLineThickness(lineThicknessValue ?? 2);
   const finalCore1Size = core1Size * lineThickness;
@@ -3193,10 +3193,10 @@ function nodeGraphModuleScopeGeneratedDotTexture(renderer) {
   const state = nodeGraphModuleScopeState.traceImageTexture;
   const core1Size = normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp?.moduleScopeDotCore1Size ?? 3.18, 3.18);
   const core1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp?.moduleScopeDotCore1Brightness ?? 4.5, 4.5);
-  const core1Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp?.moduleScopeDotCore1Color ?? "#ffa3a8", "#ffa3a8");
+  const core1Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp?.moduleScopeDotCore1Color ?? "#ffffff", "#ffffff");
   const core2Size = normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp?.moduleScopeDotCore2Size ?? 4, 4);
   const core2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp?.moduleScopeDotCore2Brightness ?? 0.45, 0.45);
-  const core2Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp?.moduleScopeDotCore2Color ?? "#444444", "#444444");
+  const core2Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp?.moduleScopeDotCore2Color ?? "#17002f", "#17002f");
   const lineThickness = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp?.moduleScopeLineThickness ?? 2);
   const key = `generated:${core1Size.toFixed(3)}:${core1Brightness.toFixed(3)}:${core1Color}:${core2Size.toFixed(3)}:${core2Brightness.toFixed(3)}:${core2Color}:${lineThickness.toFixed(3)}`;
   if (state.generatedKey === key && state.texture) {
@@ -3580,8 +3580,8 @@ function drawNodeGraphModuleScopeLightDisplay(context, rect, buffer, pixelRatio,
   }
 
   const outerColor = normalizeNodeGraphModuleScopeDotCoreColor(
-    buffer.nodeGraphScopeLightOuterColor ?? nodeGraphMvp?.moduleScopeDotCore2Color ?? "#444444",
-    "#444444",
+    buffer.nodeGraphScopeLightOuterColor ?? nodeGraphMvp?.moduleScopeDotCore2Color ?? "#17002f",
+    "#17002f",
   );
   const centerColor = normalizeNodeGraphModuleScopeDotCoreColor(
     buffer.nodeGraphScopeLightCenterColor ?? outerColor,
@@ -3757,7 +3757,7 @@ function drawNodeGraphModuleScopes() {
     }
     drawNodeGraphModuleScopeBufferWebGl(renderer, scopeRect, buffer, pixelRatio, slot, {
       color: colors.core,
-      intensity: (0.18 + (bloomEnabled ? burn * 0.08 : 0)) * brightness,
+      intensity: (1.0 + (bloomEnabled ? burn * 0.08 : 0)) * brightness,
       thicknessPx: 1.25 * zoomScale,
     });
   }

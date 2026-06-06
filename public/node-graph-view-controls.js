@@ -202,10 +202,10 @@ function renderNodeGraphModuleScopeBrightnessControl() {
   const backgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(nodeGraphMvp.moduleScopeBackgroundColor);
   const dotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore1Size ?? 3.18, 3.18);
   const dotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore1Brightness ?? 4.5, 4.5);
-  const dotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore1Color ?? "#ffa3a8", "#ffa3a8");
+  const dotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore1Color ?? "#ffffff", "#ffffff");
   const dotCore2Size = normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore2Size ?? 4, 4);
   const dotCore2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore2Brightness ?? 0.45, 0.45);
-  const dotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore2Color ?? "#444444", "#444444");
+  const dotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(nodeGraphMvp.moduleScopeDotCore2Color ?? "#17002f", "#17002f");
   const framesPerSecond = normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60);
   const lineThickness = normalizeNodeGraphModuleScopeLineThickness(nodeGraphMvp.moduleScopeLineThickness ?? 2);
   const discontinuitySkipSamples = normalizeNodeGraphModuleScopeDiscontinuitySkipSamples(
@@ -370,7 +370,7 @@ function setNodeGraphModuleScopeDotCore1Brightness(value) {
 }
 
 function setNodeGraphModuleScopeDotCore1Color(value) {
-  nodeGraphMvp.moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(value, "#ffa3a8");
+  nodeGraphMvp.moduleScopeDotCore1Color = normalizeNodeGraphModuleScopeDotCoreColor(value, "#ffffff");
   refreshNodeGraphModuleScopeGeneratedDot();
 }
 
@@ -385,7 +385,7 @@ function setNodeGraphModuleScopeDotCore2Brightness(value) {
 }
 
 function setNodeGraphModuleScopeDotCore2Color(value) {
-  nodeGraphMvp.moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(value, "#444444");
+  nodeGraphMvp.moduleScopeDotCore2Color = normalizeNodeGraphModuleScopeDotCoreColor(value, "#17002f");
   refreshNodeGraphModuleScopeGeneratedDot();
 }
 
