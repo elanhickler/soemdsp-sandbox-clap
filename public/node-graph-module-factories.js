@@ -11,6 +11,13 @@ function createNodeGraphPort(node, type, port, io) {
   return button;
 }
 
+function nodeGraphPortDisplayLabel(type, port, io) {
+  const labels = io === "output"
+    ? nodeGraphModuleDefinitions[type]?.outputLabels
+    : nodeGraphModuleDefinitions[type]?.inputLabels;
+  return labels?.[port] || port;
+}
+
 function createNodeGraphIoColumn(node, type, ports, io) {
   if (!ports?.length) {
     return null;
@@ -31,7 +38,7 @@ function createNodeGraphIoColumn(node, type, ports, io) {
     );
     const label = document.createElement("span");
     label.className = "node-io-label";
-    label.textContent = port;
+    label.textContent = nodeGraphPortDisplayLabel(type, port, io);
     if (io === "input") {
       row.append(createNodeGraphPort(node, type, port, io), label);
     } else {

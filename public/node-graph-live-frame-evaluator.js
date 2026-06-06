@@ -664,9 +664,14 @@ function nodeGraphClockSample(state, rate, duty, level, sampleRate, runtime = nu
   );
   const safeLevel = nodeGraphSafeFilterNumber(level, runtime, nodeId, null, "clock level");
   const phase = wrapNodeSliderValue(Number(state.phase) || 0, 0, 1);
-  const sample = phase < safeDuty ? safeLevel : 0;
+  const digital = phase < safeDuty ? safeLevel : 0;
+  const analog = Math.sin(phase * Math.PI * 2) * safeLevel;
   state.phase = wrapNodeSliderValue(phase + safeRate / Math.max(1, sampleRate), 0, 1);
-  return sample;
+  return {
+    "Analog Out": analog,
+    "Digital Out": digital,
+    Out: digital,
+  };
 }
 
 function nodeGraphRandomClockNextUnit(state, nodeId, seed) {

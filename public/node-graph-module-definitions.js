@@ -562,7 +562,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   clock: {
-    outputs: ["Out"],
+    outputAliases: {
+      Out: "Digital Out",
+    },
+    outputLabels: {
+      "Analog Out": "\u223F Analog Out",
+      "Digital Out": "\u25AE Digital Out",
+    },
+    outputs: ["Digital Out", "Analog Out"],
     parameters: [
       {
         defaultValue: "2",

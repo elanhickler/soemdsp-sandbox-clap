@@ -2485,9 +2485,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const safeDuty = this.clampValue(this.safeFilterNumber(duty, null), 0, 1);
     const safeLevel = this.safeFilterNumber(level, null);
     const phase = this.wrapValue(Number(state.phase) || 0, 0, 1);
-    const output = phase < safeDuty ? safeLevel : 0;
+    const digital = phase < safeDuty ? safeLevel : 0;
+    const analog = Math.sin(phase * Math.PI * 2) * safeLevel;
     state.phase = this.wrapValue(phase + safeRate / Math.max(1, rateHz), 0, 1);
-    return output;
+    return {
+      "Analog Out": analog,
+      "Digital Out": digital,
+      Out: digital,
+    };
   }
 
   randomClockNextUnit(state, nodeId, seed) {
