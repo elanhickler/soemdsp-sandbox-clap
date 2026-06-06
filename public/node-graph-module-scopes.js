@@ -1868,9 +1868,10 @@ function nodeGraphModuleScopeOfflineOutputAnalyzerBuffer(slot) {
     );
     const buffer = new Float32Array([mono + (left + right) * 0.5]);
     buffer.nodeGraphScopeAnalyzer = nodeGraphModuleScopeBufferStats(buffer);
+    buffer.nodeGraphScopeClassicOutputDecay = true;
     buffer.nodeGraphScopeDrawProgress = 1;
     buffer.nodeGraphScopeHoldPoint = true;
-    buffer.nodeGraphScopeHoldPointX = 0.5;
+    buffer.nodeGraphScopeHoldPointX = 1;
     buffer.nodeGraphScopeSourceFrequency = 0;
     buffer.nodeGraphScopeUseFullWindow = true;
     return buffer;
@@ -1933,9 +1934,10 @@ function nodeGraphModuleScopeCapturedOutputAnalyzerBuffer(slot, capturedBuffer =
     const buffer = new Float32Array([lastSample]);
     buffer.nodeGraphScopeAnalyzer = nodeGraphModuleScopeBufferStats(capturedBuffer);
     buffer.nodeGraphScopeCapturedOutput = true;
+    buffer.nodeGraphScopeClassicOutputDecay = true;
     buffer.nodeGraphScopeDrawProgress = 1;
     buffer.nodeGraphScopeHoldPoint = true;
-    buffer.nodeGraphScopeHoldPointX = 0.5;
+    buffer.nodeGraphScopeHoldPointX = 1;
     buffer.nodeGraphScopeUseFullWindow = true;
     return buffer;
   }
@@ -2339,14 +2341,15 @@ function createNodeGraphModuleScopeWebGlRenderer(canvas) {
     }
   `, `
     precision mediump float;
+    uniform sampler2D uTexture;
     uniform float uDecayFast;
     uniform float uDecaySlow;
     uniform float uFloorFade;
-    uniform sampler2D uTexture;
+    uniform vec2 uTexelOffset;
     uniform int uMode;
     varying vec2 vTexCoord;
     void main() {
-      vec4 color = texture2D(uTexture, vTexCoord);
+      vec4 color = texture2D(uTexture, vTexCoord + uTexelOffset);
       if (uMode == 1) {
         float energy = max(max(color.r, color.g), color.b);
         float bright = smoothstep(0.12, 0.86, energy);
@@ -2440,6 +2443,7 @@ function createNodeGraphModuleScopeWebGlRenderer(canvas) {
     texturePositionLocation: gl.getAttribLocation(textureProgram, "aPosition"),
     textureProgram,
     textureSamplerLocation: gl.getUniformLocation(textureProgram, "uTexture"),
+    textureTexelOffsetLocation: gl.getUniformLocation(textureProgram, "uTexelOffset"),
     textureTexCoordLocation: gl.getAttribLocation(textureProgram, "aTexCoord"),
   };
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -3356,7 +3360,7 @@ function drawNodeGraphModuleScopeSpectrumBarsWebGl(renderer, rect, buffer, pixel
   gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 2);
 }
 
-function drawNodeGraphModuleScopeTexturedQuad(renderer, texture, mode = 0, decay = {}) {
+function drawNodeGraphModuleScopeTexturedQuad(renderer, texture, mode = 0, decay = {}, quad = null) {
   const { canvas, gl } = renderer;
   gl.useProgram(renderer.textureProgram);
   gl.activeTexture(gl.TEXTURE0);
@@ -3369,18 +3373,48 @@ function drawNodeGraphModuleScopeTexturedQuad(renderer, texture, mode = 0, decay
   gl.uniform1f(renderer.textureDecayFastLocation, Number.isFinite(decayFast) ? decayFast : 0.94);
   gl.uniform1f(renderer.textureDecaySlowLocation, Number.isFinite(decaySlow) ? decaySlow : 0.985);
   gl.uniform1f(renderer.textureFloorFadeLocation, Number.isFinite(decayFloor) ? decayFloor : 0.004);
+  const texelOffset = Array.isArray(quad?.texelOffset) ? quad.texelOffset : [0, 0];
+  gl.uniform2f(
+    renderer.textureTexelOffsetLocation,
+    Number.isFinite(Number(texelOffset[0])) ? Number(texelOffset[0]) : 0,
+    Number.isFinite(Number(texelOffset[1])) ? Number(texelOffset[1]) : 0,
+  );
+  const vertices = Array.isArray(quad?.vertices) && quad.vertices.length >= 16
+    ? quad.vertices
+    : [
+      -1, -1, 0, 0,
+      1, -1, 1, 0,
+      -1, 1, 0, 1,
+      1, 1, 1, 1,
+    ];
   gl.bindBuffer(gl.ARRAY_BUFFER, renderer.quadBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-    -1, -1, 0, 0,
-    1, -1, 1, 0,
-    -1, 1, 0, 1,
-    1, 1, 1, 1,
-  ]), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
   gl.vertexAttribPointer(renderer.texturePositionLocation, 2, gl.FLOAT, false, 16, 0);
   gl.enableVertexAttribArray(renderer.texturePositionLocation);
   gl.vertexAttribPointer(renderer.textureTexCoordLocation, 2, gl.FLOAT, false, 16, 8);
   gl.enableVertexAttribArray(renderer.textureTexCoordLocation);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+function nodeGraphModuleScopeTextureQuadForRect(canvas, rect, pixelRatio = window.devicePixelRatio || 1) {
+  const left = Math.max(0, Math.floor((Number(rect?.left) || 0) * pixelRatio));
+  const top = Math.max(0, Math.floor((Number(rect?.top) || 0) * pixelRatio));
+  const right = Math.min(canvas.width, Math.ceil(left + Math.max(1, (Number(rect?.width) || 0) * pixelRatio)));
+  const bottom = Math.min(canvas.height, Math.ceil(top + Math.max(1, (Number(rect?.height) || 0) * pixelRatio)));
+  const clipLeft = (left / canvas.width) * 2 - 1;
+  const clipRight = (right / canvas.width) * 2 - 1;
+  const clipTop = 1 - (top / canvas.height) * 2;
+  const clipBottom = 1 - (bottom / canvas.height) * 2;
+  const texLeft = left / canvas.width;
+  const texRight = right / canvas.width;
+  const texTop = 1 - (top / canvas.height);
+  const texBottom = 1 - (bottom / canvas.height);
+  return [
+    clipLeft, clipBottom, texLeft, texBottom,
+    clipRight, clipBottom, texRight, texBottom,
+    clipLeft, clipTop, texLeft, texTop,
+    clipRight, clipTop, texRight, texTop,
+  ];
 }
 
 function nodeGraphModuleScopeScissorRect(gl, canvas, rect, pixelRatio = window.devicePixelRatio || 1) {
@@ -3412,6 +3446,7 @@ function nodeGraphModuleScopeDecayRegions(items) {
     .filter((item) => nodeGraphModuleScopeShouldDecaySlot(item.slot, item.buffer, item.settings))
     .map((item) => ({
       rect: item.scopeRect,
+      scrollPixels: item.buffer?.nodeGraphScopeClassicOutputDecay ? 1 : 0,
       settings: item.settings,
     }));
 }
@@ -3447,12 +3482,34 @@ function drawNodeGraphModuleScopePhosphorFade(renderer, settings = nodeGraphModu
       gl.enable(gl.SCISSOR_TEST);
       for (const region of regions) {
         nodeGraphModuleScopeScissorRect(gl, canvas, region.rect, pixelRatio);
+        const scrollPixels = Math.max(0, Number(region.scrollPixels) || 0) * pixelRatio;
         drawNodeGraphModuleScopeTexturedQuad(
           renderer,
           read.texture,
           1,
           nodeGraphModuleScopeBurnDecaySettings(region.settings),
+          scrollPixels > 0
+            ? {
+              texelOffset: [scrollPixels / canvas.width, 0],
+              vertices: nodeGraphModuleScopeTextureQuadForRect(canvas, region.rect, pixelRatio),
+            }
+            : null,
         );
+        if (scrollPixels > 0) {
+          const rect = region.rect || {};
+          const right = Math.floor(((Number(rect.left) || 0) + (Number(rect.width) || 0)) * pixelRatio);
+          const top = Math.max(0, Math.floor((Number(rect.top) || 0) * pixelRatio));
+          const bottom = Math.min(canvas.height, Math.ceil(top + Math.max(1, (Number(rect.height) || 0) * pixelRatio)));
+          const stripWidth = Math.max(1, Math.ceil(scrollPixels + nodeGraphModuleScopeDotSizeScale() * pixelRatio));
+          gl.scissor(
+            Math.max(0, Math.min(canvas.width - 1, right - stripWidth)),
+            Math.max(0, canvas.height - bottom),
+            Math.max(1, Math.min(stripWidth, canvas.width)),
+            Math.max(1, bottom - top),
+          );
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+        }
       }
       gl.disable(gl.SCISSOR_TEST);
     }

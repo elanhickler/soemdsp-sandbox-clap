@@ -9080,7 +9080,8 @@ def require_node_graph_mvp_contract() -> None:
         "Math.ceil((sampleWidth * drawSpan * overdrawPoints) / minPointSpacingPx)",
         "buffer?.nodeGraphScopeHoldPoint === true",
         "buffer.nodeGraphScopeHoldPoint = true",
-        "buffer.nodeGraphScopeHoldPointX = 0.5",
+        "buffer.nodeGraphScopeHoldPointX = 1",
+        "buffer.nodeGraphScopeClassicOutputDecay = true",
         "pointIndex / Math.max(1, pointCount - 1)",
         "view.start + progress * Math.max(0, visibleSamples - 1)",
         "sampleWidth: nodeGraphModuleScopeUnzoomedLength(rect.width, zoomScale)",
@@ -9107,6 +9108,10 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphMvp.moduleOscilloscopesVisible === false",
         "function scheduleNodeGraphModuleScopeDraw()",
         "function createNodeGraphModuleScopeWebGlRenderer(canvas)",
+        "textureTexelOffsetLocation",
+        "uniform vec2 uTexelOffset",
+        "vTexCoord + uTexelOffset",
+        "function nodeGraphModuleScopeTextureQuadForRect(canvas, rect, pixelRatio = window.devicePixelRatio || 1)",
         "const nodeGraphModuleScopeUnipolarTypes = new Set([",
         "\"vactrolEnvelope\"",
         "compositeNodeGraphModuleScopePhosphor(renderer);\n  drawNodeGraphModuleScopeLightDisplays(visibleItems, pixelRatio);\n  gl.bindFramebuffer(gl.FRAMEBUFFER, null)",
@@ -9753,6 +9758,13 @@ def require_node_graph_mvp_contract() -> None:
     require(
         "drawNodeGraphModuleScopeTexturedQuad(renderer, read.texture, 0);" not in region_branch_source,
         "region-scoped phosphor fade should not preserve the full screen-space phosphor texture",
+    )
+    require(
+        "scrollPixels / canvas.width" in region_branch_source
+        and "vertices: nodeGraphModuleScopeTextureQuadForRect(canvas, region.rect, pixelRatio)" in region_branch_source
+        and "gl.clear(gl.COLOR_BUFFER_BIT);" in region_branch_source
+        and "region.scrollPixels" in node_graph_source,
+        "output scope decay mode should scroll old phosphor pixels left, clear the right strip, and draw new samples on the right edge",
     )
 
     clear_scope_source = node_graph_source[
