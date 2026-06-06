@@ -3466,6 +3466,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       const resetFrame = Number.isFinite(state.resetFrame) ? state.resetFrame : 0;
       return this.wrapValue(((currentFrame - resetFrame) / safeRate) * rateValue + phaseValue, 0, 1);
     };
+    const graphOutputValue = (node, nodeId) => {
+      const normalizedValue = this.graphValueAt(node.graph, graphSampleX(node, nodeId));
+      const outputMin = this.readEffectiveParameter(node, "outputMin", 0, frame, frames, frameValues);
+      const outputMax = this.readEffectiveParameter(node, "outputMax", 1, frame, frames, frameValues);
+      return outputMin + normalizedValue * (outputMax - outputMin);
+    };
 
     for (const nodeId of this.order) {
       const node = this.nodes.get(nodeId);
@@ -3895,7 +3901,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "codeblock") {
         value = this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame);
       } else if (node?.type === "graph") {
-        value = this.graphValueAt(node.graph, graphSampleX(node, nodeId));
+        value = graphOutputValue(node, nodeId);
       } else if (node?.type === "bias") {
         value = mixInput(nodeId) +
           this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);

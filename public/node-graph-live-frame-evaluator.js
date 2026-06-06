@@ -1535,6 +1535,12 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const resetFrame = Number.isFinite(state.resetFrame) ? state.resetFrame : 0;
     return wrapNodeSliderValue(((absoluteFrame - resetFrame) / safeRate) * rate + phase, 0, 1);
   };
+  const graphOutputValue = (node, nodeId) => {
+    const normalizedValue = nodeGraphGraphValueAt(node.graph, graphSampleX(node, nodeId));
+    const outputMin = readNodeGraphLiveEffectiveParam(runtime, node, "outputMin", 0, frame, frames, frameValues);
+    const outputMax = readNodeGraphLiveEffectiveParam(runtime, node, "outputMax", 1, frame, frames, frameValues);
+    return outputMin + normalizedValue * (outputMax - outputMin);
+  };
 
   for (const nodeId of runtime.order || []) {
     const node = runtime.nodes.get(nodeId);
@@ -2101,7 +2107,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     } else if (node?.type === "codeblock") {
       value = nodeGraphEvaluateCodeblock(runtime, node, mixInput, sampleRate, frame, frames);
     } else if (node?.type === "graph") {
-      value = nodeGraphGraphValueAt(node.graph, graphSampleX(node, nodeId));
+      value = graphOutputValue(node, nodeId);
     } else if (node?.type === "bias") {
       value = mixInput(nodeId) + readNodeGraphLiveEffectiveParam(
         runtime,
