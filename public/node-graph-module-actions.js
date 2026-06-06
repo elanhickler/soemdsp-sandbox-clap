@@ -479,14 +479,16 @@ function addNodeGraphModuleToUiFromContext() {
     id = `${idBase}-${suffix}`;
     suffix += 1;
   }
+  const type = nodeGraphUiItemTypeForNode(sourceNode);
   uiItems.push({
-    h: 44,
+    h: type === "graphEditor" ? 260 : 44,
     id,
     label: nodeGraphPatchNodeTitle(sourceNode),
     sourceNodeId: sourceNode.id,
-    w: 132,
+    type,
+    w: type === "graphEditor" ? 460 : 132,
     x: 24 + ((nextIndex - 1) % 4) * 156,
-    y: 24 + Math.floor((nextIndex - 1) / 4) * 68,
+    y: 24 + Math.floor((nextIndex - 1) / 4) * (type === "graphEditor" ? 284 : 68),
   });
   patch.uiItems = uiItems;
   commitNodeGraphPatch(patch, { status: "module added to ui view" });

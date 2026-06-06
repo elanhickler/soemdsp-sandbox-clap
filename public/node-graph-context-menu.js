@@ -404,7 +404,7 @@ function configureNodeSceneContextMenu(mode) {
   copyButton.hidden = !moduleMode;
   addToGroupButton.hidden = !moduleMode;
   if (addToUiButton) {
-    addToUiButton.hidden = true;
+    addToUiButton.hidden = !(moduleMode && targetNode?.type === "graph");
   }
   deleteButton.hidden = !(moduleMode || wireMode);
   selectedModule.hidden = !(moduleMode || wireMode);
@@ -448,9 +448,14 @@ function configureNodeSceneContextMenu(mode) {
       ? "Save the selected circuit as a reusable group preset."
       : "Select one or more modules to save a group.";
     if (addToUiButton) {
-      addToUiButton.disabled = true;
-      addToUiButton.querySelector("span").textContent = "";
-      addToUiButton.title = "";
+      const canAddToUi = targetNode?.type === "graph";
+      const uiItems = normalizeNodeGraphPatchUiItems(nodeGraphMvp.patch.uiItems);
+      const alreadyAddedToUi = canAddToUi && uiItems.some((item) => item.sourceNodeId === targetNode.id);
+      addToUiButton.disabled = !canAddToUi;
+      addToUiButton.querySelector("span").textContent = alreadyAddedToUi ? "Open UI Graph" : "Add Graph UI";
+      addToUiButton.title = alreadyAddedToUi
+        ? "Open this graph's UI editor."
+        : "Add this graph as a large editor in the UI view.";
     }
     deleteButton.disabled = !canDelete;
     deleteButton.title = canDelete

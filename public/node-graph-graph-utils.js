@@ -571,6 +571,26 @@ function syncNodeGraphGraphElement(moduleElement, patchNode) {
   );
 }
 
+function nodeGraphGraphNodeIdFromDisplay(display) {
+  return display?.closest?.(".dsp-node")?.dataset?.node || display?.dataset?.graphNode || "";
+}
+
+function syncNodeGraphGraphDisplaysForNode(nodeId, patchNode) {
+  const id = String(nodeId || patchNode?.id || "").trim();
+  if (!id) {
+    return;
+  }
+  const graph = normalizeNodeGraphGraph(patchNode?.graph);
+  const selectedIndex = nodeGraphGraphSelectedNodeIndex(id, graph, 0);
+  document
+    .querySelectorAll(".node-module-graph-display")
+    .forEach((display) => {
+      if (nodeGraphGraphNodeIdFromDisplay(display) === id) {
+        renderNodeGraphGraphDisplay(display, graph, selectedIndex);
+      }
+    });
+}
+
 function nodeGraphGraphDisplayFromEventTarget(target) {
   return target?.closest?.(".node-module-graph-display") || null;
 }
@@ -599,13 +619,12 @@ function beginNodeGraphGraphNodeDrag(event) {
     addNodeGraphGraphNodeFromDisplayEvent(event);
     return;
   }
-  const moduleElement = circle.closest(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const display = nodeGraphGraphDisplayFromEventTarget(circle);
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const patchNode = nodeGraphPatchNode(nodeId);
   if (!patchNode || patchNode.type !== "graph") {
     return;
   }
-  const display = nodeGraphGraphDisplayFromEventTarget(circle);
   const svg = circle.closest(".node-module-graph-svg");
   const graph = normalizeNodeGraphGraph(patchNode.graph);
   const index = nodeGraphGraphNodeIndexFromValue(graph, circle.dataset.graphNodeIndex);
@@ -625,13 +644,12 @@ function beginNodeGraphGraphNodeDrag(event) {
 }
 
 function beginNodeGraphGraphCursorDrag(event, cursorElement) {
-  const moduleElement = cursorElement.closest(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const display = nodeGraphGraphDisplayFromEventTarget(cursorElement);
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const patchNode = nodeGraphPatchNode(nodeId);
   if (!patchNode || patchNode.type !== "graph") {
     return;
   }
-  const display = nodeGraphGraphDisplayFromEventTarget(cursorElement);
   const svg = cursorElement.closest(".node-module-graph-svg");
   const graph = normalizeNodeGraphGraph(patchNode.graph);
   display?.focus?.({ preventScroll: true });
@@ -650,13 +668,12 @@ function beginNodeGraphGraphCursorDrag(event, cursorElement) {
 }
 
 function beginNodeGraphGraphContourDrag(event, contour) {
-  const moduleElement = contour.closest(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const display = nodeGraphGraphDisplayFromEventTarget(contour);
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const patchNode = nodeGraphPatchNode(nodeId);
   if (!patchNode || patchNode.type !== "graph") {
     return;
   }
-  const display = nodeGraphGraphDisplayFromEventTarget(contour);
   const svg = contour.closest(".node-module-graph-svg");
   const graph = normalizeNodeGraphGraph(patchNode.graph);
   const index = nodeGraphGraphNodeIndexFromValue(graph, contour.dataset.graphContourIndex);
@@ -682,8 +699,7 @@ function addNodeGraphGraphNodeFromDisplayEvent(event) {
     return;
   }
   const display = nodeGraphGraphDisplayFromEventTarget(event.target);
-  const moduleElement = display?.closest(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const patchNode = nodeGraphPatchNode(nodeId);
   if (!display || !patchNode || patchNode.type !== "graph") {
     return;
@@ -702,7 +718,7 @@ function addNodeGraphGraphNodeFromDisplayEvent(event) {
   targetNode.graph = addition.graph;
   commitNodeGraphPatch(patch, { status: "graph node added" });
   setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, addition.selectedIndex);
-  syncNodeGraphGraphElement(nodeGraphNodeElement(nodeId), targetNode);
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
   syncNodeGraphGraphControls(targetNode.graph, addition.selectedIndex);
   event.preventDefault();
   event.stopPropagation();
@@ -710,8 +726,7 @@ function addNodeGraphGraphNodeFromDisplayEvent(event) {
 
 function cycleNodeGraphGraphShapeFromDisplayEvent(event, shapeBadge) {
   const display = nodeGraphGraphDisplayFromEventTarget(shapeBadge);
-  const moduleElement = display?.closest(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!display || !sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -727,6 +742,7 @@ function cycleNodeGraphGraphShapeFromDisplayEvent(event, shapeBadge) {
   display?.focus?.({ preventScroll: true });
   setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, shape.selectedIndex);
   commitNodeGraphPatch(patch, { status: "graph curve shape changed" });
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
   syncNodeGraphGraphControls(targetNode.graph, shape.selectedIndex);
   event?.preventDefault?.();
   event?.stopPropagation?.();
@@ -809,6 +825,7 @@ function endNodeGraphGraphNodeDrag(event) {
     commitNodeGraphPatch(patch, { status });
     const selectedIndex = nodeGraphGraphSelectedNodeIndex(drag.nodeId, targetNode.graph, drag.index ?? 0);
     setNodeGraphGraphSelectedNodeIndex(drag.nodeId, targetNode.graph, selectedIndex);
+    syncNodeGraphGraphDisplaysForNode(drag.nodeId, targetNode);
     syncNodeGraphGraphControls(targetNode.graph, selectedIndex);
   }
   event.preventDefault();
@@ -816,8 +833,7 @@ function endNodeGraphGraphNodeDrag(event) {
 }
 
 function removeSelectedNodeGraphGraphNodeFromDisplay(display) {
-  const moduleElement = display?.closest?.(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!display || !sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -836,6 +852,7 @@ function removeSelectedNodeGraphGraphNodeFromDisplay(display) {
   targetNode.graph = graph;
   const nextIndex = setNodeGraphGraphSelectedNodeIndex(nodeId, graph, Math.max(0, selectedIndex - 1));
   commitNodeGraphPatch(patch, { status: "graph node removed" });
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
   syncNodeGraphGraphControls(targetNode.graph, nextIndex);
   return true;
 }
@@ -848,8 +865,7 @@ function removeFocusedNodeGraphGraphNode() {
 
 function addFocusedNodeGraphGraphNode() {
   const display = document.activeElement?.closest?.(".node-module-graph-display");
-  const moduleElement = display?.closest?.(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!display || !sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -866,7 +882,7 @@ function addFocusedNodeGraphGraphNode() {
   targetNode.graph = addition.graph;
   commitNodeGraphPatch(patch, { status: "graph node added" });
   setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, addition.selectedIndex);
-  syncNodeGraphGraphElement(moduleElement, targetNode);
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
   if (nodeGraphModuleActionTargetNodeId() === nodeId) {
     syncNodeGraphGraphControls(targetNode.graph, addition.selectedIndex);
   }
@@ -876,8 +892,7 @@ function addFocusedNodeGraphGraphNode() {
 
 function duplicateFocusedNodeGraphGraphNode() {
   const display = document.activeElement?.closest?.(".node-module-graph-display");
-  const moduleElement = display?.closest?.(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!display || !sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -896,7 +911,7 @@ function duplicateFocusedNodeGraphGraphNode() {
   targetNode.graph = duplicate.graph;
   commitNodeGraphPatch(patch, { status: "graph node duplicated" });
   setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, duplicate.selectedIndex);
-  syncNodeGraphGraphElement(moduleElement, targetNode);
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
   if (nodeGraphModuleActionTargetNodeId() === nodeId) {
     syncNodeGraphGraphControls(targetNode.graph, duplicate.selectedIndex);
   }
@@ -906,8 +921,7 @@ function duplicateFocusedNodeGraphGraphNode() {
 
 function cycleFocusedNodeGraphGraphShape() {
   const display = document.activeElement?.closest?.(".node-module-graph-display");
-  const moduleElement = display?.closest?.(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!display || !sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -923,7 +937,7 @@ function cycleFocusedNodeGraphGraphShape() {
   targetNode.graph = shape.graph;
   commitNodeGraphPatch(patch, { status: "graph curve shape changed" });
   setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, shape.selectedIndex);
-  syncNodeGraphGraphElement(moduleElement, targetNode);
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
   if (nodeGraphModuleActionTargetNodeId() === nodeId) {
     syncNodeGraphGraphControls(targetNode.graph, shape.selectedIndex);
   }
@@ -933,8 +947,7 @@ function cycleFocusedNodeGraphGraphShape() {
 
 function selectFocusedNodeGraphGraphNodeOffset(offset) {
   const display = document.activeElement?.closest?.(".node-module-graph-display");
-  const moduleElement = display?.closest?.(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!display || !sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -943,7 +956,7 @@ function selectFocusedNodeGraphGraphNodeOffset(offset) {
   const selectedIndex = nodeGraphGraphSelectedNodeIndex(nodeId, graph, graph.nodes.length - 1);
   const nextIndex = nodeGraphGraphNodeIndexFromValue(graph, selectedIndex + Number(offset || 0));
   setNodeGraphGraphSelectedNodeIndex(nodeId, graph, nextIndex);
-  syncNodeGraphGraphElement(moduleElement, sourceNode);
+  syncNodeGraphGraphDisplaysForNode(nodeId, sourceNode);
   if (nodeGraphModuleActionTargetNodeId() === nodeId) {
     syncNodeGraphGraphControls(graph, nextIndex);
   }
@@ -963,8 +976,7 @@ function nudgeFocusedNodeGraphGraphNode(event) {
   if (!display || !move || event.ctrlKey || event.metaKey) {
     return false;
   }
-  const moduleElement = display.closest(".dsp-node");
-  const nodeId = moduleElement?.dataset.node || "";
+  const nodeId = nodeGraphGraphNodeIdFromDisplay(display);
   const sourceNode = nodeGraphPatchNode(nodeId);
   if (!sourceNode || sourceNode.type !== "graph") {
     return false;
@@ -988,6 +1000,9 @@ function nudgeFocusedNodeGraphGraphNode(event) {
   targetNode.graph = normalizeNodeGraphGraph(graph);
   setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, index);
   commitNodeGraphPatch(patch, { status: "graph node nudged" });
-  syncNodeGraphGraphControls(targetNode.graph, index);
+  syncNodeGraphGraphDisplaysForNode(nodeId, targetNode);
+  if (nodeGraphModuleActionTargetNodeId() === nodeId) {
+    syncNodeGraphGraphControls(targetNode.graph, index);
+  }
   return true;
 }

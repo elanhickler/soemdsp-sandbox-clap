@@ -262,12 +262,14 @@ function normalizeNodeGraphPatchUiItems(uiItems = [], options = {}) {
       const w = Math.round(Number(source.w));
       const h = Math.round(Number(source.h));
       const label = nodeGraphOneLineText(source.label).slice(0, 64) || sourceNodeId || id;
+      const type = ["graphEditor", "moduleControl"].includes(source.type) ? source.type : "moduleControl";
       return {
-        h: Number.isFinite(h) ? Math.max(28, Math.min(240, h)) : 44,
+        h: Number.isFinite(h) ? Math.max(28, Math.min(420, h)) : type === "graphEditor" ? 260 : 44,
         id,
         label,
         sourceNodeId,
-        w: Number.isFinite(w) ? Math.max(64, Math.min(360, w)) : 132,
+        type,
+        w: Number.isFinite(w) ? Math.max(64, Math.min(720, w)) : type === "graphEditor" ? 460 : 132,
         x: Number.isFinite(x) ? Math.max(0, Math.min(2000, x)) : 24,
         y: Number.isFinite(y) ? Math.max(0, Math.min(2000, y)) : 24,
       };

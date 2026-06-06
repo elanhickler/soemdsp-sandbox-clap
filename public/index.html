@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=editable-graph-point-stepper-1">
+  <link rel="stylesheet" href="./public/styles.css?v=graph-ui-editor-1">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="Loading interface">
@@ -102,6 +102,10 @@
             id="nodeCodeScreenViewButton"
             type="button"
             aria-pressed="false"><span>Code</span><span>Screen</span></button>
+          <button
+            id="nodeUiViewButton"
+            type="button"
+            aria-pressed="false"><span>UI</span><span>View</span></button>
           <button
             id="nodeVideoViewButton"
             type="button"
@@ -242,6 +246,21 @@
           aria-label="Resize modular workspace"
           data-tooltip-key="workspace.resizeTitle"></button>
       </div>
+
+      <section
+        id="nodeUiView"
+        class="node-ui-view"
+        aria-label="Patch UI view"
+        hidden>
+        <div class="node-ui-view-heading">
+          <div>
+            <span>UI View</span>
+            <strong>Patch Control Surface</strong>
+          </div>
+          <span id="nodeUiViewStatus" class="pill">0 UI items</span>
+        </div>
+        <div id="nodeUiViewStage" class="node-ui-view-stage" aria-label="Patch UI item stage"></div>
+      </section>
 
       <section
         id="nodeVideoViewPanel"
@@ -1640,6 +1659,9 @@
         <button id="nodeSceneAddToGroup" type="button" role="menuitem" hidden>
           <span>Add to group</span>
         </button>
+        <button id="nodeSceneAddToUi" type="button" role="menuitem" hidden>
+          <span>Add Graph UI</span>
+        </button>
         <div id="nodeSceneWireTypeControl" class="scene-context-wire-type-control" hidden>
           <span>wire type</span>
           <div>
@@ -2709,9 +2731,10 @@
   <script src="./public/node-graph-metadata-defaults.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-text-box-utils.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-image-utils.js?v=image-trace-texture-1780644000000"></script>
-  <script src="./public/node-graph-graph-utils.js?v=editable-graph-select-key-1"></script>
+  <script src="./public/node-graph-graph-utils.js?v=graph-ui-editor-1"></script>
   <script src="./public/node-graph-text-box-rendering.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-patch-normalizers.js?v=scope-global-dot-color-1"></script>
+  <script src="./public/node-graph-ui-view.js?v=graph-ui-editor-1"></script>
   <script src="./public/node-graph-audio-derivation.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-grid-utils.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-patch-runtime.js?v=additive-osc-source-1"></script>
@@ -2722,7 +2745,7 @@
   <script src="./public/node-graph-settings-text-fit.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-default-preset.js?v=camera-output-wires-1780801800000"></script>
   <script src="./public/node-graph-script-status.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-view-controls.js?v=scope-dot-texture-options-1"></script>
+  <script src="./public/node-graph-view-controls.js?v=graph-ui-editor-1"></script>
   <script src="./public/node-graph-workspace-geometry.js?v=workspace-zoom-50x-1780700000012"></script>
   <script src="./public/node-graph-workspace-zoom.js?v=slider-zoom-geometry-1780615800000"></script>
   <script src="./public/node-graph-workspace-view.js?v=scope-pause-visual-1780658400000"></script>
@@ -2730,8 +2753,8 @@
   <script src="./public/node-graph-clap-host.js?v=clap-diagnostics-1"></script>
   <script src="./public/node-graph-marquee-selection.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-node-dragging.js?v=led-body-drag-1"></script>
-  <script src="./public/node-graph-context-menu.js?v=editable-graph-point-stepper-1"></script>
-  <script src="./public/node-graph-module-actions.js?v=editable-graph-point-stepper-1"></script>
+  <script src="./public/node-graph-context-menu.js?v=graph-ui-editor-1"></script>
+  <script src="./public/node-graph-module-actions.js?v=graph-ui-editor-1"></script>
   <script src="./public/node-graph-code-screen.js?v=code-screen-1"></script>
   <script src="./public/node-graph-module-scopes.js?v=scope-1d-full-width-1"></script>
   <script src="./public/node-graph-shader-script.js?v=led-scope-shader-rects-1"></script>
@@ -2795,9 +2818,9 @@
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=node-graph-wire-controller-bootstrap-refactor-1780364400000"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=constraint-overlay-toggles-1"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=scope-frequency-reset-match-1780622400000"></script>
-  <script src="./public/node-graph-header-event-bindings.js?v=scope-overdraw-points-1"></script>
+  <script src="./public/node-graph-header-event-bindings.js?v=graph-ui-editor-1"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=node-graph-help-event-bindings-refactor-1780369200000"></script>
-  <script src="./public/node-graph-scene-menu-event-bindings.js?v=editable-graph-point-stepper-1"></script>
+  <script src="./public/node-graph-scene-menu-event-bindings.js?v=graph-ui-editor-1"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-settings-event-bindings.js?v=metadata-popover-bind-1"></script>
   <script src="./public/node-graph-slider-event-bindings.js?v=node-graph-slider-event-bindings-refactor-1780369200000"></script>

@@ -162,6 +162,9 @@ function bindNodeGraphHeaderControlEvents() {
     .getElementById("nodeCodeScreenViewButton")
     .addEventListener("click", () => setNodeGraphViewMode("code"));
   document
+    .getElementById("nodeUiViewButton")
+    .addEventListener("click", () => setNodeGraphViewMode("ui"));
+  document
     .getElementById("nodeModuleShopButton")
     .addEventListener("click", () => {
       const shopVisible =

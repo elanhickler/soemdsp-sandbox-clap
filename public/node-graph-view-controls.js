@@ -1544,10 +1544,10 @@ function setNodeGraphViewMode(mode) {
   const shopLandingMode = shopMode && !departmentMode;
   const scriptMode = mode === "script";
   const codeMode = mode === "code";
-  const uiMode = false;
+  const uiMode = mode === "ui";
   const mappingMode = mode === "mapping";
   const modularOnlyMode = mode === "modular-only";
-  const modularMode = modularOnlyMode || (!settingsMode && !shopMode && !scriptMode && !codeMode && !mappingMode);
+  const modularMode = modularOnlyMode || (!settingsMode && !shopMode && !scriptMode && !codeMode && !uiMode && !mappingMode);
   const workspaceMode = modularMode;
   if (!shopLandingMode) {
     closeNodeGraphModuleCollectionsMenu();
@@ -1563,6 +1563,7 @@ function setNodeGraphViewMode(mode) {
   document.getElementById("nodeModuleDepartmentView").hidden = !departmentMode;
   document.getElementById("nodeScriptView").hidden = !scriptMode;
   document.getElementById("nodeCodeScreenView").hidden = !codeMode;
+  document.getElementById("nodeUiView").hidden = !uiMode;
   document.getElementById("nodeMappingView").hidden = !mappingMode;
   document.getElementById("nodeSettingsView").hidden = !settingsMode;
   renderNodeGraphMidiKeyboardToggle();
@@ -1574,6 +1575,7 @@ function setNodeGraphViewMode(mode) {
   document.getElementById("nodeModularOnlyViewButton").classList.toggle("active", modularOnlyMode);
   document.getElementById("nodeMappingViewButton").classList.toggle("active", mappingMode);
   document.getElementById("nodeCodeScreenViewButton").classList.toggle("active", codeMode);
+  document.getElementById("nodeUiViewButton").classList.toggle("active", uiMode);
   document.getElementById("nodeSettingsScriptViewButton").classList.toggle("active", scriptMode);
   document.getElementById("nodeSettingsViewButton").setAttribute("aria-pressed", String(settingsMode));
   document.getElementById("nodeModularViewButton").setAttribute("aria-pressed", String(modularMode && !modularOnlyMode));
@@ -1581,11 +1583,14 @@ function setNodeGraphViewMode(mode) {
   document.getElementById("nodeModularOnlyViewButton").setAttribute("aria-pressed", String(modularOnlyMode));
   document.getElementById("nodeMappingViewButton").setAttribute("aria-pressed", String(mappingMode));
   document.getElementById("nodeCodeScreenViewButton").setAttribute("aria-pressed", String(codeMode));
+  document.getElementById("nodeUiViewButton").setAttribute("aria-pressed", String(uiMode));
   document.getElementById("nodeSettingsScriptViewButton").setAttribute("aria-pressed", String(scriptMode));
   if (scriptMode) {
     syncNodeGraphScriptView();
   } else if (codeMode) {
     renderNodeGraphCodeScreen();
+  } else if (uiMode) {
+    renderNodeGraphUiView();
   } else if (settingsMode) {
     syncNodeGraphSettingsView();
     scheduleNodeSettingsHeaderTextFit();
