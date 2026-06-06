@@ -9,13 +9,17 @@ function nodeGraphBuildLivePlan() {
   const activeNodeIds = nodeGraphActiveNodeIds(compiled);
   const activeSignalConnections = nodeGraphActiveSignalConnections(compiled)
     .map((connection) => ({ ...connection }));
+  const activeGraphConnections = nodeGraphActiveGraphConnections(compiled)
+    .map((connection) => ({ ...connection }));
   const activeModulations = nodeGraphActiveModulations(compiled)
     .map((modulation) => ({ ...modulation }));
 
   return {
     connections: activeSignalConnections,
     feedbackConnections: compiled.feedbackConnections.map((connection) => ({ ...connection })),
+    feedbackGraphConnections: (compiled.feedbackGraphConnections || []).map((connection) => ({ ...connection })),
     feedbackModulations: compiled.feedbackModulations.map((modulation) => ({ ...modulation })),
+    graphConnections: activeGraphConnections,
     modulations: activeModulations,
     nodes: nodeGraphBuildLiveParameterNodes(activeNodeIds),
     order: [...compiled.order],
@@ -42,7 +46,9 @@ function nodeGraphBuildLivePlanForPatch(patch) {
   return {
     connections: nodeGraphActiveSignalConnections(compiled).map((connection) => ({ ...connection })),
     feedbackConnections: compiled.feedbackConnections.map((connection) => ({ ...connection })),
+    feedbackGraphConnections: (compiled.feedbackGraphConnections || []).map((connection) => ({ ...connection })),
     feedbackModulations: compiled.feedbackModulations.map((modulation) => ({ ...modulation })),
+    graphConnections: nodeGraphActiveGraphConnections(compiled).map((connection) => ({ ...connection })),
     modulations: nodeGraphActiveModulations(compiled).map((modulation) => ({ ...modulation })),
     nodes: nodeGraphBuildLiveParameterNodesForPatch(normalizedPatch, activeNodeIds),
     order: [...compiled.order],
@@ -168,22 +174,43 @@ function nodeGraphBuildLiveParameterNodesForPatch(patch, activeNodeIds = null) {
     });
 }
 
+function nodeGraphConnectionMapFromList(items = [], keyForItem) {
+  const map = new Map();
+  for (const item of items || []) {
+    const key = keyForItem(item);
+    const list = map.get(key) || [];
+    list.push(item);
+    map.set(key, list);
+  }
+  return map;
+}
+
+function nodeGraphLiveInputConnectionMap(plan) {
+  return nodeGraphConnectionMapFromList(
+    plan?.connections || [],
+    (connection) => nodeGraphInputKey(connection.destinationNode, connection.destinationPort),
+  );
+}
+
+function nodeGraphLiveGraphInputConnectionMap(plan) {
+  return nodeGraphConnectionMapFromList(
+    plan?.graphConnections || [],
+    (connection) => nodeGraphGraphInputKey(connection.destinationNode, connection.destinationGraphInput),
+  );
+}
+
+function nodeGraphLiveModulationConnectionMap(plan) {
+  return nodeGraphConnectionMapFromList(
+    plan?.modulations || [],
+    (modulation) => nodeGraphParameterKey(modulation.destinationNode, modulation.destinationParam),
+  );
+}
+
 function createNodeGraphLiveRuntime(plan) {
   const nodes = new Map((plan.nodes || []).map((node) => [node.id, node]));
-  const inputConnections = new Map();
-  for (const connection of plan.connections || []) {
-    const key = `${connection.destinationNode}.${connection.destinationPort}`;
-    const connections = inputConnections.get(key) || [];
-    connections.push(connection);
-    inputConnections.set(key, connections);
-  }
-  const modulationConnections = new Map();
-  for (const modulation of plan.modulations || []) {
-    const key = nodeGraphParameterKey(modulation.destinationNode, modulation.destinationParam);
-    const modulations = modulationConnections.get(key) || [];
-    modulations.push(modulation);
-    modulationConnections.set(key, modulations);
-  }
+  const inputConnections = nodeGraphLiveInputConnectionMap(plan);
+  const graphInputConnections = nodeGraphLiveGraphInputConnectionMap(plan);
+  const modulationConnections = nodeGraphLiveModulationConnectionMap(plan);
   const phases = new Map();
   const noiseSeedKeys = new Map();
   const noiseSeeds = new Map();
@@ -334,6 +361,7 @@ function createNodeGraphLiveRuntime(plan) {
     expAdsrStates,
     fractalBrownianNoiseStates,
     flowerChildEnvelopeFollowerStates,
+    graphInputConnections,
     graphLfoStates,
     ladderFilterStates,
     linearEnvelopeStates,
@@ -387,20 +415,9 @@ function createNodeGraphLiveRuntime(plan) {
 
 function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   runtime.nodes = new Map((plan.nodes || []).map((node) => [node.id, node]));
-  runtime.inputConnections = new Map();
-  for (const connection of plan.connections || []) {
-    const key = `${connection.destinationNode}.${connection.destinationPort}`;
-    const connections = runtime.inputConnections.get(key) || [];
-    connections.push(connection);
-    runtime.inputConnections.set(key, connections);
-  }
-  runtime.modulationConnections = new Map();
-  for (const modulation of plan.modulations || []) {
-    const key = nodeGraphParameterKey(modulation.destinationNode, modulation.destinationParam);
-    const modulations = runtime.modulationConnections.get(key) || [];
-    modulations.push(modulation);
-    runtime.modulationConnections.set(key, modulations);
-  }
+  runtime.inputConnections = nodeGraphLiveInputConnectionMap(plan);
+  runtime.graphInputConnections = nodeGraphLiveGraphInputConnectionMap(plan);
+  runtime.modulationConnections = nodeGraphLiveModulationConnectionMap(plan);
   runtime.order = [...(plan.order || [])];
   runtime.outputNode = plan.outputNode || "output";
   runtime.visualSinks = (plan.visualSinks || []).map((sink) => ({

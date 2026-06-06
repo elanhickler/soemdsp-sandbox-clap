@@ -89,6 +89,10 @@ function markNodeGraphWireEndpointsConnected(wire, destinationIo = "input") {
   nodeGraphNodeElement(wire.sourceNode)?.classList.add("connected");
   nodeGraphNodeElement(wire.destinationNode)?.classList.add("connected");
   markNodeGraphPortConnected(wire.sourceNode, wire.sourcePort, "output");
+  if (destinationIo === "graph") {
+    markNodeGraphGraphInputPortConnected(wire.destinationNode, wire.destinationGraphInput);
+    return;
+  }
   if (destinationIo === "modulation") {
     markNodeGraphModulationPortConnected(wire.destinationNode, wire.destinationParam);
     return;
@@ -181,6 +185,50 @@ function nodeGraphDrawModulationWire(svg, modulation, index, context) {
   markNodeGraphWireEndpointsConnected(modulation, "modulation");
 }
 
+function nodeGraphDrawGraphWire(svg, connection, index, context) {
+  if (!nodeGraphWireEndpointsAreRenderable(connection)) {
+    return;
+  }
+  const from = nodeGraphPortCenter(connection.sourceNode, connection.sourcePort, "output");
+  const to = nodeGraphGraphInputPortCenter(
+    connection.destinationNode,
+    connection.destinationGraphInput,
+  );
+  const isInactive = !nodeGraphGraphConnectionIsActive(connection, context.activeNodeIds);
+  const mode = nodeGraphWireInteractionMode(
+    connection,
+    nodeGraphGraphWireIdentity(connection),
+    context.feedbackSets.graph,
+    nodeGraphGraphConnectionIsActive,
+    context.activeNodeIds,
+    context.plan,
+  );
+  nodeGraphWireHelpers.drawPath(svg, {
+    alias: `${nodeGraphLabel(connection.sourceNode, connection.sourcePort)} -> ${nodeGraphNodeDisplayName(
+      connection.destinationNode,
+    )}.${connection.destinationGraphInput} graph`,
+    from,
+    gradientClass: "node-modulation-wire-gradient-stop",
+    gradientId: `node-graph-wire-gradient-${index}`,
+    index,
+    kind: "graph",
+    mode,
+    pathClass: nodeGraphWirePathClass(
+      "node-wire-path",
+      "node-modulation-wire-path",
+      isInactive ? "inactive-wire" : "",
+    ),
+    to,
+    wireType: connection.wireType,
+    wireColors: [
+      nodeGraphPortWireColor(connection.sourceNode, connection.sourcePort, "output"),
+      nodeGraphPortWireColor(connection.destinationNode, connection.destinationGraphInput, "graph"),
+    ],
+    ...nodeGraphManualTracePathOptions(connection, from, to),
+  });
+  markNodeGraphWireEndpointsConnected(connection, "graph");
+}
+
 function nodeGraphDrawTemporaryWire(svg, options) {
   const { className, endpoint, from, gradientId, to, tracePoints = null } = options;
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -241,6 +289,10 @@ function drawNodeGraphWires() {
 
   for (const [index, modulation] of nodeGraphMvp.modulations.entries()) {
     nodeGraphDrawModulationWire(svg, modulation, index, context);
+  }
+
+  for (const [index, graphConnection] of nodeGraphMvp.graphConnections.entries()) {
+    nodeGraphDrawGraphWire(svg, graphConnection, index, context);
   }
 
   syncNodeGraphMonitorIndicators();
@@ -371,6 +423,47 @@ function renderNodeGraphConnectionList() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       disconnectNodeGraphConnection(index, "modulation");
+    });
+    item.append(label, button);
+    list.append(item);
+    renderedWireCount += 1;
+  }
+
+  for (const [index, graphConnection] of nodeGraphMvp.graphConnections.entries()) {
+    if (
+      !nodeGraphMvp.activeNodes.has(graphConnection.sourceNode) ||
+      !nodeGraphMvp.activeNodes.has(graphConnection.destinationNode)
+    ) {
+      continue;
+    }
+
+    const item = document.createElement("li");
+    item.dataset.connectionRowIndex = String(index);
+    item.dataset.connectionRowKind = "graph";
+    item.classList.toggle(
+      "selected",
+      sameNodeGraphSelection(nodeGraphMvp.selected, { type: "wire", kind: "graph", index }),
+    );
+    item.addEventListener("click", () => setNodeGraphSelection({ type: "wire", kind: "graph", index }));
+    const label = document.createElement("span");
+    const isFeedback = feedbackSets.graph.has(nodeGraphGraphWireIdentity(graphConnection));
+    const isInactive = !nodeGraphGraphConnectionIsActive(graphConnection, activeNodeIds);
+    const isBypassed = nodeGraphWireTouchesBypassed(graphConnection, plan);
+    label.textContent = `${nodeGraphLabel(graphConnection.sourceNode, graphConnection.sourcePort)} -> ${nodeGraphNodeDisplayName(
+      graphConnection.destinationNode,
+    )}.${graphConnection.destinationGraphInput} graph${isFeedback ? " (state read)" : ""}${isBypassed ? " (bypassed)" : isInactive ? " (inactive)" : ""}`;
+    item.classList.toggle("state-read", isFeedback);
+    item.classList.toggle("inactive-wire", isInactive);
+    const button = document.createElement("button");
+    button.className = "disconnect-wire-button";
+    button.type = "button";
+    button.textContent = "Disconnect";
+    button.dataset.connectionIndex = String(index);
+    button.dataset.connectionKind = "graph";
+    button.setAttribute("aria-label", `Disconnect ${label.textContent}`);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      disconnectNodeGraphConnection(index, "graph");
     });
     item.append(label, button);
     list.append(item);

@@ -2493,6 +2493,34 @@ audio {
   border-color: rgba(226, 168, 109, 0.78);
 }
 
+.node-copy-viewport-image-button {
+  position: absolute;
+  right: 40px;
+  bottom: 8px;
+  z-index: 4;
+  min-width: 42px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(243, 241, 236, 0.24);
+  border-radius: 2px;
+  background: rgba(17, 20, 24, 0.88);
+  color: rgba(243, 241, 236, 0.82);
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0;
+}
+
+.node-copy-viewport-image-button:hover,
+.node-copy-viewport-image-button:focus-visible {
+  border-color: rgba(127, 199, 217, 0.86);
+  color: #f3f1ec;
+  box-shadow: 0 0 12px rgba(127, 199, 217, 0.24);
+}
+
+.node-copy-viewport-image-button:disabled {
+  opacity: 0.62;
+}
+
 .node-script-view {
   margin-top: 16px;
 }
@@ -7041,6 +7069,34 @@ audio {
   fill: rgba(255, 247, 198, 1);
 }
 
+.dsp-node-graph-input-section {
+  display: grid;
+  grid-auto-rows: var(--node-body-row-height);
+  gap: var(--node-body-row-gap);
+  min-width: 0;
+}
+
+.node-graph-input-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--node-port-column-width) minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  height: var(--node-body-row-height);
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.node-graph-input-label {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--node-mod-input-fill) 72%, var(--muted));
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .scene-context-graph-node-list {
   display: grid;
   gap: 4px;
@@ -10003,7 +10059,14 @@ body.node-slider-dragging .node-param-port {
   --node-param-hover-stroke: var(--node-mod-input-stroke);
 }
 
-.node-param-port.modulation-input::before {
+.node-param-port.graph-input {
+  --node-patch-point-x: 0%;
+  --node-param-hover-color: var(--node-mod-input-fill);
+  --node-param-hover-stroke: var(--node-mod-input-stroke);
+}
+
+.node-param-port.modulation-input::before,
+.node-param-port.graph-input::before {
   left: 0;
   border-left-width: 0;
   border-radius: 0 999px 999px 0;
@@ -10090,6 +10153,14 @@ body.node-slider-dragging .node-param-port {
   background: transparent;
 }
 
+.node-param-port.graph-input.connected-port {
+  --node-patch-point-color: var(--node-mod-input-fill);
+  --node-patch-point-x: 0%;
+  --node-port-stroke-mask-color: color-mix(in srgb, var(--node-mod-input-fill) 15%, transparent);
+  border-color: color-mix(in srgb, var(--node-mod-input-stroke) 62%, transparent);
+  background: transparent;
+}
+
 .node-port.connected-port,
 .node-param-port.connected-port {
   overflow: visible;
@@ -10148,7 +10219,8 @@ body.node-slider-dragging .node-param-port {
 }
 
 .node-port.input.monitored-port,
-.node-param-port.modulation-input.monitored-port {
+.node-param-port.modulation-input.monitored-port,
+.node-param-port.graph-input.monitored-port {
   --node-patch-point-x: 0%;
 }
 

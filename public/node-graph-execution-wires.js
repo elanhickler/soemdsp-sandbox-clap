@@ -28,8 +28,18 @@ function nodeGraphModulationWireIdentity(modulation) {
   ].join(".");
 }
 
+function nodeGraphGraphWireIdentity(connection) {
+  return [
+    connection.sourceNode,
+    connection.sourcePort,
+    connection.destinationNode,
+    connection.destinationGraphInput,
+  ].join(".");
+}
+
 function nodeGraphFeedbackIdentitySets(plan) {
   return {
+    graph: new Set((plan.feedbackGraphConnections || []).map(nodeGraphGraphWireIdentity)),
     modulation: new Set(plan.feedbackModulations.map(nodeGraphModulationWireIdentity)),
     signal: new Set(plan.feedbackConnections.map(nodeGraphSignalWireIdentity)),
   };
@@ -66,6 +76,10 @@ function nodeGraphModulationIsActive(modulation, activeNodeIds) {
   return activeNodeIds.has(modulation.sourceNode) && activeNodeIds.has(modulation.destinationNode);
 }
 
+function nodeGraphGraphConnectionIsActive(connection, activeNodeIds) {
+  return activeNodeIds.has(connection.sourceNode) && activeNodeIds.has(connection.destinationNode);
+}
+
 function nodeGraphActiveSignalConnections(plan) {
   const activeNodeIds = nodeGraphActiveNodeIds(plan);
   return (plan.connections || []).filter((connection) =>
@@ -77,6 +91,13 @@ function nodeGraphActiveModulations(plan) {
   const activeNodeIds = nodeGraphActiveNodeIds(plan);
   return (plan.modulations || []).filter((modulation) =>
     nodeGraphModulationIsActive(modulation, activeNodeIds),
+  );
+}
+
+function nodeGraphActiveGraphConnections(plan) {
+  const activeNodeIds = nodeGraphActiveNodeIds(plan);
+  return (plan.graphConnections || []).filter((connection) =>
+    nodeGraphGraphConnectionIsActive(connection, activeNodeIds),
   );
 }
 

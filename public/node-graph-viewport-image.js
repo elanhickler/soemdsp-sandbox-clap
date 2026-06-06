@@ -54,6 +54,7 @@ function replaceNodeGraphViewportCloneCanvases(source, clone) {
 function cloneNodeGraphViewportForImage(workspace) {
   const clone = workspace.cloneNode(true);
   clone.querySelector("#nodeGraphResizeHandle")?.remove();
+  clone.querySelector("#nodeCopyViewportImageOverlayButton")?.remove();
   clone.querySelector("#nodeModularOnlyBackButton")?.remove();
   clone.querySelector("#nodeSelectionMarquee")?.remove();
   clone.querySelector("#nodeCameraOverlayLayer")?.remove();
@@ -140,30 +141,35 @@ async function createNodeGraphViewportImage() {
 }
 
 function setNodeGraphViewportImageButtonStatus(text) {
-  const button = document.getElementById("nodeCopyViewportImageButton");
-  if (!button) {
-    return;
+  const buttons = [
+    document.getElementById("nodeCopyViewportImageButton"),
+    document.getElementById("nodeCopyViewportImageOverlayButton"),
+  ].filter(Boolean);
+  for (const button of buttons) {
+    if (!button.dataset.defaultText) {
+      button.dataset.defaultText = button.textContent;
+    }
+    button.textContent = text;
+    window.clearTimeout(Number(button.dataset.statusTimer) || 0);
+    button.dataset.statusTimer = String(window.setTimeout(() => {
+      button.textContent = button.dataset.defaultText || "Copy Viewport Image";
+      button.dataset.statusTimer = "";
+    }, 1400));
   }
-  if (!button.dataset.defaultText) {
-    button.dataset.defaultText = button.textContent;
-  }
-  button.textContent = text;
-  window.clearTimeout(Number(button.dataset.statusTimer) || 0);
-  button.dataset.statusTimer = String(window.setTimeout(() => {
-    button.textContent = button.dataset.defaultText || "Copy Viewport Image";
-    button.dataset.statusTimer = "";
-  }, 1400));
 }
 
 async function copyNodeGraphViewportImageToClipboard() {
-  const button = document.getElementById("nodeCopyViewportImageButton");
+  const buttons = [
+    document.getElementById("nodeCopyViewportImageButton"),
+    document.getElementById("nodeCopyViewportImageOverlayButton"),
+  ].filter(Boolean);
   if (!navigator.clipboard?.write || typeof ClipboardItem !== "function") {
     setNodeGraphViewportImageButtonStatus("Clipboard Unavailable");
     return;
   }
   let image = null;
   try {
-    if (button) {
+    for (const button of buttons) {
       button.disabled = true;
     }
     image = await createNodeGraphViewportImage();
@@ -174,7 +180,7 @@ async function copyNodeGraphViewportImageToClipboard() {
   } catch (_error) {
     console.warn("Viewport image capture failed", _error);
     setNodeGraphViewportImageButtonStatus("Copy Failed");
-    if (button) {
+    for (const button of buttons) {
       button.disabled = false;
     }
     return;
@@ -189,7 +195,7 @@ async function copyNodeGraphViewportImageToClipboard() {
   } catch (_error) {
     setNodeGraphViewportImageButtonStatus("Copy Blocked");
   } finally {
-    if (button) {
+    for (const button of buttons) {
       button.disabled = false;
     }
   }

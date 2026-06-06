@@ -272,6 +272,48 @@ function validateNodeGraphPatch(patch) {
     };
   }) : [];
 
+  const graphConnectionKeys = new Set();
+  const graphConnections = Array.isArray(patch.graphConnections) ? patch.graphConnections.map((connection) => {
+    const sourceNode = String(connection.sourceNode || "").trim();
+    let sourcePort = String(connection.sourcePort || "").trim();
+    const destinationNode = String(connection.destinationNode || "").trim();
+    const destinationGraphInput = String(connection.destinationGraphInput || "").trim();
+    if (!sourceNode || !sourcePort || !destinationNode || !destinationGraphInput) {
+      throw new Error("graph connection entries require sourceNode, sourcePort, destinationNode, destinationGraphInput");
+    }
+    const sourcePatchNode = nodes.find((node) => node.id === sourceNode);
+    const destinationPatchNode = nodes.find((node) => node.id === destinationNode);
+    const sourceType = sourcePatchNode?.type;
+    const destinationType = destinationPatchNode?.type;
+    if (!sourceType || !destinationType) {
+      throw new Error("graph connection references missing node");
+    }
+    sourcePort = nodeGraphCanonicalOutputPort(sourceType, sourcePort);
+    if (sourceType !== "graph" || sourcePort !== "Out") {
+      throw new Error(`graph connection source must be Graph.Out: ${sourceNode}.${sourcePort}`);
+    }
+    if (!nodeGraphModuleGraphInputs(destinationType).includes(destinationGraphInput)) {
+      throw new Error(`graph connection destination invalid: ${destinationNode}.${destinationGraphInput}`);
+    }
+    const key = `${sourceNode}.${sourcePort}->${destinationNode}.${destinationGraphInput}`;
+    if (graphConnectionKeys.has(key)) {
+      throw new Error(`duplicate graph connection ${key}`);
+    }
+    graphConnectionKeys.add(key);
+    return {
+      destinationGraphInput,
+      destinationNode,
+      sourceNode,
+      sourcePort,
+      ...(nodeGraphWireTypePatchValue(connection.wireType)
+        ? { wireType: nodeGraphWireTypePatchValue(connection.wireType) }
+        : {}),
+      ...(normalizeNodeGraphTracePoints(connection.tracePoints).length
+        ? { tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints) }
+        : {}),
+    };
+  }) : [];
+
   const view = normalizeNodeGraphPatchView(patch.view);
   if (view.widthGu && view.widthGu < nodeGraphWorkspaceViewLimits.minWidthGu) {
     throw new Error(`view.widthGu must be 0 or at least ${nodeGraphWorkspaceViewLimits.minWidthGu}`);
@@ -288,6 +330,7 @@ function validateNodeGraphPatch(patch) {
     codeScreen: normalizeNodeGraphCodeScreen(patch.codeScreen),
     connections,
     format: { ...nodeGraphPatchFormat },
+    graphConnections,
     grid,
     info: normalizeNodeGraphPatchInfo(patch.info),
     modulations,
@@ -354,7 +397,7 @@ function applyNodeGraphPatchToDom() {
     const outputPorts = nodeGraphPatchNodeOutputPorts(patchNode).filter(
       (port) => !(nodeGraphModuleDefinitions[patchNode.type]?.parameters || []).some((parameter) => parameter.key === port),
     );
-    const portSignature = `${nodeGraphPatchNodeInputPorts(patchNode).join(",")}=>${outputPorts.join(",")}`;
+    const portSignature = `${nodeGraphPatchNodeInputPorts(patchNode).join(",")}=>${outputPorts.join(",")}=>${nodeGraphModuleGraphInputs(patchNode.type).join(",")}`;
     if (
       element &&
       (
@@ -470,6 +513,7 @@ function commitNodeGraphPatch(patch, options = {}) {
 function clearNodeGraphWires() {
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
   patch.connections = [];
+  patch.graphConnections = [];
   patch.modulations = [];
   setNodeGraphSelection(null);
   markNodeGraphRenderPending();
@@ -523,6 +567,11 @@ function deleteSelectedNodeGraphItem() {
       (modulation) =>
         !removableNodeIds.has(modulation.sourceNode) &&
         !removableNodeIds.has(modulation.destinationNode),
+    );
+    patch.graphConnections = patch.graphConnections.filter(
+      (connection) =>
+        !removableNodeIds.has(connection.sourceNode) &&
+        !removableNodeIds.has(connection.destinationNode),
     );
     setNodeGraphSelection(null);
     commitNodeGraphPatch(patch, {

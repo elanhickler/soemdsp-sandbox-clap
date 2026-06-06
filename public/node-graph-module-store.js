@@ -9,8 +9,6 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "fbPolyBlepOsc",
   "sineWavetable",
   "jerobeamNyqistShannon",
-  "additiveEngine",
-  "harmonicBank",
   "drumMachine",
   "kickDrum",
   "snareDrum",
@@ -300,18 +298,6 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Placeholder for a Jerobeam Nyqist/Shannon oscillator concept and audiovisual sampling study.",
     label: "JerobeamNyqistShannon",
     notes: ["placeholder", "sampling theorem", "future oscillator"],
-  },
-  additiveEngine: {
-    category: "Additive Engines",
-    description: "Placeholder for a harmonic additive synth engine built from controllable partials.",
-    label: "AdditiveEngine",
-    notes: ["placeholder", "partials", "harmonic synthesis"],
-  },
-  harmonicBank: {
-    category: "Additive Engines",
-    description: "Placeholder for a bank of sine partials with shared tuning and amplitude controls.",
-    label: "HarmonicBank",
-    notes: ["placeholder", "sine bank", "partials"],
   },
   drumMachine: {
     category: "Drum Machines",

@@ -15,6 +15,7 @@ const nodeGraphMvp = {
   },
   bufferSource: null,
   connections: nodeGraphDefaultPatch.connections.map((connection) => ({ ...connection })),
+  graphConnections: normalizeNodeGraphGraphConnections(nodeGraphDefaultPatch.graphConnections),
   codeScreenAutocompleteIndex: 0,
   codeScreenAutocompleteItems: [],
   codeScreenAutocompleteOpen: false,

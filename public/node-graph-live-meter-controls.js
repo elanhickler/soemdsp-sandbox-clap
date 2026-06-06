@@ -38,6 +38,79 @@ function setNodeGraphLiveScheduleStatus(text, state = "") {
   status.className = `pill ${state}`.trim();
 }
 
+function nodeGraphGpuAdditiveRecipeText(queue = {}) {
+  const diagnostics = queue?.diagnostics || {};
+  const recipe = diagnostics.gpuRecipe || diagnostics.reason || "";
+  const waveform = Number.isFinite(Number(diagnostics.waveform))
+    ? `wf ${Number(diagnostics.waveform)}`
+    : "";
+  const harmonics = Number.isFinite(Number(diagnostics.harmonics))
+    ? `h${Number(diagnostics.harmonics)}`
+    : "";
+  return [recipe, waveform, harmonics].filter(Boolean).join(" / ");
+}
+
+function nodeGraphGpuAdditiveAdapterText(adapter = null) {
+  if (!adapter || typeof adapter !== "object") {
+    return "";
+  }
+  return [
+    adapter.vendor,
+    adapter.architecture,
+    adapter.device,
+    adapter.description,
+  ].filter(Boolean).join(" / ");
+}
+
+function setNodeGraphGpuAdditiveStatus(details = null) {
+  const status = document.getElementById("nodeGpuAdditiveStatus");
+  if (!status) {
+    return;
+  }
+  const queues = Array.isArray(details?.queues) ? details.queues : [];
+  const underruns = Math.max(0, Number(details?.underruns) || 0);
+  if (!queues.length) {
+    status.textContent = "gpu add idle";
+    status.className = "pill";
+    status.removeAttribute("title");
+    return;
+  }
+  const totalChunks = queues.reduce((sum, queue) => sum + (Number(queue.chunks) || 0), 0);
+  const backends = Array.from(
+    new Set(queues.map((queue) => String(queue.backend || "unknown")).filter(Boolean))
+  );
+  const recipes = Array.from(
+    new Set(queues.map(nodeGraphGpuAdditiveRecipeText).filter(Boolean))
+  );
+  const backendText = backends.join("+") || "unknown";
+  const recipeText = recipes.length === 1 ? ` / ${recipes[0]}` : "";
+  status.textContent = `gpu add ${backendText}${recipeText} / q${totalChunks} / u${underruns}`;
+  status.className = `pill ${underruns ? "warn" : totalChunks ? "good" : ""}`.trim();
+  status.title = queues
+    .map((queue) => {
+      const nodeId = queue.nodeId || "node";
+      const backend = queue.backend || "unknown";
+      const chunks = Number(queue.chunks) || 0;
+      const diagnostics = queue.diagnostics || {};
+      const dropped = Number(queue.droppedChunks) || 0;
+      const heldGain = Number.isFinite(Number(queue.heldGain)) ? Number(queue.heldGain) : 1;
+      const held = Number(queue.heldSamples) || 0;
+      const recipe = nodeGraphGpuAdditiveRecipeText(queue);
+      const renderMs = Number.isFinite(Number(diagnostics.renderMs))
+        ? ` / render ${Number(diagnostics.renderMs).toFixed(2)}ms`
+        : "";
+      const sequence = Number(queue.expectedSequence) || 0;
+      const samples = Number(queue.samples) || 0;
+      const adapter = nodeGraphGpuAdditiveAdapterText(diagnostics.adapter);
+      const adapterText = adapter ? ` / adapter ${adapter}` : "";
+      const diagnosticsText = Object.keys(diagnostics).length
+        ? ` / ${JSON.stringify(diagnostics)}`
+        : "";
+      return `${nodeId}: ${backend}${recipe ? ` / ${recipe}` : ""} / chunks ${chunks} / samples ${samples} / seq ${sequence} / dropped ${dropped} / held ${held} @ ${heldGain.toFixed(3)}${renderMs}${adapterText}${diagnosticsText}`;
+    })
+    .join("\n");
+}
+
 function setNodeGraphLiveInputStatus(state, message = "") {
   const status = document.getElementById("nodeLiveInputStatus");
   nodeGraphMvp.live.inputStatus = state;

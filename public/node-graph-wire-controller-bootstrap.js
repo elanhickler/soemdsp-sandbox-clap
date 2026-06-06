@@ -3,10 +3,13 @@
 const nodeGraphWireHelpers = window.createNodeGraphWireHelpers({
   clonePatch: cloneNodeGraphPatch,
   commitPatch: commitNodeGraphPatch,
+  connectGraphInput: connectNodeGraphGraphInput,
   connectModulation: connectNodeGraphModulation,
   connectPorts: connectNodeGraphPorts,
   drawWires: drawNodeGraphWires,
   elementCenter: nodeGraphElementCenter,
+  graphInputPortCenter: nodeGraphGraphInputPortCenter,
+  graphInputPortSelector: nodeGraphGraphInputPortSelector,
   modulationPortCenter: nodeGraphModulationPortCenter,
   modulationPortSelector: nodeGraphModulationPortSelector,
   patch: () => nodeGraphMvp.patch,

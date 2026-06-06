@@ -80,6 +80,10 @@ function syncNodeGraphRuntimeFromPatch() {
     ...connection,
     tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints),
   }));
+  nodeGraphMvp.graphConnections = nodeGraphMvp.patch.graphConnections.map((connection) => ({
+    ...connection,
+    tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints),
+  }));
   nodeGraphMvp.modulations = nodeGraphMvp.patch.modulations.map((modulation) => ({
     ...modulation,
     tracePoints: normalizeNodeGraphTracePoints(modulation.tracePoints),

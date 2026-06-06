@@ -77,6 +77,44 @@ function createNodeParameterOutputPort(node, type, parameter) {
   return button;
 }
 
+function createNodeGraphInputPort(node, type, graphInput) {
+  const button = document.createElement("button");
+  button.className = "node-param-port graph-input";
+  button.type = "button";
+  button.dataset.node = node;
+  button.dataset.graphInput = graphInput;
+  button.dataset.port = graphInput;
+  button.dataset.io = "graph";
+  button.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${graphInput}`;
+  button.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} ${graphInput} graph input`);
+  return button;
+}
+
+function createNodeGraphInputSection(node, type) {
+  const graphInputs = nodeGraphModuleGraphInputs(type);
+  if (!graphInputs.length) {
+    return null;
+  }
+  const section = document.createElement("div");
+  section.className = "dsp-node-graph-input-section";
+  for (const graphInput of graphInputs) {
+    const row = document.createElement("div");
+    row.className = "node-graph-input-row";
+    row.dataset.node = node;
+    row.dataset.graphInput = graphInput;
+    row.dataset.port = graphInput;
+    row.dataset.io = "graph";
+    row.dataset.alias = `${nodeGraphNodeDisplayName(node)}.${graphInput}`;
+    row.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} ${graphInput} graph input interaction area`);
+    const label = document.createElement("span");
+    label.className = "node-graph-input-label";
+    label.textContent = graphInput;
+    row.append(createNodeGraphInputPort(node, type, graphInput), label);
+    section.append(row);
+  }
+  return section;
+}
+
 function createNodeGraphModuleScopeSection(node, type) {
   const section = document.createElement("div");
   section.className = "node-module-scope-window";

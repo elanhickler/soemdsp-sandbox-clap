@@ -46,6 +46,9 @@ function attachNodeGraphNodeEvents(node) {
     port.addEventListener("pointerdown", toggleNodeGraphMonitorFromPortEvent, true);
     port.addEventListener("pointerdown", nodeGraphWireInteractions.beginWireDrag);
   }
+  for (const port of node.querySelectorAll(".node-param-port.graph-input")) {
+    port.addEventListener("pointerdown", nodeGraphWireInteractions.beginWireDrag);
+  }
   for (const row of node.querySelectorAll(".node-io-row")) {
     row.addEventListener("pointerdown", handleNodeGraphIoRowMonitorPointerDown, true);
     row.addEventListener("pointerdown", handleNodeGraphIoRowWirePointerDown);
@@ -248,6 +251,10 @@ function createNodeGraphModuleElement(type, node) {
   if (definition.parameters?.length && definition.layout !== "sliderWidget" && definition.layout !== "led") {
     const body = document.createElement("div");
     body.className = "dsp-node-body";
+    const graphInputSection = createNodeGraphInputSection(node, type);
+    if (graphInputSection) {
+      body.append(graphInputSection);
+    }
 
     for (const parameter of definition.parameters) {
       body.append(createNodeGraphParameter(node, type, parameter));

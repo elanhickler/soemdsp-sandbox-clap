@@ -158,9 +158,11 @@ function nodeGraphWireSelectionExists(selection = nodeGraphMvp.selected) {
     return false;
   }
   const index = Number(selection.index);
-  const wires = (selection.kind || "signal") === "modulation"
-    ? nodeGraphMvp.modulations
-    : nodeGraphMvp.connections;
+  const wires = (selection.kind || "signal") === "graph"
+    ? nodeGraphMvp.graphConnections
+    : (selection.kind || "signal") === "modulation"
+      ? nodeGraphMvp.modulations
+      : nodeGraphMvp.connections;
   return Number.isInteger(index) && index >= 0 && index < wires.length;
 }
 
@@ -169,9 +171,11 @@ function nodeGraphWireFromSelection(selection = nodeGraphMvp.selected) {
     return null;
   }
   const kind = selection.kind || "signal";
-  const wire = kind === "modulation"
-    ? nodeGraphMvp.modulations[selection.index]
-    : nodeGraphMvp.connections[selection.index];
+  const wire = kind === "graph"
+    ? nodeGraphMvp.graphConnections[selection.index]
+    : kind === "modulation"
+      ? nodeGraphMvp.modulations[selection.index]
+      : nodeGraphMvp.connections[selection.index];
   return { kind, index: selection.index, wire };
 }
 
@@ -186,6 +190,11 @@ function nodeGraphWireSelectionLabel(selection = nodeGraphMvp.selected) {
       wire.destinationNode,
       wire.destinationParam,
     )} mod`;
+  }
+  if (kind === "graph") {
+    return `${nodeGraphLabel(wire.sourceNode, wire.sourcePort)} -> ${nodeGraphNodeDisplayName(
+      wire.destinationNode,
+    )}.${wire.destinationGraphInput} graph`;
   }
   return `${nodeGraphLabel(wire.sourceNode, wire.sourcePort)} -> ${nodeGraphLabel(
     wire.destinationNode,

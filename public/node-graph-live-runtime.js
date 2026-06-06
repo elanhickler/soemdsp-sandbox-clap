@@ -1,4 +1,5 @@
-﻿function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error") {
+function setNodeGraphLiveProcessorError(message = "AudioWorklet processor error") {
+  nodeGraphClearGpuAdditivePrime();
   setNodeGraphLiveOutputMuted(true);
   nodeGraphMvp.live.runtime = null;
   setNodeGraphLiveEvidence("processor-error", {
@@ -11,6 +12,7 @@
   setNodeGraphLivePlanStatus("plan blocked", "warn");
   setNodeGraphLiveInputMeter();
   setNodeGraphLiveMeter();
+  setNodeGraphGpuAdditiveStatus();
   setNodeGraphLiveScheduleStatus(`processor error: ${message}`, "warn");
   document.getElementById("nodeLiveStatus").title = message;
   renderNodeGraphLiveControls(Boolean(nodeGraphMvp.live.node));
@@ -453,6 +455,8 @@ function renderNodeGraphLiveScriptBlock(event) {
 }
 
 function nodeGraphStopGpuAdditiveProducer() {
+  nodeGraphClearGpuAdditivePrime();
+  setNodeGraphGpuAdditiveStatus();
   const state = nodeGraphMvp.live.gpuAdditive;
   if (!state) {
     return;
@@ -477,11 +481,7 @@ function nodeGraphGpuAdditiveNodeVersion(node, sampleRate) {
     "waveform",
     "modA",
     "harmonicPhaseAdd",
-    "harmonicPhaseAlgorithm",
-    "harmonicPhaseCurve",
     "harmonicPhaseMultiply",
-    "dampingAlgorithm",
-    "dampingCurve",
     "dampingFilterFrequency",
   ];
   return [
@@ -506,24 +506,113 @@ function nodeGraphGpuAdditiveChunkSafe(plan, node) {
     modulation.toNode === nodeId ||
     modulation.targetNode === nodeId
   );
-  return !hasSignalInput && !hasModulationInput;
+  const hasGraphInput = (plan.graphConnections || []).some((connection) =>
+    connection.destinationNode === nodeId ||
+    connection.toNode === nodeId ||
+    connection.targetNode === nodeId
+  );
+  return !hasSignalInput && !hasModulationInput && !hasGraphInput;
+}
+
+function nodeGraphLivePlanGpuAdditiveNodes(plan = {}) {
+  return (plan.nodes || [])
+    .filter((node) => node?.type === "gpuAdditiveOsc" && nodeGraphGpuAdditiveChunkSafe(plan, node));
 }
 
 function nodeGraphGpuAdditiveParams(node) {
   return {
-    dampingAlgorithm: nodeGraphGpuAdditiveNodeParam(node, "dampingAlgorithm", 0),
-    dampingCurve: nodeGraphGpuAdditiveNodeParam(node, "dampingCurve", 0),
     dampingFilterFrequency: nodeGraphGpuAdditiveNodeParam(node, "dampingFilterFrequency", 20000),
     frequency: Math.max(0, nodeGraphGpuAdditiveNodeParam(node, "frequency", 220)),
     harmonicPhaseAdd: nodeGraphGpuAdditiveNodeParam(node, "harmonicPhaseAdd", 0),
-    harmonicPhaseAlgorithm: nodeGraphGpuAdditiveNodeParam(node, "harmonicPhaseAlgorithm", 0),
-    harmonicPhaseCurve: nodeGraphGpuAdditiveNodeParam(node, "harmonicPhaseCurve", 1),
     harmonicPhaseMultiply: nodeGraphGpuAdditiveNodeParam(node, "harmonicPhaseMultiply", 0),
     harmonics: nodeGraphGpuAdditiveNodeParam(node, "harmonics", 256),
     level: nodeGraphGpuAdditiveNodeParam(node, "level", 0.35),
     modA: nodeGraphGpuAdditiveNodeParam(node, "modA", 0.5),
     phase: nodeGraphPhaseRadians(nodeGraphGpuAdditiveNodeParam(node, "phase", 0)),
     waveform: nodeGraphGpuAdditiveNodeParam(node, "waveform", 1),
+  };
+}
+
+function nodeGraphSetLivePlanRunningStatus(plan) {
+  setNodeGraphLiveOutputMuted(false);
+  setNodeGraphLiveStatus("running", "good");
+  clearNodeGraphLiveStatusTitle();
+  setNodeGraphLiveScheduleStatus(
+    nodeGraphScheduleText(
+      plan.order,
+      [],
+      plan.feedbackConnections,
+      plan.feedbackModulations,
+    ),
+    "good",
+  );
+  renderNodeGraphLiveControls(true);
+}
+
+function nodeGraphClearGpuAdditivePrime() {
+  const prime = nodeGraphMvp.live.gpuAdditivePrime;
+  if (prime?.timer) {
+    window.clearTimeout(prime.timer);
+  }
+  nodeGraphMvp.live.gpuAdditivePrime = null;
+}
+
+function nodeGraphFinishGpuAdditivePrime(reason = "ready") {
+  const prime = nodeGraphMvp.live.gpuAdditivePrime;
+  if (!prime || prime.planSerial !== nodeGraphMvp.live.planSerial) {
+    return false;
+  }
+  nodeGraphClearGpuAdditivePrime();
+  nodeGraphSetLivePlanRunningStatus(prime.plan);
+  setNodeGraphLivePlanTitle(`${nodeGraphLivePlanScheduleTitle(prime.plan.order)}\nGPU Additive prime ${reason}`);
+  return true;
+}
+
+function nodeGraphBeginGpuAdditivePrime(plan) {
+  nodeGraphClearGpuAdditivePrime();
+  if (!nodeGraphMvp.live.usesWorklet || !nodeGraphLivePlanGpuAdditiveNodes(plan).length) {
+    return false;
+  }
+  setNodeGraphLiveOutputMuted(true);
+  setNodeGraphLiveStatus("priming", "warn");
+  setNodeGraphLiveScheduleStatus("gpu additive priming", "warn");
+  const prime = {
+    plan,
+    planSerial: nodeGraphMvp.live.planSerial,
+    timer: window.setTimeout(() => {
+      nodeGraphFinishGpuAdditivePrime("timeout");
+    }, 450),
+  };
+  nodeGraphMvp.live.gpuAdditivePrime = prime;
+  return true;
+}
+
+const nodeGraphGpuAdditiveChunkFrames = 2048;
+const nodeGraphGpuAdditiveDefaultTargetChunks = 6;
+const nodeGraphGpuAdditiveMaxTargetChunks = 11;
+const nodeGraphGpuAdditiveMaxInFlightChunks = 3;
+
+function nodeGraphGpuAdditiveCanUseWebGpu(params) {
+  return params && typeof nodeGraphRenderGpuAdditiveChunk === "function";
+}
+
+async function nodeGraphRenderGpuAdditiveProducerChunk(params, chunkFrames, sampleRate, cacheKey = "") {
+  if (
+    nodeGraphGpuAdditiveCanUseWebGpu(params) &&
+    typeof nodeGraphRenderGpuAdditiveChunk === "function"
+  ) {
+    return nodeGraphRenderGpuAdditiveChunk(params, {
+      cacheKey,
+      frameCount: chunkFrames,
+      sampleRate,
+    });
+  }
+  return {
+    backend: "cpu-chunk",
+    diagnostics: {
+      reason: "WebGPU additive renderer unavailable",
+    },
+    samples: nodeGraphGpuAdditiveCpuRender(params, chunkFrames, sampleRate),
   };
 }
 
@@ -539,14 +628,67 @@ function nodeGraphStartGpuAdditiveProducer(plan, audio) {
     return;
   }
   const producer = nodeGraphMvp.live.gpuAdditive;
-  const chunkFrames = 1024;
-  const targetChunks = 8;
+  const chunkFrames = nodeGraphGpuAdditiveChunkFrames;
+  const defaultTargetChunks = nodeGraphGpuAdditiveDefaultTargetChunks;
+  const maxTargetChunks = nodeGraphGpuAdditiveMaxTargetChunks;
   producer.nodes = new Map(nodes.map((node) => [node.id, {
+    completedChunks: new Map(),
+    generation: 0,
+    inFlightSlots: new Set(),
+    nextChunkSequence: 0,
+    pendingChunks: 0,
     phase: nodeGraphPhaseRadians(nodeGraphGpuAdditiveNodeParam(node, "phase", 0)),
     queueChunks: 0,
-    rendering: false,
+    sendChunkSequence: 0,
+    targetChunks: defaultTargetChunks,
     version: nodeGraphGpuAdditiveNodeVersion(node, sampleRate),
   }]));
+
+  const postOrderedGpuAdditiveChunks = (node, state, version) => {
+    if (!nodeGraphMvp.live.node?.port || nodeGraphMvp.live.sessionId <= 0) {
+      return;
+    }
+    while (state.completedChunks.has(state.sendChunkSequence)) {
+      const chunk = state.completedChunks.get(state.sendChunkSequence);
+      state.completedChunks.delete(state.sendChunkSequence);
+      state.sendChunkSequence += 1;
+      state.backend = chunk.backend;
+      state.diagnostics = chunk.diagnostics;
+      if (!(chunk.samples instanceof Float32Array) || chunk.samples.length <= 0) {
+        continue;
+      }
+      state.queueChunks += 1;
+      nodeGraphMvp.live.node.port.postMessage({
+        backend: chunk.backend,
+        nodeId: node.id,
+        planSerial: nodeGraphMvp.live.planSerial,
+        samples: chunk.samples,
+        sequence: chunk.sequence,
+        sessionId: nodeGraphMvp.live.sessionId,
+        type: "gpuAdditiveChunk",
+        version,
+      }, [chunk.samples.buffer]);
+    }
+  };
+
+  const reserveGpuAdditiveRenderSlot = (state) => {
+    for (let slot = 0; slot < nodeGraphGpuAdditiveMaxInFlightChunks; slot += 1) {
+      if (!state.inFlightSlots.has(slot)) {
+        state.inFlightSlots.add(slot);
+        state.pendingChunks += 1;
+        return slot;
+      }
+    }
+    return -1;
+  };
+
+  const releaseGpuAdditiveRenderSlot = (state, slot) => {
+    if (!state) {
+      return;
+    }
+    state.inFlightSlots.delete(slot);
+    state.pendingChunks = Math.max(0, (Number(state.pendingChunks) || 0) - 1);
+  };
 
   const produce = () => {
     if (!nodeGraphMvp.live.node?.port || nodeGraphMvp.live.sessionId <= 0) {
@@ -555,44 +697,134 @@ function nodeGraphStartGpuAdditiveProducer(plan, audio) {
     }
     for (const node of nodes) {
       const state = producer.nodes.get(node.id);
-      if (!state || state.rendering || state.queueChunks >= targetChunks) {
+      if (!state) {
         continue;
       }
       const version = nodeGraphGpuAdditiveNodeVersion(node, sampleRate);
       if (state.version !== version) {
         state.version = version;
+        state.completedChunks.clear();
+        state.generation = (Number(state.generation) || 0) + 1;
+        state.inFlightSlots.clear();
+        state.nextChunkSequence = 0;
+        state.pendingChunks = 0;
         state.phase = nodeGraphPhaseRadians(nodeGraphGpuAdditiveNodeParam(node, "phase", 0));
         state.queueChunks = 0;
+        state.sendChunkSequence = 0;
+        state.targetChunks = defaultTargetChunks;
       }
-      state.rendering = true;
-      try {
-        const params = {
-          ...nodeGraphGpuAdditiveParams(node),
-          phase: state.phase,
-        };
-        const samples = nodeGraphGpuAdditiveCpuRender(params, chunkFrames, sampleRate);
+      const targetChunks = Math.max(1, Math.min(maxTargetChunks, Number(state.targetChunks) || defaultTargetChunks));
+      while (
+        state.queueChunks + state.pendingChunks + state.completedChunks.size < targetChunks &&
+        state.pendingChunks < nodeGraphGpuAdditiveMaxInFlightChunks
+      ) {
+        const renderSlot = reserveGpuAdditiveRenderSlot(state);
+        if (renderSlot < 0) {
+          break;
+        }
+        const renderGeneration = Number(state.generation) || 0;
+        const renderSequence = state.nextChunkSequence;
+        state.nextChunkSequence += 1;
+        const renderPhase = state.phase;
         state.phase = wrapNodeSliderValue(
-          state.phase + Math.PI * 2 * params.frequency * (chunkFrames / sampleRate),
+          state.phase + Math.PI * 2 * Math.max(0, nodeGraphGpuAdditiveNodeParam(node, "frequency", 220)) * (chunkFrames / sampleRate),
           0,
           Math.PI * 2,
         );
-        state.queueChunks += 1;
-        nodeGraphMvp.live.node.port.postMessage({
-          nodeId: node.id,
-          planSerial: nodeGraphMvp.live.planSerial,
-          samples,
-          sessionId: nodeGraphMvp.live.sessionId,
-          type: "gpuAdditiveChunk",
-          version,
-        }, [samples.buffer]);
-      } finally {
-        state.rendering = false;
+        const renderStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+        const params = {
+          ...nodeGraphGpuAdditiveParams(node),
+          phase: renderPhase,
+        };
+        nodeGraphRenderGpuAdditiveProducerChunk(params, chunkFrames, sampleRate, `${node.id}:${renderGeneration}:${renderSlot}`)
+        .then((result) => {
+          if (
+            !nodeGraphMvp.live.node?.port ||
+            nodeGraphMvp.live.sessionId <= 0 ||
+            producer.nodes.get(node.id) !== state ||
+            state.version !== version
+          ) {
+            return;
+          }
+          const samples = result?.samples instanceof Float32Array
+            ? result.samples
+            : new Float32Array(result?.samples || []);
+          if (samples.length <= 0) {
+            state.backend = "empty";
+            state.completedChunks.set(renderSequence, {
+              backend: state.backend,
+              diagnostics: { empty: true, sequence: renderSequence },
+              samples,
+              sequence: renderSequence,
+            });
+            postOrderedGpuAdditiveChunks(node, state, version);
+            return;
+          }
+          state.backend = result?.backend || "unknown";
+          const renderEndedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+          const diagnostics = {
+            ...(result?.diagnostics || {}),
+            generation: renderGeneration,
+            renderMs: Math.max(0, renderEndedAt - renderStartedAt),
+            pendingChunks: state.pendingChunks,
+            renderSlot,
+            sequence: renderSequence,
+            targetChunks,
+          };
+          state.completedChunks.set(renderSequence, {
+            backend: state.backend,
+            diagnostics,
+            samples,
+            sequence: renderSequence,
+          });
+          postOrderedGpuAdditiveChunks(node, state, version);
+        })
+        .catch((error) => {
+          const renderEndedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+          state.backend = "cpu-chunk-error";
+          const diagnostics = {
+            error: error?.message || String(error),
+            generation: renderGeneration,
+            renderMs: Math.max(0, renderEndedAt - renderStartedAt),
+            pendingChunks: state.pendingChunks,
+            renderSlot,
+            sequence: renderSequence,
+            targetChunks,
+          };
+          const samples = nodeGraphGpuAdditiveCpuRender(params, chunkFrames, sampleRate);
+          if (
+            !nodeGraphMvp.live.node?.port ||
+            nodeGraphMvp.live.sessionId <= 0 ||
+            producer.nodes.get(node.id) !== state ||
+            state.version !== version
+          ) {
+            return;
+          }
+          state.completedChunks.set(renderSequence, {
+            backend: "cpu-chunk-error-fallback",
+            diagnostics,
+            samples,
+            sequence: renderSequence,
+          });
+          postOrderedGpuAdditiveChunks(node, state, version);
+        })
+        .finally(() => {
+          releaseGpuAdditiveRenderSlot(state, renderSlot);
+          if (
+            nodeGraphMvp.live.node?.port &&
+            nodeGraphMvp.live.sessionId > 0 &&
+            producer.nodes.get(node.id) === state &&
+            state.queueChunks < Math.max(1, Math.min(maxTargetChunks, Number(state.targetChunks) || defaultTargetChunks))
+          ) {
+            window.setTimeout(produce, 0);
+          }
+        });
       }
     }
   };
 
   produce();
-  producer.timer = setInterval(produce, 25);
+  producer.timer = setInterval(produce, 8);
 }
 
 function handleNodeGraphLiveWorkletMessage(event) {
@@ -699,17 +931,58 @@ function handleNodeGraphLiveWorkletMessage(event) {
       return;
     }
     const producer = nodeGraphMvp.live.gpuAdditive;
-    for (const queue of message.queues || []) {
+    const enhancedQueues = (message.queues || []).map((queue) => {
       const state = producer?.nodes?.get?.(queue.nodeId);
       if (state) {
         state.queueChunks = Math.max(0, Number(queue.chunks) || 0);
+        const underruns = Math.max(0, Number(message.underruns) || 0);
+        const droppedChunks = Math.max(0, Number(queue.droppedChunks) || 0);
+        if (underruns > 0 || droppedChunks > 0) {
+          state.targetChunks = Math.min(
+            nodeGraphGpuAdditiveMaxTargetChunks,
+            (Number(state.targetChunks) || nodeGraphGpuAdditiveDefaultTargetChunks) + 1,
+          );
+        } else if (
+          state.queueChunks > nodeGraphGpuAdditiveDefaultTargetChunks + 2 &&
+          Number(queue.samples) > nodeGraphGpuAdditiveChunkFrames * (nodeGraphGpuAdditiveDefaultTargetChunks + 1)
+        ) {
+          state.targetChunks = Math.max(
+            nodeGraphGpuAdditiveDefaultTargetChunks,
+            (Number(state.targetChunks) || nodeGraphGpuAdditiveDefaultTargetChunks) - 1,
+          );
+        }
       }
-    }
+      return {
+        ...queue,
+        diagnostics: {
+          ...(state?.diagnostics || {}),
+          droppedChunks: Math.max(0, Number(queue.droppedChunks) || 0),
+          expectedSequence: Math.max(0, Number(queue.expectedSequence) || 0),
+          heldGain: Number.isFinite(Number(queue.heldGain)) ? Number(queue.heldGain) : 1,
+          heldSamples: Math.max(0, Number(queue.heldSamples) || 0),
+          resetCount: Math.max(0, Number(queue.resetCount) || 0),
+          targetChunks: Math.max(
+            1,
+            Math.min(
+              nodeGraphGpuAdditiveMaxTargetChunks,
+              Number(state?.targetChunks) || nodeGraphGpuAdditiveDefaultTargetChunks,
+            ),
+          ),
+        },
+      };
+    });
     if (nodeGraphMvp.live.lastEvidence) {
       nodeGraphMvp.live.lastEvidence.gpuAdditive = {
-        queues: message.queues || [],
+        queues: enhancedQueues,
         underruns: Number(message.underruns) || 0,
       };
+    }
+    setNodeGraphGpuAdditiveStatus({
+      queues: enhancedQueues,
+      underruns: Number(message.underruns) || 0,
+    });
+    if (enhancedQueues.some((queue) => Number(queue.samples) > 0 || Number(queue.chunks) > 0)) {
+      nodeGraphFinishGpuAdditivePrime("ready");
     }
   } else if (message.type === "paramsApplied") {
     if (
@@ -792,20 +1065,11 @@ function sendNodeGraphLivePlan() {
       setNodeGraphLivePlanStatus(nodeGraphLivePlanStatusText(plan), "good");
       setNodeGraphLivePlanTitle(nodeGraphLivePlanScheduleTitle(plan.order));
     }
-    setNodeGraphLiveOutputMuted(false);
-    setNodeGraphLiveStatus("running", "good");
-    clearNodeGraphLiveStatusTitle();
-    setNodeGraphLiveScheduleStatus(
-      nodeGraphScheduleText(
-        plan.order,
-        [],
-        plan.feedbackConnections,
-        plan.feedbackModulations,
-      ),
-      "good",
-    );
-    renderNodeGraphLiveControls(true);
+    if (!nodeGraphBeginGpuAdditivePrime(plan)) {
+      nodeGraphSetLivePlanRunningStatus(plan);
+    }
   } catch (error) {
+    nodeGraphClearGpuAdditivePrime();
     setNodeGraphLiveOutputMuted(true);
     nodeGraphMvp.live.runtime = null;
     nodeGraphMvp.live.node?.port?.postMessage({ type: "stop" });
@@ -1005,6 +1269,7 @@ async function stopNodeGraphLiveAudio() {
   setNodeGraphLivePlanTitle();
   setNodeGraphLiveInputMeter();
   setNodeGraphLiveMeter();
+  setNodeGraphGpuAdditiveStatus();
   setNodeGraphLiveScheduleStatus("schedule stopped");
   clearNodeGraphLiveStatusTitle();
   renderNodeGraphLiveControls(false);
@@ -1014,7 +1279,7 @@ async function createNodeGraphLiveWorkletNode(context) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
-  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=editable-graph-smooth-shape-1");
+  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=external-graph-inputs-1780816800000");
   const workletNode = new AudioWorkletNode(
     context,
     "node-live-audio-processor",

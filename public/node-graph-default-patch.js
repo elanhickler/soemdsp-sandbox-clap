@@ -118,6 +118,7 @@ const nodeGraphDefaultPatch = Object.freeze({
   view: { widthGu: 31, heightGu: 20 },
   nodes: nodeGraphDefaultNodeConfigs.map((node) => ({ ...node })),
   connections: nodeGraphDefaultConnections.map((connection) => ({ ...connection })),
+  graphConnections: [],
   modulations: [],
   monitors: [],
   uiItems: [],

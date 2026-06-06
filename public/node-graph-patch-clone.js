@@ -22,6 +22,29 @@ function normalizeNodeGraphPatchNodeAlias(alias) {
   return String(alias ?? "").trim().slice(0, 64);
 }
 
+function normalizeNodeGraphGraphConnections(graphConnections = []) {
+  if (!Array.isArray(graphConnections)) {
+    return [];
+  }
+  return graphConnections.map((connection) => ({
+    destinationGraphInput: String(connection.destinationGraphInput || "").trim(),
+    destinationNode: String(connection.destinationNode || "").trim(),
+    sourceNode: String(connection.sourceNode || "").trim(),
+    sourcePort: String(connection.sourcePort || "").trim(),
+    ...(nodeGraphWireTypePatchValue(connection.wireType)
+      ? { wireType: nodeGraphWireTypePatchValue(connection.wireType) }
+      : {}),
+    ...(normalizeNodeGraphTracePoints(connection.tracePoints).length
+      ? { tracePoints: normalizeNodeGraphTracePoints(connection.tracePoints) }
+      : {}),
+  })).filter((connection) =>
+    connection.sourceNode &&
+    connection.sourcePort &&
+    connection.destinationNode &&
+    connection.destinationGraphInput,
+  );
+}
+
 const nodeGraphLedDefaultColor = "#ff0000";
 const nodeGraphLedCenterColor = "#ffffff";
 
@@ -122,6 +145,7 @@ function cloneNodeGraphPatch(patch) {
     })),
     format: { ...(patch.format || nodeGraphPatchFormat) },
     grid: normalizeNodeGraphPatchGrid(patch.grid),
+    graphConnections: normalizeNodeGraphGraphConnections(patch.graphConnections),
     info: normalizeNodeGraphPatchInfo(patch.info),
     modulations: (patch.modulations || []).map((modulation) => ({
       ...modulation,

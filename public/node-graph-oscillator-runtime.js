@@ -303,32 +303,32 @@ function nodeGraphAdditiveOscillatorSample(runtime, nodeId, phase, params = {}, 
   const modA = clampNodeSliderValue(Number(params.modA) || 0, 0, 1);
   const harmonicPhaseAdd = clampNodeSliderValue(Number(params.harmonicPhaseAdd) || 0, 0, 1);
   const harmonicPhaseMultiply = clampNodeSliderValue(Number(params.harmonicPhaseMultiply) || 0, 0, 4);
-  const harmonicPhaseCurve = clampNodeSliderValue(Number(params.harmonicPhaseCurve) || 0, 0, 1);
-  const harmonicPhaseAlgorithm = nodeGraphAdditiveDampingAlgorithmValue(params.harmonicPhaseAlgorithm);
   const level = clampNodeSliderValue(Number(params.level) || 0, 0, 1);
-  const dampingCurve = nodeGraphAdditiveDampingCurveValue(params.dampingCurve);
-  const dampingAlgorithm = nodeGraphAdditiveDampingAlgorithmValue(params.dampingAlgorithm);
   const dampingFilterFrequency = nodeGraphAdditiveFilterFrequencyValue(params.dampingFilterFrequency, safeRate);
+  const dampingGraphValueAt = typeof params.dampingGraphValueAt === "function"
+    ? params.dampingGraphValueAt
+    : () => 1;
+  const phaseGraphValueAt = typeof params.phaseGraphValueAt === "function"
+    ? params.phaseGraphValueAt
+    : () => 0;
   const harmonicLimit = Math.max(1, Math.min(maxHarmonics, Math.floor(Math.min(20000, safeRate * 0.45) / Math.max(1, frequency))));
   let total = 0;
   let norm = 0;
   for (let harmonic = 1; harmonic <= harmonicLimit; harmonic += 1) {
     const partial = nodeGraphAdditiveWaveformHarmonic(waveform, harmonic, modA);
-    const amplitude = (Number(partial.amplitude) || 0) *
-      nodeGraphAdditiveHarmonicDamping(harmonic, frequency, safeRate, dampingCurve, dampingAlgorithm, dampingFilterFrequency);
+    const dampingX = clampNodeSliderValue((frequency * harmonic) / dampingFilterFrequency, 0, 1);
+    const amplitude = (Number(partial.amplitude) || 0) * clampNodeSliderValue(
+      Number(dampingGraphValueAt(dampingX)) || 0,
+      0,
+      1,
+    );
     if (amplitude === 0) {
       continue;
     }
     const harmonicRatio = harmonicLimit > 1
       ? (harmonic - 1) / (harmonicLimit - 1)
       : 0;
-    const phaseCurve = nodeGraphAdditiveHarmonicCurveAmount({
-      algorithm: harmonicPhaseAlgorithm,
-      curveValue: harmonicPhaseCurve,
-      harmonic,
-      maxHarmonics: harmonicLimit,
-      ratio: harmonicRatio,
-    });
+    const phaseCurve = clampNodeSliderValue(Number(phaseGraphValueAt(harmonicRatio)) || 0, 0, 1);
     const phaseMultiplier = 1 + phaseCurve * harmonicPhaseMultiply;
     const phaseOffset = (Number(partial.phase) || 0) + phaseCurve * harmonicPhaseAdd;
     total += Math.sin((phase * harmonic * phaseMultiplier) + phaseOffset * Math.PI * 2) * amplitude;

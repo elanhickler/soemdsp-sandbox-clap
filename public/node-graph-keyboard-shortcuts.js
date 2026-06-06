@@ -206,5 +206,8 @@ function handleNodeGraphKeydown(event) {
     event.preventDefault();
     return;
   }
-  deleteSelectedNodeGraphItem();
+  if (nodeGraphSelectionCanDelete()) {
+    event.preventDefault();
+    deleteSelectedNodeGraphItem();
+  }
 }

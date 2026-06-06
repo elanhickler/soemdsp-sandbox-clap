@@ -1521,13 +1521,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const phase = readNodeGraphLiveEffectiveParam(runtime, node, "phase", 0, frame, frames, frameValues);
     const state = runtime.graphLfoStates.get(nodeId) || createNodeGraphGraphLfoState();
     runtime.graphLfoStates.set(nodeId, state);
-    const resetValue = nodeGraphSafeFilterNumber(
-      mixInput(nodeId, "Reset"),
-      runtime,
-      nodeId,
-      state,
-      "graph lfo reset",
-    );
+    const resetValue = 0;
     if (state.lastReset <= 0 && resetValue > 0) {
       state.resetFrame = absoluteFrame;
     }
@@ -1540,6 +1534,14 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const outputMin = readNodeGraphLiveEffectiveParam(runtime, node, "outputMin", 0, frame, frames, frameValues);
     const outputMax = readNodeGraphLiveEffectiveParam(runtime, node, "outputMax", 1, frame, frames, frameValues);
     return outputMin + normalizedValue * (outputMax - outputMin);
+  };
+  const graphInputValue = (nodeId, graphInput, x, fallback) => {
+    const connection = (runtime.graphInputConnections?.get(nodeGraphGraphInputKey(nodeId, graphInput)) || [])[0];
+    const source = connection ? runtime.nodes.get(connection.sourceNode) : null;
+    if (!source || source.type !== "graph") {
+      return fallback;
+    }
+    return nodeGraphGraphValueAt(source.graph, clampNodeSliderValue(Number(x) || 0, 0, 1));
   };
 
   for (const nodeId of runtime.order || []) {
@@ -1716,16 +1718,14 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         phase + phaseOffset,
         {
           frequency: pitchedFrequency,
-          dampingAlgorithm: readNodeGraphLiveEffectiveParam(runtime, node, "dampingAlgorithm", 0, frame, frames, frameValues),
-          dampingCurve: readNodeGraphLiveEffectiveParam(runtime, node, "dampingCurve", 0, frame, frames, frameValues),
           dampingFilterFrequency: readNodeGraphLiveEffectiveParam(runtime, node, "dampingFilterFrequency", 20000, frame, frames, frameValues),
+          dampingGraphValueAt: (x) => graphInputValue(nodeId, "Damping Graph", x, 1),
           harmonics: readNodeGraphLiveEffectiveParam(runtime, node, "harmonics", 32, frame, frames, frameValues),
           harmonicPhaseAdd: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseAdd", 0, frame, frames, frameValues),
-          harmonicPhaseAlgorithm: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseAlgorithm", 0, frame, frames, frameValues),
-          harmonicPhaseCurve: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseCurve", 1, frame, frames, frameValues),
           harmonicPhaseMultiply: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseMultiply", 0, frame, frames, frameValues),
           level: readNodeGraphLiveEffectiveParam(runtime, node, "level", 0.35, frame, frames, frameValues),
           modA: readNodeGraphLiveEffectiveParam(runtime, node, "modA", 0.5, frame, frames, frameValues),
+          phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0),
           waveform: readNodeGraphLiveEffectiveParam(runtime, node, "waveform", 1, frame, frames, frameValues),
         },
         sampleRate,

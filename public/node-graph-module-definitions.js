@@ -89,7 +89,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     parameters: [],
   },
   graph: {
-    inputs: ["In", "Reset"],
+    inputs: ["In"],
     layout: "graph",
     outputs: ["Out"],
     parameters: [
@@ -229,6 +229,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   additiveOsc: {
+    graphInputs: ["Damping Graph", "Phase Graph"],
     inputs: ["Reset", "0.1V/Oct", "Increment"],
     outputs: ["Out"],
     parameters: [
@@ -271,40 +272,13 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "0.5", key: "modA", label: "Mod A", max: "1", mid: "0.5", min: "0", step: "any" },
       { defaultValue: "0", key: "harmonicPhaseAdd", kind: "phase", label: "Phase Add", max: "1", mid: "0.5", min: "0", step: "any", unit: "cycle" },
       { defaultValue: "0", key: "harmonicPhaseMultiply", label: "Phase Multiply", max: "4", mid: "1", min: "0", step: "any" },
-      { defaultValue: "1", key: "harmonicPhaseCurve", label: "Phase Curve", max: "1", mid: "0.5", min: "0", step: "any" },
-      {
-        choices: ["Rational", "Power", "Exp", "Butter", "Soft Knee", "Tilt"],
-        defaultValue: "0",
-        displayChoices: true,
-        divideChoicesVisibly: true,
-        key: "harmonicPhaseAlgorithm",
-        label: "Phase Algorithm",
-        linearSmoothing: false,
-        max: "5",
-        mid: "2",
-        min: "0",
-        step: "1",
-      },
       { constraint: "cpu", defaultValue: "32", key: "harmonics", label: "Harmonics", max: "1024", mid: "32", min: "1", step: "1" },
-      { defaultValue: "0", key: "dampingCurve", label: "Damping Curve", max: "1", mid: "0.5", min: "0", step: "any" },
       { defaultValue: "20000", key: "dampingFilterFrequency", kind: "frequency", label: "Filter Frequency", max: "20000", mid: "2000", min: "20", step: "any", unit: "Hz" },
-      {
-        choices: ["Rational", "Power", "Exp", "Butter", "Soft Knee", "Tilt"],
-        defaultValue: "0",
-        displayChoices: true,
-        divideChoicesVisibly: true,
-        key: "dampingAlgorithm",
-        label: "Damping Algorithm",
-        linearSmoothing: false,
-        max: "5",
-        mid: "2",
-        min: "0",
-        step: "1",
-      },
       { defaultValue: "0.35", key: "level", label: "Level", max: "1", mid: "0.35", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
   gpuAdditiveOsc: {
+    graphInputs: ["Damping Graph", "Phase Graph"],
     inputs: ["Reset", "0.1V/Oct", "Increment"],
     outputs: ["Out"],
     parameters: [
@@ -347,36 +321,8 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "0.5", key: "modA", label: "Mod A", max: "1", mid: "0.5", min: "0", step: "any" },
       { defaultValue: "0", key: "harmonicPhaseAdd", kind: "phase", label: "Phase Add", max: "1", mid: "0.5", min: "0", step: "any", unit: "cycle" },
       { defaultValue: "0", key: "harmonicPhaseMultiply", label: "Phase Multiply", max: "4", mid: "1", min: "0", step: "any" },
-      { defaultValue: "1", key: "harmonicPhaseCurve", label: "Phase Curve", max: "1", mid: "0.5", min: "0", step: "any" },
-      {
-        choices: ["Rational", "Power", "Exp", "Butter", "Soft Knee", "Tilt"],
-        defaultValue: "0",
-        displayChoices: true,
-        divideChoicesVisibly: true,
-        key: "harmonicPhaseAlgorithm",
-        label: "Phase Algorithm",
-        linearSmoothing: false,
-        max: "5",
-        mid: "2",
-        min: "0",
-        step: "1",
-      },
       { constraint: "gpu", defaultValue: "256", key: "harmonics", label: "Harmonics", max: "4096", mid: "256", min: "1", step: "1" },
-      { defaultValue: "0", key: "dampingCurve", label: "Damping Curve", max: "1", mid: "0.5", min: "0", step: "any" },
       { defaultValue: "20000", key: "dampingFilterFrequency", kind: "frequency", label: "Filter Frequency", max: "20000", mid: "2000", min: "20", step: "any", unit: "Hz" },
-      {
-        choices: ["Rational", "Power", "Exp", "Butter", "Soft Knee", "Tilt"],
-        defaultValue: "0",
-        displayChoices: true,
-        divideChoicesVisibly: true,
-        key: "dampingAlgorithm",
-        label: "Damping Algorithm",
-        linearSmoothing: false,
-        max: "5",
-        mid: "2",
-        min: "0",
-        step: "1",
-      },
       { defaultValue: "0.35", key: "level", label: "Level", max: "1", mid: "0.35", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
@@ -1480,6 +1426,13 @@ const nodeGraphPatchFormat = Object.freeze({
 function nodeGraphModuleVisualInputs(type) {
   const inputs = nodeGraphModuleDefinitions[type]?.visualInputs;
   return Array.isArray(inputs) ? inputs.map((input) => ({ ...input })) : [];
+}
+
+function nodeGraphModuleGraphInputs(type) {
+  const inputs = nodeGraphModuleDefinitions[type]?.graphInputs;
+  return Array.isArray(inputs)
+    ? inputs.map((input) => String(input || "").trim()).filter(Boolean)
+    : [];
 }
 
 function nodeGraphCanonicalInputPort(type, port) {

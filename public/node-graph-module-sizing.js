@@ -33,7 +33,7 @@ function nodeGraphDefaultModuleGridWidthUnits(type) {
     return 7;
   }
   if (nodeGraphModuleDefinitions[type]?.layout === "graph") {
-    return 8;
+    return 14;
   }
   if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
     return 8;
@@ -146,8 +146,9 @@ function nodeGraphModuleRequiredHeightUnitsForUi(type, ui = {}) {
   if (nodeGraphModuleDefinitions[type]?.layout === "graph") {
     return (
       nodeGraphModuleHeaderHeightUnits(ui) +
-      nodeGraphModuleLayout.moduleScopeHeightGu * 1.5 +
+      nodeGraphModuleLayout.moduleScopeHeightGu * 4 +
       nodeGraphModuleIoSectionHeightGu(type) +
+      nodeGraphModuleSliderBodyHeightGu(type) +
       nodeGraphModuleLayout.fitCushionGu +
       nodeGraphModuleLayout.moduleGridInsetGu * 2
     );

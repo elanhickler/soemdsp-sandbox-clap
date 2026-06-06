@@ -343,9 +343,23 @@ function createNodeGraphGraphSvgElement(name, attributes = {}) {
   return element;
 }
 
-function nodeGraphGraphSvgToGraphPoint(svg, clientX, clientY) {
+function nodeGraphGraphSvgPlotRect(svg) {
   const rect = svg?.getBoundingClientRect?.();
   if (!rect?.width || !rect?.height) {
+    return null;
+  }
+  const size = Math.max(1, Math.min(rect.width, rect.height));
+  return {
+    height: size,
+    left: rect.left + (rect.width - size) * 0.5,
+    top: rect.top + (rect.height - size) * 0.5,
+    width: size,
+  };
+}
+
+function nodeGraphGraphSvgToGraphPoint(svg, clientX, clientY) {
+  const rect = nodeGraphGraphSvgPlotRect(svg);
+  if (!rect) {
     return { x: 0, y: 0 };
   }
   const viewX = ((clientX - rect.left) / rect.width) * 100;
@@ -447,7 +461,7 @@ function renderNodeGraphGraphDisplay(element, graphValue, selectedIndex = null) 
   const svg = createNodeGraphGraphSvgElement("svg", {
     "aria-hidden": "true",
     class: "node-module-graph-svg",
-    preserveAspectRatio: "none",
+    preserveAspectRatio: "xMidYMid meet",
     viewBox: "0 0 100 100",
   });
   svg.append(createNodeGraphGraphSvgElement("rect", {

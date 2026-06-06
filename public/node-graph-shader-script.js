@@ -1315,14 +1315,17 @@ function copyNodeGraphShaderScriptScopeCanvasCrop(sourceCanvas, sourceRect, targ
   const sourceY = clampNodeSliderValue((sourceRect.top - sourceCanvasRect.top) * scaleY, 0, Math.max(0, sourceCanvas.height - 1));
   const sourceWidth = Math.max(1, Math.min(sourceCanvas.width - sourceX, sourceRect.width * scaleX));
   const sourceHeight = Math.max(1, Math.min(sourceCanvas.height - sourceY, sourceRect.height * scaleY));
+  const cssWidth = Math.max(1, Number(sourceRect.width) || 1);
+  const cssHeight = Math.max(1, Number(sourceRect.height) || 1);
   const cropCanvas = document.createElement("canvas");
   cropCanvas.className = "node-shader-script-scope-crop-canvas";
   cropCanvas.width = Math.max(1, Math.ceil(sourceWidth));
   cropCanvas.height = Math.max(1, Math.ceil(sourceHeight));
   cropCanvas.style.position = "absolute";
-  cropCanvas.style.inset = "0";
-  cropCanvas.style.width = "100%";
-  cropCanvas.style.height = "100%";
+  cropCanvas.style.left = "0";
+  cropCanvas.style.top = "0";
+  cropCanvas.style.width = `${cssWidth}px`;
+  cropCanvas.style.height = `${cssHeight}px`;
   cropCanvas.style.pointerEvents = "none";
   try {
     cropCanvas.getContext("2d")?.drawImage(
@@ -1413,6 +1416,9 @@ function drawNodeGraphShaderScriptScopePreview() {
     return;
   }
   try {
+    if (typeof drawNodeGraphModuleScopes === "function") {
+      drawNodeGraphModuleScopes();
+    }
     renderNodeGraphCameraFeed({
       camera,
       decorateClone: decorateNodeGraphShaderScriptScopePreviewClone,
@@ -1805,6 +1811,10 @@ function bindNodeGraphShaderScriptEvents() {
     updateNodeGraphShaderScriptHighlight();
     closeNodeGraphShaderScriptTokenWidget();
     syncNodeGraphShaderScriptVideoInputControls();
+    if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
+      scheduleNodeGraphModuleScopeDraw();
+    }
+    scheduleNodeGraphShaderScriptScopePreview();
   });
   source?.addEventListener("scroll", updateNodeGraphShaderScriptHighlight);
   source?.addEventListener("pointerdown", beginNodeGraphShaderScriptNumberTokenDrag);

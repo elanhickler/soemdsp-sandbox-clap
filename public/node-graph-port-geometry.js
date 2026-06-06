@@ -19,6 +19,10 @@ function nodeGraphModulationPortSelector(node, parameter) {
   return `.node-param-port.modulation-input[data-node="${CSS.escape(node)}"][data-param="${CSS.escape(parameter)}"]`;
 }
 
+function nodeGraphGraphInputPortSelector(node, graphInput) {
+  return `.node-param-port.graph-input[data-node="${CSS.escape(node)}"][data-graph-input="${CSS.escape(graphInput)}"]`;
+}
+
 function markNodeGraphPortConnected(node, port, io) {
   const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
   nodeGraphZoomSurface()
@@ -29,6 +33,12 @@ function markNodeGraphPortConnected(node, port, io) {
 function markNodeGraphModulationPortConnected(node, parameter) {
   nodeGraphZoomSurface()
     ?.querySelector(nodeGraphModulationPortSelector(node, parameter))
+    ?.classList.add("connected-port");
+}
+
+function markNodeGraphGraphInputPortConnected(node, graphInput) {
+  nodeGraphZoomSurface()
+    ?.querySelector(nodeGraphGraphInputPortSelector(node, graphInput))
     ?.classList.add("connected-port");
 }
 
@@ -43,6 +53,12 @@ function nodeGraphModulationPortCenter(node, parameter) {
   const surface = nodeGraphZoomSurface();
   const element = surface.querySelector(nodeGraphModulationPortSelector(node, parameter));
   return nodeGraphElementCenter(element, "modulation");
+}
+
+function nodeGraphGraphInputPortCenter(node, graphInput) {
+  const surface = nodeGraphZoomSurface();
+  const element = surface.querySelector(nodeGraphGraphInputPortSelector(node, graphInput));
+  return nodeGraphElementCenter(element, "graph");
 }
 
 function nodeGraphElementCenter(element, io = null) {
@@ -78,7 +94,7 @@ function nodeGraphCssPatchPointClientCenter(element, rect, io = null) {
   const pixelMatch = cssX.match(/^(-?\d+(?:\.\d+)?)px$/);
   const fallbackRatio = io === "output"
     ? 1
-    : io === "input" || io === "modulation"
+    : io === "input" || io === "modulation" || io === "graph"
       ? 0
       : 0.5;
   const xRatio = percentMatch
@@ -109,7 +125,12 @@ function nodeGraphParameterPatchPointSide(element, io = null) {
   if (element.classList.contains("parameter-output") || io === "output") {
     return "right";
   }
-  if (element.classList.contains("modulation-input") || io === "modulation") {
+  if (
+    element.classList.contains("modulation-input") ||
+    element.classList.contains("graph-input") ||
+    io === "modulation" ||
+    io === "graph"
+  ) {
     return "left";
   }
   return null;
@@ -129,6 +150,9 @@ function nodeGraphPortWireColor(node, port, io) {
     return nodeGraphCssColor("--node-input-fill", "#7fc7d9");
   }
   if (io === "modulation") {
+    return nodeGraphCssColor("--node-mod-input-fill", "#b184ff");
+  }
+  if (io === "graph") {
     return nodeGraphCssColor("--node-mod-input-fill", "#b184ff");
   }
   if (nodeGraphParameterOutputPort(nodeGraphPatchNode(node) || nodeGraphPatchNodeType(node), canonicalPort)) {

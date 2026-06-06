@@ -51,6 +51,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.delayedTriggerStates = new Map();
     this.expAdsrStates = new Map();
     this.fractalBrownianNoiseStates = new Map();
+    this.graphInputConnections = new Map();
     this.gpuAdditiveQueues = new Map();
     this.gpuAdditiveStatusCounter = 0;
     this.gpuAdditiveUnderruns = 0;
@@ -230,6 +231,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
   clearPlan() {
     this.inputConnections = new Map();
+    this.graphInputConnections = new Map();
     this.badNumberCount = 0;
     this.lastBadValueReason = "";
     this.lastBadValueNodeId = "";
@@ -306,19 +308,43 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       return;
     }
     const queue = this.gpuAdditiveQueues.get(nodeId) || {
+      backend: "",
       chunks: [],
+      droppedChunks: 0,
+      expectedSequence: 0,
+      heldGain: 1,
+      heldSamples: 0,
+      lastSample: 0,
       readIndex: 0,
+      resetCount: 0,
       version: "",
     };
+    queue.backend = String(message.backend || queue.backend || "");
     const version = String(message.version || "");
     if (queue.version !== version) {
       queue.chunks = [];
+      queue.droppedChunks = 0;
+      queue.expectedSequence = 0;
       queue.readIndex = 0;
+      queue.resetCount += 1;
       queue.version = version;
+    }
+    const sequence = Number(message.sequence);
+    if (Number.isFinite(sequence)) {
+      if (sequence < queue.expectedSequence) {
+        return;
+      }
+      if (sequence > queue.expectedSequence) {
+        queue.droppedChunks += sequence - queue.expectedSequence;
+        queue.chunks = [];
+        queue.readIndex = 0;
+      }
+      queue.expectedSequence = sequence + 1;
     }
     queue.chunks.push(samples);
     while (queue.chunks.length > 12) {
       queue.chunks.shift();
+      queue.droppedChunks += 1;
       queue.readIndex = 0;
     }
     this.gpuAdditiveQueues.set(nodeId, queue);
@@ -328,10 +354,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const queue = this.gpuAdditiveQueues.get(nodeId);
     if (!queue?.chunks?.length) {
       this.gpuAdditiveUnderruns += 1;
+      if (queue && Number.isFinite(queue.lastSample) && queue.heldSamples < 2048) {
+        queue.heldSamples += 1;
+        if (queue.heldSamples > 128) {
+          queue.heldGain = Math.max(0, (Number(queue.heldGain) || 1) * 0.9975);
+        } else {
+          queue.heldGain = 1;
+        }
+        return queue.lastSample * queue.heldGain;
+      }
       return null;
     }
     const chunk = queue.chunks[0];
     const sample = Number(chunk[queue.readIndex]) || 0;
+    queue.heldGain = 1;
+    queue.lastSample = sample;
+    queue.heldSamples = 0;
     queue.readIndex += 1;
     if (queue.readIndex >= chunk.length) {
       queue.chunks.shift();
@@ -345,7 +383,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const [nodeId, queue] of this.gpuAdditiveQueues) {
       queues.push({
         nodeId,
+        backend: queue.backend,
         chunks: queue.chunks.length,
+        droppedChunks: queue.droppedChunks,
+        expectedSequence: queue.expectedSequence,
+        heldGain: queue.heldGain,
+        heldSamples: queue.heldSamples,
+        resetCount: queue.resetCount,
         samples: queue.chunks.reduce((sum, chunk) => sum + chunk.length, 0) - queue.readIndex,
         version: queue.version,
       });
@@ -392,6 +436,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       inputs: (Array.isArray(sink?.inputs) ? sink.inputs : []).map((input) => ({ ...input })),
     }));
     this.inputConnections = this.buildInputConnectionMap(plan?.connections, ids);
+    this.graphInputConnections = this.buildGraphInputConnectionMap(plan?.graphConnections, ids);
     this.modulationConnections = this.buildModulationConnectionMap(plan?.modulations, ids);
     this.resetVisualControls();
 
@@ -806,36 +851,50 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  buildInputConnectionMap(connections, ids) {
+  buildConnectionMap(items, ids, keyForItem) {
     const map = new Map();
-    for (const connection of Array.isArray(connections) ? connections : []) {
-      if (!ids.has(connection.sourceNode) || !ids.has(connection.destinationNode)) {
+    for (const item of Array.isArray(items) ? items : []) {
+      if (!ids.has(item.sourceNode) || !ids.has(item.destinationNode)) {
         continue;
       }
-      const key = this.inputKey(connection.destinationNode, connection.destinationPort);
+      const key = keyForItem(item);
       const list = map.get(key) || [];
-      list.push({ ...connection });
+      list.push({ ...item });
       map.set(key, list);
     }
     return map;
   }
 
+  buildInputConnectionMap(connections, ids) {
+    return this.buildConnectionMap(
+      connections,
+      ids,
+      (connection) => this.inputKey(connection.destinationNode, connection.destinationPort),
+    );
+  }
+
   buildModulationConnectionMap(modulations, ids) {
-    const map = new Map();
-    for (const modulation of Array.isArray(modulations) ? modulations : []) {
-      if (!ids.has(modulation.sourceNode) || !ids.has(modulation.destinationNode)) {
-        continue;
-      }
-      const key = this.parameterKey(modulation.destinationNode, modulation.destinationParam);
-      const list = map.get(key) || [];
-      list.push({ ...modulation });
-      map.set(key, list);
-    }
-    return map;
+    return this.buildConnectionMap(
+      modulations,
+      ids,
+      (modulation) => this.parameterKey(modulation.destinationNode, modulation.destinationParam),
+    );
+  }
+
+  buildGraphInputConnectionMap(graphConnections, ids) {
+    return this.buildConnectionMap(
+      graphConnections,
+      ids,
+      (connection) => this.graphInputKey(connection.destinationNode, connection.destinationGraphInput),
+    );
   }
 
   inputKey(node, port) {
     return `${node}.${port}`;
+  }
+
+  graphInputKey(node, graphInput) {
+    return `${node}.${graphInput}`;
   }
 
   parameterKey(node, parameter) {
@@ -1073,13 +1132,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     if (!output || typeof output !== "object") {
       return;
     }
-    for (const port of ["Left", "Right"]) {
-      if (!Number.isFinite(Number(output[port]))) {
+    for (const [port, value] of Object.entries(output)) {
+      if (!port || !Number.isFinite(Number(value))) {
         continue;
       }
       const portId = `${id}:${port}`;
       const portSamples = this.scopeBuffers.get(portId) || [];
-      portSamples.push(this.scopeScalarValue(output[port]));
+      portSamples.push(this.scopeScalarValue(value));
       this.scopeBuffers.set(portId, portSamples);
     }
   }
@@ -1578,32 +1637,29 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const modA = this.clampValue(Number(params.modA) || 0, 0, 1);
     const harmonicPhaseAdd = this.clampValue(Number(params.harmonicPhaseAdd) || 0, 0, 1);
     const harmonicPhaseMultiply = this.clampValue(Number(params.harmonicPhaseMultiply) || 0, 0, 4);
-    const harmonicPhaseCurve = this.clampValue(Number(params.harmonicPhaseCurve) || 0, 0, 1);
-    const harmonicPhaseAlgorithm = this.additiveDampingAlgorithmValue(params.harmonicPhaseAlgorithm);
     const level = this.clampValue(Number(params.level) || 0, 0, 1);
-    const dampingCurve = this.additiveDampingCurveValue(params.dampingCurve);
-    const dampingAlgorithm = this.additiveDampingAlgorithmValue(params.dampingAlgorithm);
     const dampingFilterFrequency = this.additiveFilterFrequencyValue(params.dampingFilterFrequency, safeRate);
+    const dampingGraphValueAt = typeof params.dampingGraphValueAt === "function"
+      ? params.dampingGraphValueAt
+      : () => 1;
+    const phaseGraphValueAt = typeof params.phaseGraphValueAt === "function"
+      ? params.phaseGraphValueAt
+      : () => 0;
     const harmonicLimit = Math.max(1, Math.min(maxHarmonics, Math.floor(Math.min(20000, safeRate * 0.45) / Math.max(1, frequency))));
     let total = 0;
     let norm = 0;
     for (let harmonic = 1; harmonic <= harmonicLimit; harmonic += 1) {
       const partial = this.additiveWaveformHarmonic(waveform, harmonic, modA);
+      const dampingX = this.clampValue((frequency * harmonic) / dampingFilterFrequency, 0, 1);
       const amplitude = (Number(partial.amplitude) || 0) *
-        this.additiveHarmonicDamping(harmonic, frequency, safeRate, dampingCurve, dampingAlgorithm, dampingFilterFrequency);
+        this.clampValue(Number(dampingGraphValueAt(dampingX)) || 0, 0, 1);
       if (amplitude === 0) {
         continue;
       }
       const harmonicRatio = harmonicLimit > 1
         ? (harmonic - 1) / (harmonicLimit - 1)
         : 0;
-      const phaseCurve = this.additiveHarmonicCurveAmount({
-        algorithm: harmonicPhaseAlgorithm,
-        curveValue: harmonicPhaseCurve,
-        harmonic,
-        maxHarmonics: harmonicLimit,
-        ratio: harmonicRatio,
-      });
+      const phaseCurve = this.clampValue(Number(phaseGraphValueAt(harmonicRatio)) || 0, 0, 1);
       const phaseMultiplier = 1 + phaseCurve * harmonicPhaseMultiply;
       const phaseOffset = (Number(partial.phase) || 0) + phaseCurve * harmonicPhaseAdd;
       total += Math.sin((phase * harmonic * phaseMultiplier) + phaseOffset * Math.PI * 2) * amplitude;
@@ -2100,6 +2156,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.expAdsrStates = new Map();
     runtime.fractalBrownianNoiseStates = new Map();
     runtime.flowerChildEnvelopeFollowerStates = new Map();
+    runtime.graphInputConnections = new Map();
     runtime.highpassStates = new Map();
     runtime.ladderFilterStates = new Map();
     runtime.linearEnvelopeStates = new Map();
@@ -2147,6 +2204,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.order = Array.isArray(plan?.order) ? [...plan.order] : [...ids];
     this.outputNode = plan?.outputNode || "output";
     this.inputConnections = this.buildInputConnectionMap(plan?.connections, ids);
+    this.graphInputConnections = this.buildGraphInputConnectionMap(plan?.graphConnections, ids);
     this.modulationConnections = this.buildModulationConnectionMap(plan?.modulations, ids);
     for (const id of ids) {
       const node = this.nodes.get(id);
@@ -3545,7 +3603,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       const phaseValue = this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues);
       const state = this.graphLfoStates.get(nodeId) || this.createGraphLfoState();
       this.graphLfoStates.set(nodeId, state);
-      const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), state);
+      const resetValue = 0;
       const currentFrame = Number(inputFrame) || 0;
       if (state.lastReset <= 0 && resetValue > 0) {
         state.resetFrame = currentFrame;
@@ -3559,6 +3617,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       const outputMin = this.readEffectiveParameter(node, "outputMin", 0, frame, frames, frameValues);
       const outputMax = this.readEffectiveParameter(node, "outputMax", 1, frame, frames, frameValues);
       return outputMin + normalizedValue * (outputMax - outputMin);
+    };
+    const graphInputValue = (nodeId, graphInput, x, fallback) => {
+      const connection = (this.graphInputConnections.get(this.graphInputKey(nodeId, graphInput)) || [])[0];
+      const source = connection ? this.nodes.get(connection.sourceNode) : null;
+      if (!source || source.type !== "graph") {
+        return fallback;
+      }
+      return this.graphValueAt(source.graph, this.clampValue(Number(x) || 0, 0, 1));
     };
 
     for (const nodeId of this.order) {
@@ -3663,7 +3729,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
         const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
         const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
-        const queuedAdditiveSample = node?.type === "gpuAdditiveOsc"
+        const hasGraphInput = (
+          (this.graphInputConnections.get(this.graphInputKey(nodeId, "Damping Graph")) || []).length > 0 ||
+          (this.graphInputConnections.get(this.graphInputKey(nodeId, "Phase Graph")) || []).length > 0
+        );
+        const queuedAdditiveSample = node?.type === "gpuAdditiveOsc" && !hasGraphInput
           ? this.readGpuAdditiveQueuedSample(nodeId)
           : null;
         const additiveSample = queuedAdditiveSample !== null
@@ -3672,16 +3742,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             phase + phaseOffset,
             {
               frequency: pitchedFrequency,
-              dampingAlgorithm: this.readEffectiveParameter(node, "dampingAlgorithm", 0, frame, frames, frameValues),
-              dampingCurve: this.readEffectiveParameter(node, "dampingCurve", 0, frame, frames, frameValues),
               dampingFilterFrequency: this.readEffectiveParameter(node, "dampingFilterFrequency", 20000, frame, frames, frameValues),
+              dampingGraphValueAt: (x) => graphInputValue(nodeId, "Damping Graph", x, 1),
               harmonics: this.readEffectiveParameter(node, "harmonics", 32, frame, frames, frameValues),
               harmonicPhaseAdd: this.readEffectiveParameter(node, "harmonicPhaseAdd", 0, frame, frames, frameValues),
-              harmonicPhaseAlgorithm: this.readEffectiveParameter(node, "harmonicPhaseAlgorithm", 0, frame, frames, frameValues),
-              harmonicPhaseCurve: this.readEffectiveParameter(node, "harmonicPhaseCurve", 1, frame, frames, frameValues),
               harmonicPhaseMultiply: this.readEffectiveParameter(node, "harmonicPhaseMultiply", 0, frame, frames, frameValues),
               level: this.readEffectiveParameter(node, "level", 0.35, frame, frames, frameValues),
               modA: this.readEffectiveParameter(node, "modA", 0.5, frame, frames, frameValues),
+              phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0),
               waveform: this.readEffectiveParameter(node, "waveform", 1, frame, frames, frameValues),
             },
             safeRate,
@@ -4477,7 +4545,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.meterSamples = 0;
       this.meterSquareSum = 0;
     }
-    if (this.gpuAdditiveStatusCounter >= sampleRate / 2) {
+    if (this.gpuAdditiveStatusCounter >= sampleRate / 20) {
       this.gpuAdditiveStatusCounter = 0;
       this.postGpuAdditiveStatus();
     }
