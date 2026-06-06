@@ -131,6 +131,12 @@ function nodeGraphScopeHexColorToRgb(color) {
   return [0, 2, 4].map((offset) => parseInt(normalized.slice(offset + 1, offset + 3), 16) / 255);
 }
 
+function nodeGraphModuleScopeDefaultDotCore(dotName) {
+  return dotName === "dot2"
+    ? nodeGraphModuleScopeDefaultDotCores.dot2
+    : nodeGraphModuleScopeDefaultDotCores.dot1;
+}
+
 function nodeGraphModuleScopeDefaultShaderSourceForNode(node) {
   try {
     const moduleDefault = typeof nodeGraphScopeShaderModuleDefaultSource === "function"
@@ -191,17 +197,22 @@ function nodeGraphModuleScopeShaderColor(source, dotName, fallback) {
     return nodeGraphNormalizeScopeTraceColor(value);
   }
   if (new RegExp(`^${dotName}\\.(?:global|globals)\\.color$`).test(value)) {
-    return dotName === "dot2"
-      ? normalizeNodeGraphModuleScopeDotCoreColor(
-        nodeGraphMvp?.moduleScopeDotCore2Color ?? nodeGraphModuleScopeDefaultDotCores.dot2.color,
-        nodeGraphModuleScopeDefaultDotCores.dot2.color,
-      )
-      : normalizeNodeGraphModuleScopeDotCoreColor(
-        nodeGraphMvp?.moduleScopeDotCore1Color ?? nodeGraphModuleScopeDefaultDotCores.dot1.color,
-        nodeGraphModuleScopeDefaultDotCores.dot1.color,
-      );
+    return nodeGraphModuleScopeShaderGlobalColor(dotName);
   }
   return fallback;
+}
+
+function nodeGraphModuleScopeShaderGlobalColor(dotName) {
+  const defaultCore = nodeGraphModuleScopeDefaultDotCore(dotName);
+  return dotName === "dot2"
+    ? normalizeNodeGraphModuleScopeDotCoreColor(
+      nodeGraphMvp?.moduleScopeDotCore2Color ?? defaultCore.color,
+      defaultCore.color,
+    )
+    : normalizeNodeGraphModuleScopeDotCoreColor(
+      nodeGraphMvp?.moduleScopeDotCore1Color ?? defaultCore.color,
+      defaultCore.color,
+    );
 }
 
 function nodeGraphModuleScopeShaderNumber(source, dotName, key, fallback) {
@@ -212,30 +223,28 @@ function nodeGraphModuleScopeShaderNumber(source, dotName, key, fallback) {
 
 function nodeGraphModuleScopeShaderGlobalValue(dotName, key, fallback) {
   const dotIndex = dotName === "dot2" ? 2 : 1;
+  const defaultCore = nodeGraphModuleScopeDefaultDotCore(dotName);
   if (key === "size") {
-    const defaultGlobalSize = dotIndex === 2
-      ? nodeGraphModuleScopeDefaultDotCores.dot2.size
-      : nodeGraphModuleScopeDefaultDotCores.dot1.size;
     const size = dotIndex === 2
       ? normalizeNodeGraphModuleScopeDotCoreSize(
-        nodeGraphMvp?.moduleScopeDotCore2Size ?? nodeGraphModuleScopeDefaultDotCores.dot2.size,
-        nodeGraphModuleScopeDefaultDotCores.dot2.size,
+        nodeGraphMvp?.moduleScopeDotCore2Size ?? defaultCore.size,
+        defaultCore.size,
       )
       : normalizeNodeGraphModuleScopeDotCoreSize(
-        nodeGraphMvp?.moduleScopeDotCore1Size ?? nodeGraphModuleScopeDefaultDotCores.dot1.size,
-        nodeGraphModuleScopeDefaultDotCores.dot1.size,
+        nodeGraphMvp?.moduleScopeDotCore1Size ?? defaultCore.size,
+        defaultCore.size,
       );
-    return clampNodeSliderValue((Number(fallback) || 0) * (size / defaultGlobalSize), 0, 1);
+    return clampNodeSliderValue((Number(fallback) || 0) * (size / defaultCore.size), 0, 1);
   }
   if (key === "brightness") {
     return dotIndex === 2
       ? normalizeNodeGraphModuleScopeDotCoreBrightness(
-        nodeGraphMvp?.moduleScopeDotCore2Brightness ?? nodeGraphModuleScopeDefaultDotCores.dot2.brightness,
-        nodeGraphModuleScopeDefaultDotCores.dot2.brightness,
+        nodeGraphMvp?.moduleScopeDotCore2Brightness ?? defaultCore.brightness,
+        defaultCore.brightness,
       )
       : normalizeNodeGraphModuleScopeDotCoreBrightness(
-        nodeGraphMvp?.moduleScopeDotCore1Brightness ?? nodeGraphModuleScopeDefaultDotCores.dot1.brightness,
-        nodeGraphModuleScopeDefaultDotCores.dot1.brightness,
+        nodeGraphMvp?.moduleScopeDotCore1Brightness ?? defaultCore.brightness,
+        defaultCore.brightness,
       );
   }
   return fallback;
