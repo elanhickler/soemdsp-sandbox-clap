@@ -9,7 +9,6 @@ const nodeGraphShaderScriptEditorFontSizeLimits = Object.freeze({
 const nodeGraphShaderScriptBlendModes = Object.freeze(["laser", "led", "light", "paint", "solid"]);
 const nodeGraphShaderScriptDefaultSyntaxColors = Object.freeze({
   assignment: "#d6a35f",
-  color: "#dfe7e3",
   comment: "#9ca4a6",
   mode: "#d3a070",
   number: "#a9cda6",
@@ -17,7 +16,6 @@ const nodeGraphShaderScriptDefaultSyntaxColors = Object.freeze({
 });
 const nodeGraphShaderScriptLegacySyntaxColors = Object.freeze({
   assignment: "#ffd87f",
-  color: "#ffffff",
   comment: "#9ca4a6",
   mode: "#ffae6e",
   number: "#b4ffb2",
@@ -575,7 +573,10 @@ function colorizeNodeGraphShaderScriptLine(line = "", lineStart = 0) {
       ? ` data-token-type="${tokenType}" data-token-start="${tokenStart}" data-token-end="${tokenEnd}"`
       : "";
     const linkClass = tokenType ? " node-shader-token-link" : "";
-    html += `<span class="${className}${linkClass}"${tokenAttributes}>${escapeNodeGraphShaderScriptHtml(token)}</span>`;
+    const tokenStyle = tokenType === "color"
+      ? ` style="color: ${normalizeNodeGraphShaderScriptColorToken(token)}"`
+      : "";
+    html += `<span class="${className}${linkClass}"${tokenAttributes}${tokenStyle}>${escapeNodeGraphShaderScriptHtml(token)}</span>`;
     lastIndex = match.index + token.length;
   }
   html += escapeNodeGraphShaderScriptHtml(code.slice(lastIndex));

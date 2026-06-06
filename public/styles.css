@@ -9281,7 +9281,6 @@ button.saved-default,
 }
 
 .node-shader-token-color {
-  color: var(--node-shader-token-color, #dfe7e3);
   text-shadow: 0 0 6px color-mix(in srgb, currentColor 36%, transparent);
 }
 

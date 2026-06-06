@@ -459,7 +459,6 @@ REQUIRED_SHELL_IDS = {
     "nodeShaderScriptSyntaxColorsReset",
     "nodeShaderScriptSyntaxColorProperty",
     "nodeShaderScriptSyntaxColorAssignment",
-    "nodeShaderScriptSyntaxColorColor",
     "nodeShaderScriptSyntaxColorNumber",
     "nodeShaderScriptSyntaxColorMode",
     "nodeShaderScriptSyntaxColorComment",
@@ -3405,7 +3404,6 @@ def require_node_graph_mvp_contract() -> None:
     for snippet in [
         "--node-shader-token-property",
         "--node-shader-token-assignment",
-        "--node-shader-token-color",
         "--node-shader-token-number",
         "--node-shader-token-mode",
         "--node-shader-token-comment",
@@ -8753,6 +8751,7 @@ def require_node_graph_mvp_contract() -> None:
         "data-token-type=\"${tokenType}\"",
         "data-token-start=\"${tokenStart}\"",
         "data-token-end=\"${tokenEnd}\"",
+        "style=\"color: ${normalizeNodeGraphShaderScriptColorToken(token)}\"",
         "node-shader-token-link",
         "function updateNodeGraphShaderScriptHighlight()",
         "function findNodeGraphShaderScriptEditableTokenAt(index)",
