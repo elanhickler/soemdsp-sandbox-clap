@@ -591,7 +591,7 @@ function colorizeNodeGraphShaderScriptLine(line = "", lineStart = 0) {
   const commentIndex = line.indexOf("//");
   const code = commentIndex >= 0 ? line.slice(0, commentIndex) : line;
   const comment = commentIndex >= 0 ? line.slice(commentIndex) : "";
-  const tokenPattern = /(#[0-9a-fA-F]{3,8}\b|\b(?:dot[12]\.(?:global|globals)\.(?:size|brightness|blur)|(?:dot[12]|blend|video)\.[a-zA-Z_][\w]*|globalsize|global\.size)\b|\b(?:laser|led|light|paint|solid|none|output\d+)\b|~|-?\d+(?:\.\d+)?\b|[=*])/g;
+  const tokenPattern = /(#[0-9a-fA-F]{3,8}\b|\b(?:dot[12]\.(?:global|globals)\.(?:size|brightness)|(?:dot[12]|blend|video)\.[a-zA-Z_][\w]*|globalsize|global\.size)\b|\b(?:laser|led|light|paint|solid|none|output\d+)\b|~|-?\d+(?:\.\d+)?\b|[=*])/g;
   let html = "";
   let lastIndex = 0;
   for (const match of code.matchAll(tokenPattern)) {

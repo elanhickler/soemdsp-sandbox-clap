@@ -182,9 +182,11 @@ function renderNodeGraphModuleScopeDotPreview(
       core1Brightness,
       size,
       core1Color,
+      0,
       core2Size,
       core2Brightness,
       core2Color,
+      0,
       lineThickness,
     )
     : new Uint8ClampedArray(size * size * 4);

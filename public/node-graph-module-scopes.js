@@ -239,11 +239,15 @@ function nodeGraphModuleScopeShaderSizeRatio(source, dotName, fallback) {
   );
 }
 
+function normalizeNodeGraphModuleScopeDotBlur(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? clampNodeSliderValue(number, 0, 1) : fallback;
+}
+
 function nodeGraphModuleScopeShaderBlurRatio(source, dotName, fallback = 0) {
-  return clampNodeSliderValue(
+  return normalizeNodeGraphModuleScopeDotBlur(
     nodeGraphModuleScopeShaderNumber(source, dotName, "blur", fallback),
-    0,
-    1,
+    fallback,
   );
 }
 
@@ -3399,8 +3403,8 @@ function nodeGraphModuleScopeGeneratedDotTextureData(
   const core2Color = nodeGraphScopeHexColorToRgb(
     normalizeNodeGraphModuleScopeDotCoreColor(core2ColorValue ?? "#17002f", "#17002f"),
   );
-  const core1Blur = clampNodeSliderValue(Number(core1BlurValue) || 0, 0, 1);
-  const core2Blur = clampNodeSliderValue(Number(core2BlurValue) || 0, 0, 1);
+  const core1Blur = normalizeNodeGraphModuleScopeDotBlur(core1BlurValue, 0);
+  const core2Blur = normalizeNodeGraphModuleScopeDotBlur(core2BlurValue, 0);
   const lineThickness = normalizeNodeGraphModuleScopeLineThickness(lineThicknessValue ?? 2);
   const finalCore1Size = core1Size * lineThickness;
   const finalCore2Size = core2Size * lineThickness;
@@ -3535,7 +3539,7 @@ function nodeGraphModuleScopeDotSizeScale() {
 
 function nodeGraphModuleScopeDotBlurMask(distanceSquared, radius, blurValue = 0) {
   const radiusValue = Math.max(0.0001, Number(radius) || 0.0001);
-  const blur = clampNodeSliderValue(Number(blurValue) || 0, 0, 1);
+  const blur = normalizeNodeGraphModuleScopeDotBlur(blurValue, 0);
   const normalizedDistance = Math.sqrt(Math.max(0, Number(distanceSquared) || 0)) / radiusValue;
   if (normalizedDistance >= 1) {
     return 0;
@@ -3835,7 +3839,7 @@ function drawNodeGraphModuleScopeLightShape(context, shape, centerX, centerY, ra
 
 function nodeGraphModuleScopeLightFillStyle(context, centerX, centerY, radius, rgb, alpha, blurValue = 0) {
   const alphaValue = clampNodeSliderValue(Number(alpha) || 0, 0, 1);
-  const blur = clampNodeSliderValue(Number(blurValue) || 0, 0, 1);
+  const blur = normalizeNodeGraphModuleScopeDotBlur(blurValue, 0);
   if (blur <= 0) {
     return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alphaValue})`;
   }
