@@ -446,6 +446,12 @@
             </button>
           </div>
           <div class="node-shader-script-body">
+            <aside id="nodeShaderScriptPreviewPanel" class="node-shader-script-preview-panel" hidden>
+              <div id="nodeShaderScriptModelPreview" class="node-shader-script-model-preview" aria-label="Current module preview">
+                <canvas id="nodeShaderScriptPreviewCanvas" width="320" height="320" aria-label="Current scope preview"></canvas>
+              </div>
+              <p id="nodeShaderScriptPreviewStatus">No scope selected.</p>
+            </aside>
             <div class="node-shader-script-editor">
               <pre
                 id="nodeShaderScriptHighlight"
@@ -477,12 +483,6 @@
                 </div>
               </div>
             </div>
-            <aside id="nodeShaderScriptPreviewPanel" class="node-shader-script-preview-panel" hidden>
-              <div id="nodeShaderScriptModelPreview" class="node-shader-script-model-preview" aria-label="Current module preview">
-                <canvas id="nodeShaderScriptPreviewCanvas" width="320" height="320" aria-label="Current scope preview"></canvas>
-              </div>
-              <p id="nodeShaderScriptPreviewStatus">No scope selected.</p>
-            </aside>
           </div>
           <div id="nodeShaderScriptSyntaxColorsPanel" class="node-shader-script-syntax-colors-panel" hidden>
             <div class="node-shader-script-syntax-colors-heading">
