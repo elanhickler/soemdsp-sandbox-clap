@@ -83,6 +83,40 @@ function nodeGraphGraphTransformedData(graphValue, transform) {
   return graph;
 }
 
+function duplicateNodeGraphGraphNodeData(graphValue, selectedIndex = 0) {
+  const graph = normalizeNodeGraphGraph(graphValue);
+  if (graph.nodes.length >= 32) {
+    return { graph, duplicated: false, selectedIndex: nodeGraphGraphNodeIndexFromValue(graph, selectedIndex) };
+  }
+  const index = nodeGraphGraphNodeIndexFromValue(graph, selectedIndex);
+  const sourceNode = graph.nodes[index] || graph.nodes.at(-1);
+  const previousX = graph.nodes[Math.max(0, index - 1)]?.x ?? 0;
+  const nextX = graph.nodes[Math.min(graph.nodes.length - 1, index + 1)]?.x ?? 1;
+  const baseX = normalizeNodeGraphGraphNumber(sourceNode.x, 0.5);
+  const offset = 0.025;
+  const duplicateX = index >= graph.nodes.length - 1
+    ? Math.max(previousX + 0.001, baseX - offset)
+    : Math.min(nextX - 0.001, baseX + offset);
+  const x = normalizeNodeGraphGraphNumber(duplicateX, baseX, 0.001, 0.999);
+  graph.nodes.push({
+    c: sourceNode.c,
+    shape: sourceNode.shape,
+    x,
+    y: sourceNode.y,
+  });
+  const normalized = normalizeNodeGraphGraph(graph);
+  const duplicateIndex = normalized.nodes.reduce((bestIndex, node, nodeIndex) => {
+    const best = normalized.nodes[bestIndex];
+    return Math.abs(node.x - x) < Math.abs(best.x - x) ? nodeIndex : bestIndex;
+  }, 0);
+  return {
+    duplicated: true,
+    graph: normalized,
+    selectedIndex: duplicateIndex,
+    selectedX: x,
+  };
+}
+
 function serializeNodeGraphGraphClipboard(graphValue) {
   return JSON.stringify({
     graph: normalizeNodeGraphGraph(graphValue),
@@ -662,6 +696,36 @@ function removeFocusedNodeGraphGraphNode() {
   return removeSelectedNodeGraphGraphNodeFromDisplay(
     document.activeElement?.closest?.(".node-module-graph-display"),
   );
+}
+
+function duplicateFocusedNodeGraphGraphNode() {
+  const display = document.activeElement?.closest?.(".node-module-graph-display");
+  const moduleElement = display?.closest?.(".dsp-node");
+  const nodeId = moduleElement?.dataset.node || "";
+  const sourceNode = nodeGraphPatchNode(nodeId);
+  if (!display || !sourceNode || sourceNode.type !== "graph") {
+    return false;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === nodeId);
+  if (!targetNode || targetNode.type !== "graph") {
+    return false;
+  }
+  const graph = normalizeNodeGraphGraph(targetNode.graph);
+  const selectedIndex = nodeGraphGraphSelectedNodeIndex(nodeId, graph, graph.nodes.length - 1);
+  const duplicate = duplicateNodeGraphGraphNodeData(graph, selectedIndex);
+  if (!duplicate.duplicated) {
+    return false;
+  }
+  targetNode.graph = duplicate.graph;
+  commitNodeGraphPatch(patch, { status: "graph node duplicated" });
+  setNodeGraphGraphSelectedNodeIndex(nodeId, targetNode.graph, duplicate.selectedIndex);
+  syncNodeGraphGraphElement(moduleElement, targetNode);
+  if (nodeGraphModuleActionTargetNodeId() === nodeId) {
+    syncNodeGraphGraphControls(targetNode.graph, duplicate.selectedIndex);
+  }
+  display.focus?.({ preventScroll: true });
+  return true;
 }
 
 function nudgeFocusedNodeGraphGraphNode(event) {

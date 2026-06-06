@@ -134,6 +134,12 @@ function handleNodeGraphKeydown(event) {
     }
     return;
   }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+    if (duplicateFocusedNodeGraphGraphNode()) {
+      event.preventDefault();
+    }
+    return;
+  }
   if (nudgeFocusedNodeGraphGraphNode(event)) {
     event.preventDefault();
     return;

@@ -893,27 +893,14 @@ function duplicateNodeGraphGraphNodeFromContext() {
     return;
   }
   const graph = normalizeNodeGraphGraph(targetNode.graph);
-  if (graph.nodes.length >= 32) {
+  const selectedIndex = selectedNodeGraphGraphIndex(graph);
+  const duplicate = duplicateNodeGraphGraphNodeData(graph, selectedIndex);
+  if (!duplicate.duplicated) {
     return;
   }
-  const selectedIndex = selectedNodeGraphGraphIndex(graph);
-  const sourceNode = graph.nodes[selectedIndex] || graph.nodes.at(-1);
-  const previousX = graph.nodes[Math.max(0, selectedIndex - 1)]?.x ?? 0;
-  const nextX = graph.nodes[Math.min(graph.nodes.length - 1, selectedIndex + 1)]?.x ?? 1;
-  const baseX = normalizeNodeGraphGraphNumber(sourceNode.x, 0.5);
-  const offset = 0.025;
-  const x = selectedIndex >= graph.nodes.length - 1
-    ? Math.max(previousX + 0.001, baseX - offset)
-    : Math.min(nextX - 0.001, baseX + offset);
-  graph.nodes.push({
-    c: sourceNode.c,
-    shape: sourceNode.shape,
-    x: normalizeNodeGraphGraphNumber(x, baseX, 0.001, 0.999),
-    y: sourceNode.y,
-  });
-  targetNode.graph = graph;
+  targetNode.graph = duplicate.graph;
   commitNodeGraphGraphEdit(patch, targetNode, "graph node duplicated", {
-    selectedX: x,
+    selectedIndex: duplicate.selectedIndex,
   });
 }
 
