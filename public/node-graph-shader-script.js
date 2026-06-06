@@ -944,6 +944,9 @@ function syncNodeGraphShaderScriptModelPreview(slot) {
     });
     preview.prepend(clone);
   }
+  clone.style.left = "";
+  clone.style.top = "";
+  clone.style.transform = "";
   const sourceRect = sourceModule.getBoundingClientRect();
   const sourceScopeRect = slot.scopeElement?.getBoundingClientRect?.();
   const previewRect = preview.getBoundingClientRect();

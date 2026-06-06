@@ -8768,6 +8768,7 @@ def require_node_graph_mvp_contract() -> None:
         "function syncNodeGraphShaderScriptModelPreview(slot)",
         "clone = sourceModule.cloneNode(true)",
         "clone.classList.add(\"node-shader-script-model-clone\")",
+        "clone.style.transform = \"\"",
         "function drawNodeGraphShaderScriptScopePreview()",
         "canvas.style.setProperty(\"--node-shader-scope-preview-aspect\"",
         "function scheduleNodeGraphShaderScriptScopePreview()",
