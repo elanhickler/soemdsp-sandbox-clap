@@ -52,13 +52,13 @@ function normalizeNodeGraphPatchGrid(grid = {}) {
 const nodeGraphScopeShaderDefaultSource = `video.input     = ~;
 
 
-dot1.color      = #ffffff;
+dot1.color      = dot1.global.color;
 dot1.size       = 1.0 * dot1.global.size;
 dot1.blur       = 0.00;
 dot1.brightness = 4.50;
 
 
-dot2.color      = #17002f;
+dot2.color      = dot2.global.color;
 dot2.size       = 1.0 * dot2.global.size;
 dot2.blur       = 0.00;
 dot2.brightness = 0.45;

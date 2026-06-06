@@ -185,8 +185,23 @@ function nodeGraphModuleScopeShaderOutputPortForSlot(slot) {
 }
 
 function nodeGraphModuleScopeShaderColor(source, dotName, fallback) {
-  const match = String(source || "").match(new RegExp(`\\b${dotName}\\.color\\s*=\\s*(#[0-9a-fA-F]{3,8})\\s*;`));
-  return match ? nodeGraphNormalizeScopeTraceColor(match[1]) : fallback;
+  const match = String(source || "").match(new RegExp(`\\b${dotName}\\.color\\s*=\\s*([^;]+)\\s*;`));
+  const value = String(match?.[1] || "").trim();
+  if (/^#[0-9a-fA-F]{3,8}$/.test(value)) {
+    return nodeGraphNormalizeScopeTraceColor(value);
+  }
+  if (new RegExp(`^${dotName}\\.(?:global|globals)\\.color$`).test(value)) {
+    return dotName === "dot2"
+      ? normalizeNodeGraphModuleScopeDotCoreColor(
+        nodeGraphMvp?.moduleScopeDotCore2Color ?? nodeGraphModuleScopeDefaultDotCores.dot2.color,
+        nodeGraphModuleScopeDefaultDotCores.dot2.color,
+      )
+      : normalizeNodeGraphModuleScopeDotCoreColor(
+        nodeGraphMvp?.moduleScopeDotCore1Color ?? nodeGraphModuleScopeDefaultDotCores.dot1.color,
+        nodeGraphModuleScopeDefaultDotCores.dot1.color,
+      );
+  }
+  return fallback;
 }
 
 function nodeGraphModuleScopeShaderNumber(source, dotName, key, fallback) {
