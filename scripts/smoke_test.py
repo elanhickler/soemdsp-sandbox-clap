@@ -9573,8 +9573,11 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphScopeLightCenterMinRatio: 0.42",
         "nodeGraphScopeLightOuterAlphaScale: 1",
         "function nodeGraphModuleScopeCapturedCurrentLightTarget(capturedBuffer)",
+        "function nodeGraphModuleScopeDefaultShaderSourceForNode(node)",
         "function nodeGraphModuleScopeShaderSourceForSlot(slot)",
         "function nodeGraphModuleScopeLightShaderStyle(slot, buffer)",
+        "nodeGraphModuleScopeDefaultShaderSourceForNode(node)",
+        "usesShader: Boolean(source)",
         "nodeGraphScopeLightInstant: true",
         "nodeGraphScopeLightTarget: nodeGraphModuleScopeCapturedCurrentLightTarget(capturedBuffer) ?? 0",
         "for (const sink of runtime.visualSinks || [])",
@@ -9640,12 +9643,14 @@ def require_node_graph_mvp_contract() -> None:
         "const lightStyle = nodeGraphModuleScopeLightShaderStyle(slot, buffer)" in light_display_source
         and "const outerColor = lightStyle.outerColor" in light_display_source
         and "const shaderUsesRatioSize = Boolean(lightStyle.source) && core2Size <= 1" in light_display_source
+        and ": lightStyle.usesShader ? 1 : 0.38" in light_display_source
         and "drawNodeGraphModuleScopeLightShape(context, shape, centerX, centerY, radius);" in light_display_source,
         "clock light display should let scope shader dot 2 define the outer light",
     )
     require(
         "const centerColor = lightStyle.centerColor" in light_display_source
         and "const centerRatio = Math.max(" in light_display_source
+        and ": lightStyle.usesShader ? 1 : 0.5" in light_display_source
         and "nodeGraphScopeLightCenterAlphaScale" in light_display_source,
         "LED and clock light display should be able to draw a separate bright center dot",
     )

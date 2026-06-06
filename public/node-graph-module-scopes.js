@@ -118,6 +118,20 @@ function nodeGraphScopeHexColorToRgb(color) {
   return [0, 2, 4].map((offset) => parseInt(normalized.slice(offset + 1, offset + 3), 16) / 255);
 }
 
+function nodeGraphModuleScopeDefaultShaderSourceForNode(node) {
+  try {
+    const moduleDefault = typeof nodeGraphScopeShaderModuleDefaultSource === "function"
+      ? nodeGraphScopeShaderModuleDefaultSource(node)
+      : "";
+    if (moduleDefault) {
+      return moduleDefault;
+    }
+  } catch {
+    // Fall through to the built-in starter shader.
+  }
+  return normalizeNodeGraphScopeShader({}).source;
+}
+
 function nodeGraphModuleScopeShaderSourceForSlot(slot) {
   const node = nodeGraphModuleScopeNodeForSlot(slot);
   if (!node) {
@@ -132,14 +146,14 @@ function nodeGraphModuleScopeShaderSourceForSlot(slot) {
       dialog &&
       !dialog.hidden
     ) {
-      return document.getElementById("nodeShaderScriptSource")?.value || "";
+      return document.getElementById("nodeShaderScriptSource")?.value || nodeGraphModuleScopeDefaultShaderSourceForNode(node);
     }
   } catch {
     // Scope rendering should survive if the editor is unavailable.
   }
   return Object.hasOwn(node, "scopeShader")
     ? normalizeNodeGraphScopeShader(node.scopeShader).source
-    : "";
+    : nodeGraphModuleScopeDefaultShaderSourceForNode(node);
 }
 
 function nodeGraphModuleScopeShaderColor(source, dotName, fallback) {
@@ -205,6 +219,7 @@ function nodeGraphModuleScopeLightShaderStyle(slot, buffer) {
       ),
     ),
     source,
+    usesShader: Boolean(source),
   };
 }
 
@@ -3738,10 +3753,10 @@ function drawNodeGraphModuleScopeLightDisplay(context, rect, buffer, pixelRatio,
   );
   const outerAlphaScale = Number.isFinite(Number(buffer.nodeGraphScopeLightOuterAlphaScale))
     ? clampNodeSliderValue(Number(buffer.nodeGraphScopeLightOuterAlphaScale), 0, 4)
-    : 0.38;
+    : lightStyle.usesShader ? 1 : 0.38;
   const centerAlphaScale = Number.isFinite(Number(buffer.nodeGraphScopeLightCenterAlphaScale))
     ? clampNodeSliderValue(Number(buffer.nodeGraphScopeLightCenterAlphaScale), 0, 4)
-    : 0.5;
+    : lightStyle.usesShader ? 1 : 0.5;
 
   context.save();
   context.globalCompositeOperation = "lighter";
