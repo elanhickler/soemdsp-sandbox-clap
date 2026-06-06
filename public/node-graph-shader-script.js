@@ -936,9 +936,13 @@ function syncNodeGraphShaderScriptModelPreview(slot) {
     clone?.remove();
     clone = sourceModule.cloneNode(true);
     clone.classList.add("node-shader-script-model-clone");
+    clone.classList.add("buttons-hidden");
     clone.querySelectorAll("button, input, textarea, select").forEach((element) => {
       element.disabled = true;
       element.tabIndex = -1;
+    });
+    clone.querySelectorAll(".node-header-actions").forEach((element) => {
+      element.remove();
     });
     clone.querySelectorAll(".node-module-scope-analyzer").forEach((element) => {
       element.remove();
