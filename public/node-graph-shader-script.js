@@ -10,7 +10,9 @@ const nodeGraphShaderScriptEditorFontSizeLimits = Object.freeze({
 const nodeGraphShaderScriptUtilityCameraPadding = 18;
 const nodeGraphShaderScriptColorWidgetModuleUrl = "./public/color-widget.js?v=shader-token-color-widget-1";
 const nodeGraphShaderScriptBlendModes = Object.freeze(["laser", "led", "light", "paint", "solid"]);
-const nodeGraphShaderScriptBlendModePatternSource = nodeGraphShaderScriptBlendModes.join("|");
+const nodeGraphShaderScriptBlendModePatternSource = nodeGraphShaderScriptBlendModes
+  .map((mode) => mode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  .join("|");
 const nodeGraphShaderScriptHighlightTokenPattern = new RegExp(
   `#[0-9a-fA-F]{3,8}\\b|\\b(?:dot[12]\\.(?:global|globals)\\.(?:size|brightness|color)|(?:dot[12]|blend|video)\\.[a-zA-Z_]\\w*|globalsize|global\\.size)\\b|\\b(?:${nodeGraphShaderScriptBlendModePatternSource}|none|output\\d+)\\b|~|-?\\d+(?:\\.\\d+)?\\b|[=*]`,
   "g",
@@ -597,7 +599,11 @@ function escapeNodeGraphShaderScriptHtml(text = "") {
 }
 
 function nodeGraphShaderScriptIsModeToken(token) {
-  return nodeGraphShaderScriptBlendModes.includes(token) || token === "~" || token === "none" || /^output\d+$/.test(token);
+  return nodeGraphShaderScriptIsBlendModeToken(token) || token === "~" || token === "none" || /^output\d+$/.test(token);
+}
+
+function nodeGraphShaderScriptIsBlendModeToken(token) {
+  return nodeGraphShaderScriptBlendModes.includes(token);
 }
 
 function nodeGraphShaderScriptIsPropertyToken(token) {
@@ -628,7 +634,7 @@ function colorizeNodeGraphShaderScriptLine(line = "", lineStart = 0) {
       ? "color"
       : className === "node-shader-token-number"
         ? "number"
-        : className === "node-shader-token-mode" && nodeGraphShaderScriptBlendModes.includes(token)
+        : className === "node-shader-token-mode" && nodeGraphShaderScriptIsBlendModeToken(token)
           ? "mode"
         : "";
     const tokenAttributes = tokenType
@@ -802,7 +808,7 @@ function findNodeGraphShaderScriptEditableTokenAt(index) {
         token: match[0],
         type: match[0].startsWith("#")
           ? "color"
-          : nodeGraphShaderScriptBlendModes.includes(match[0])
+          : nodeGraphShaderScriptIsBlendModeToken(match[0])
             ? "mode"
             : "number",
       };
@@ -1683,7 +1689,7 @@ function bindNodeGraphShaderScriptEvents() {
   document.querySelectorAll("[data-shader-blend-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const mode = button.dataset.shaderBlendMode;
-      if (nodeGraphShaderScriptBlendModes.includes(mode)) {
+      if (nodeGraphShaderScriptIsBlendModeToken(mode)) {
         replaceNodeGraphShaderScriptToken(mode);
       }
     });
