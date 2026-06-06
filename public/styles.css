@@ -6762,6 +6762,20 @@ audio {
   stroke-width: 1.4;
 }
 
+.node-module-graph-shape-badge {
+  fill: rgba(210, 231, 224, 0.58);
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: 4.4px;
+  letter-spacing: 0;
+  pointer-events: all;
+  touch-action: none;
+  user-select: none;
+}
+
+.node-module-graph-shape-badge.selected {
+  fill: rgba(255, 241, 169, 0.96);
+}
+
 .node-module-graph-node {
   fill: rgba(246, 246, 218, 0.94);
   stroke: rgba(7, 10, 13, 0.9);

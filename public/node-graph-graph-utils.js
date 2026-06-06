@@ -13,6 +13,12 @@ function normalizeNodeGraphGraphShape(value) {
   return nodeGraphGraphShapes.includes(shape) ? shape : "rational";
 }
 
+function nodeGraphGraphNextShape(value) {
+  const current = normalizeNodeGraphGraphShape(value);
+  const index = nodeGraphGraphShapes.indexOf(current);
+  return nodeGraphGraphShapes[(index + 1) % nodeGraphGraphShapes.length];
+}
+
 function normalizeNodeGraphGraphNumber(value, fallback = 0, min = 0, max = 1) {
   const number = Number(value);
   return Number.isFinite(number)
@@ -282,6 +288,15 @@ function renderNodeGraphGraphDisplay(element, graphValue, selectedIndex = null) 
       "data-selected": index === activeIndex ? "true" : "false",
       r: "2.7",
     }));
+    const shapeBadge = createNodeGraphGraphSvgElement("text", {
+      class: `node-module-graph-shape-badge${index === activeIndex ? " selected" : ""}`,
+      "data-graph-shape-index": String(index),
+      "data-selected": index === activeIndex ? "true" : "false",
+      x: Math.min(90, point.x + 4).toFixed(3),
+      y: Math.max(12, point.y - 3).toFixed(3),
+    });
+    shapeBadge.textContent = normalizeNodeGraphGraphShape(node.shape).slice(0, 3);
+    svg.append(shapeBadge);
   });
   graph.nodes.forEach((node, index) => {
     const point = nodeGraphGraphPointToSvg(node.x, node.y);
@@ -320,6 +335,11 @@ function nodeGraphGraphDisplayFromEventTarget(target) {
 
 function beginNodeGraphGraphNodeDrag(event) {
   if (event.button !== undefined && event.button !== 0) {
+    return;
+  }
+  const shapeBadge = event.target?.closest?.(".node-module-graph-shape-badge");
+  if (shapeBadge) {
+    cycleNodeGraphGraphShapeFromDisplayEvent(event, shapeBadge);
     return;
   }
   const contour = event.target?.closest?.(".node-module-graph-contour-handle");
@@ -424,6 +444,36 @@ function addNodeGraphGraphNodeFromDisplayEvent(event) {
   syncNodeGraphGraphControls(normalized, selectedIndex);
   event.preventDefault();
   event.stopPropagation();
+}
+
+function cycleNodeGraphGraphShapeFromDisplayEvent(event, shapeBadge) {
+  const display = nodeGraphGraphDisplayFromEventTarget(shapeBadge);
+  const moduleElement = display?.closest(".dsp-node");
+  const nodeId = moduleElement?.dataset.node || "";
+  const sourceNode = nodeGraphPatchNode(nodeId);
+  if (!display || !sourceNode || sourceNode.type !== "graph") {
+    return false;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === nodeId);
+  if (!targetNode || targetNode.type !== "graph") {
+    return false;
+  }
+  const graph = normalizeNodeGraphGraph(targetNode.graph);
+  const index = nodeGraphGraphNodeIndexFromValue(graph, shapeBadge.dataset.graphShapeIndex);
+  const node = graph.nodes[index];
+  graph.nodes[index] = normalizeNodeGraphGraphNode({
+    ...node,
+    shape: nodeGraphGraphNextShape(node.shape),
+  }, index);
+  targetNode.graph = graph;
+  display?.focus?.({ preventScroll: true });
+  setNodeGraphGraphSelectedNodeIndex(nodeId, graph, index);
+  commitNodeGraphPatch(patch, { status: "graph curve shape changed" });
+  syncNodeGraphGraphControls(targetNode.graph, index);
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  return true;
 }
 
 function dragNodeGraphGraphNode(event) {
