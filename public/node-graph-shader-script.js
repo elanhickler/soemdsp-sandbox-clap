@@ -910,141 +910,50 @@ function nodeGraphShaderScriptDialogScopeSource() {
   return normalizeNodeGraphScopeShader(node?.scopeShader).source;
 }
 
-function nodeGraphShaderScriptScopePreviewSlot() {
-  const node = nodeGraphShaderScriptDialogScopeNode();
-  return node?.id ? nodeGraphModuleScopeState?.slots?.get?.(node.id) || null : null;
-}
-
-function syncNodeGraphShaderScriptModelPreview(slot) {
-  const preview = document.getElementById("nodeShaderScriptModelPreview");
-  const canvas = document.getElementById("nodeShaderScriptPreviewCanvas");
-  if (!preview || !canvas) {
-    return null;
-  }
-  const sourceModule = slot?.element;
-  if (!sourceModule?.isConnected) {
-    preview.querySelector(".node-shader-script-model-clone")?.remove();
-    canvas.style.removeProperty("--node-shader-scope-preview-aspect");
-    canvas.style.removeProperty("--node-shader-scope-preview-left");
-    canvas.style.removeProperty("--node-shader-scope-preview-top");
-    canvas.style.removeProperty("--node-shader-scope-preview-width");
-    canvas.style.removeProperty("--node-shader-scope-preview-height");
-    return null;
-  }
-  let clone = preview.querySelector(".node-shader-script-model-clone");
-  if (!clone || clone.dataset.node !== sourceModule.dataset.node) {
-    clone?.remove();
-    clone = sourceModule.cloneNode(true);
-    clone.classList.add("node-shader-script-model-clone");
-    clone.classList.add("buttons-hidden");
-    clone.querySelectorAll("button, input, textarea, select").forEach((element) => {
-      element.disabled = true;
-      element.tabIndex = -1;
-    });
-    clone.querySelectorAll(".node-header-actions").forEach((element) => {
-      element.remove();
-    });
-    clone.querySelectorAll(".node-module-scope-analyzer").forEach((element) => {
-      element.remove();
-    });
-    preview.prepend(clone);
-  }
-  clone.style.left = "";
-  clone.style.top = "";
-  clone.style.transform = "";
-  clone.style.setProperty("--node-shader-model-preview-scale", "1");
-  const sourceRect = sourceModule.getBoundingClientRect();
-  const sourceScopeRect = slot.scopeElement?.getBoundingClientRect?.();
-  const previewRect = preview.getBoundingClientRect();
-  const baseCloneWidth = Math.max(1, clone.offsetWidth || sourceRect.width || 1);
-  const baseCloneHeight = Math.max(1, clone.offsetHeight || sourceRect.height || 1);
-  const previewScale = Math.max(0.1, Math.min(
-    previewRect.width / baseCloneWidth,
-    previewRect.height / baseCloneHeight
-  ));
-  clone.style.setProperty("--node-shader-model-preview-scale", `${previewScale}`);
-  const cloneRect = clone.getBoundingClientRect();
-  const cloneScopeElement = clone.querySelector(".node-module-scope-window, .node-led-face");
-  const cloneScopeRect = cloneScopeElement?.getBoundingClientRect?.();
-  const widthRatio = cloneRect.width / Math.max(1, sourceRect.width);
-  const heightRatio = cloneRect.height / Math.max(1, sourceRect.height);
-  const left = cloneScopeRect
-    ? cloneScopeRect.left - previewRect.left
-    : cloneRect.left - previewRect.left + (((sourceScopeRect?.left || sourceRect.left) - sourceRect.left) * widthRatio);
-  const top = cloneScopeRect
-    ? cloneScopeRect.top - previewRect.top
-    : cloneRect.top - previewRect.top + (((sourceScopeRect?.top || sourceRect.top) - sourceRect.top) * heightRatio);
-  const width = cloneScopeRect?.width || (sourceScopeRect?.width || sourceRect.width) * widthRatio;
-  const height = cloneScopeRect?.height || (sourceScopeRect?.height || sourceRect.height) * heightRatio;
-  canvas.style.setProperty("--node-shader-scope-preview-aspect", `${Math.max(1, width)} / ${Math.max(1, height)}`);
-  canvas.style.setProperty("--node-shader-scope-preview-left", `${left}px`);
-  canvas.style.setProperty("--node-shader-scope-preview-top", `${top}px`);
-  canvas.style.setProperty("--node-shader-scope-preview-width", `${width}px`);
-  canvas.style.setProperty("--node-shader-scope-preview-height", `${height}px`);
-  return { height, width };
+function nodeGraphShaderScriptUtilityCameraId(nodeId = nodeGraphShaderScriptState.scopeTargetNodeId) {
+  return `scope-shader-${String(nodeId || "target").trim() || "target"}`;
 }
 
 function drawNodeGraphShaderScriptScopePreview() {
   nodeGraphShaderScriptState.previewFrame = 0;
   const panel = document.getElementById("nodeShaderScriptPreviewPanel");
-  const canvas = document.getElementById("nodeShaderScriptPreviewCanvas");
+  const viewport = document.getElementById("nodeShaderScriptCameraViewport");
+  const surface = document.getElementById("nodeShaderScriptCameraSurface");
   const status = document.getElementById("nodeShaderScriptPreviewStatus");
   if (
     nodeGraphShaderScriptState.dialogMode !== "scope" ||
     !panel ||
     panel.hidden ||
-    !canvas
+    !viewport ||
+    !surface
   ) {
     return;
   }
-  const slot = nodeGraphShaderScriptScopePreviewSlot();
-  const sourceCanvas = nodeGraphModuleScopeCanvas?.();
-  const lightCanvas = nodeGraphModuleScopeLightCanvas?.();
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const scopeElement = slot?.scopeElement;
-  const context = canvas.getContext("2d");
-  if (!slot || !sourceCanvas || !workspace || !scopeElement || !context) {
-    syncNodeGraphShaderScriptModelPreview(null);
+  const node = nodeGraphShaderScriptDialogScopeNode();
+  const element = node?.id ? nodeGraphNodeElement(node.id) : null;
+  const camera = typeof createNodeGraphUtilityCameraForElement === "function"
+    ? createNodeGraphUtilityCameraForElement(nodeGraphShaderScriptUtilityCameraId(node?.id), element, {
+      name: node ? `Scope Shader: ${nodeGraphPatchNodeTitle(node)}` : "Scope Shader",
+      padding: 0,
+    })
+    : null;
+  if (!camera || typeof renderNodeGraphCameraFeed !== "function") {
+    surface.replaceChildren();
     if (status) {
       status.textContent = "No scope selected.";
     }
     scheduleNodeGraphShaderScriptScopePreview();
     return;
   }
-  syncNodeGraphShaderScriptModelPreview(slot);
-  const sourceRect = sourceCanvas.getBoundingClientRect();
-  const scopeRect = scopeElement.getBoundingClientRect();
-  const previewAspectWidth = Math.max(1, Number(scopeRect.width) || 1);
-  const previewAspectHeight = Math.max(1, Number(scopeRect.height) || 1);
-  canvas.style.setProperty("--node-shader-scope-preview-aspect", `${previewAspectWidth} / ${previewAspectHeight}`);
-  const scaleX = sourceCanvas.width / Math.max(1, sourceRect.width);
-  const scaleY = sourceCanvas.height / Math.max(1, sourceRect.height);
-  const sx = Math.max(0, Math.floor((scopeRect.left - sourceRect.left) * scaleX));
-  const sy = Math.max(0, Math.floor((scopeRect.top - sourceRect.top) * scaleY));
-  const sw = Math.max(1, Math.floor(scopeRect.width * scaleX));
-  const sh = Math.max(1, Math.floor(scopeRect.height * scaleY));
-  const targetWidth = Math.max(1, Math.floor(canvas.clientWidth * (window.devicePixelRatio || 1)));
-  const targetHeight = Math.max(1, Math.floor(canvas.clientHeight * (window.devicePixelRatio || 1)));
-  if (canvas.width !== targetWidth) {
-    canvas.width = targetWidth;
-  }
-  if (canvas.height !== targetHeight) {
-    canvas.height = targetHeight;
-  }
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#000";
-  context.fillRect(0, 0, canvas.width, canvas.height);
   try {
-    context.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-    if (lightCanvas && lightCanvas.width && lightCanvas.height) {
-      context.drawImage(lightCanvas, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-    }
+    renderNodeGraphCameraFeed({ camera, surface, viewport });
     if (status) {
       status.textContent = "";
     }
   } catch {
+    surface.replaceChildren();
     if (status) {
-      status.textContent = "Live preview unavailable.";
+      status.textContent = "Camera feed unavailable.";
     }
   }
   scheduleNodeGraphShaderScriptScopePreview();
@@ -1257,6 +1166,9 @@ function setNodeGraphShaderScriptDialogVisible(visible) {
     if (nodeGraphShaderScriptState.previewFrame) {
       window.cancelAnimationFrame(nodeGraphShaderScriptState.previewFrame);
       nodeGraphShaderScriptState.previewFrame = 0;
+    }
+    if (typeof removeNodeGraphUtilityCamera === "function") {
+      removeNodeGraphUtilityCamera(nodeGraphShaderScriptUtilityCameraId());
     }
     setNodeGraphShaderScriptSyntaxColorsPanelVisible(false);
   }

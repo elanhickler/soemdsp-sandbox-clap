@@ -184,6 +184,133 @@ function nodeGraphCameraCloneWireSvg(liveSvg) {
   return clone;
 }
 
+function copyNodeGraphCameraWorldCanvases(source, clone) {
+  const sourceCanvases = [...source.querySelectorAll("canvas")];
+  const cloneCanvases = [...clone.querySelectorAll("canvas")];
+  sourceCanvases.forEach((sourceCanvas, index) => {
+    const cloneCanvas = cloneCanvases[index];
+    if (!cloneCanvas || !sourceCanvas.width || !sourceCanvas.height) {
+      return;
+    }
+    cloneCanvas.width = sourceCanvas.width;
+    cloneCanvas.height = sourceCanvas.height;
+    try {
+      cloneCanvas.getContext("2d")?.drawImage(sourceCanvas, 0, 0);
+    } catch {
+      // WebGL canvases can be unreadable in some contexts; the camera feed should keep rendering.
+    }
+  });
+}
+
+function createNodeGraphCameraWorldClone(source, wireSvg) {
+  const clone = source.cloneNode(true);
+  clone.classList.add("node-camera-preview-world");
+  clone.style.setProperty("--node-graph-pan-x", "0px");
+  clone.style.setProperty("--node-graph-pan-y", "0px");
+  clone.style.setProperty("--node-graph-zoom", "1");
+  clone.querySelector("#nodeModularOnlyBackButton")?.remove();
+  clone.querySelector("#nodeCameraOverlayLayer")?.remove();
+  clone.querySelector("#nodeSelectionMarquee")?.remove();
+  clone.querySelector("#nodeWireSvg, .node-wire-svg")?.remove();
+  const zoomSurface = clone.querySelector("#nodeGraphZoomSurface, .node-graph-zoom-surface") || clone;
+  if (wireSvg) {
+    zoomSurface.prepend(wireSvg);
+  }
+  copyNodeGraphCameraWorldCanvases(source, clone);
+  clone.querySelectorAll("[id]").forEach((element) => {
+    if (element.closest("defs")) {
+      return;
+    }
+    element.removeAttribute("id");
+  });
+  return clone;
+}
+
+function renderNodeGraphCameraFeed(options = {}) {
+  const viewport = options.viewport || null;
+  const surface = options.surface || null;
+  const camera = options.camera || null;
+  surface?.replaceChildren();
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  if (!viewport || !surface || !camera || !workspace) {
+    return false;
+  }
+  const workspaceStyle = getComputedStyle(workspace);
+  for (let index = 0; index < workspaceStyle.length; index += 1) {
+    const property = workspaceStyle[index];
+    if (property.startsWith("--node-")) {
+      viewport.style.setProperty(property, workspaceStyle.getPropertyValue(property));
+    }
+  }
+  if (typeof drawNodeGraphWires === "function") {
+    drawNodeGraphWires();
+  }
+  const wireSvg = nodeGraphCameraCloneWireSvg(document.getElementById("nodeWireSvg"));
+  const clone = createNodeGraphCameraWorldClone(workspace, wireSvg);
+  surface.append(clone);
+  const scale = Math.min(
+    viewport.clientWidth / Math.max(1, camera.width),
+    viewport.clientHeight / Math.max(1, camera.height),
+  );
+  surface.style.setProperty("--camera-preview-height", `${camera.height}px`);
+  surface.style.setProperty("--camera-preview-scale", String(Number.isFinite(scale) ? scale : 1));
+  surface.style.setProperty("--camera-preview-width", `${camera.width}px`);
+  clone.style.transform = `translate(${-camera.x}px, ${-camera.y}px)`;
+  return true;
+}
+
+function nodeGraphUtilityCameraState() {
+  if (!(nodeGraphMvp.utilityCameras instanceof Map)) {
+    nodeGraphMvp.utilityCameras = new Map();
+  }
+  return nodeGraphMvp.utilityCameras;
+}
+
+function upsertNodeGraphUtilityCamera(camera) {
+  if (!camera?.id) {
+    return null;
+  }
+  nodeGraphUtilityCameraState().set(camera.id, camera);
+  return camera;
+}
+
+function removeNodeGraphUtilityCamera(id) {
+  nodeGraphUtilityCameraState().delete(String(id || ""));
+}
+
+function createNodeGraphUtilityCameraForElement(id, element, options = {}) {
+  if (!element?.isConnected) {
+    removeNodeGraphUtilityCamera(id);
+    return null;
+  }
+  const bounds = typeof nodeGraphNodeBounds === "function"
+    ? nodeGraphNodeBounds(element)
+    : {
+      bottom: element.offsetTop + element.offsetHeight,
+      left: element.offsetLeft,
+      right: element.offsetLeft + element.offsetWidth,
+      top: element.offsetTop,
+    };
+  const padding = Math.max(0, Number(options.padding) || 0);
+  const x = Math.max(0, Math.floor(bounds.left - padding));
+  const y = Math.max(0, Math.floor(bounds.top - padding));
+  const width = Math.max(1, Math.ceil(bounds.right - bounds.left + padding * 2));
+  const height = Math.max(1, Math.ceil(bounds.bottom - bounds.top + padding * 2));
+  return upsertNodeGraphUtilityCamera({
+    color: options.color || "#7fc7d9",
+    enabled: true,
+    height,
+    id: String(id || "utility-camera"),
+    name: String(options.name || "Utility Camera"),
+    resolutionHeight: Math.max(1, Math.round(height)),
+    resolutionWidth: Math.max(1, Math.round(width)),
+    utility: true,
+    width,
+    x,
+    y,
+  });
+}
+
 function nodeGraphCameraFrameHandleNames() {
   return ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 }
@@ -271,50 +398,10 @@ function renderNodeGraphCameraPreview() {
     frame.style.setProperty("--camera-view-aspect", `${camera.resolutionWidth} / ${camera.resolutionHeight}`);
   }
   renderNodeGraphCameraControls(camera);
-  surface.replaceChildren();
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const source = document.getElementById("nodeGraphZoomSurface");
-  if (!workspace || !source || panel.hidden) {
+  if (panel.hidden) {
     return;
   }
-  const workspaceStyle = getComputedStyle(workspace);
-  for (let index = 0; index < workspaceStyle.length; index += 1) {
-    const property = workspaceStyle[index];
-    if (property.startsWith("--node-")) {
-      viewport.style.setProperty(property, workspaceStyle.getPropertyValue(property));
-    }
-  }
-  if (typeof drawNodeGraphWires === "function") {
-    drawNodeGraphWires();
-  }
-  const wireSvg = nodeGraphCameraCloneWireSvg(document.getElementById("nodeWireSvg"));
-  const clone = source.cloneNode(true);
-  clone.id = "nodeCameraPreviewWorld";
-  clone.classList.add("node-camera-preview-world");
-  clone.style.setProperty("--node-graph-pan-x", "0px");
-  clone.style.setProperty("--node-graph-pan-y", "0px");
-  clone.style.setProperty("--node-graph-zoom", "1");
-  clone.querySelector("#nodeCameraOverlayLayer")?.remove();
-  clone.querySelector("#nodeSelectionMarquee")?.remove();
-  clone.querySelector("#nodeWireSvg, .node-wire-svg")?.remove();
-  if (wireSvg) {
-    clone.prepend(wireSvg);
-  }
-  clone.querySelectorAll("[id]").forEach((element) => {
-    if (element.closest("defs")) {
-      return;
-    }
-    element.removeAttribute("id");
-  });
-  surface.append(clone);
-  const scale = Math.min(
-    viewport.clientWidth / Math.max(1, camera.width),
-    viewport.clientHeight / Math.max(1, camera.height),
-  );
-  surface.style.setProperty("--camera-preview-height", `${camera.height}px`);
-  surface.style.setProperty("--camera-preview-scale", String(Number.isFinite(scale) ? scale : 1));
-  surface.style.setProperty("--camera-preview-width", `${camera.width}px`);
-  clone.style.transform = `translate(${-camera.x}px, ${-camera.y}px)`;
+  renderNodeGraphCameraFeed({ camera, surface, viewport });
 }
 
 function renderNodeGraphCameraView() {

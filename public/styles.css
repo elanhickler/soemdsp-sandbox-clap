@@ -9199,41 +9199,13 @@ button.saved-default,
   display: none;
 }
 
-.node-shader-script-model-preview {
+.node-shader-script-camera-viewport {
   position: relative;
-  display: grid;
-  place-items: center;
   width: 100%;
   min-height: 240px;
-  overflow: visible;
-}
-
-.node-shader-script-model-clone {
-  position: relative !important;
-  left: auto !important;
-  top: auto !important;
-  z-index: 1;
-  transform: scale(var(--node-shader-model-preview-scale, 1)) !important;
-  transform-origin: center center !important;
-  pointer-events: none;
-}
-
-.node-shader-script-model-clone .node-module-scope-window,
-.node-shader-script-model-clone .node-led-face {
-  opacity: 0.34;
-}
-
-.node-shader-script-preview-panel canvas {
-  position: absolute;
-  z-index: 2;
-  left: var(--node-shader-scope-preview-left, 0);
-  top: var(--node-shader-scope-preview-top, 0);
-  width: var(--node-shader-scope-preview-width, 100%);
-  height: var(--node-shader-scope-preview-height, auto);
-  aspect-ratio: var(--node-shader-scope-preview-aspect, 1 / 1);
-  border: 0;
-  border-radius: 3px;
-  background: #000;
+  overflow: hidden;
+  border-radius: 4px;
+  background: transparent;
 }
 
 .node-shader-script-preview-panel p {
