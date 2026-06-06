@@ -9200,29 +9200,6 @@ button.saved-default,
   background: transparent;
 }
 
-.node-shader-script-clock-blinker {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.node-shader-script-clock-blinker::before {
-  content: "";
-  display: block;
-  width: 50%;
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  background: #ffffff;
-  opacity: 0;
-}
-
-.node-shader-script-clock-blinker[data-blink-state="on"]::before {
-  opacity: 1;
-}
-
 .node-shader-script-preview-panel p {
   margin: 0;
   color: rgba(156, 164, 166, 0.74);

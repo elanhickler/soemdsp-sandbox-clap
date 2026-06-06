@@ -8799,13 +8799,9 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphMvp.utilityCameras = new Map()",
         "function nodeGraphShaderScriptUtilityCameraId(nodeId = nodeGraphShaderScriptState.scopeTargetNodeId)",
         "const nodeGraphShaderScriptUtilityCameraPadding = 18",
-        "const nodeGraphShaderScriptClockPreviewToggleMs = 2000",
-        "function nodeGraphShaderScriptClockPreviewIsOn",
-        "function decorateNodeGraphShaderScriptClockPreview",
         "createNodeGraphUtilityCameraForElement(nodeGraphShaderScriptUtilityCameraId(node?.id)",
         "padding: nodeGraphShaderScriptUtilityCameraPadding",
         "removeNodeGraphUtilityCamera(nodeGraphShaderScriptUtilityCameraId())",
-        "decorateClone: (clone) => decorateNodeGraphShaderScriptClockPreview(clone, node)",
         "function drawNodeGraphShaderScriptScopePreview()",
         "function scheduleNodeGraphShaderScriptScopePreview()",
         "nodeGraphShaderScriptState.previewFrame",
@@ -9593,6 +9589,11 @@ def require_node_graph_mvp_contract() -> None:
         and "node-clock-led" not in node_graph_source
         and "node-clock-led" not in style_source,
         "clock oscilloscope should not include LED drawing state, DOM, updater, or CSS",
+    )
+    require(
+        "node-shader-script-clock-blinker" not in node_graph_source
+        and "node-shader-script-clock-blinker" not in style_source,
+        "shader scope camera preview should not add a separate clock blink overlay",
     )
     light_display_source = node_graph_source[
         node_graph_source.index("function drawNodeGraphModuleScopeLightDisplay("):

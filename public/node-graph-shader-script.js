@@ -7,7 +7,6 @@ const nodeGraphShaderScriptEditorFontSizeLimits = Object.freeze({
   minPx: 8,
   stepPx: 0.75,
 });
-const nodeGraphShaderScriptClockPreviewToggleMs = 2000;
 const nodeGraphShaderScriptUtilityCameraPadding = 18;
 const nodeGraphShaderScriptColorWidgetModuleUrl = "./public/color-widget.js?v=shader-token-color-widget-1";
 const nodeGraphShaderScriptBlendModes = Object.freeze(["laser", "led", "light", "paint", "solid"]);
@@ -1031,27 +1030,6 @@ function nodeGraphShaderScriptUtilityCameraId(nodeId = nodeGraphShaderScriptStat
   return `scope-shader-${String(nodeId || "target").trim() || "target"}`;
 }
 
-function nodeGraphShaderScriptClockPreviewIsOn(nowMs = performance.now()) {
-  return Math.floor(Math.max(0, Number(nowMs) || 0) / nodeGraphShaderScriptClockPreviewToggleMs) % 2 === 0;
-}
-
-function decorateNodeGraphShaderScriptClockPreview(clone, node, nowMs = performance.now()) {
-  if (!clone || node?.type !== "clock") {
-    return;
-  }
-  const clonedNode = [...clone.querySelectorAll(".dsp-node")]
-    .find((candidate) => candidate.dataset.node === node.id);
-  const target = clonedNode?.querySelector(".node-module-scope-window, .node-led-face");
-  if (!target) {
-    return;
-  }
-  target.querySelector(".node-shader-script-clock-blinker")?.remove();
-  const blinker = document.createElement("span");
-  blinker.className = "node-shader-script-clock-blinker";
-  blinker.dataset.blinkState = nodeGraphShaderScriptClockPreviewIsOn(nowMs) ? "on" : "off";
-  target.append(blinker);
-}
-
 function drawNodeGraphShaderScriptScopePreview() {
   nodeGraphShaderScriptState.previewFrame = 0;
   const panel = document.getElementById("nodeShaderScriptPreviewPanel");
@@ -1086,7 +1064,6 @@ function drawNodeGraphShaderScriptScopePreview() {
   try {
     renderNodeGraphCameraFeed({
       camera,
-      decorateClone: (clone) => decorateNodeGraphShaderScriptClockPreview(clone, node),
       surface,
       viewport,
     });
