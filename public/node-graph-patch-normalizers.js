@@ -59,20 +59,33 @@ export default function drawScope(scope) {
   const style = scope.style;
   const screen = scope.screen;
 
-  // These come from Screen Settings unless this module later overrides them.
-  const backgroundColor = style.background;
-  const screenBurn = style.screenBurn;
-  const overdrawPoints = style.overdrawPoints;
-  const skipSamples = style.skipSamples;
-  const lineThicknessPx = style.lineThicknessPx;
+  // Screen Settings defaults, written as values so this is easy to edit.
+  // const backgroundColor = style.background;
+  const backgroundColor = "#000000";
+  // const screenBurn = style.screenBurn;
+  const screenBurn = 0.00;
+  // const overdrawPoints = style.overdrawPoints;
+  const overdrawPoints = 1;
+  // const skipSamples = style.skipSamples;
+  const skipSamples = 1;
+  // const lineThicknessPx = style.lineThicknessPx;
+  const lineThicknessPx = 2.00;
 
-  const dot1Color = style.dot1.color;
-  const dot1SizePx = style.dot1.sizePx;
-  const dot1Brightness = style.dot1.brightness;
+  // Dot 1 is the bright center layer.
+  // const dot1Color = style.dot1.color;
+  const dot1Color = "#ffa3a8";
+  // const dot1SizePx = style.dot1.sizePx;
+  const dot1SizePx = 3.18;
+  // const dot1Brightness = style.dot1.brightness;
+  const dot1Brightness = 4.50;
 
-  const dot2Color = style.dot2.color;
-  const dot2SizePx = style.dot2.sizePx;
-  const dot2Brightness = style.dot2.brightness;
+  // Dot 2 is the larger outer layer.
+  // const dot2Color = style.dot2.color;
+  const dot2Color = "#444444";
+  // const dot2SizePx = style.dot2.sizePx;
+  const dot2SizePx = 4.00;
+  // const dot2Brightness = style.dot2.brightness;
+  const dot2Brightness = 0.45;
 
   screen.fade({ color: backgroundColor, burn: screenBurn });
   screen.trace(signal, {
