@@ -398,10 +398,6 @@ function nodeMetadataScriptPreviewValueText(value, key = "") {
   return nodeMetadataScriptValue(value, key);
 }
 
-function nodeMetadataScriptPreviewState(assignment, draftMetadata) {
-  return nodeMetadataScriptPreviewDetails(assignment, draftMetadata).state;
-}
-
 function nodeMetadataScriptPreviewDetails(assignment, draftMetadata) {
   if (!draftMetadata || !nodeMetadataScriptSupportedKeys.has(assignment.key)) {
     return {
@@ -643,8 +639,8 @@ this line is intentionally invalid
     analyzeNodeMetadataScriptSource("param.frequency.default = 440;").supportedCount === 1,
     analyzeNodeMetadataScriptSource("param.frequency.unknown = 1;").unsupported.length === 1,
     nodeMetadataScriptDiagnosticMessage("param.frequency.unknown = 1;").error === true,
-    nodeMetadataScriptPreviewState({ key: "def", rawValue: "440" }, samePreviewDraft) === "same",
-    nodeMetadataScriptPreviewState({ key: "def", rawValue: "441" }, changedPreviewDraft) === "changed",
+    nodeMetadataScriptPreviewDetails({ key: "def", rawValue: "440" }, samePreviewDraft).state === "same",
+    nodeMetadataScriptPreviewDetails({ key: "def", rawValue: "441" }, changedPreviewDraft).state === "changed",
     nodeMetadataScriptPreviewDetails({ key: "def", rawValue: "441" }, { def: 440, kind: "decimal" }).after === "441",
     nodeMetadataScriptPreviewDetails({ key: "def", rawValue: "441" }, { def: 440, kind: "decimal" }).before === "440",
     nodeMetadataScriptUnsupportedPreviewDetails({ path: "param.frequency.unknown" }).after === "unsupported: param.frequency.unknown",

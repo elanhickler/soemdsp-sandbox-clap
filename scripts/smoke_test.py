@@ -7344,7 +7344,6 @@ def require_node_graph_mvp_contract() -> None:
         "function analyzeNodeMetadataScriptSource(source)",
         "function nodeMetadataScriptPreviewValueFingerprint(value)",
         "function nodeMetadataScriptPreviewValueText(value, key = \"\")",
-        "function nodeMetadataScriptPreviewState(assignment, draftMetadata)",
         "function nodeMetadataScriptPreviewDetails(assignment, draftMetadata)",
         "function nodeMetadataScriptUnsupportedPreviewDetails(assignment)",
         "function nodeMetadataScriptEffectiveRows(metadata)",
