@@ -7386,6 +7386,8 @@ def require_node_graph_mvp_contract() -> None:
         "scriptKindTemplate.addEventListener(\"click\", insertNodeMetadataScriptKindTemplate)",
         "scriptNormalize.addEventListener(\"click\", normalizeNodeMetadataScriptEditor)",
         "Kind template inserted for ${kind}. Save to apply.",
+        "Normalize will remove ignored metadata script lines",
+        "normalize canceled",
         "Review the normalized script, then Save to apply.",
         "function parseNodeMetadataScript(source, slider)",
         "function setNodeMetadataScriptDirty(dirty, message = \"\", error = false, detail = \"\")",

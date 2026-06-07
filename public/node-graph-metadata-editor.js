@@ -930,6 +930,13 @@ function normalizeNodeMetadataScriptEditor() {
     return;
   }
   const parsed = parseNodeMetadataScript(metadataScriptSourceText(), slider);
+  if (
+    parsed.ignored.length &&
+    !window.confirm(`Normalize will remove ignored metadata script lines: ${parsed.ignored.join(", ")}. Continue?`)
+  ) {
+    metadataScriptStatus("normalize canceled", false);
+    return;
+  }
   setMetadataScriptSourceText(formatNodeMetadataScript(slider, parsed.metadata));
   const ignoredText = parsed.ignored.length
     ? `; ignored lines ${parsed.ignored.join(", ")}`
