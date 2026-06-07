@@ -8776,6 +8776,64 @@ audio {
   color: rgba(255, 178, 178, 0.94);
 }
 
+.metadata-script-preview {
+  display: grid;
+  gap: 4px;
+  max-height: 118px;
+  margin: 0;
+  padding: 7px;
+  overflow: auto;
+  border: 1px solid rgba(127, 199, 217, 0.16);
+  border-radius: 6px;
+  background: rgba(4, 9, 11, 0.72);
+  list-style: none;
+}
+
+.metadata-script-preview[hidden] {
+  display: none;
+}
+
+.metadata-script-preview li {
+  display: grid;
+  grid-template-columns: 58px minmax(54px, 0.72fr) minmax(0, 1.28fr);
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  color: rgba(205, 214, 216, 0.76);
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: 0.68rem;
+}
+
+.metadata-script-preview span {
+  color: rgba(127, 199, 217, 0.72);
+  text-transform: uppercase;
+}
+
+.metadata-script-preview strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(220, 232, 234, 0.86);
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.metadata-script-preview code {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(244, 213, 166, 0.86);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-script-preview li.ignored span,
+.metadata-script-preview li.ignored code {
+  color: rgba(255, 178, 178, 0.9);
+}
+
+.metadata-script-preview li.more {
+  opacity: 0.72;
+}
+
 @media (max-width: 760px) {
   .node-parameter-metadata-popover {
     grid-template-columns: minmax(0, 1fr);

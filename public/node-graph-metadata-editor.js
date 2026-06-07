@@ -184,6 +184,7 @@ function setMetadataScriptSourceText(text) {
   }
   source.value = String(text || "");
   updateNodeMetadataScriptHighlight();
+  updateNodeMetadataScriptPreview(source.value);
 }
 
 function setNodeMetadataScriptDirty(dirty, message = "", error = false, detail = "") {
@@ -377,6 +378,55 @@ function analyzeNodeMetadataScriptSource(source) {
   };
 }
 
+function nodeMetadataScriptPreviewItemHtml(assignment, state = "supported") {
+  const stateText = state === "unsupported" ? "ignored" : "will set";
+  return `
+    <li class="${state === "unsupported" ? "ignored" : ""}">
+      <span>${escapeNodeMetadataScriptHtml(stateText)}</span>
+      <strong>${escapeNodeMetadataScriptHtml(assignment.key)}</strong>
+      <code>${escapeNodeMetadataScriptHtml(assignment.rawValue)}</code>
+    </li>`;
+}
+
+function updateNodeMetadataScriptPreview(source = metadataScriptSourceText()) {
+  const preview = document.getElementById("metadataScriptPreview");
+  if (!preview) {
+    return;
+  }
+  const diagnostics = analyzeNodeMetadataScriptSource(source);
+  const maxVisibleItems = 8;
+  const items = [
+    ...diagnostics.supported.map((assignment) =>
+      nodeMetadataScriptPreviewItemHtml(assignment, "supported")),
+    ...diagnostics.unsupported.map((assignment) =>
+      nodeMetadataScriptPreviewItemHtml(assignment, "unsupported")),
+  ];
+  if (diagnostics.syntaxIgnored.length) {
+    items.push(`
+      <li class="ignored">
+        <span>ignored</span>
+        <strong>syntax</strong>
+        <code>lines ${escapeNodeMetadataScriptHtml(diagnostics.syntaxIgnored.join(", "))}</code>
+      </li>`);
+  }
+  preview.hidden = items.length === 0;
+  if (items.length === 0) {
+    preview.innerHTML = "";
+    return;
+  }
+  const hiddenCount = Math.max(0, items.length - maxVisibleItems);
+  const visibleItems = items.slice(0, maxVisibleItems);
+  if (hiddenCount) {
+    visibleItems.push(`
+      <li class="more">
+        <span>preview</span>
+        <strong>more</strong>
+        <code>${hiddenCount} more</code>
+      </li>`);
+  }
+  preview.innerHTML = visibleItems.join("");
+}
+
 function nodeMetadataScriptDiagnosticMessage(source = metadataScriptSourceText()) {
   const diagnostics = analyzeNodeMetadataScriptSource(source);
   const settingsText = diagnostics.supportedCount === 1
@@ -403,6 +453,7 @@ function nodeMetadataScriptDiagnosticMessage(source = metadataScriptSourceText()
 }
 
 function syncNodeMetadataScriptDiagnostics() {
+  updateNodeMetadataScriptPreview();
   const diagnostics = nodeMetadataScriptDiagnosticMessage();
   setNodeMetadataScriptDirty(true, diagnostics.message, diagnostics.error, diagnostics.detail);
 }
@@ -426,6 +477,7 @@ this line is intentionally invalid
     parsed.ignored.length === 1,
     parsed.ignored[0] === 6,
     analyzeNodeMetadataScriptSource("param.frequency.default = 440;").supportedCount === 1,
+    analyzeNodeMetadataScriptSource("param.frequency.unknown = 1;").unsupported.length === 1,
     nodeMetadataScriptDiagnosticMessage("param.frequency.unknown = 1;").error === true,
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.choices = [Saw, Square, Triangle, Sine, Noise];"),
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.displayChoices = true;"),
