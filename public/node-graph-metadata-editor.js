@@ -399,22 +399,7 @@ function nodeMetadataScriptPreviewValueText(value, key = "") {
 }
 
 function nodeMetadataScriptPreviewState(assignment, draftMetadata) {
-  if (!draftMetadata || !nodeMetadataScriptSupportedKeys.has(assignment.key)) {
-    return "supported";
-  }
-  try {
-    const before = nodeMetadataScriptPreviewValueFingerprint(draftMetadata[assignment.key]);
-    const parsedValue = parseNodeMetadataScriptValue(
-      assignment.rawValue,
-      assignment.key,
-      draftMetadata,
-    );
-    draftMetadata[assignment.key] = parsedValue;
-    const after = nodeMetadataScriptPreviewValueFingerprint(parsedValue);
-    return before === after ? "same" : "changed";
-  } catch {
-    return "supported";
-  }
+  return nodeMetadataScriptPreviewDetails(assignment, draftMetadata).state;
 }
 
 function nodeMetadataScriptPreviewDetails(assignment, draftMetadata) {
