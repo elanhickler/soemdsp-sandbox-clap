@@ -1382,6 +1382,7 @@ audio {
 }
 
 .node-view-toolbar button,
+.node-view-toolbar a,
 .node-view-toolbar .pill,
 .node-zoom-controls,
 .node-toolbar-hsl-control,
@@ -1514,6 +1515,7 @@ audio {
 
 .node-view-tabs button,
 .node-history-controls button,
+.node-history-controls a,
 .node-history-controls .pill,
 .node-toolbar-hsl-control,
 .node-scope-master-brightness-control {
@@ -1532,6 +1534,11 @@ audio {
   overflow-wrap: anywhere;
 }
 
+.node-history-controls a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .node-history-controls button {
   flex-basis: 82px;
 }
@@ -1545,6 +1552,15 @@ audio {
 #nodeGlobalScopeMenuButton,
 #nodeCopyViewportImageButton {
   flex-basis: 108px;
+}
+
+#nodeDonateFiveButton {
+  flex-basis: 92px;
+  border-color: rgba(226, 168, 109, 0.28);
+  background:
+    linear-gradient(180deg, rgba(226, 168, 109, 0.2), rgba(32, 37, 42, var(--node-toolbar-button-bg-alpha)));
+  color: rgba(255, 229, 190, 0.95);
+  font-weight: 800;
 }
 
 #nodeVisibilityMenuButton {
@@ -1621,6 +1637,12 @@ audio {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  user-select: none;
+  touch-action: none;
+}
+
+.node-visibility-menu-heading.dragging {
+  filter: brightness(1.08);
 }
 
 .node-visibility-menu-heading > span {
@@ -1643,6 +1665,7 @@ audio {
 }
 
 .node-view-toolbar button:not(:disabled):not(.active):hover,
+.node-view-toolbar a:not(.active):hover,
 .node-toolbar-hsl-control:hover {
   border-color: var(--node-front-button-hover-border);
   background: var(--node-front-button-hover-bg);
@@ -8469,6 +8492,15 @@ audio {
   gap: 8px;
 }
 
+.metadata-popover-heading {
+  user-select: none;
+  touch-action: none;
+}
+
+.metadata-popover-heading.dragging {
+  filter: brightness(1.08);
+}
+
 .metadata-popover-title-group {
   display: flex;
   align-items: center;
@@ -8829,6 +8861,12 @@ button.saved-default,
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
+  user-select: none;
+  touch-action: none;
+}
+
+.scene-context-heading.dragging {
+  filter: brightness(1.08);
 }
 
 .scene-context-title {

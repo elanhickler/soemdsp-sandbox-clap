@@ -22,7 +22,7 @@ function syncNodeGraphPatchWindowPosition(key, position) {
 }
 
 function beginNodeMetadataPopoverDrag(event) {
-  if (event.button > 0) {
+  if (event.button > 0 || nodeGraphDialogDragTargetIsInteractive(event)) {
     return;
   }
 
@@ -96,6 +96,28 @@ function metadataScriptSourceText() {
 
 const nodeMetadataScriptHighlightTokenPattern =
   /param\.[A-Za-z0-9_.]+|\[[^\]]*\]|-?(?:\d+\.\d+|\d+|\.\d+)(?:e[+-]?\d+)?|\b(?:true|false|any)\b|=|[A-Za-z_][\w-]*/gi;
+
+const nodeMetadataScriptAliases = Object.freeze({
+  default: "def",
+});
+
+const nodeMetadataScriptSupportedKeys = new Set([
+  "choices",
+  "def",
+  "displayChoices",
+  "divideChoicesVisibly",
+  "kind",
+  "linearSmoothing",
+  "max",
+  "maxDigits",
+  "mid",
+  "min",
+  "nonlinearSlider",
+  "showSign",
+  "step",
+  "unit",
+  "wraparound",
+]);
 
 function escapeNodeMetadataScriptHtml(value = "") {
   return String(value || "")
@@ -259,6 +281,67 @@ function parseNodeMetadataScriptChoices(value) {
   return parseNodeMetadataChoices(body);
 }
 
+function nodeMetadataScriptKeyFromPath(path = "") {
+  const pathKey = String(path || "").split(".").pop();
+  return nodeMetadataScriptAliases[pathKey] || pathKey;
+}
+
+function parseNodeMetadataScriptAssignments(source) {
+  const assignments = [];
+  const ignored = [];
+  const lines = String(source || "").split(/\r?\n/);
+  for (const [index, rawLine] of lines.entries()) {
+    const line = rawLine.replace(/\/\/.*$/, "").trim();
+    if (!line) {
+      continue;
+    }
+    const match = line.match(/^([\w.]+)\s*=\s*(.+?)\s*;?$/);
+    if (!match) {
+      ignored.push(index + 1);
+      continue;
+    }
+    assignments.push({
+      key: nodeMetadataScriptKeyFromPath(match[1]),
+      line: index + 1,
+      path: match[1],
+      rawValue: match[2].trim(),
+    });
+  }
+  return { assignments, ignored };
+}
+
+function runNodeMetadataScriptParserSelfTest() {
+  const parsed = parseNodeMetadataScriptAssignments(`
+// parser fixture
+param.frequency.default = 440;
+param.frequency.choices = [Saw, Square, Sine];
+param.frequency.displayChoices = true;
+this line is intentionally invalid
+`);
+  const checks = [
+    parsed.assignments.length === 3,
+    parsed.assignments[0]?.key === "def",
+    parsed.assignments[0]?.rawValue === "440",
+    parsed.assignments[1]?.rawValue === "[Saw, Square, Sine]",
+    parsed.assignments[2]?.key === "displayChoices",
+    parsed.ignored.length === 1,
+    parsed.ignored[0] === 6,
+  ];
+  return {
+    assignments: parsed.assignments,
+    ignored: parsed.ignored,
+    ok: checks.every(Boolean),
+  };
+}
+
+function syncNodeMetadataScriptParserSelfTestStatus() {
+  const result = runNodeMetadataScriptParserSelfTest();
+  document.documentElement.dataset.metadataScriptParserSelfTest = result.ok ? "passed" : "failed";
+  if (!result.ok) {
+    console.warn("metadata script parser self-test failed", result);
+  }
+}
+
 function parseNodeMetadataScriptValue(rawValue, key, current) {
   const value = String(rawValue || "").trim().replace(/;$/, "").trim();
   if (key === "choices") {
@@ -284,46 +367,19 @@ function parseNodeMetadataScriptValue(rawValue, key, current) {
 
 function parseNodeMetadataScript(source, slider) {
   const current = nodeSliderMetadata(slider);
-  const aliases = {
-    default: "def",
-  };
-  const supported = new Set([
-    "choices",
-    "def",
-    "displayChoices",
-    "divideChoicesVisibly",
-    "kind",
-    "linearSmoothing",
-    "max",
-    "maxDigits",
-    "mid",
-    "min",
-    "nonlinearSlider",
-    "showSign",
-    "step",
-    "unit",
-    "wraparound",
-  ]);
   const next = { ...current, choices: [...(current.choices || [])] };
-  const ignored = [];
-  const lines = String(source || "").split(/\r?\n/);
-  for (const [index, rawLine] of lines.entries()) {
-    const line = rawLine.replace(/\/\/.*$/, "").trim();
-    if (!line) {
+  const parsed = parseNodeMetadataScriptAssignments(source);
+  const ignored = [...parsed.ignored];
+  for (const assignment of parsed.assignments) {
+    if (!nodeMetadataScriptSupportedKeys.has(assignment.key)) {
+      ignored.push(assignment.line);
       continue;
     }
-    const match = line.match(/^([\w.]+)\s*=\s*(.+?)\s*;?$/);
-    if (!match) {
-      ignored.push(index + 1);
-      continue;
-    }
-    const pathKey = match[1].split(".").pop();
-    const key = aliases[pathKey] || pathKey;
-    if (!supported.has(key)) {
-      ignored.push(index + 1);
-      continue;
-    }
-    next[key] = parseNodeMetadataScriptValue(match[2], key, next);
+    next[assignment.key] = parseNodeMetadataScriptValue(
+      assignment.rawValue,
+      assignment.key,
+      next,
+    );
   }
   return {
     ignored,
@@ -424,6 +480,11 @@ function bindNodeGraphMetadataPopoverEvents() {
   if (dragHandle && dragHandle.dataset.metadataDragBound !== "true") {
     dragHandle.dataset.metadataDragBound = "true";
     dragHandle.addEventListener("pointerdown", beginNodeMetadataPopoverDrag);
+  }
+  const dragHeading = document.querySelector("#nodeParameterMetadataPopover .metadata-popover-heading");
+  if (dragHeading && dragHeading.dataset.metadataDragHeadingBound !== "true") {
+    dragHeading.dataset.metadataDragHeadingBound = "true";
+    dragHeading.addEventListener("pointerdown", beginNodeMetadataPopoverDrag);
   }
   const defaultButton = document.getElementById("metadataSetDefaultButton");
   if (defaultButton && defaultButton.dataset.metadataDefaultBound !== "true") {
@@ -647,3 +708,4 @@ function handleNodeMetadataEditorInput(event) {
 
 bindNodeGraphMetadataPopoverEvents();
 bindNodeMetadataScriptBeforeUnload();
+syncNodeMetadataScriptParserSelfTestStatus();
