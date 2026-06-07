@@ -884,6 +884,11 @@ function handleNodeMetadataScriptKeydown(event) {
     insertNodeMetadataScriptText("  ");
     return;
   }
+  if (commandKey && event.shiftKey && event.key === "Enter") {
+    event.preventDefault();
+    normalizeNodeMetadataScriptEditor();
+    return;
+  }
   if (commandKey && (event.key.toLowerCase() === "s" || event.key === "Enter")) {
     event.preventDefault();
     applyNodeMetadataScriptEditor();

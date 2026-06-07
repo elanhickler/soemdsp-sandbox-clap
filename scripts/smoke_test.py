@@ -7377,6 +7377,7 @@ def require_node_graph_mvp_contract() -> None:
         "function insertNodeMetadataScriptText(text)",
         "function handleNodeMetadataScriptKeydown(event)",
         "insertNodeMetadataScriptText(\"  \")",
+        "commandKey && event.shiftKey && event.key === \"Enter\"",
         "commandKey && (event.key.toLowerCase() === \"s\" || event.key === \"Enter\")",
         "function insertNodeMetadataScriptKindTemplate()",
         "function normalizeNodeMetadataScriptEditor()",
