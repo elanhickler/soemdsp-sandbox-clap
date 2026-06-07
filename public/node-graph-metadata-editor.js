@@ -87,6 +87,7 @@ function metadataScriptStatus(message, error = false) {
   }
   status.textContent = message;
   status.classList.toggle("error", Boolean(error));
+  status.classList.toggle("dirty", Boolean(nodeGraphMvp.metadataScriptDirty));
 }
 
 function metadataScriptSourceText() {
@@ -99,6 +100,23 @@ function setMetadataScriptSourceText(text) {
     return;
   }
   source.value = String(text || "");
+}
+
+function setNodeMetadataScriptDirty(dirty, message = "", error = false) {
+  nodeGraphMvp.metadataScriptDirty = Boolean(dirty);
+  const popover = document.getElementById("nodeParameterMetadataPopover");
+  if (popover) {
+    popover.dataset.metadataScriptDirty = dirty ? "true" : "false";
+  }
+  const saveButton = document.getElementById("metadataScriptApply");
+  if (saveButton) {
+    saveButton.classList.toggle("armed", Boolean(dirty));
+  }
+  if (message) {
+    metadataScriptStatus(message, error);
+  } else {
+    metadataScriptStatus(dirty ? "unsaved" : "saved", false);
+  }
 }
 
 function nodeMetadataScriptParamKey(slider) {
@@ -158,7 +176,7 @@ function syncNodeMetadataScriptFromFields() {
   }
   const metadata = readNodeMetadataEditorValues(slider);
   setMetadataScriptSourceText(formatNodeMetadataScript(slider, metadata));
-  metadataScriptStatus("script synced", false);
+  setNodeMetadataScriptDirty(false, "script synced", false);
 }
 
 function parseNodeMetadataScriptBoolean(value, fallback = false) {
@@ -288,7 +306,7 @@ function fillNodeMetadataPopover(slider) {
   document.getElementById("metadataScriptTarget").textContent = nodeSliderLabelText(slider);
   writeNodeMetadataEditorValues(metadata);
   setMetadataScriptSourceText(formatNodeMetadataScript(slider, metadata));
-  metadataScriptStatus("script ready", false);
+  setNodeMetadataScriptDirty(false, "script ready", false);
   document.getElementById("metadataSetDefaultButton").classList.remove("armed");
 }
 
@@ -312,8 +330,15 @@ function openNodeMetadataPopover(event, readout) {
 }
 
 function closeNodeMetadataPopover() {
+  if (
+    nodeGraphMvp.metadataScriptDirty &&
+    !window.confirm("Discard unsaved metadata script changes?")
+  ) {
+    return;
+  }
   const popover = document.getElementById("nodeParameterMetadataPopover");
   popover.hidden = true;
+  setNodeMetadataScriptDirty(false, "");
   if (nodeGraphMvp.metadataDragging?.handle) {
     nodeGraphMvp.metadataDragging.handle.classList.remove("dragging");
   }
@@ -436,7 +461,7 @@ function applyNodeMetadataScriptEditor() {
   const ignoredText = parsed.ignored.length
     ? `; ignored lines ${parsed.ignored.join(", ")}`
     : "";
-  metadataScriptStatus(`script applied${ignoredText}`, Boolean(parsed.ignored.length));
+  setNodeMetadataScriptDirty(Boolean(parsed.ignored.length), `script applied${ignoredText}`, Boolean(parsed.ignored.length));
   return true;
 }
 
@@ -453,7 +478,7 @@ async function pasteNodeMetadataScriptSource() {
   try {
     const text = await navigator.clipboard.readText();
     setMetadataScriptSourceText(text);
-    metadataScriptStatus("pasted; apply when ready", false);
+    setNodeMetadataScriptDirty(true, "pasted; save when ready", false);
   } catch {
     metadataScriptStatus("paste unavailable", true);
   }
@@ -534,7 +559,7 @@ function handleNodeMetadataEditorInput(event) {
     return;
   }
   if (event?.target?.id === "metadataScriptSource") {
-    metadataScriptStatus("script edited; apply when ready", false);
+    setNodeMetadataScriptDirty(true, "unsaved", false);
     return;
   }
   syncNodeMetadataMidVisibility();

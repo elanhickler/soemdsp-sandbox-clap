@@ -1434,6 +1434,29 @@ audio {
   border-left: 1px solid var(--line);
 }
 
+.node-modular-view-button-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 1 152px;
+  align-self: stretch;
+  min-width: min(152px, 100%);
+  min-height: 58px;
+  overflow: hidden;
+  background: rgba(32, 37, 42, var(--node-toolbar-button-bg-alpha));
+}
+
+.node-modular-view-button-group > button {
+  flex: none;
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.node-modular-view-button-group > button + button {
+  border-left: 1px solid rgba(127, 199, 217, 0.16);
+}
+
 .node-zoom-controls {
   flex: 0 1 188px;
   grid-template-rows: minmax(18px, 0.56fr) minmax(0, 1.44fr);
@@ -8638,10 +8661,35 @@ audio {
   background: rgba(8, 18, 22, 0.82);
   color: rgba(205, 214, 216, 0.78);
   font-size: 0.72rem;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.metadata-script-actions button:hover {
+  border-color: rgba(127, 199, 217, 0.38);
+  color: rgba(220, 232, 234, 0.88);
+}
+
+.metadata-script-actions button.armed {
+  border-color: rgba(214, 163, 95, 0.52);
+  background: rgba(42, 31, 17, 0.88);
+  color: rgba(244, 213, 166, 0.94);
 }
 
 .metadata-script-panel output {
   justify-self: start;
+}
+
+.metadata-script-panel output.dirty {
+  border-color: rgba(214, 163, 95, 0.48);
+  color: rgba(244, 213, 166, 0.92);
+}
+
+.metadata-script-panel output.error {
+  border-color: rgba(255, 105, 105, 0.48);
+  color: rgba(255, 178, 178, 0.94);
 }
 
 @media (max-width: 760px) {
