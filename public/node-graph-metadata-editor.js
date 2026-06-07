@@ -310,6 +310,53 @@ function parseNodeMetadataScriptAssignments(source) {
   return { assignments, ignored };
 }
 
+function analyzeNodeMetadataScriptSource(source) {
+  const parsed = parseNodeMetadataScriptAssignments(source);
+  const supported = [];
+  const unsupported = [];
+  for (const assignment of parsed.assignments) {
+    if (nodeMetadataScriptSupportedKeys.has(assignment.key)) {
+      supported.push(assignment);
+    } else {
+      unsupported.push(assignment);
+    }
+  }
+  const ignored = [
+    ...parsed.ignored,
+    ...unsupported.map((assignment) => assignment.line),
+  ].sort((a, b) => a - b);
+  return {
+    assignmentCount: parsed.assignments.length,
+    ignored,
+    ok: ignored.length === 0,
+    supported,
+    supportedCount: supported.length,
+    unsupported,
+  };
+}
+
+function nodeMetadataScriptDiagnosticMessage(source = metadataScriptSourceText()) {
+  const diagnostics = analyzeNodeMetadataScriptSource(source);
+  const settingsText = diagnostics.supportedCount === 1
+    ? "1 setting"
+    : `${diagnostics.supportedCount} settings`;
+  if (diagnostics.assignmentCount === 0 && diagnostics.ignored.length === 0) {
+    return { error: false, message: "unsaved: empty script" };
+  }
+  if (diagnostics.ignored.length) {
+    return {
+      error: true,
+      message: `unsaved: ${settingsText}; ignored lines ${diagnostics.ignored.join(", ")}`,
+    };
+  }
+  return { error: false, message: `unsaved: ${settingsText} ready` };
+}
+
+function syncNodeMetadataScriptDiagnostics() {
+  const diagnostics = nodeMetadataScriptDiagnosticMessage();
+  setNodeMetadataScriptDirty(true, diagnostics.message, diagnostics.error);
+}
+
 function runNodeMetadataScriptParserSelfTest() {
   const parsed = parseNodeMetadataScriptAssignments(`
 // parser fixture
@@ -326,6 +373,8 @@ this line is intentionally invalid
     parsed.assignments[2]?.key === "displayChoices",
     parsed.ignored.length === 1,
     parsed.ignored[0] === 6,
+    analyzeNodeMetadataScriptSource("param.frequency.default = 440;").supportedCount === 1,
+    nodeMetadataScriptDiagnosticMessage("param.frequency.unknown = 1;").error === true,
   ];
   return {
     assignments: parsed.assignments,
@@ -533,7 +582,7 @@ function insertNodeMetadataScriptText(text) {
   const end = source.selectionEnd ?? start;
   source.setRangeText(text, start, end, "end");
   updateNodeMetadataScriptHighlight();
-  setNodeMetadataScriptDirty(true, "unsaved", false);
+  syncNodeMetadataScriptDiagnostics();
 }
 
 function handleNodeMetadataScriptKeydown(event) {
@@ -646,7 +695,7 @@ async function pasteNodeMetadataScriptSource() {
   try {
     const text = await navigator.clipboard.readText();
     setMetadataScriptSourceText(text);
-    setNodeMetadataScriptDirty(true, "pasted; save when ready", false);
+    syncNodeMetadataScriptDiagnostics();
   } catch {
     metadataScriptStatus("paste unavailable", true);
   }
@@ -728,7 +777,7 @@ function handleNodeMetadataEditorInput(event) {
   }
   if (event?.target?.id === "metadataScriptSource") {
     updateNodeMetadataScriptHighlight();
-    setNodeMetadataScriptDirty(true, "unsaved", false);
+    syncNodeMetadataScriptDiagnostics();
     return;
   }
   syncNodeMetadataMidVisibility();
