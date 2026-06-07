@@ -518,6 +518,8 @@ param.frequency.choices = [Saw, Square, Sine];
 param.frequency.displayChoices = true;
 this line is intentionally invalid
 `);
+  const samePreviewDraft = { def: 440, kind: "decimal" };
+  const changedPreviewDraft = { def: 440, kind: "decimal" };
   const checks = [
     parsed.assignments.length === 3,
     parsed.assignments[0]?.key === "def",
@@ -529,6 +531,8 @@ this line is intentionally invalid
     analyzeNodeMetadataScriptSource("param.frequency.default = 440;").supportedCount === 1,
     analyzeNodeMetadataScriptSource("param.frequency.unknown = 1;").unsupported.length === 1,
     nodeMetadataScriptDiagnosticMessage("param.frequency.unknown = 1;").error === true,
+    nodeMetadataScriptPreviewState({ key: "def", rawValue: "440" }, samePreviewDraft) === "same",
+    nodeMetadataScriptPreviewState({ key: "def", rawValue: "441" }, changedPreviewDraft) === "changed",
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.choices = [Saw, Square, Triangle, Sine, Noise];"),
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.displayChoices = true;"),
   ];
