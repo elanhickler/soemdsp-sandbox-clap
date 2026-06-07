@@ -49,80 +49,13 @@ body.node-boot-loading .shell {
   display: none;
   place-items: center;
   background: #000000;
-  color: rgba(243, 241, 236, 0.76);
-  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-  font-size: 0.92rem;
+  color: rgba(243, 241, 236, 0.82);
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
   letter-spacing: 0;
   opacity: 1;
   transition: opacity 333ms ease;
-}
-
-.node-boot-terminal {
-  display: grid;
-  gap: 0.28rem;
-  min-width: min(18rem, calc(100vw - 3rem));
-  padding: 1rem 1.1rem;
-  border: 1px solid rgba(90, 219, 255, 0.22);
-  background: rgba(4, 8, 12, 0.78);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 0 28px rgba(90, 219, 255, 0.14);
-}
-
-.node-boot-line {
-  display: block;
-  width: max-content;
-  max-width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-shadow: 0 0 14px rgba(90, 219, 255, 0.32);
-}
-
-.node-boot-line-app {
-  color: rgba(120, 238, 255, 0.92);
-}
-
-.node-boot-prompt {
-  display: inline-block;
-}
-
-.node-boot-command {
-  display: inline-block;
-  width: 0;
-  margin-left: 1ch;
-  overflow: hidden;
-  vertical-align: bottom;
-  animation: node-boot-command-type 420ms steps(8, end) 220ms both;
-}
-
-.node-boot-line-loading {
-  color: rgba(243, 241, 236, 0.82);
-  animation: node-boot-line-reveal 500ms steps(17, end) 680ms both;
-}
-
-.node-boot-line-loading::after {
-  content: "";
-  display: inline-block;
-  width: 0.55ch;
-  height: 1em;
-  margin-left: 0.35ch;
-  vertical-align: -0.12em;
-  background: rgba(120, 238, 255, 0.86);
-  animation: node-boot-cursor-blink 1000ms steps(1, end) infinite;
-  animation-delay: var(--node-boot-cursor-delay, 0ms);
-}
-
-.node-boot-dot {
-  color: rgba(243, 241, 236, 0.56);
-  animation: node-boot-dot-pulse 500ms steps(1, end) infinite;
-}
-
-.node-boot-dot:nth-child(2) {
-  animation-delay: 100ms;
-}
-
-.node-boot-dot:nth-child(3) {
-  animation-delay: 200ms;
 }
 
 body.node-boot-loading .node-boot-loading-screen,
@@ -136,26 +69,6 @@ body.node-boot-fading .node-boot-loading-screen {
 
 body.node-boot-ready .node-boot-loading-screen {
   display: none;
-}
-
-@keyframes node-boot-line-reveal {
-  from { clip-path: inset(0 100% 0 0); }
-  to { clip-path: inset(0 0 0 0); }
-}
-
-@keyframes node-boot-command-type {
-  from { width: 0; }
-  to { width: 8ch; }
-}
-
-@keyframes node-boot-cursor-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
-@keyframes node-boot-dot-pulse {
-  0%, 32% { opacity: 0.28; }
-  33%, 100% { opacity: 1; }
 }
 
 body.node-ear-protection-tripped {
@@ -1457,12 +1370,12 @@ audio {
 }
 
 .node-view-toolbar {
-  display: grid;
-  grid-template-columns: repeat(15, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   align-items: stretch;
   gap: 0;
   margin-top: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: rgba(9, 12, 15, 0.74);
@@ -1478,7 +1391,10 @@ audio {
 
 .node-view-tabs,
 .node-history-controls {
-  display: contents;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .node-zoom-controls {
@@ -1491,12 +1407,16 @@ audio {
 }
 
 .node-view-tabs {
-  min-width: 0;
+  flex: 1 1 780px;
+}
+
+.node-history-controls {
+  flex: 1 1 560px;
 }
 
 .node-view-toolbar {
   position: relative;
-  min-height: 74px;
+  min-height: 0;
 }
 
 .node-view-tabs > *,
@@ -1515,8 +1435,8 @@ audio {
 }
 
 .node-zoom-controls {
+  flex: 0 1 188px;
   grid-template-rows: minmax(18px, 0.56fr) minmax(0, 1.44fr);
-  grid-column: span 2;
   border-width: 0 0 0 1px;
   border-radius: 0;
 }
@@ -1578,13 +1498,38 @@ audio {
   align-items: center;
   justify-content: center;
   align-self: stretch;
-  min-height: 100%;
+  flex: 0 1 74px;
+  min-height: 58px;
   min-width: 0;
   padding: 0 4px;
-  font-size: clamp(0.96rem, 1.35vw, 1.34rem);
+  font-size: clamp(0.82rem, 1.04vw, 1.08rem);
   line-height: 1.12;
   text-align: center;
   white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.node-history-controls button {
+  flex-basis: 82px;
+}
+
+#nodeSettingsViewButton {
+  flex-basis: 62px;
+}
+
+#nodeModuleShopButton,
+#nodeMacroControlsToggleButton,
+#nodeGlobalScopeMenuButton,
+#nodeCopyViewportImageButton {
+  flex-basis: 108px;
+}
+
+#nodeVisibilityMenuButton {
+  flex-basis: 102px;
+}
+
+#nodePatchTimingControls {
+  flex-basis: 296px;
 }
 
 .node-scope-master-brightness-control {
@@ -2493,11 +2438,19 @@ audio {
   border-color: rgba(226, 168, 109, 0.78);
 }
 
+.node-viewport-export-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+  min-height: 28px;
+  overflow-x: auto;
+}
+
 .node-copy-viewport-image-button {
-  position: absolute;
-  right: 40px;
-  bottom: 8px;
-  z-index: 4;
+  flex: 0 0 auto;
   min-width: 42px;
   height: 28px;
   min-height: 28px;
@@ -2519,6 +2472,93 @@ audio {
 
 .node-copy-viewport-image-button:disabled {
   opacity: 0.62;
+}
+
+.node-copy-viewport-wav-button {
+  min-width: 42px;
+}
+
+.node-copy-viewport-ogg-button {
+  min-width: 42px;
+}
+
+.node-copy-viewport-flac-button {
+  min-width: 42px;
+}
+
+.node-copy-viewport-gif-button {
+  min-width: 42px;
+}
+
+.node-copy-viewport-mp4-button {
+  min-width: 42px;
+}
+
+.node-copy-viewport-seconds-input {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid rgba(214, 230, 238, 0.42);
+  border-radius: 2px;
+  background: rgba(12, 17, 21, 0.86);
+  color: rgba(229, 238, 242, 0.94);
+  font: 600 0.72rem/1 "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  text-align: center;
+  outline: none;
+}
+
+.node-copy-viewport-unit-label {
+  flex: 0 0 auto;
+  min-width: 12px;
+  color: rgba(214, 230, 238, 0.74);
+  font: 700 0.7rem/1 "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  text-align: left;
+  text-transform: lowercase;
+}
+
+.node-copy-viewport-width-input {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid rgba(214, 230, 238, 0.42);
+  border-radius: 2px;
+  background: rgba(12, 17, 21, 0.86);
+  color: rgba(229, 238, 242, 0.94);
+  font: 600 0.72rem/1 "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  text-align: center;
+  outline: none;
+}
+
+.node-viewport-export-download-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(127, 199, 217, 0.42);
+  border-radius: 2px;
+  background: rgba(11, 26, 31, 0.84);
+  color: rgba(224, 255, 249, 0.92);
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.node-viewport-export-download-link:hover,
+.node-viewport-export-download-link:focus-visible {
+  border-color: rgba(127, 199, 217, 0.86);
+  color: #f3f1ec;
+  box-shadow: 0 0 12px rgba(127, 199, 217, 0.24);
+}
+
+.node-copy-viewport-seconds-input:focus,
+.node-copy-viewport-width-input:focus {
+  border-color: rgba(127, 199, 217, 0.78);
+  box-shadow: 0 0 0 2px rgba(127, 199, 217, 0.16);
 }
 
 .node-script-view {
@@ -6868,34 +6908,6 @@ audio {
   height: 100%;
 }
 
-.node-filter-curve-endpoint {
-  position: absolute;
-  bottom: calc(var(--node-grid-size) * 0.16);
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  min-width: calc(var(--node-grid-size) * 0.72);
-  height: calc(var(--node-grid-size) * 0.32);
-  padding: 0 calc(var(--node-grid-size) * 0.12);
-  border: 1px solid rgba(128, 224, 224, 0.2);
-  background: rgba(2, 6, 9, 0.74);
-  color: rgba(229, 238, 242, 0.82);
-  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-  font-size: 0.68rem;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.node-filter-curve-endpoint-input {
-  left: calc(var(--node-grid-size) * 0.16);
-  justify-content: flex-start;
-}
-
-.node-filter-curve-endpoint-output {
-  right: calc(var(--node-grid-size) * 0.16);
-  justify-content: flex-end;
-}
-
 .node-slider-widget-body {
   box-sizing: border-box;
   display: grid;
@@ -6996,20 +7008,21 @@ audio {
   stroke-width: 0.7;
 }
 
-.node-module-graph-cursor-value {
-  fill: rgba(255, 241, 169, 0.98);
-  stroke: rgba(7, 10, 13, 0.9);
-  stroke-width: 0.7;
-  pointer-events: all;
-  touch-action: none;
-}
-
 .node-module-graph-curve {
   fill: none;
   stroke: rgba(92, 232, 212, 0.92);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.6;
+}
+
+.node-module-graph-control-line {
+  fill: none;
+  stroke: rgba(0, 239, 175, 0.52);
+  stroke-dasharray: 2 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 0.7;
 }
 
 .node-module-graph-contour-handle {
@@ -7427,8 +7440,7 @@ audio {
 .node-header-timing-widgets {
   box-sizing: border-box;
   display: grid;
-  grid-column: span 5;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(64px, 1.1fr) minmax(58px, 0.9fr) minmax(54px, 0.8fr) minmax(74px, 1fr);
   min-width: 0;
   height: 100%;
   border-inline: 1px solid rgba(127, 199, 217, 0.08);
@@ -7436,14 +7448,14 @@ audio {
 
 .node-patch-timing-controls {
   display: inline-flex;
+  flex: 1 1 296px;
   align-items: stretch;
-  min-width: min(238px, 100%);
+  min-width: min(296px, 100%);
   min-height: 28px;
 }
 
 .node-history-controls .node-header-timing-widgets {
-  grid-column: auto;
-  min-width: 238px;
+  min-width: min(296px, 100%);
   border: 1px solid rgba(127, 199, 217, 0.12);
   border-radius: 5px;
   overflow: hidden;
@@ -7452,16 +7464,17 @@ audio {
 .node-header-timing-field {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
-  align-items: center;
+  grid-template-rows: minmax(0, 0.72fr) minmax(0, 1fr);
+  align-items: stretch;
+  justify-items: stretch;
   min-width: 0;
   height: 100%;
-  padding: 0 3px;
-  gap: 2px;
+  padding: 2px 3px;
+  gap: 1px;
   border-inline-end: 1px solid rgba(127, 199, 217, 0.08);
   color: rgba(199, 226, 226, 0.68);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-  font-size: calc(var(--node-header-height) * 0.13);
+  font-size: calc(var(--node-header-height) * 0.105);
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -7470,18 +7483,39 @@ audio {
   border-inline-end: 0;
 }
 
+.node-header-tap-tempo-button {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-inline-start: 1px solid rgba(127, 199, 217, 0.08);
+  background: rgba(17, 20, 24, 0.52);
+  color: rgba(127, 199, 217, 0.92);
+  font: 800 calc(var(--node-header-height) * 0.32)/1 "Segoe UI Symbol", "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  letter-spacing: 0;
+}
+
+.node-header-tap-tempo-symbol {
+  display: block;
+  transform: translateY(-0.02em);
+}
+
 .node-header-timing-field span {
   min-width: 0;
   overflow: hidden;
   text-overflow: clip;
   white-space: nowrap;
+  line-height: 1;
+  text-align: center;
 }
 
 .node-header-timing-input {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  height: calc(100% - 4px);
+  height: 100%;
   padding: 0 2px;
   border: 1px solid rgba(127, 199, 217, 0.18);
   border-radius: 3px;
@@ -8390,7 +8424,8 @@ audio {
   z-index: 20;
   display: grid;
   gap: 12px;
-  width: min(340px, calc(100vw - 28px));
+  grid-template-columns: minmax(280px, 340px) minmax(320px, 1fr);
+  width: min(820px, calc(100vw - 28px));
   padding: 12px;
   border: 1px solid rgba(127, 199, 217, 0.42);
   border-radius: 8px;
@@ -8404,6 +8439,7 @@ audio {
 
 .metadata-popover-heading,
 .metadata-popover-actions {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -8460,6 +8496,7 @@ audio {
 .metadata-popover-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
   gap: 8px;
 }
 
@@ -8541,6 +8578,76 @@ audio {
   border-color: rgba(242, 93, 93, 0.76);
   background: rgba(122, 28, 28, 0.72);
   color: #ffd7d7;
+}
+
+.metadata-script-panel {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.metadata-script-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.metadata-script-heading span {
+  color: var(--accent);
+  font-size: 0.62rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.metadata-script-heading strong {
+  color: rgba(205, 214, 216, 0.82);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.metadata-script-panel textarea {
+  width: 100%;
+  min-height: 286px;
+  padding: 10px 12px;
+  border: 1px solid rgba(127, 199, 217, 0.28);
+  border-radius: 6px;
+  background: #05090b;
+  color: rgba(205, 214, 216, 0.9);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.48;
+  resize: vertical;
+}
+
+.metadata-script-panel textarea:focus {
+  outline: none;
+  border-color: rgba(127, 199, 217, 0.42);
+}
+
+.metadata-script-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metadata-script-actions button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(127, 199, 217, 0.28);
+  border-radius: 5px;
+  background: rgba(8, 18, 22, 0.82);
+  color: rgba(205, 214, 216, 0.78);
+  font-size: 0.72rem;
+}
+
+.metadata-script-panel output {
+  justify-self: start;
+}
+
+@media (max-width: 760px) {
+  .node-parameter-metadata-popover {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 button.confirming-default,

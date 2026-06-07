@@ -4,18 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=external-graph-inputs-1780816800000">
+  <link rel="stylesheet" href="./public/styles.css?v=tap-tempo-symbol-1">
 </head>
 <body class="debug-collapsed node-boot-loading">
-  <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="Loading interface">
-    <div class="node-boot-terminal" aria-hidden="true">
-      <span class="node-boot-line node-boot-line-app">
-        <span class="node-boot-prompt">app:</span><span class="node-boot-command">sandbox~</span>
-      </span>
-      <span class="node-boot-line node-boot-line-loading">
-        loading interface <span class="node-boot-dot">.</span> <span class="node-boot-dot">.</span> <span class="node-boot-dot">.</span>
-      </span>
-    </div>
+  <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
+    loading
   </div>
   <div
     id="nodeEarProtectionFault"
@@ -39,7 +32,7 @@
       <span class="node-ear-protection-fault-reset">Refresh the page, your patch will be saved.</span>
     </div>
   </div>
-  <script src="./public/boot-loading.js?v=terminal-boot-ready-marker-1780813800000"></script>
+  <script src="./public/boot-loading.js?v=minimal-loading-screen-1"></script>
   <main class="shell">
     <section class="status-strip" aria-label="Sandbox status">
       <div>
@@ -249,12 +242,71 @@
           type="button"
           aria-label="Resize modular workspace"
           data-tooltip-key="workspace.resizeTitle"></button>
+      </div>
+
+      <div
+        id="nodeViewportExportControls"
+        class="node-viewport-export-controls"
+        aria-label="Modular viewport export controls">
         <button
           id="nodeCopyViewportImageOverlayButton"
           class="node-copy-viewport-image-button"
           type="button"
           aria-label="Copy modular viewport image"
           data-tooltip-key="workspace.copyViewportImage">PNG</button>
+        <button
+          id="nodeExportViewportWavButton"
+          class="node-copy-viewport-image-button node-copy-viewport-wav-button"
+          type="button"
+          aria-label="Export rendered audio WAV"
+          data-tooltip-key="workspace.copyViewportImage">WAV</button>
+        <button
+          id="nodeExportViewportOggButton"
+          class="node-copy-viewport-image-button node-copy-viewport-ogg-button"
+          type="button"
+          aria-label="Export rendered audio OGG"
+          data-tooltip-key="workspace.copyViewportImage">OGG</button>
+        <button
+          id="nodeExportViewportFlacButton"
+          class="node-copy-viewport-image-button node-copy-viewport-flac-button"
+          type="button"
+          aria-label="Export rendered audio FLAC"
+          data-tooltip-key="workspace.copyViewportImage">FLAC</button>
+        <button
+          id="nodeExportViewportGifButton"
+          class="node-copy-viewport-image-button node-copy-viewport-gif-button"
+          type="button"
+          aria-label="Export modular viewport GIF"
+          data-tooltip-key="workspace.copyViewportImage">GIF</button>
+        <button
+          id="nodeExportViewportMp4Button"
+          class="node-copy-viewport-image-button node-copy-viewport-mp4-button"
+          type="button"
+          aria-label="Export modular viewport MP4"
+          data-tooltip-key="workspace.copyViewportImage">MP4</button>
+        <input
+          id="nodeViewportExportSecondsInput"
+          class="node-copy-viewport-seconds-input"
+          type="number"
+          min="0.25"
+          max="60"
+          step="0.25"
+          value="2"
+          aria-label="Viewport MP4 export seconds"
+          title="Viewport MP4 export seconds">
+        <span
+          class="node-copy-viewport-unit-label"
+          aria-hidden="true">s</span>
+        <input
+          id="nodeViewportExportWidthInput"
+          class="node-copy-viewport-width-input"
+          type="number"
+          min="64"
+          max="8192"
+          step="1"
+          value="1280"
+          aria-label="Viewport export target width"
+          title="Viewport export target width">
       </div>
 
       <section
@@ -569,8 +621,7 @@
               type="search"
               placeholder="Search departments..."
               autocomplete="off"
-              spellcheck="false"
-              disabled>
+              spellcheck="false">
           </label>
           <section id="nodeModuleDepartmentList" class="node-module-shop-section scene-context-store-department-list" aria-label="Module departments"></section>
         </div>
@@ -1939,7 +1990,7 @@
           <div class="three scene-context-scope-fields">
             <label>
               <span>line thickness</span>
-              <input id="nodeMasterScopeLineThickness" type="number" min="0.25" max="10" step="0.01" data-global-scope-input="lineThickness" data-global-scope-number-drag="true" value="2">
+              <input id="nodeMasterScopeLineThickness" type="number" min="0.25" max="10" step="0.01" data-global-scope-input="lineThickness" data-global-scope-number-drag="true" value="1">
             </label>
             <label>
               <span>overdraw points</span>
@@ -2239,6 +2290,25 @@
           </label>
           <button id="metadataSetDefaultButton" type="button">Set Defaults from Kind</button>
         </div>
+        <section class="metadata-script-panel" aria-label="Parameter metadata script">
+          <div class="metadata-script-heading">
+            <span>Metaparameter Script</span>
+            <strong id="metadataScriptTarget">Current parameter</strong>
+          </div>
+          <textarea
+            id="metadataScriptSource"
+            spellcheck="false"
+            rows="13"
+            aria-label="Parameter metadata script"></textarea>
+          <div class="metadata-script-actions">
+            <button id="metadataScriptApply" type="button">Apply Script</button>
+            <button id="metadataScriptRefresh" type="button">From Fields</button>
+            <button id="metadataScriptCopy" type="button">Copy</button>
+            <button id="metadataScriptPaste" type="button">Paste</button>
+            <button id="metadataScriptToDesktop" type="button">To Desktop</button>
+          </div>
+          <output id="metadataScriptStatus" class="pill" aria-live="polite">script ready</output>
+        </section>
       </div>
 
       <div class="node-graph-output">
@@ -2731,22 +2801,22 @@
   <script src="./public/node-graph-wires.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-file-actions.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-default-buttons.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-cookbook-filter.js?v=filter-curves-and-octave-cv-1780720800000"></script>
-  <script src="./public/node-graph-module-definitions.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-module-store.js?v=led-module-1"></script>
+  <script src="./public/node-graph-cookbook-filter.js?v=filter-curve-zero-cutoffs-1780822200000"></script>
+  <script src="./public/node-graph-module-definitions.js?v=stereo-noise-xy-1"></script>
+  <script src="./public/node-graph-module-store.js?v=default-oversampling-x1-1"></script>
   <script src="./public/node-graph-module-sizing.js?v=graph-module-screen-1780812000000"></script>
   <script src="./public/node-graph-metadata-kinds.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-parameter-metadata.js?v=codeblock-state-context-1"></script>
   <script src="./public/node-graph-metadata-defaults.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-text-box-utils.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-image-utils.js?v=image-trace-texture-1780644000000"></script>
-  <script src="./public/node-graph-graph-utils.js?v=graph-square-viewport-1"></script>
+  <script src="./public/node-graph-graph-utils.js?v=graph2-through-curves-1"></script>
   <script src="./public/node-graph-text-box-rendering.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-patch-normalizers.js?v=scope-script-controls-1"></script>
-  <script src="./public/node-graph-ui-view.js?v=graph-ui-editor-4"></script>
+  <script src="./public/node-graph-patch-normalizers.js?v=shader-default-comments-1"></script>
+  <script src="./public/node-graph-ui-view.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-audio-derivation.js?v=sample-rate-oversampling-1780468200000"></script>
-  <script src="./public/node-graph-grid-utils.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-patch-runtime.js?v=additive-osc-source-1"></script>
+  <script src="./public/node-graph-grid-utils.js?v=half-grid-window-drag-1"></script>
+  <script src="./public/node-graph-patch-runtime.js?v=ellipsoid-xy-1"></script>
   <script src="./public/node-graph-code-screen-model.js?v=code-screen-1"></script>
   <script src="./public/node-graph-patch-serialization.js?v=timing-header-1"></script>
   <script src="./public/node-graph-settings-fields.js?v=slider-unit-color-1780307400000"></script>
@@ -2754,46 +2824,46 @@
   <script src="./public/node-graph-settings-text-fit.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-default-preset.js?v=camera-output-wires-1780801800000"></script>
   <script src="./public/node-graph-script-status.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-view-controls.js?v=scope-overdraw-fade-1"></script>
-  <script src="./public/node-graph-workspace-geometry.js?v=wire-svg-rect-1"></script>
-  <script src="./public/node-graph-workspace-zoom.js?v=slider-zoom-geometry-1780615800000"></script>
+  <script src="./public/node-graph-view-controls.js?v=scope-line-thickness-default-1"></script>
+  <script src="./public/node-graph-workspace-geometry.js?v=half-grid-window-drag-1"></script>
+  <script src="./public/node-graph-workspace-zoom.js?v=wheel-zoom-tenth-step-1"></script>
   <script src="./public/node-graph-workspace-view.js?v=workspace-resize-zoom-snap-1"></script>
   <script src="./public/node-graph-camera-view.js?v=utility-camera-feed-1780810000000"></script>
   <script src="./public/node-graph-clap-host.js?v=clap-diagnostics-1"></script>
   <script src="./public/node-graph-marquee-selection.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-node-dragging.js?v=led-body-drag-1"></script>
-  <script src="./public/node-graph-context-menu.js?v=graph-ui-editor-1"></script>
-  <script src="./public/node-graph-module-actions.js?v=graph-ui-editor-1"></script>
+  <script src="./public/node-graph-node-dragging.js?v=half-grid-window-drag-1"></script>
+  <script src="./public/node-graph-context-menu.js?v=graph-endpoint-lock-1"></script>
+  <script src="./public/node-graph-module-actions.js?v=half-grid-window-drag-1"></script>
   <script src="./public/node-graph-code-screen.js?v=code-screen-1"></script>
-  <script src="./public/node-graph-module-scopes.js?v=full-trace-density-1780816800000"></script>
-  <script src="./public/node-graph-shader-script.js?v=scope-preview-sync-1"></script>
+  <script src="./public/node-graph-module-scopes.js?v=scope-zoom-backing-store-1"></script>
+  <script src="./public/node-graph-shader-script.js?v=shader-default-comments-1"></script>
   <script src="./public/node-graph-module-factories.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-module-header-rendering.js?v=hidden-title-bypass-1"></script>
-  <script src="./public/node-graph-module-rendering.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-module-header-rendering.js?v=tap-tempo-symbol-1"></script>
+  <script src="./public/node-graph-module-rendering.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-history.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-visual-utils.js?v=text-light-registry-1780800000000"></script>
-  <script src="./public/node-graph-patch-clone.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-patch-clone.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-slider-metadata.js?v=slider-math-input-1780438200000"></script>
   <script src="./public/node-graph-slider-values.js?v=slider-zoom-geometry-1780615800000"></script>
-  <script src="./public/node-graph-slider-dragging.js?v=slider-drag-ownership-1780804800000"></script>
+  <script src="./public/node-graph-slider-dragging.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-node-accessors.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-selection.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-port-geometry.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-slider-readout.js?v=choice-square-bottom-plus-2"></script>
-  <script src="./public/node-graph-slider-readout-controls.js?v=slider-zoom-geometry-1780615800000"></script>
+  <script src="./public/node-graph-slider-readout-controls.js?v=graph2-smoothing-3"></script>
   <script src="./public/node-graph-ghost-sliders.js?v=slider-lane-inset-1780328200000"></script>
-  <script src="./public/node-graph-metadata-editor.js?v=metadata-popover-bind-1"></script>
+  <script src="./public/node-graph-metadata-editor.js?v=metadata-script-editor-1"></script>
   <script src="./public/node-graph-render-settings.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-ear-protection.js?v=ear-protection-latch-1780347600000"></script>
   <script src="./public/node-graph-rendered-audio.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-rendered-visual-output.js?v=copy-visual-output-1"></script>
-  <script src="./public/node-graph-viewport-image.js?v=copy-viewport-image-4"></script>
+  <script src="./public/node-graph-viewport-image.js?v=viewport-mp4-frame-capture-4"></script>
   <script src="./public/node-graph-av-export.js?v=video-export-auto-render-1"></script>
   <script src="./public/node-graph-rendered-output-canvases.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-wires.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-execution-plan.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-execution-plan.js?v=graph2-smoothing-3"></script>
   <script src="./public/node-graph-execution-summary.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-wire-actions.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-wire-actions.js?v=graph2-smoothing-3"></script>
   <script src="./public/node-graph-trace-router.js?v=no-self-burst-1780321400000"></script>
   <script src="./public/node-graph-wire-rendering.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-render-output.js?v=clap-render-bounded-tail-1"></script>
@@ -2802,12 +2872,12 @@
   <script src="./public/node-graph-execution-debug-view.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-tooltips.js?v=scope-shader-authoring-1"></script>
   <script src="./public/node-graph-interaction-help.js?v=midi-keyboard-toggle-1"></script>
-  <script src="./public/presets/useruisettings.js?v=scope-overdraw-fade-1"></script>
+  <script src="./public/presets/useruisettings.js?v=scope-line-thickness-default-1"></script>
   <script src="./public/node-graph-ui-settings-definitions.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-ui-settings-utils.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-user-ui-settings-controls.js?v=master-scope-fps-1780618200000"></script>
   <script src="./public/node-graph-ui-settings-panels.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-ui-settings-persistence.js?v=scope-overdraw-fade-1"></script>
+  <script src="./public/node-graph-ui-settings-persistence.js?v=scope-line-thickness-default-1"></script>
   <script src="./public/node-graph-ui-settings-sync.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-keyboard-shortcuts.js?v=editable-graph-select-key-1"></script>
   <script src="./public/node-graph-live-status-text.js?v=sample-rate-oversampling-1780468200000"></script>
@@ -2816,16 +2886,16 @@
   <script src="./public/node-graph-live-input-status.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-live-evidence.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-live-control-rendering.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-default-patch.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-state.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-patch-core.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-live-plan-runtime.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-default-patch.js?v=default-oversampling-x1-1"></script>
+  <script src="./public/node-graph-state.js?v=scope-line-thickness-default-1"></script>
+  <script src="./public/node-graph-patch-core.js?v=half-grid-window-drag-1"></script>
+  <script src="./public/node-graph-live-plan-runtime.js?v=graph2-smoothing-3"></script>
   <script src="./public/node-graph-live-parameter-runtime.js?v=clap-tail-source-silence-1"></script>
-  <script src="./public/node-graph-oscillator-runtime.js?v=additive-phase-curve-separate-1"></script>
+  <script src="./public/node-graph-oscillator-runtime.js?v=ellipsoid-audio-1"></script>
   <script src="./public/node-graph-gpu-additive-backend.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-jerobeam-spiral.js?v=node-graph-jerobeam-spiral-refactor-1780371000000"></script>
-  <script src="./public/node-graph-live-frame-evaluator.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-live-runtime.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-live-frame-evaluator.js?v=stereo-noise-xy-1"></script>
+  <script src="./public/node-graph-live-runtime.js?v=stereo-noise-xy-1"></script>
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=constraint-overlay-toggles-1"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=copy-visual-output-1"></script>

@@ -263,6 +263,9 @@ class SandboxServer(BaseHTTPRequestHandler):
         if parsed.path == "/api/shader-script/to-desktop":
             self.save_shader_script_to_desktop()
             return
+        if parsed.path == "/api/metadata-script/to-desktop":
+            self.save_metadata_script_to_desktop()
+            return
         self.reject_mutation_method()
 
     def do_PUT(self) -> None:
@@ -498,6 +501,45 @@ class SandboxServer(BaseHTTPRequestHandler):
         ).strip(".-") or "scope-shader"
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         filename = f"{safe_title}-{timestamp}.scope-shader.txt"
+        desktop = Path.home() / "Desktop"
+        try:
+            desktop.mkdir(parents=True, exist_ok=True)
+            path = desktop / filename
+            path.write_text(source, encoding="utf-8")
+        except OSError as exc:
+            self.send_json(
+                {"ok": False, "error": f"desktop export failed: {exc}"},
+                status=500,
+            )
+            return
+        self.send_json(
+            {
+                "ok": True,
+                "filename": filename,
+                "path": str(path),
+                "bytes": path.stat().st_size,
+            },
+        )
+
+    def save_metadata_script_to_desktop(self) -> None:
+        payload = self.read_json_preset_payload("metadata script")
+        if payload is None:
+            return
+
+        source = payload.get("source")
+        if not isinstance(source, str):
+            self.send_json(
+                {"ok": False, "error": "metadata script source must be a string"},
+                status=400,
+            )
+            return
+        title = str(payload.get("title") or "metadata-script")
+        safe_title = "".join(
+            character if character.isalnum() or character in ("-", "_", ".") else "-"
+            for character in title.strip()
+        ).strip(".-") or "metadata-script"
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{safe_title}-{timestamp}.metadata-script.txt"
         desktop = Path.home() / "Desktop"
         try:
             desktop.mkdir(parents=True, exist_ok=True)
