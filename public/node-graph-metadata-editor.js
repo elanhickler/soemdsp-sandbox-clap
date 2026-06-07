@@ -839,6 +839,11 @@ function bindNodeGraphMetadataPopoverEvents() {
     scriptKindTemplate.dataset.metadataScriptKindTemplateBound = "true";
     scriptKindTemplate.addEventListener("click", insertNodeMetadataScriptKindTemplate);
   }
+  const scriptNormalize = document.getElementById("metadataScriptNormalize");
+  if (scriptNormalize && scriptNormalize.dataset.metadataScriptNormalizeBound !== "true") {
+    scriptNormalize.dataset.metadataScriptNormalizeBound = "true";
+    scriptNormalize.addEventListener("click", normalizeNodeMetadataScriptEditor);
+  }
   const scriptCopy = document.getElementById("metadataScriptCopy");
   if (scriptCopy && scriptCopy.dataset.metadataScriptCopyBound !== "true") {
     scriptCopy.dataset.metadataScriptCopyBound = "true";
@@ -899,6 +904,21 @@ function insertNodeMetadataScriptKindTemplate() {
   setMetadataScriptSourceText(nodeMetadataScriptTemplateForKind(slider, kind));
   syncNodeMetadataScriptDiagnostics();
   metadataScriptStatus(`template: ${kind}`, false, `Kind template inserted for ${kind}. Save to apply.`);
+}
+
+function normalizeNodeMetadataScriptEditor() {
+  const slider = document.getElementById(nodeGraphMvp.metadataEditorTarget);
+  if (!slider) {
+    metadataScriptStatus("no parameter", true);
+    return;
+  }
+  const parsed = parseNodeMetadataScript(metadataScriptSourceText(), slider);
+  setMetadataScriptSourceText(formatNodeMetadataScript(slider, parsed.metadata));
+  const ignoredText = parsed.ignored.length
+    ? `; ignored lines ${parsed.ignored.join(", ")}`
+    : "";
+  syncNodeMetadataScriptDiagnostics();
+  metadataScriptStatus(`normalized${ignoredText}`, Boolean(parsed.ignored.length), "Review the normalized script, then Save to apply.");
 }
 
 function bindNodeMetadataScriptBeforeUnload() {
