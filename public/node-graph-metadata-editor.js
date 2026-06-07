@@ -170,7 +170,7 @@ function insertNodeMetadataScriptKey(key) {
   }
   const paramKey = nodeMetadataScriptParamKey(slider);
   const value = nodeMetadataScriptPlaceholderValue(key);
-  insertNodeMetadataScriptText(`param.${paramKey}.${key} = ${value};`);
+  insertNodeMetadataScriptAssignment(`param.${paramKey}.${key} = ${value};`);
 }
 
 function insertNodeMetadataScriptKind(kind) {
@@ -180,7 +180,7 @@ function insertNodeMetadataScriptKind(kind) {
     return;
   }
   const paramKey = nodeMetadataScriptParamKey(slider);
-  insertNodeMetadataScriptText(`param.${paramKey}.kind = ${normalizeNodeMetadataKind(kind)};`);
+  insertNodeMetadataScriptAssignment(`param.${paramKey}.kind = ${normalizeNodeMetadataKind(kind)};`);
 }
 
 function handleNodeMetadataScriptReferenceClick(event) {
@@ -997,6 +997,18 @@ function insertNodeMetadataScriptText(text) {
   source.setRangeText(text, start, end, "end");
   updateNodeMetadataScriptHighlight();
   syncNodeMetadataScriptDiagnostics();
+}
+
+function insertNodeMetadataScriptAssignment(text) {
+  const source = document.getElementById("metadataScriptSource");
+  if (!source) {
+    return;
+  }
+  const start = source.selectionStart ?? source.value.length;
+  const end = source.selectionEnd ?? start;
+  const prefix = start > 0 && source.value[start - 1] !== "\n" ? "\n" : "";
+  const suffix = end < source.value.length && source.value[end] !== "\n" ? "\n" : "";
+  insertNodeMetadataScriptText(`${prefix}${text}${suffix}`);
 }
 
 function handleNodeMetadataScriptKeydown(event) {
