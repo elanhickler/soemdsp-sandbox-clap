@@ -22,6 +22,28 @@ const nodeGraphTextBoxHeightLimits = Object.freeze({
   minGu: 1,
 });
 
+function nodeGraphPatchNodeLayout(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  const fallback = nodeGraphModuleDefinitions[patchNode?.type]?.layout;
+  if (patchNode?.type === "canvas" && typeof normalizeNodeGraphCanvasScript === "function") {
+    const layout = normalizeNodeGraphCanvasScript(patchNode.canvasScript).layout;
+    return layout === "oscilloscope" ? "visualScope" : fallback;
+  }
+  return fallback;
+}
+
+function nodeGraphPatchNodeCanvasScriptGridUnits(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  if (patchNode?.type !== "canvas" || typeof normalizeNodeGraphCanvasScript !== "function") {
+    return null;
+  }
+  const script = normalizeNodeGraphCanvasScript(patchNode.canvasScript);
+  return {
+    heightGu: Number.isFinite(Number(script.gridHeightGu)) ? Number(script.gridHeightGu) : null,
+    widthGu: Number.isFinite(Number(script.gridWidthGu)) ? Number(script.gridWidthGu) : null,
+  };
+}
+
 function nodeGraphDefaultModuleGridWidthUnits(type) {
   if (nodeGraphModuleDefinitions[type]?.layout === "led") {
     return 1;
@@ -57,6 +79,10 @@ function nodeGraphModuleGridWidthUnits(type) {
 }
 
 function nodeGraphPatchNodeGridWidthUnits(node) {
+  const scriptGrid = nodeGraphPatchNodeCanvasScriptGridUnits(node);
+  if (scriptGrid?.widthGu) {
+    return normalizeNodeGraphModuleWidthUnits(node?.type, scriptGrid.widthGu);
+  }
   return normalizeNodeGraphModuleWidthUnits(node?.type, node?.widthGu);
 }
 
@@ -171,6 +197,15 @@ function nodeGraphModuleRequiredHeightUnitsForUi(type, ui = {}) {
       nodeGraphModuleLayout.moduleGridInsetGu * 2
     );
   }
+  if (nodeGraphModuleDefinitions[type]?.layout === "keyboardController") {
+    return nodeGraphModuleHeaderHeightUnits(ui) + 12 + nodeGraphModuleIoSectionHeightGu(type);
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "macroControls") {
+    return nodeGraphModuleHeaderHeightUnits(ui) + 5 + nodeGraphModuleIoSectionHeightGu(type);
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "pitchModWheel") {
+    return nodeGraphModuleHeaderHeightUnits(ui) + 5 + nodeGraphModuleIoSectionHeightGu(type);
+  }
   if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
     return (
       nodeGraphModuleHeaderHeightUnits(ui) +
@@ -227,6 +262,10 @@ function nodeGraphModuleGridHeightUnitsForUi(type, ui = {}) {
 }
 
 function nodeGraphPatchNodeGridHeightUnits(node) {
+  const scriptGrid = nodeGraphPatchNodeCanvasScriptGridUnits(node);
+  if (scriptGrid?.heightGu) {
+    return normalizeNodeGraphModuleHeightUnits(node?.type, scriptGrid.heightGu);
+  }
   const effectiveUi = normalizeNodeGraphPatchNodeUi({
     ...node?.ui,
     buttonsHidden: node?.ui?.buttonsHidden || nodeGraphMvp.moduleButtonsVisible === false,

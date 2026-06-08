@@ -22,8 +22,6 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodeGridToggleButton").addEventListener("click", toggleNodeGraphGridVisibility);
   document.getElementById("nodeVideoViewButton").addEventListener("click", toggleNodeGraphVideoView);
   document.getElementById("nodeMappingViewButton").addEventListener("click", () => setNodeGraphViewMode("mapping"));
-  document.getElementById("nodeMidiKeyboardToggleButton").addEventListener("click", toggleNodeGraphMidiKeyboard);
-  document.getElementById("nodeMacroControlsToggleButton").addEventListener("click", toggleNodeGraphMacroControls);
   document.getElementById("nodeModuleButtonsToggleButton").addEventListener("click", toggleNodeGraphModuleButtonsVisibility);
   document.getElementById("nodeOscilloscopeToggleButton").addEventListener("click", toggleNodeGraphOscilloscopeVisibility);
   document.getElementById("nodeGlobalScopeMenuButton").addEventListener("click", toggleNodeGlobalScopeMenu);
@@ -36,6 +34,9 @@ function bindNodeGraphHeaderControlEvents() {
   document
     .getElementById("nodeExportViewportMp4Button")
     .addEventListener("click", exportNodeGraphViewportMp4);
+  document
+    .getElementById("nodeExportViewportYoutubeButton")
+    .addEventListener("click", exportNodeGraphViewportYoutube);
   document
     .getElementById("nodeExportViewportWavButton")
     .addEventListener("click", exportNodeGraphViewportWav);

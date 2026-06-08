@@ -75,19 +75,83 @@
   "monitors": [],
   "nodes": [
     {
-      "alias": "Origin",
-      "gx": 1,
-      "gy": 1,
-      "heightGu": 8,
+      "gx": -21,
+      "gy": 11,
+      "id": "shop",
+      "paramMeta": {},
+      "params": {},
+      "type": "moduleShop",
+      "widthGu": 5
+    },
+    {
+      "gx": -23,
+      "gy": -3,
       "id": "canvas-origin",
       "paramMeta": {},
       "params": {},
       "type": "canvas",
-      "widthGu": 9
+      "alias": "Origin",
+      "widthGu": 9,
+      "heightGu": 8,
+      "canvasScript": {
+        "aspectRatio": 1,
+        "background": "#00000000",
+        "bufferedInputs": [
+          "a_buffer"
+        ],
+        "bufferSampleLimit": 262144,
+        "enabled": true,
+        "faceBackground": "checkerboard",
+        "faceFit": "contain",
+        "faceScreen": "#000000",
+        "gridHeightGu": 12,
+        "gridWidthGu": 7,
+        "inputs": [
+          "a_buffer",
+          "a not buffer"
+        ],
+        "kind": "canvasScript",
+        "language": "canvas-js",
+        "layout": "oscilloscope",
+        "layers": [
+          {
+            "id": "a_buffer",
+            "input": "a_buffer",
+            "opacity": 1,
+            "rotation": 0,
+            "scale": 1,
+            "visible": true,
+            "x": 0.5,
+            "y": 0.5
+          }
+        ],
+        "output": "canvas",
+        "ratioHeight": 1,
+        "ratioWidth": 1,
+        "source": "canvas.ratio(1, 1);\ncanvas.background = #00000000;\ncanvas.layout = oscilloscope;\ncanvas.grid(7, 12);\ncanvas.face.background = checkerboard;\ncanvas.face.screen = #000000;\nbufferInput(\"a_buffer\");\ninput(\"a not buffer\");\n\nlayer(\"a_buffer\").input   = a_buffer;\nlayer(\"a_buffer\").x       = 0.5;\nlayer(\"a_buffer\").y       = 0.5;\nlayer(\"a_buffer\").scale   = 1.0;\nlayer(\"a_buffer\").opacity = 1.0;\n\noutput = canvas;"
+      }
     },
     {
-      "gx": 1,
-      "gy": 10,
+      "gx": -21,
+      "gy": 16,
+      "id": "goods",
+      "paramMeta": {},
+      "params": {},
+      "type": "moduleGoods",
+      "widthGu": 5
+    },
+    {
+      "gx": -21,
+      "gy": 21,
+      "id": "services",
+      "paramMeta": {},
+      "params": {},
+      "type": "moduleServices",
+      "widthGu": 5
+    },
+    {
+      "gx": -21,
+      "gy": 6,
       "id": "home",
       "paramMeta": {},
       "params": {},
@@ -95,8 +159,8 @@
       "widthGu": 5
     },
     {
-      "gx": 22,
-      "gy": 6,
+      "gx": 23,
+      "gy": 9,
       "id": "output",
       "paramMeta": {
         "volume": {
@@ -125,19 +189,33 @@
       "widthGu": 7
     },
     {
-      "gx": 11,
-      "gy": 1,
+      "gx": 14,
+      "gy": 5,
       "id": "visualOscilloscope-1",
       "paramMeta": {},
       "params": {},
       "type": "visualOscilloscope",
       "alias": "Oscilloscope",
       "widthGu": 9,
-      "heightGu": 8
+      "heightGu": 8,
+      "scopeShader": {
+        "cycles": 1.7639,
+        "enabled": true,
+        "kind": "scopeShader",
+        "language": "scope-js",
+        "length": 1,
+        "mode": "1d_scan",
+        "padding": 0.04,
+        "source": "video.input     = ~;\nscope.mode      = 1d_scan;\nscope.sync      = inherit;\nscope.cycles    = 1.7639;\nscope.zoom      = 1.0;\nscope.length    = 1.0;\nscope.padding   = 0.04;\nscope.syncSpeed = 1.0;\ndot1.color      = dot1.global.color;\ndot1.size       = 1.0 * dot1.global.size;\ndot1.blur       = 0.00;\ndot1.brightness = 4.50;\ndot2.color      = dot2.global.color;\ndot2.size       = 1.0 * dot2.global.size;\ndot2.blur       = 0.00;\ndot2.brightness = 0.45;\nblend.mode      = laser;",
+        "sync": "inherit",
+        "syncSpeed": 1,
+        "videoInput": "~",
+        "zoom": 1
+      }
     },
     {
-      "gx": -3,
-      "gy": 4,
+      "gx": 7,
+      "gy": 9,
       "id": "clock-1",
       "paramMeta": {
         "rate": {
@@ -201,8 +279,8 @@
       "alias": "Clock"
     },
     {
-      "gx": 4,
-      "gy": 9,
+      "gx": 15,
+      "gy": 13,
       "id": "bandpass-1",
       "paramMeta": {
         "lowFrequency": {

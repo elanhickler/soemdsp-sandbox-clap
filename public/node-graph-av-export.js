@@ -82,6 +82,9 @@ function nodeGraphRenderedDownloadBlob(blob, fileName) {
   link.download = fileName;
   document.body.append(link);
   link.click();
+  if (typeof setNodeGraphViewportLastFileMade === "function") {
+    setNodeGraphViewportLastFileMade(fileName);
+  }
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

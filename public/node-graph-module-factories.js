@@ -205,6 +205,260 @@ function createNodeGraphModulePlaceholderBody(node, label, note) {
   return body;
 }
 
+function createNodeGraphSpeakerProtectionBody(node) {
+  const body = document.createElement("div");
+  body.className = "node-speaker-protection-body";
+  body.dataset.node = node;
+
+  const status = document.createElement("strong");
+  status.dataset.speakerProtectionStatus = "true";
+
+  const limit = document.createElement("span");
+  limit.textContent = "limit 1.0";
+
+  const peak = document.createElement("span");
+  peak.dataset.speakerProtectionPeak = "true";
+
+  body.append(status, limit, peak);
+  renderNodeGraphSpeakerProtectionBody(body);
+  return body;
+}
+
+function renderNodeGraphSpeakerProtectionBody(body) {
+  const status = body?.querySelector?.("[data-speaker-protection-status]");
+  const peak = body?.querySelector?.("[data-speaker-protection-peak]");
+  const tripped = typeof nodeGraphEarProtectionIsTripped === "function" && nodeGraphEarProtectionIsTripped();
+  body?.classList.toggle("tripped", tripped);
+  if (status) {
+    status.textContent = tripped ? "TRIPPED" : "ARMED";
+  }
+  if (peak) {
+    const details = globalThis.nodeGraphEarProtectionDetails || {};
+    const value = Number(details.protectionPeak);
+    peak.textContent = Number.isFinite(value) && value > 0
+      ? `peak ${value.toFixed(3)}`
+      : "peak --";
+  }
+}
+
+function refreshNodeGraphSpeakerProtectionBodies() {
+  document.querySelectorAll(".node-speaker-protection-body").forEach((body) => {
+    renderNodeGraphSpeakerProtectionBody(body);
+  });
+}
+
+function createNodeGraphMacroControlsBody(node) {
+  const section = document.createElement("section");
+  section.className = "node-macro-controls-panel node-macro-controls-module";
+  section.dataset.node = node;
+  section.setAttribute("aria-label", "Macro controls");
+  const heading = document.createElement("div");
+  heading.className = "node-macro-controls-heading";
+  const title = document.createElement("div");
+  const kicker = document.createElement("span");
+  kicker.textContent = "Performance Surface";
+  const strong = document.createElement("strong");
+  strong.textContent = "Macro Controls";
+  title.append(kicker, strong);
+  const status = document.createElement("span");
+  status.className = "pill";
+  status.dataset.macroControlsStatus = "true";
+  status.textContent = "10 macros ready";
+  heading.append(title, status);
+  const row = document.createElement("div");
+  row.className = "node-macro-controls-row";
+  row.setAttribute("aria-label", "Macro knob row");
+  for (let index = 0; index < 10; index += 1) {
+    const knob = document.createElement("button");
+    knob.className = "node-macro-knob";
+    knob.type = "button";
+    knob.dataset.macroIndex = String(index);
+    knob.setAttribute("aria-label", `Macro ${index + 1}`);
+    knob.setAttribute("aria-valuemin", "0");
+    knob.setAttribute("aria-valuemax", "1");
+    knob.setAttribute("aria-valuenow", "0");
+    knob.setAttribute("role", "slider");
+    const label = document.createElement("span");
+    label.textContent = `M${index + 1}`;
+    const indicator = document.createElement("i");
+    const value = document.createElement("strong");
+    value.dataset.macroValue = String(index);
+    value.textContent = "0.00";
+    knob.append(label, indicator, value);
+    row.append(knob);
+  }
+  section.append(heading, row);
+  return section;
+}
+
+function createNodeGraphPitchModWheelBody(node) {
+  const section = document.createElement("section");
+  section.className = "node-performance-wheels-panel node-performance-wheels-module";
+  section.dataset.node = node;
+  section.setAttribute("aria-label", "Pitch and modulation wheels");
+  const heading = document.createElement("div");
+  heading.className = "node-performance-wheels-heading";
+  const kicker = document.createElement("span");
+  kicker.textContent = "Performance";
+  const strong = document.createElement("strong");
+  strong.textContent = "Pitch / Mod Wheels";
+  heading.append(kicker, strong);
+  const bank = document.createElement("div");
+  bank.className = "node-midi-keyboard-wheel-bank";
+  const specs = [
+    { className: "pitch", key: "pitchWheel", label: "Pitch", max: "1", min: "-1" },
+    { className: "mod", key: "modWheel", label: "Mod", max: "1", min: "0" },
+  ];
+  for (const spec of specs) {
+    const wheel = document.createElement("div");
+    wheel.className = `node-midi-keyboard-wheel ${spec.className}`;
+    wheel.dataset.performanceWheel = spec.key;
+    wheel.setAttribute("role", "slider");
+    wheel.setAttribute("aria-label", `${spec.label} wheel`);
+    wheel.setAttribute("aria-valuemin", spec.min);
+    wheel.setAttribute("aria-valuemax", spec.max);
+    wheel.setAttribute("aria-valuenow", "0");
+    wheel.tabIndex = 0;
+    const label = document.createElement("span");
+    label.textContent = spec.label;
+    const indicator = document.createElement("i");
+    const value = document.createElement("strong");
+    value.dataset.performanceWheelValue = spec.key;
+    value.textContent = "0.000";
+    wheel.append(label, indicator, value);
+    bank.append(wheel);
+  }
+  section.append(heading, bank);
+  return section;
+}
+
+function createNodeGraphKeyboardControllerBody(node) {
+  const section = document.createElement("section");
+  section.className = "node-midi-keyboard-panel node-midi-keyboard-module";
+  section.dataset.node = node;
+  section.setAttribute("aria-label", "Mouse playable MIDI keyboard");
+  const heading = document.createElement("div");
+  heading.className = "node-midi-keyboard-heading";
+  const title = document.createElement("div");
+  title.className = "node-midi-keyboard-title";
+  const titleKicker = document.createElement("span");
+  titleKicker.textContent = "Instrument";
+  const titleStrong = document.createElement("strong");
+  titleStrong.textContent = "MIDI Keyboard";
+  title.append(titleKicker, titleStrong);
+  const controls = document.createElement("div");
+  controls.className = "node-midi-keyboard-midi-controls";
+  const modeLabel = document.createElement("label");
+  modeLabel.className = "node-midi-keyboard-mode-control";
+  const modeText = document.createElement("span");
+  modeText.textContent = "Mode";
+  const modeSelect = document.createElement("select");
+  modeSelect.dataset.midiKeyboardModeSelect = "true";
+  modeSelect.setAttribute("aria-label", "Keyboard mode");
+  for (const [value, label] of [["press", "Press"], ["hold", "Hold"]]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    modeSelect.append(option);
+  }
+  modeLabel.append(modeText, modeSelect);
+  const octave = document.createElement("span");
+  octave.className = "node-midi-keyboard-octave-control";
+  octave.setAttribute("aria-label", "Keyboard octave transpose");
+  const down = document.createElement("button");
+  down.type = "button";
+  down.dataset.midiKeyboardOctaveDown = "true";
+  down.setAttribute("aria-label", "Transpose keyboard down one octave");
+  down.textContent = "-";
+  const octaveValue = document.createElement("strong");
+  octaveValue.dataset.midiKeyboardOctaveValue = "true";
+  octaveValue.textContent = "+0";
+  const up = document.createElement("button");
+  up.type = "button";
+  up.dataset.midiKeyboardOctaveUp = "true";
+  up.setAttribute("aria-label", "Transpose keyboard up one octave");
+  up.textContent = "+";
+  octave.append(down, octaveValue, up);
+  const midiButton = document.createElement("button");
+  midiButton.type = "button";
+  midiButton.dataset.midiKeyboardMidiButton = "true";
+  midiButton.textContent = "Enable MIDI";
+  const midiSelect = document.createElement("select");
+  midiSelect.dataset.midiKeyboardMidiInput = "true";
+  midiSelect.setAttribute("aria-label", "MIDI keyboard input");
+  midiSelect.disabled = true;
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = "no midi input";
+  midiSelect.append(emptyOption);
+  controls.append(modeLabel, octave, midiButton, midiSelect);
+  heading.append(title, controls);
+
+  const performance = document.createElement("div");
+  performance.className = "node-midi-keyboard-performance";
+  const surface = document.createElement("div");
+  surface.className = "node-midi-keyboard-surface";
+  surface.setAttribute("aria-label", "Two octave keyboard preview");
+  const whiteRow = document.createElement("div");
+  whiteRow.className = "node-midi-keyboard-white-row";
+  whiteRow.setAttribute("aria-hidden", "true");
+  for (const [midi, label] of [[48, "C3"], [50, "D3"], [52, "E3"], [53, "F3"], [55, "G3"], [57, "A3"], [59, "B3"], [60, "C4"], [62, "D4"], [64, "E4"], [65, "F4"], [67, "G4"], [69, "A4"], [71, "B4"], [72, "C5"]]) {
+    const key = document.createElement("span");
+    key.dataset.midi = String(midi);
+    key.textContent = label;
+    whiteRow.append(key);
+  }
+  const blackRow = document.createElement("div");
+  blackRow.className = "node-midi-keyboard-black-row";
+  blackRow.setAttribute("aria-hidden", "true");
+  for (const keySpec of [
+    [49, "C#3", "4.6%"], [51, "D#3", "11.2%"], [54, "F#3", "24.6%"], [56, "G#3", "31.2%"], [58, "A#3", "37.9%"],
+    [61, "C#4", "51.2%"], [63, "D#4", "57.9%"], [66, "F#4", "71.2%"], [68, "G#4", "77.9%"], [70, "A#4", "84.6%"],
+  ]) {
+    const key = document.createElement("span");
+    key.dataset.midi = String(keySpec[0]);
+    key.style.setProperty("--key-left", keySpec[2]);
+    key.textContent = keySpec[1];
+    blackRow.append(key);
+  }
+  surface.append(whiteRow, blackRow);
+  performance.append(surface);
+
+  const signalBar = document.createElement("div");
+  signalBar.className = "node-midi-keyboard-signal-bar";
+  signalBar.dataset.midiKeyboardSignalBar = "true";
+  signalBar.setAttribute("aria-live", "polite");
+  const signals = [
+    ["gate", "gate", "0"],
+    ["gatePulse", "1s gate", "0"],
+    ["key", "key", "-"],
+    ["quantized", "q", "-"],
+    ["octave", "oct", "+0"],
+    ["midi", "midi", "-"],
+    ["double", "double", "-"],
+    ["tenthVoltPerOctave", ".1v/oct", "-"],
+    ["increment", "inc", "-"],
+    ["frequency", "freq", "-"],
+    ["pitch", "pitch", "-"],
+    ["x", "x", "0.000"],
+    ["y", "y", "0.000"],
+  ];
+  for (const [key, labelText, valueText] of signals) {
+    const item = document.createElement("span");
+    item.append(document.createTextNode(`${labelText} `));
+    const value = document.createElement("strong");
+    value.dataset.keyboardSignal = key;
+    value.textContent = valueText;
+    item.append(value);
+    if (key === "key") {
+      item.append(document.createTextNode(" / 24"));
+    }
+    signalBar.append(item);
+  }
+  section.append(heading, performance, signalBar);
+  return section;
+}
+
 function createNodeGraphParameter(node, type, parameter) {
   const row = document.createElement("div");
   row.className = "node-parameter-row";

@@ -94,6 +94,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "parabol",
   "vibratoGenerator",
   "wowAndFlutter",
+  "speakerProtection",
   "badvalMonitor",
   "textBox",
 ]);
@@ -786,6 +787,11 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Debug",
     description: "Circuit sentinel. Watches for invalid values before they spread through the machine.",
     notes: ["NaN guard", "infinity guard", "debug safety"],
+  },
+  speakerProtection: {
+    category: "Debug",
+    description: "Hard safety fuse. Trips ear and speaker protection immediately if a wired sample exceeds absolute 1.0.",
+    notes: ["speaker safety", "ear protection", "hard limit"],
   },
   textBox: {
     category: "Visual",

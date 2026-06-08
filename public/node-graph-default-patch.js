@@ -52,7 +52,7 @@ function createNodeGraphPatchNode(type, options = {}) {
 }
 
 const nodeGraphDefaultNodeConfigs = Object.freeze([
-  createNodeGraphPatchNode("canvas", { alias: "Origin", heightGu: 8, id: "canvas-origin", gx: 1, gy: 1, widthGu: 9 }),
+  createNodeGraphPatchNode("canvas", { alias: "Origin", id: "canvas-origin", gx: 1, gy: 1 }),
   createNodeGraphPatchNode("moduleHome", { id: "home", gx: 1, gy: 10, widthGu: 5 }),
   createNodeGraphPatchNode("moduleShop", { id: "shop", gx: 1, gy: 15, widthGu: 5 }),
   createNodeGraphPatchNode("moduleGoods", { id: "goods", gx: 7, gy: 10, widthGu: 5 }),

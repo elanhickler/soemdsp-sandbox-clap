@@ -266,6 +266,9 @@ function nodeGraphPatchNodeInputPorts(node) {
       nodeGraphModuleDefinitions.clapPlugin?.inputs || [],
     );
   }
+  if (patchNode?.type === "canvas") {
+    return normalizeNodeGraphCanvasScript(patchNode.canvasScript).inputs;
+  }
   return nodeGraphModuleDefinitions[patchNode?.type]?.inputs || [];
 }
 

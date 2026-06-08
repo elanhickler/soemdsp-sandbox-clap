@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=module-shelf-policy-1">
+  <link rel="stylesheet" href="./public/styles.css?v=wire-hit-selection-1">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
@@ -120,16 +120,6 @@
             type="button"
             hidden
             aria-pressed="false"><span>Module</span><span>Browser</span></button>
-          <button
-            id="nodeMidiKeyboardToggleButton"
-            type="button"
-            aria-label="Show Keyboard"
-            aria-pressed="false"><span>Show</span><span>Keyboard</span></button>
-          <button
-            id="nodeMacroControlsToggleButton"
-            type="button"
-            aria-label="Show Macro Controls"
-            aria-pressed="false"><span>Show</span><span>Macro Controls</span></button>
           <span class="node-zoom-controls" role="group" aria-label="Node graph zoom">
             <span class="node-zoom-label">zoom</span>
             <span class="node-zoom-buttons">
@@ -291,6 +281,12 @@
           type="button"
           aria-label="Export modular viewport MP4"
           data-tooltip-key="workspace.copyViewportImage">MP4</button>
+        <button
+          id="nodeExportViewportYoutubeButton"
+          class="node-copy-viewport-image-button node-copy-viewport-youtube-button"
+          type="button"
+          aria-label="Capture modular viewport video for YouTube upload"
+          data-tooltip-key="workspace.copyViewportImage">YouTube</button>
         <input
           id="nodeViewportExportSecondsInput"
           class="node-copy-viewport-seconds-input"
@@ -314,6 +310,39 @@
           value="1280"
           aria-label="Viewport export target width"
           title="Viewport export target width">
+        <div class="node-viewport-path-row">
+          <button
+            id="nodeViewportOpenFolderButton"
+            class="node-copy-viewport-image-button node-viewport-path-open-button"
+            type="button"
+            data-path="C:\Users\argit\Downloads"
+            aria-label="Open last export folder">Open Folder</button>
+          <input
+            id="nodeViewportLastFolderBox"
+            class="node-viewport-path-box"
+            type="text"
+            readonly
+            value="C:\Users\argit\Downloads"
+            aria-label="Last export folder full path"
+            title="Last export folder full path">
+        </div>
+        <div class="node-viewport-path-row">
+          <button
+            id="nodeViewportOpenFileButton"
+            class="node-copy-viewport-image-button node-viewport-path-open-button"
+            type="button"
+            disabled
+            aria-disabled="true"
+            aria-label="Open last exported file">Open File</button>
+          <input
+            id="nodeViewportLastFilePathBox"
+            class="node-viewport-path-box"
+            type="text"
+            readonly
+            value="file path: none"
+            aria-label="Last exported file full path"
+            title="Last exported file full path">
+        </div>
       </div>
 
       <section
@@ -357,156 +386,6 @@
         </div>
       </section>
 
-      <section
-        id="nodeMacroControlsPanel"
-        class="node-macro-controls-panel"
-        aria-label="Macro controls"
-        hidden>
-        <div class="node-macro-controls-heading">
-          <div>
-            <span>Performance Surface</span>
-            <strong>Macro Controls</strong>
-          </div>
-          <span id="nodeMacroControlsStatus" class="pill">10 macros ready</span>
-        </div>
-        <div class="node-macro-controls-row" aria-label="Macro knob row">
-          <button class="node-macro-knob" type="button" data-macro-index="0" aria-label="Macro 1" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M1</span><i></i><strong data-macro-value="0">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="1" aria-label="Macro 2" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M2</span><i></i><strong data-macro-value="1">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="2" aria-label="Macro 3" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M3</span><i></i><strong data-macro-value="2">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="3" aria-label="Macro 4" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M4</span><i></i><strong data-macro-value="3">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="4" aria-label="Macro 5" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M5</span><i></i><strong data-macro-value="4">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="5" aria-label="Macro 6" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M6</span><i></i><strong data-macro-value="5">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="6" aria-label="Macro 7" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M7</span><i></i><strong data-macro-value="6">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="7" aria-label="Macro 8" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M8</span><i></i><strong data-macro-value="7">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="8" aria-label="Macro 9" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M9</span><i></i><strong data-macro-value="8">0.00</strong></button>
-          <button class="node-macro-knob" type="button" data-macro-index="9" aria-label="Macro 10" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0" role="slider"><span>M10</span><i></i><strong data-macro-value="9">0.00</strong></button>
-        </div>
-      </section>
-
-      <div
-        id="nodeKeyboardPerformanceDock"
-        class="node-keyboard-performance-dock"
-        hidden>
-        <section
-          id="nodePerformanceWheelsPanel"
-          class="node-performance-wheels-panel"
-          aria-label="Pitch and modulation wheels">
-          <div class="node-performance-wheels-heading">
-            <span>Performance</span>
-            <strong>Pitch / Mod Wheels</strong>
-          </div>
-          <div class="node-midi-keyboard-wheel-bank">
-            <div
-              id="nodePitchWheelControl"
-              class="node-midi-keyboard-wheel pitch"
-              data-performance-wheel="pitchWheel"
-              role="slider"
-              aria-label="Pitch wheel"
-              aria-valuemin="-1"
-              aria-valuemax="1"
-              aria-valuenow="0"
-              tabindex="0">
-              <span>Pitch</span>
-              <i></i>
-              <strong data-performance-wheel-value="pitchWheel">0.000</strong>
-            </div>
-            <div
-              id="nodeModWheelControl"
-              class="node-midi-keyboard-wheel mod"
-              data-performance-wheel="modWheel"
-              role="slider"
-              aria-label="Mod wheel"
-              aria-valuemin="0"
-              aria-valuemax="1"
-              aria-valuenow="0"
-              tabindex="0">
-              <span>Mod</span>
-              <i></i>
-              <strong data-performance-wheel-value="modWheel">0.000</strong>
-            </div>
-          </div>
-        </section>
-
-        <section
-          id="nodeMidiKeyboardPanel"
-          class="node-midi-keyboard-panel"
-          aria-label="Mouse playable MIDI keyboard"
-          hidden>
-        <div class="node-midi-keyboard-heading">
-          <div class="node-midi-keyboard-title">
-            <span>Instrument</span>
-            <strong>MIDI Keyboard</strong>
-          </div>
-          <div class="node-midi-keyboard-midi-controls">
-            <label class="node-midi-keyboard-mode-control">
-              <span>Mode</span>
-              <select id="nodeMidiKeyboardModeSelect" aria-label="Keyboard mode">
-                <option value="press">Press</option>
-                <option value="hold">Hold</option>
-              </select>
-            </label>
-            <span class="node-midi-keyboard-octave-control" aria-label="Keyboard octave transpose">
-              <button id="nodeMidiKeyboardOctaveDown" type="button" aria-label="Transpose keyboard down one octave">-</button>
-              <strong id="nodeMidiKeyboardOctaveValue">+0</strong>
-              <button id="nodeMidiKeyboardOctaveUp" type="button" aria-label="Transpose keyboard up one octave">+</button>
-            </span>
-            <button id="nodeMidiKeyboardMidiButton" type="button">Enable MIDI</button>
-            <select id="nodeMidiKeyboardMidiInput" aria-label="MIDI keyboard input" disabled>
-              <option value="">no midi input</option>
-            </select>
-          </div>
-        </div>
-        <div class="node-midi-keyboard-performance">
-          <div class="node-midi-keyboard-surface" aria-label="Two octave keyboard preview">
-            <div class="node-midi-keyboard-white-row" aria-hidden="true">
-              <span data-midi="48">C3</span>
-              <span data-midi="50">D3</span>
-              <span data-midi="52">E3</span>
-              <span data-midi="53">F3</span>
-              <span data-midi="55">G3</span>
-              <span data-midi="57">A3</span>
-              <span data-midi="59">B3</span>
-              <span data-midi="60">C4</span>
-              <span data-midi="62">D4</span>
-              <span data-midi="64">E4</span>
-              <span data-midi="65">F4</span>
-              <span data-midi="67">G4</span>
-              <span data-midi="69">A4</span>
-              <span data-midi="71">B4</span>
-              <span data-midi="72">C5</span>
-            </div>
-            <div class="node-midi-keyboard-black-row" aria-hidden="true">
-              <span data-midi="49" style="--key-left: 4.6%">C#3</span>
-              <span data-midi="51" style="--key-left: 11.2%">D#3</span>
-              <span data-midi="54" style="--key-left: 24.6%">F#3</span>
-              <span data-midi="56" style="--key-left: 31.2%">G#3</span>
-              <span data-midi="58" style="--key-left: 37.9%">A#3</span>
-              <span data-midi="61" style="--key-left: 51.2%">C#4</span>
-              <span data-midi="63" style="--key-left: 57.9%">D#4</span>
-              <span data-midi="66" style="--key-left: 71.2%">F#4</span>
-              <span data-midi="68" style="--key-left: 77.9%">G#4</span>
-              <span data-midi="70" style="--key-left: 84.6%">A#4</span>
-            </div>
-          </div>
-        </div>
-        <div id="nodeMidiKeyboardSignalBar" class="node-midi-keyboard-signal-bar" aria-live="polite">
-          <span>gate <strong data-keyboard-signal="gate">0</strong></span>
-          <span>1s gate <strong data-keyboard-signal="gatePulse">0</strong></span>
-          <span>key <strong data-keyboard-signal="key">-</strong> / 24</span>
-          <span>q <strong data-keyboard-signal="quantized">-</strong></span>
-          <span>oct <strong data-keyboard-signal="octave">+0</strong></span>
-          <span>midi <strong data-keyboard-signal="midi">-</strong></span>
-          <span>double <strong data-keyboard-signal="double">-</strong></span>
-          <span>.1v/oct <strong data-keyboard-signal="tenthVoltPerOctave">-</strong></span>
-          <span>inc <strong data-keyboard-signal="increment">-</strong></span>
-          <span>freq <strong data-keyboard-signal="frequency">-</strong></span>
-          <span>pitch <strong data-keyboard-signal="pitch">-</strong></span>
-          <span>x <strong data-keyboard-signal="x">0.000</strong></span>
-          <span>y <strong data-keyboard-signal="y">0.000</strong></span>
-        </div>
-      </section>
-      </div>
-
       <div
         id="nodeCanvasScriptDialog"
         class="node-canvas-script-dialog"
@@ -531,7 +410,7 @@
           <div class="node-canvas-script-body">
             <div id="nodeCanvasScriptPreview" class="node-canvas-script-preview" aria-label="Canvas script preview">
               <div class="node-canvas-script-preview-layers" data-node-canvas-script-layers="true"></div>
-              <strong>1024 x 1024 canvas (2 layers)</strong>
+              <strong>1:1 canvas (1 layer)</strong>
             </div>
             <textarea
               id="nodeCanvasScriptSource"
@@ -2229,13 +2108,12 @@
         <div id="nodePalette" class="node-palette node-live-toggle-palette" aria-label="Live audio toggles">
           <button
             id="nodeLiveInputButton"
-            class="node-live-toggle node-under-construction-control"
+            class="node-live-toggle"
             type="button"
             aria-pressed="false"
-            aria-disabled="true"
-            disabled>
+            aria-disabled="false">
             <span>Input</span>
-            <span>Under Construction</span>
+            <span>(Off)</span>
           </button>
           <button
             id="nodeLiveOutputButton"
@@ -2883,18 +2761,18 @@
   <script src="./public/node-graph-default-buttons.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-cookbook-filter.js?v=filter-curve-zero-cutoffs-1780822200000"></script>
   <script src="./public/node-graph-color-standards.js?v=color-standards-1"></script>
-  <script src="./public/node-graph-module-definitions.js?v=goods-services-1"></script>
-  <script src="./public/node-graph-module-store.js?v=module-shelf-policy-1"></script>
-  <script src="./public/node-graph-module-sizing.js?v=canvas-module-1"></script>
+  <script src="./public/node-graph-module-definitions.js?v=oscilloscope-buffered-inputs-1"></script>
+  <script src="./public/node-graph-module-store.js?v=speaker-protection-1"></script>
+  <script src="./public/node-graph-module-sizing.js?v=canvas-script-layout-1"></script>
   <script src="./public/node-graph-metadata-kinds.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-parameter-metadata.js?v=codeblock-state-context-1"></script>
+  <script src="./public/node-graph-parameter-metadata.js?v=canvas-script-ports-2"></script>
   <script src="./public/node-graph-metadata-defaults.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-text-box-utils.js?v=text-box-size-1000-1"></script>
-  <script src="./public/node-graph-image-utils.js?v=canvas-game-foundation-1"></script>
+  <script src="./public/node-graph-image-utils.js?v=canvas-hex-colors-1"></script>
   <script src="./public/node-graph-graph-utils.js?v=graph2-through-curves-1"></script>
   <script src="./public/node-graph-samples.js?v=sample-playback-1"></script>
   <script src="./public/node-graph-text-box-rendering.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-patch-normalizers.js?v=buffered-inputs-1"></script>
+  <script src="./public/node-graph-patch-normalizers.js?v=canvas-hex-colors-1"></script>
   <script src="./public/node-graph-ui-view.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-audio-derivation.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-grid-utils.js?v=half-grid-window-drag-1"></script>
@@ -2906,7 +2784,7 @@
   <script src="./public/node-graph-settings-text-fit.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-default-preset.js?v=camera-output-wires-1780801800000"></script>
   <script src="./public/node-graph-script-status.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-view-controls.js?v=shop-module-1"></script>
+  <script src="./public/node-graph-view-controls.js?v=performance-modules-1"></script>
   <script src="./public/node-graph-workspace-geometry.js?v=module-whole-grid-pan-half-grid-1"></script>
   <script src="./public/node-graph-workspace-zoom.js?v=wheel-zoom-tenth-step-1"></script>
   <script src="./public/node-graph-workspace-view.js?v=module-whole-grid-pan-half-grid-1"></script>
@@ -2916,13 +2794,13 @@
   <script src="./public/node-graph-node-dragging.js?v=module-whole-grid-pan-half-grid-1"></script>
   <script src="./public/node-graph-context-menu.js?v=shop-module-1"></script>
   <script src="./public/node-graph-module-actions.js?v=canvas-origin-1"></script>
-  <script src="./public/node-graph-code-screen.js?v=canvas-game-foundation-1"></script>
-  <script src="./public/node-graph-module-scopes.js?v=buffered-inputs-1"></script>
+  <script src="./public/node-graph-code-screen.js?v=canvas-ratio-language-2"></script>
+  <script src="./public/node-graph-module-scopes.js?v=oscilloscope-offline-inputs-1"></script>
   <script src="./public/node-graph-shader-script.js?v=one-value-line-length-1"></script>
-  <script src="./public/node-graph-canvas-script.js?v=canvas-game-foundation-1"></script>
-  <script src="./public/node-graph-module-factories.js?v=module-shelf-policy-1"></script>
-  <script src="./public/node-graph-module-header-rendering.js?v=tap-tempo-symbol-1"></script>
-  <script src="./public/node-graph-module-rendering.js?v=goods-services-1"></script>
+  <script src="./public/node-graph-canvas-script.js?v=canvas-hex-colors-1"></script>
+  <script src="./public/node-graph-module-factories.js?v=speaker-protection-1"></script>
+  <script src="./public/node-graph-module-header-rendering.js?v=bpm-title-tap-tempo-1"></script>
+  <script src="./public/node-graph-module-rendering.js?v=speaker-protection-1"></script>
   <script src="./public/node-graph-history.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-visual-utils.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-patch-clone.js?v=sample-playback-1"></script>
@@ -2937,24 +2815,24 @@
   <script src="./public/node-graph-ghost-sliders.js?v=slider-lane-inset-1780328200000"></script>
   <script src="./public/node-graph-metadata-editor.js?v=metadata-key-reference-1"></script>
   <script src="./public/node-graph-render-settings.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-ear-protection.js?v=ear-protection-latch-1780347600000"></script>
+  <script src="./public/node-graph-ear-protection.js?v=speaker-protection-1"></script>
   <script src="./public/node-graph-rendered-audio.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-rendered-visual-output.js?v=copy-visual-output-1"></script>
-  <script src="./public/node-graph-viewport-image.js?v=viewport-mp4-frame-capture-4"></script>
-  <script src="./public/node-graph-av-export.js?v=video-export-auto-render-1"></script>
+  <script src="./public/node-graph-viewport-image.js?v=viewport-youtube-upload-1"></script>
+  <script src="./public/node-graph-av-export.js?v=viewport-last-file-1"></script>
   <script src="./public/node-graph-rendered-output-canvases.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-wires.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-execution-plan.js?v=buffered-inputs-1"></script>
+  <script src="./public/node-graph-execution-plan.js?v=live-audio-source-fix-1"></script>
   <script src="./public/node-graph-execution-summary.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-wire-actions.js?v=graph2-smoothing-3"></script>
   <script src="./public/node-graph-trace-router.js?v=no-self-burst-1780321400000"></script>
   <script src="./public/node-graph-wire-rendering.js?v=external-graph-inputs-1780816800000"></script>
-  <script src="./public/node-graph-render-output.js?v=clap-render-bounded-tail-1"></script>
+  <script src="./public/node-graph-render-output.js?v=output-one-trip-1"></script>
   <script src="./public/node-graph-debug-copy.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-debug-api.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-debug-view.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-tooltips.js?v=scope-shader-authoring-1"></script>
-  <script src="./public/node-graph-interaction-help.js?v=midi-keyboard-toggle-1"></script>
+  <script src="./public/node-graph-interaction-help.js?v=performance-modules-1"></script>
   <script src="./public/presets/useruisettings.js?v=scope-line-thickness-default-1"></script>
   <script src="./public/node-graph-ui-settings-definitions.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-ui-settings-utils.js?v=slider-unit-color-1780307400000"></script>
@@ -2962,35 +2840,35 @@
   <script src="./public/node-graph-ui-settings-panels.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-ui-settings-persistence.js?v=scope-line-thickness-default-1"></script>
   <script src="./public/node-graph-ui-settings-sync.js?v=text-light-registry-1780800000000"></script>
-  <script src="./public/node-graph-keyboard-shortcuts.js?v=editable-graph-select-key-1"></script>
+  <script src="./public/node-graph-keyboard-shortcuts.js?v=origin-canvas-grid-resize-1"></script>
   <script src="./public/node-graph-live-status-text.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-live-status-controls.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-live-meter-controls.js?v=gpu-additive-status-recipe-1"></script>
   <script src="./public/node-graph-live-input-status.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-live-evidence.js?v=sample-rate-oversampling-1780468200000"></script>
-  <script src="./public/node-graph-live-control-rendering.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-default-patch.js?v=goods-services-1"></script>
-  <script src="./public/node-graph-state.js?v=metadata-script-dirty-1"></script>
-  <script src="./public/node-graph-patch-core.js?v=goods-services-1"></script>
+  <script src="./public/node-graph-live-control-rendering.js?v=input-ready-status-1"></script>
+  <script src="./public/node-graph-default-patch.js?v=canvas-script-layout-1"></script>
+  <script src="./public/node-graph-state.js?v=performance-modules-1"></script>
+  <script src="./public/node-graph-patch-core.js?v=performance-modules-1"></script>
   <script src="./public/node-graph-live-plan-runtime.js?v=buffered-inputs-1"></script>
   <script src="./public/node-graph-live-parameter-runtime.js?v=clap-tail-source-silence-1"></script>
   <script src="./public/node-graph-oscillator-runtime.js?v=ellipsoid-audio-1"></script>
   <script src="./public/node-graph-gpu-additive-backend.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-jerobeam-spiral.js?v=node-graph-jerobeam-spiral-refactor-1780371000000"></script>
   <script src="./public/node-graph-lorenz-attractor.js?v=lorenz-attractor-1"></script>
-  <script src="./public/node-graph-live-frame-evaluator.js?v=modulated-delay-1"></script>
-  <script src="./public/node-graph-live-runtime.js?v=modulated-delay-1"></script>
+  <script src="./public/node-graph-live-frame-evaluator.js?v=oscilloscope-buffered-inputs-1"></script>
+  <script src="./public/node-graph-live-runtime.js?v=oscilloscope-buffered-inputs-1"></script>
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=canvas-origin-1"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=copy-visual-output-1"></script>
-  <script src="./public/node-graph-header-event-bindings.js?v=shop-module-1"></script>
+  <script src="./public/node-graph-header-event-bindings.js?v=viewport-youtube-loop-1"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=node-graph-help-event-bindings-refactor-1780369200000"></script>
   <script src="./public/node-graph-scene-menu-event-bindings.js?v=canvas-module-1"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-settings-event-bindings.js?v=metadata-popover-bind-1"></script>
   <script src="./public/node-graph-slider-event-bindings.js?v=node-graph-slider-event-bindings-refactor-1780369200000"></script>
   <script src="./public/node-graph-event-bindings.js?v=graph-ui-editor-2"></script>
-  <script src="./public/node-graph-bootstrap.js?v=metadata-popover-bind-1"></script>
+  <script src="./public/node-graph-bootstrap.js?v=performance-modules-1"></script>
   <script src="./public/app-event-bindings.js?v=app-event-bindings-refactor-1780361400000"></script>
   <script src="./public/app.js?v=interface-ready-startup-task-timeout-1"></script>
 </body>

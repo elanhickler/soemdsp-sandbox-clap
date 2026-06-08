@@ -8,6 +8,99 @@ function nodeGraphViewportExportFileName(extension) {
   return `soemdsp-modular-view-${stamp}.${extension}`;
 }
 
+const nodeGraphViewportDefaultDownloadFolder = "C:\\Users\\argit\\Downloads";
+
+function nodeGraphViewportFullDownloadPath(fileName, folder = nodeGraphViewportDefaultDownloadFolder) {
+  const safeFileName = String(fileName || "").trim();
+  const safeFolder = String(folder || nodeGraphViewportDefaultDownloadFolder).trim();
+  if (!safeFileName) {
+    return "";
+  }
+  if (/^[A-Za-z]:[\\/]/.test(safeFileName) || safeFileName.startsWith("\\\\")) {
+    return safeFileName;
+  }
+  return `${safeFolder.replace(/[\\/]+$/, "")}\\${safeFileName}`;
+}
+
+function setNodeGraphViewportLastFileMade(fileName, options = {}) {
+  const folderBox = document.getElementById("nodeViewportLastFolderBox");
+  const fileBox = document.getElementById("nodeViewportLastFilePathBox");
+  const folderButton = document.getElementById("nodeViewportOpenFolderButton");
+  const fileButton = document.getElementById("nodeViewportOpenFileButton");
+  if (!folderBox && !fileBox && !folderButton && !fileButton) {
+    return;
+  }
+  const label = String(options.label || "last file").trim() || "last file";
+  const folderPath = String(options.folder || nodeGraphViewportDefaultDownloadFolder);
+  const filePath = fileName ? nodeGraphViewportFullDownloadPath(fileName, folderPath) : label;
+  if (folderBox) {
+    folderBox.value = folderPath;
+    folderBox.title = folderPath;
+  }
+  if (folderButton) {
+    folderButton.dataset.path = folderPath;
+    folderButton.title = `Open ${folderPath}`;
+    folderButton.disabled = false;
+    folderButton.setAttribute("aria-disabled", "false");
+  }
+  if (fileBox) {
+    fileBox.value = filePath;
+    fileBox.title = filePath;
+    fileBox.dataset.fileName = fileName || "";
+  }
+  if (fileButton) {
+    fileButton.dataset.path = fileName ? filePath : "";
+    fileButton.title = fileName ? `Open ${filePath}` : "No exported file yet";
+    fileButton.disabled = !fileName;
+    fileButton.setAttribute("aria-disabled", fileName ? "false" : "true");
+  }
+}
+
+async function openNodeGraphViewportPath(path) {
+  const value = String(path || "").trim();
+  if (!value || value === "file path: none") {
+    return false;
+  }
+  try {
+    const response = await fetch("/api/open-path", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: value }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    return Boolean(response.ok && payload?.ok);
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function openNodeGraphViewportPathButtonValue(event) {
+  const button = event.target?.closest?.("#nodeViewportOpenFolderButton, #nodeViewportOpenFileButton");
+  if (!button || button.disabled) {
+    return;
+  }
+  event.preventDefault?.();
+  const path = String(button.dataset.path || "");
+  const opened = await openNodeGraphViewportPath(path);
+  button.dataset.opened = opened ? "true" : "false";
+}
+
+function bindNodeGraphViewportPathButtons() {
+  for (const button of document.querySelectorAll("#nodeViewportOpenFolderButton, #nodeViewportOpenFileButton")) {
+    if (button.dataset.pathButtonBound === "true") {
+      continue;
+    }
+    button.dataset.pathButtonBound = "true";
+    button.addEventListener("click", openNodeGraphViewportPathButtonValue);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindNodeGraphViewportPathButtons, { once: true });
+} else {
+  bindNodeGraphViewportPathButtons();
+}
+
 function nodeGraphViewportCanvasBlob(canvas, type = "image/png", quality) {
   return new Promise((resolve) => {
     try {
@@ -37,6 +130,7 @@ function downloadNodeGraphViewportBlob(blob, fileName) {
   link.dataset.objectUrl = url;
   link.textContent = `${fileName.split(".").pop().toUpperCase()} Ready`;
   (controls || document.body).append(link);
+  setNodeGraphViewportLastFileMade(fileName);
   try {
     link.click();
     return true;
@@ -44,6 +138,76 @@ function downloadNodeGraphViewportBlob(blob, fileName) {
     console.warn("Viewport export download was blocked; keeping save link", _error);
     return false;
   }
+}
+
+function openNodeGraphYoutubeUploadPage() {
+  const url = "https://studio.youtube.com/channel/UC/videos/upload";
+  try {
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    return Boolean(opened);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function nodeGraphViewportDefaultYoutubeTitle() {
+  const patchName = document.getElementById("patchNameValue")?.value
+    || document.getElementById("nodePatchNameHeader")?.value
+    || "";
+  return String(patchName || "").trim() || "Soundemote Sandbox Patch";
+}
+
+function promptNodeGraphYoutubeUploadMetadata() {
+  const title = window.prompt("YouTube title", nodeGraphViewportDefaultYoutubeTitle());
+  if (title === null) {
+    return null;
+  }
+  const cleanTitle = String(title).trim();
+  if (!cleanTitle) {
+    window.alert("YouTube upload needs a title.");
+    return null;
+  }
+  const description = window.prompt("YouTube description", "Generated with Soundemote Sandbox.");
+  if (description === null) {
+    return null;
+  }
+  return {
+    description: String(description),
+    title: cleanTitle,
+  };
+}
+
+function nodeGraphViewportBlobBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",").pop() : result);
+    }, { once: true });
+    reader.addEventListener("error", () => reject(new Error("video encode failed")), { once: true });
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadNodeGraphViewportYoutubeVideo(blob, metadata, fileName) {
+  const videoBase64 = await nodeGraphViewportBlobBase64(blob);
+  const response = await fetch("/api/youtube/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      description: metadata.description,
+      fileName,
+      mimeType: blob.type || "video/mp4",
+      title: metadata.title,
+      videoBase64,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok) {
+    const error = payload?.setup || payload?.error || "YouTube upload failed";
+    throw new Error(error);
+  }
+  return payload;
 }
 
 function nodeGraphViewportExportTargetWidth(fallbackWidth = 1280) {
@@ -281,6 +445,7 @@ function cloneNodeGraphViewportForImage(workspace) {
   clone.querySelector("#nodeCopyViewportImageOverlayButton")?.remove();
   clone.querySelector("#nodeExportViewportGifButton")?.remove();
   clone.querySelector("#nodeExportViewportMp4Button")?.remove();
+  clone.querySelector("#nodeExportViewportYoutubeButton")?.remove();
   clone.querySelector("#nodeExportViewportWavButton")?.remove();
   clone.querySelector("#nodeExportViewportOggButton")?.remove();
   clone.querySelector("#nodeExportViewportFlacButton")?.remove();
@@ -461,6 +626,7 @@ async function copyNodeGraphViewportImageToClipboard() {
       new ClipboardItem({ "image/png": image.pngBlob }),
     ]);
     setNodeGraphViewportImageButtonStatus("PNG Copied");
+    setNodeGraphViewportLastFileMade("", { label: "PNG copied to clipboard" });
   } catch (_error) {
     setNodeGraphViewportImageButtonStatus("Copy Blocked");
   } finally {
@@ -500,28 +666,26 @@ async function exportNodeGraphViewportFlac() {
   setNodeGraphViewportImageButtonStatus("FLAC Unsupported");
 }
 
-async function exportNodeGraphViewportMp4() {
-  const buttons = [
-    document.getElementById("nodeExportViewportMp4Button"),
-  ].filter(Boolean);
+async function captureNodeGraphViewportMp4Blob(options = {}) {
+  const buttons = Array.isArray(options.buttons) ? options.buttons.filter(Boolean) : [];
   const setMp4Status = (text) => setNodeGraphViewportImageButtonStatus(text, { buttons });
   document.body.dataset.nodeViewportMp4Error = "";
   if (typeof MediaRecorder !== "function") {
     setMp4Status("MP4 Unsupported");
-    return;
+    return null;
   }
   const mimeType = typeof nodeGraphVideoExportMimeForFormat === "function"
     ? nodeGraphVideoExportMimeForFormat("mp4", true)
     : "";
   if (!mimeType) {
     setMp4Status("MP4 Unsupported");
-    return;
+    return null;
   }
   const targetWidth = nodeGraphViewportExportTargetWidth();
   const firstFrame = await createNodeGraphViewportVideoFrameCanvas({ targetWidth });
   if (!firstFrame) {
     setMp4Status("MP4 Capture Failed");
-    return;
+    return null;
   }
   const canvas = document.createElement("canvas");
   canvas.width = firstFrame.width;
@@ -530,7 +694,7 @@ async function exportNodeGraphViewportMp4() {
   context.drawImage(firstFrame, 0, 0, canvas.width, canvas.height);
   if (!canvas.captureStream) {
     setMp4Status("MP4 Unsupported");
-    return;
+    return null;
   }
   for (const button of buttons) {
     button.disabled = true;
@@ -576,18 +740,60 @@ async function exportNodeGraphViewportMp4() {
     const blob = new Blob(chunks, { type: mimeType });
     if (!blob.size) {
       setMp4Status("MP4 Failed");
-      return;
+      return null;
     }
-    const saved = downloadNodeGraphViewportBlob(blob, nodeGraphViewportExportFileName("mp4"));
-    setMp4Status(saved ? "MP4 Saved" : "MP4 Ready");
+    return blob;
   } catch (_error) {
     const message = String(_error?.message || _error || "unknown");
     document.body.dataset.nodeViewportMp4Error = message;
     console.warn("Viewport MP4 export failed", _error);
     setMp4Status("MP4 Failed");
+    return null;
   } finally {
     for (const button of buttons) {
       button.disabled = false;
     }
+  }
+}
+
+async function exportNodeGraphViewportMp4() {
+  const buttons = [
+    document.getElementById("nodeExportViewportMp4Button"),
+  ].filter(Boolean);
+  const setMp4Status = (text) => setNodeGraphViewportImageButtonStatus(text, { buttons });
+  const blob = await captureNodeGraphViewportMp4Blob({ buttons });
+  if (!blob) {
+    return;
+  }
+  const saved = downloadNodeGraphViewportBlob(blob, nodeGraphViewportExportFileName("mp4"));
+  setMp4Status(saved ? "MP4 Saved" : "MP4 Ready");
+}
+
+async function exportNodeGraphViewportYoutube() {
+  const buttons = [
+    document.getElementById("nodeExportViewportYoutubeButton"),
+  ].filter(Boolean);
+  const setYoutubeStatus = (text) => setNodeGraphViewportImageButtonStatus(text, { buttons });
+  const metadata = promptNodeGraphYoutubeUploadMetadata();
+  if (!metadata) {
+    setYoutubeStatus("Upload Canceled");
+    return;
+  }
+  const blob = await captureNodeGraphViewportMp4Blob({ buttons });
+  if (!blob) {
+    return;
+  }
+  const fileName = nodeGraphViewportExportFileName("mp4");
+  downloadNodeGraphViewportBlob(blob, fileName);
+  try {
+    const upload = await uploadNodeGraphViewportYoutubeVideo(blob, metadata, fileName);
+    setYoutubeStatus("Uploaded");
+    if (upload.url) {
+      window.open(upload.url, "_blank", "noopener,noreferrer");
+    }
+  } catch (error) {
+    console.warn("YouTube upload failed", error);
+    setYoutubeStatus("Setup Needed");
+    window.alert(String(error?.message || error || "YouTube upload failed"));
   }
 }

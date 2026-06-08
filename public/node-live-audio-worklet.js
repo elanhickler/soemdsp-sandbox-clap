@@ -1236,6 +1236,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.badValueReason(value) || value < -0.95 || value > 0.95;
   }
 
+  outputSampleTripsEarProtection(value) {
+    const number = Number(value);
+    return !Number.isFinite(number) || Math.abs(number) > 1;
+  }
+
+  speakerProtectionSample(value, nodeId) {
+    const number = Number(value);
+    const unsafe = !Number.isFinite(number) || Math.abs(number) > 1;
+    if (unsafe) {
+      this.meterProtectionMuteCount += 1;
+      this.speakerProtectionPeak = Math.max(
+        Number(this.speakerProtectionPeak) || 0,
+        Number.isFinite(number) ? Math.abs(number) : Infinity,
+      );
+      this.speakerProtectionNodeId = String(nodeId || "");
+    }
+    return unsafe ? 0 : number;
+  }
+
   badValueReason(value) {
     const number = Number(value);
     if (Number.isNaN(number)) {
@@ -4017,6 +4036,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       frame,
       frames,
     ), 0);
+    const hasInput = (nodeId, port) => this.inputConnections.has(this.inputKey(nodeId, port));
     const incomingClockRate = (nodeId) => {
       const connection = (this.inputConnections.get(this.inputKey(nodeId, "Clock")) || [])[0];
       const sourceNode = this.nodes.get(connection?.sourceNode);
@@ -4515,36 +4535,78 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         };
       } else if (node?.type === "keyboardController") {
         const signal = this.midiKeyboardSignal || {};
-        const midi = this.clampValue(Math.round(Number(signal.midi) || 60), 0, 127);
-        const key = this.clampValue(Number(signal.keyIndex) || 12, 0, 24);
+        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+        const manualRawMidi = Number.isFinite(Number(signal.rawMidi))
+          ? Number(signal.rawMidi)
+          : Number(signal.midi) || 60;
+        const manualOctave = Number(signal.octave) || 0;
+        const octave = hasInput(nodeId, "Octave")
+          ? this.clampValue(Math.round(Number(mixInput(nodeId, "Octave")) || 0), -6, 6)
+          : manualOctave;
+        const rawMidi = resetActive
+          ? 60
+          : (hasInput(nodeId, "MIDI Note") ? Number(mixInput(nodeId, "MIDI Note")) || 0 : manualRawMidi);
+        const midi = this.clampValue(Math.round(rawMidi + octave * 12), 0, 127);
+        const automatedPitch = resetActive || hasInput(nodeId, "MIDI Note") || hasInput(nodeId, "Octave");
+        const key = automatedPitch
+          ? this.clampValue(Math.round(rawMidi) - 48, 0, 24)
+          : this.clampValue(Number(signal.keyIndex) || 12, 0, 24);
         const frequency = 440 * (2 ** ((midi - 69) / 12));
-        const outputFrequency = Math.max(0, Number(signal.frequency) || frequency);
-        const increment = Math.max(0, Number(signal.increment) || outputFrequency / safeRate);
+        const outputFrequency = Math.max(0, frequency);
+        const increment = Math.max(0, outputFrequency / safeRate);
+        const q = automatedPitch
+          ? key / 24
+          : this.clampValue(Number(signal.keyQuantized) || key / 24, 0, 1);
+        const x = resetActive ? 0.5 : (hasInput(nodeId, "X")
+          ? this.clampValue(Number(mixInput(nodeId, "X")) || 0, 0, 1)
+          : this.clampValue(Number(signal.x) || q, 0, 1));
+        const y = resetActive ? 0 : (hasInput(nodeId, "Y")
+          ? this.clampValue(Number(mixInput(nodeId, "Y")) || 0, 0, 1)
+          : this.clampValue(Number(signal.y) || 0, 0, 1));
+        const gate = resetActive ? 0 : (hasInput(nodeId, "Gate")
+          ? (Number(mixInput(nodeId, "Gate")) > 0 ? 1 : 0)
+          : (Number(signal.gate) > 0 ? 1 : 0));
+        const hold = hasInput(nodeId, "Hold") && Number(mixInput(nodeId, "Hold")) > 0 ? 1 : 0;
+        const velocity = hasInput(nodeId, "Velocity")
+          ? this.clampValue(Number(mixInput(nodeId, "Velocity")) || 0, 0, 1)
+          : y;
         const gatePulse = this.midiKeyboardGatePulseSamples > 0 ? 1 : 0;
         this.midiKeyboardGatePulseSamples = Math.max(0, this.midiKeyboardGatePulseSamples - 1);
         value = {
-          "1 Sample Gate": gatePulse,
-          "0.1V/Oct": this.clampValue(Number(signal.tenthVoltPerOctave) || midi / 120, 0, 1),
-          Double: this.clampValue(Number(signal.midiNormalized) || midi / 127, 0, 1),
+          "1 Sample Gate": hasInput(nodeId, "Gate") ? gate : gatePulse,
+          "0.1V/Oct": this.clampValue(midi / 120, 0, 1),
+          Double: this.clampValue(midi / 127, 0, 1),
           Frequency: outputFrequency,
-          Gate: Number(signal.gate) > 0 ? 1 : 0,
+          Gate: Math.max(gate, hold),
           Increment: increment,
           Key: key,
           MIDI: midi,
-          Pitch: this.clampValue(Number(signal.pitchValue) || midi, 0, 127),
-          Q: this.clampValue(Number(signal.keyQuantized) || key / 24, 0, 1),
-          X: this.clampValue(Number(signal.x) || 0, 0, 1),
-          Y: this.clampValue(Number(signal.y) || 0, 0, 1),
+          Pitch: midi,
+          Q: q,
+          X: x,
+          Y: velocity,
         };
       } else if (node?.type === "macroControls") {
+        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
         value = {};
         for (let index = 0; index < 10; index += 1) {
-          value[`M${index + 1}`] = this.clampValue(Number(this.macroControls?.[index]) || 0, 0, 1);
+          const port = `M${index + 1} In`;
+          value[`M${index + 1}`] = resetActive
+            ? 0
+            : this.clampValue(hasInput(nodeId, port)
+              ? Number(mixInput(nodeId, port)) || 0
+              : Number(this.macroControls?.[index]) || 0, 0, 1);
         }
       } else if (node?.type === "pitchModWheel") {
-        const pitchWheel = Number(this.pitchModWheelSignal?.pitch);
+        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+        const pitchWheel = resetActive ? 0 : (hasInput(nodeId, "Pitch")
+          ? Number(mixInput(nodeId, "Pitch")) || 0
+          : Number(this.pitchModWheelSignal?.pitch));
+        const modWheel = resetActive ? 0 : (hasInput(nodeId, "Mod")
+          ? Number(mixInput(nodeId, "Mod")) || 0
+          : Number(this.pitchModWheelSignal?.mod) || 0);
         value = {
-          "Mod Wheel": this.clampValue(Number(this.pitchModWheelSignal?.mod) || 0, 0, 1),
+          "Mod Wheel": this.clampValue(modWheel, 0, 1),
           "Pitch Wheel": this.clampValue(Number.isFinite(pitchWheel) ? pitchWheel : 0, -1, 1),
         };
       } else if (node?.type === "gain") {
@@ -4926,6 +4988,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         };
       } else if (node?.type === "badvalMonitor") {
         value = this.monitorBadValueSample(mixInput(nodeId), nodeId);
+      } else if (node?.type === "speakerProtection") {
+        value = this.speakerProtectionSample(mixInput(nodeId), nodeId);
       } else if (node?.type === "groupOutput") {
         value = {
           Out: mixInput(nodeId, "In"),
@@ -5017,6 +5081,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (this.outputSampleClipped(frameOutput.right)) {
         this.meterClipCount += 1;
       }
+      if (
+        this.outputSampleTripsEarProtection(frameOutput.left) ||
+        this.outputSampleTripsEarProtection(frameOutput.right)
+      ) {
+        this.meterProtectionMuteCount += 1;
+        this.speakerProtectionPeak = Math.max(
+          Number(this.speakerProtectionPeak) || 0,
+          Number.isFinite(Number(frameOutput.left)) ? Math.abs(Number(frameOutput.left)) : Infinity,
+          Number.isFinite(Number(frameOutput.right)) ? Math.abs(Number(frameOutput.right)) : Infinity,
+        );
+        this.speakerProtectionNodeId = "output";
+        for (let channelIndex = 0; channelIndex < output.length; channelIndex += 1) {
+          output[channelIndex][frame] = 0;
+        }
+        continue;
+      }
       const protectedFrame = this.earProtector.protect(frameOutput.left, frameOutput.right);
       if (protectedFrame.muted) {
         this.meterProtectionMuteCount += 1;
@@ -5043,6 +5123,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         inputPeak: this.inputMeterPeak,
         inputRms: Math.sqrt(this.inputMeterSquareSum / Math.max(1, this.inputMeterSamples)),
         peak: this.meterPeak,
+        protectionNodeId: this.speakerProtectionNodeId || "",
+        protectionPeak: Number(this.speakerProtectionPeak) || 0,
         protectionMuteCount: this.meterProtectionMuteCount,
         sessionId: this.sessionId,
         rms: Math.sqrt(this.meterSquareSum / Math.max(1, this.meterSamples)),
@@ -5059,6 +5141,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.lastBadValueSource = "";
       this.meterPeak = 0;
       this.meterProtectionMuteCount = 0;
+      this.speakerProtectionNodeId = "";
+      this.speakerProtectionPeak = 0;
       this.meterSamples = 0;
       this.meterSquareSum = 0;
     }

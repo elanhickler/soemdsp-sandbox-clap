@@ -108,7 +108,6 @@
     "liveInputConnected": "Live INPUT is connected to the browser audio engine.",
     "liveInputVisible": "Live INPUT module is visible. Start OUTPUT to request microphone access.",
     "liveInputShow": "Show live INPUT module",
-    "liveInputUnderConstruction": "Live INPUT is under construction.",
     "render": "Mouse: click to render sample.",
     "play": "Mouse: click to play rendered sample.",
     "playRendered": "Play rendered sample",

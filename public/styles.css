@@ -741,6 +741,13 @@ audio {
     #080a0c;
 }
 
+.node-performance-wheels-module {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
 .node-performance-wheels-heading {
   display: grid;
   gap: 2px;
@@ -770,6 +777,13 @@ audio {
   background:
     linear-gradient(180deg, rgba(241, 184, 75, 0.08), transparent 48%),
     #080a0c;
+}
+
+.node-midi-keyboard-module {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
 }
 
 .node-midi-keyboard-panel[hidden] {
@@ -809,6 +823,18 @@ audio {
   justify-content: flex-end;
   gap: 4px;
   min-width: 0;
+}
+
+.node-midi-keyboard-module .node-midi-keyboard-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.8fr);
+  align-items: start;
+  gap: 6px;
+}
+
+.node-midi-keyboard-module .node-midi-keyboard-heading > .node-midi-keyboard-midi-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .node-midi-keyboard-midi-controls button,
@@ -908,6 +934,14 @@ audio {
     #080a0c;
 }
 
+.node-macro-controls-module {
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
 .node-macro-controls-panel[hidden] {
   display: none;
 }
@@ -944,6 +978,10 @@ audio {
   min-width: 0;
 }
 
+.node-macro-controls-module .node-macro-controls-row {
+  grid-template-columns: repeat(5, minmax(42px, 1fr));
+}
+
 .node-macro-knob {
   position: relative;
   display: grid;
@@ -963,6 +1001,12 @@ audio {
   font: 700 0.62rem/1 "Cascadia Mono", Consolas, monospace;
   touch-action: none;
   user-select: none;
+}
+
+.node-macro-controls-module .node-macro-knob {
+  grid-template-rows: auto minmax(34px, 1fr) auto;
+  min-height: 64px;
+  padding: 4px;
 }
 
 .node-macro-knob span,
@@ -1051,6 +1095,10 @@ audio {
   user-select: none;
 }
 
+.node-performance-wheels-module .node-midi-keyboard-wheel {
+  min-height: 92px;
+}
+
 .node-midi-keyboard-wheel span,
 .node-midi-keyboard-wheel strong {
   position: relative;
@@ -1114,6 +1162,10 @@ audio {
   background:
     linear-gradient(180deg, rgba(241, 184, 75, 0.06), transparent 34%),
     #050607;
+}
+
+.node-midi-keyboard-module .node-midi-keyboard-surface {
+  min-height: 108px;
 }
 
 @media (max-width: 720px) {
@@ -1548,7 +1600,6 @@ audio {
 }
 
 #nodeModuleShopButton,
-#nodeMacroControlsToggleButton,
 #nodeGlobalScopeMenuButton {
   flex-basis: 108px;
 }
@@ -2487,6 +2538,7 @@ audio {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
   margin-bottom: 10px;
@@ -2539,6 +2591,10 @@ audio {
   min-width: 42px;
 }
 
+.node-copy-viewport-youtube-button {
+  min-width: 68px;
+}
+
 .node-copy-viewport-seconds-input {
   flex: 0 0 auto;
   width: 58px;
@@ -2574,6 +2630,43 @@ audio {
   font: 600 0.72rem/1 "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
   text-align: center;
   outline: none;
+}
+
+.node-viewport-path-row {
+  flex: 1 0 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.node-viewport-path-box {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 24px;
+  box-sizing: border-box;
+  border: 1px solid rgba(127, 199, 217, 0.22);
+  border-radius: 2px;
+  background: rgba(4, 8, 10, 0.72);
+  color: rgba(214, 230, 238, 0.78);
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-viewport-path-box:focus {
+  border-color: rgba(127, 199, 217, 0.72);
+  box-shadow: 0 0 0 2px rgba(127, 199, 217, 0.12);
+}
+
+.node-viewport-path-open-button {
+  flex: 0 0 auto;
+  min-width: 86px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 7px;
 }
 
 .node-viewport-export-download-link {
@@ -6513,7 +6606,7 @@ audio {
   width: 100%;
   height: 100%;
   overflow: visible;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .node-wire-path {
@@ -6582,7 +6675,7 @@ audio {
   stroke: rgba(255, 255, 255, 0.001);
   stroke-linecap: round;
   stroke-width: max(18px, calc(var(--node-wire-thickness) * 5));
-  pointer-events: none;
+  pointer-events: stroke;
 }
 
 .node-wire-path.temp {
@@ -6659,6 +6752,9 @@ audio {
 .dsp-node textarea,
 .dsp-node canvas,
 .dsp-node svg,
+.node-midi-keyboard-surface,
+.node-midi-keyboard-surface [data-midi],
+.node-midi-keyboard-wheel,
 .node-slider-readout,
 .node-module-graph-display,
 .node-module-filter-curve-display,
@@ -6745,6 +6841,13 @@ audio {
 
 .dsp-node.module-placeholder-layout {
   grid-template-rows: var(--node-header-height) minmax(0, 1fr);
+}
+
+.dsp-node.keyboard-controller-layout,
+.dsp-node.macro-controls-layout,
+.dsp-node.pitch-mod-wheel-layout,
+.dsp-node.speaker-protection-layout {
+  grid-template-rows: var(--node-header-height) minmax(0, 1fr) minmax(var(--node-io-section-min-height), auto);
 }
 
 .dsp-node.led-layout {
@@ -6954,8 +7057,6 @@ audio {
   height: calc(100% + var(--node-scope-port-band-overlap));
   min-height: calc(var(--node-module-scope-height) + var(--node-scope-port-band-overlap));
   align-self: stretch;
-  border-top: 1px solid rgba(128, 224, 224, 0.16);
-  border-bottom: 1px solid rgba(128, 224, 224, 0.16);
 }
 
 .node-filter-curve-display {
@@ -7115,6 +7216,38 @@ audio {
   font: 600 0.55rem var(--node-mono-font);
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.node-speaker-protection-body {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  border-block: 1px solid rgba(255, 95, 81, 0.16);
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 95, 81, 0.16), transparent 54%),
+    linear-gradient(180deg, rgba(8, 11, 14, 0.74), rgba(0, 0, 0, 0.86));
+  color: rgba(244, 249, 250, 0.9);
+  text-align: center;
+}
+
+.node-speaker-protection-body strong {
+  color: rgba(104, 255, 176, 0.92);
+  font: 800 0.92rem var(--node-mono-font);
+  letter-spacing: 0;
+}
+
+.node-speaker-protection-body.tripped strong {
+  color: rgba(255, 95, 81, 0.96);
+}
+
+.node-speaker-protection-body span {
+  color: rgba(216, 247, 255, 0.72);
+  font: 700 0.64rem var(--node-mono-font);
+  line-height: 1.1;
 }
 
 .node-slider-widget-row .node-slider-readout {
@@ -7493,38 +7626,58 @@ audio {
   display: grid;
   min-width: 0;
   min-height: 0;
-  padding: 6px;
+  padding: 0;
 }
 
 .node-canvas-preview {
   position: relative;
+  container-type: size;
   display: grid;
+  width: 100%;
+  height: 100%;
   min-width: 0;
-  min-height: calc(var(--node-grid-size) * 2.8);
+  min-height: 0;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(141, 225, 223, 0.18);
-  border-radius: 4px;
-  background:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.04) 75%),
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.04) 75%),
-    radial-gradient(circle at 50% 45%, rgba(127, 199, 217, 0.16), transparent 52%),
-    rgba(0, 0, 0, 0.72);
-  background-position: 0 0, 7px 7px, center, center;
-  background-repeat: repeat, repeat, no-repeat, no-repeat;
-  background-size: 14px 14px, 14px 14px, auto, auto;
+  border: 0;
+  border-radius: 0;
+  background: var(--node-canvas-face-background, #000000);
 }
 
-.node-canvas-preview[data-canvas-background="black"] {
+.node-canvas-preview[data-canvas-face-background="checkerboard"],
+.node-canvas-script-preview[data-canvas-face-background="checkerboard"] {
   background:
-    radial-gradient(circle at 50% 45%, rgba(127, 199, 217, 0.14), transparent 52%),
-    #000;
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.12) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.12) 75%),
+    #050607;
+  background-position: 0 0, 8px 8px, center;
+  background-size: 16px 16px, 16px 16px, auto;
 }
 
-.node-canvas-preview[data-canvas-background="white"] {
+.node-canvas-frame {
+  position: relative;
+  display: grid;
+  width: min(100cqw, calc(100cqh * var(--node-canvas-aspect, 1)));
+  height: min(100cqh, calc(100cqw / var(--node-canvas-aspect, 1)));
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--node-canvas-screen-background, #000000);
+}
+
+.node-canvas-frame[data-canvas-screen-fit="stretch"] {
+  width: 100%;
+  height: 100%;
+}
+
+.node-canvas-frame[data-canvas-screen-background="checkerboard"] {
   background:
-    radial-gradient(circle at 50% 45%, rgba(0, 0, 0, 0.1), transparent 52%),
-    #fff;
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.12) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.12) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.12) 75%),
+    #050607;
+  background-position: 0 0, 8px 8px, center;
+  background-size: 16px 16px, 16px 16px, auto;
 }
 
 .node-canvas-layers {
@@ -7559,20 +7712,7 @@ audio {
 }
 
 .node-canvas-status {
-  position: relative;
-  z-index: 1;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 4px 7px;
-  overflow: hidden;
-  border: 1px solid rgba(127, 199, 217, 0.18);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.72);
-  color: rgba(216, 247, 255, 0.82);
-  font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 0.64rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .node-module-scope-analyzer {
@@ -7714,7 +7854,7 @@ audio {
 .node-header-timing-widgets {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(64px, 1.05fr) minmax(64px, 1fr) minmax(58px, 0.9fr) minmax(54px, 0.8fr) minmax(64px, 0.85fr);
+  grid-template-columns: minmax(64px, 1.05fr) minmax(64px, 1fr) minmax(58px, 0.9fr) minmax(54px, 0.8fr);
   min-width: 0;
   height: 100%;
   border-inline: 1px solid rgba(127, 199, 217, 0.08);
@@ -7757,37 +7897,6 @@ audio {
   border-inline-end: 0;
 }
 
-.node-header-tap-tempo-button {
-  display: grid;
-  place-items: center;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  border-inline-start: 1px solid rgba(127, 199, 217, 0.08);
-  background: rgba(17, 20, 24, 0.52);
-  color: rgba(127, 199, 217, 0.92);
-  font-family: "Segoe UI Symbol", "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-  font-size: clamp(1.75rem, 2.4vw, 2.2rem);
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0;
-}
-
-.node-header-tap-tempo-symbol {
-  display: grid;
-  place-items: center;
-  inline-size: 1.15em;
-  block-size: 1.15em;
-  line-height: 1;
-  transform: translateY(-0.02em);
-}
-
-.node-history-controls .node-header-tap-tempo-button {
-  font-size: clamp(1.75rem, 2.4vw, 2.2rem);
-  line-height: 1;
-}
-
 .node-header-timing-field span {
   min-width: 0;
   overflow: hidden;
@@ -7795,6 +7904,17 @@ audio {
   white-space: nowrap;
   line-height: 1;
   text-align: center;
+}
+
+.node-header-bpm-tap-target {
+  color: rgba(127, 199, 217, 0.92);
+  background: rgba(127, 199, 217, 0.08);
+  font-weight: 800;
+}
+
+.node-header-bpm-tap-target:focus-visible {
+  outline: 1px solid rgba(127, 199, 217, 0.52);
+  outline-offset: -1px;
 }
 
 .node-header-speed-placeholder {
@@ -10178,6 +10298,7 @@ button.saved-default,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  user-select: none;
 }
 
 .node-canvas-script-heading > div {
@@ -10215,25 +10336,7 @@ button.saved-default,
   overflow: hidden;
   border: 1px solid rgba(127, 199, 217, 0.16);
   border-radius: 6px;
-  background:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.04) 75%),
-    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25% 75%, rgba(255, 255, 255, 0.04) 75%),
-    radial-gradient(circle at 52% 48%, rgba(127, 199, 217, 0.14), transparent 54%),
-    rgba(0, 0, 0, 0.72);
-  background-position: 0 0, 8px 8px, center, center;
-  background-size: 16px 16px, 16px 16px, auto, auto;
-}
-
-.node-canvas-script-preview[data-canvas-background="black"] {
-  background:
-    radial-gradient(circle at 52% 48%, rgba(127, 199, 217, 0.14), transparent 54%),
-    #000;
-}
-
-.node-canvas-script-preview[data-canvas-background="white"] {
-  background:
-    radial-gradient(circle at 52% 48%, rgba(0, 0, 0, 0.1), transparent 54%),
-    #fff;
+  background: var(--node-canvas-face-background, #000000);
 }
 
 .node-canvas-script-preview-layers {

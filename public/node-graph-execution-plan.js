@@ -363,7 +363,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const issues = [...graph.issues];
   const outputNode = "output";
   const reachableNodes = new Set();
-  const passthroughTypes = new Set(["badvalMonitor", "bandpass", "bias", "cookbookFilter", "gain", "highpass", "ladderFilter", "lowpass", "sampleHold", "slewLimiter"]);
+  const passthroughTypes = new Set(["badvalMonitor", "bandpass", "bias", "cookbookFilter", "gain", "highpass", "ladderFilter", "lowpass", "sampleHold", "slewLimiter", "speakerProtection"]);
 
   function markReachable(nodeId) {
     if (reachableNodes.has(nodeId) || !graph.nodeMap.has(nodeId)) {
@@ -467,12 +467,14 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     } else if (
       type !== "audioInput" &&
       type !== "bloomGlow" &&
+      type !== "canvas" &&
       type !== "chromaColor" &&
       type !== "clapPlugin" &&
       type !== "clock" &&
       type !== "clockDivider" &&
       type !== "codeblock" &&
       type !== "delayedTrigger" &&
+      type !== "fbPolyBlepOsc" &&
       type !== "fractalBrownianNoise" &&
       type !== "flowerChildEnvelopeFollower" &&
       type !== "groupInput" &&
@@ -481,10 +483,12 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type !== "led" &&
       type !== "linearEnvelope" &&
       type !== "lorenzAttractor" &&
+      type !== "macroControls" &&
       type !== "midiNotePitch" &&
       type !== "midiOut" &&
       type !== "moduleGroup" &&
       type !== "noiseGenerator" &&
+      type !== "pitchModWheel" &&
       type !== "additiveOsc" &&
       type !== "gpuAdditiveOsc" &&
       type !== "osc" &&
@@ -513,11 +517,14 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     const type = graph.nodeMap.get(nodeId)?.type;
     return type === "audioInput" ||
       type === "clock" ||
+      type === "fbPolyBlepOsc" ||
       type === "fractalBrownianNoise" ||
       type === "keyboardController" ||
       type === "lorenzAttractor" ||
+      type === "macroControls" ||
       type === "midiOut" ||
       type === "noiseGenerator" ||
+      type === "pitchModWheel" ||
       type === "additiveOsc" ||
       type === "gpuAdditiveOsc" ||
       type === "osc" ||
@@ -572,7 +579,7 @@ function nodeGraphCompiledVisualSinks(graph, reachableNodes) {
         bufferSampleLimit: nodeGraphBufferedInputSampleLimit,
         bufferedInputs,
         hasParameters: (nodeGraphModuleDefinitions[node.type]?.parameters || []).length > 0,
-        inputs: nodeGraphModuleVisualInputs(node.type).map((input) => ({
+        inputs: nodeGraphPatchNodeVisualInputs(node).map((input) => ({
           ...input,
           buffered: bufferedSet.has(input.port),
           connected: (graph.inputConnections.get(nodeGraphInputKey(node.id, input.port)) || []).length > 0,

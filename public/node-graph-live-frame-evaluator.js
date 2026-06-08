@@ -508,6 +508,20 @@ function nodeGraphBadValueMonitorSample(value, runtime, nodeId) {
   return number;
 }
 
+function nodeGraphSpeakerProtectionSample(value, runtime, nodeId) {
+  const number = Number(value);
+  const unsafe = !Number.isFinite(number) || Math.abs(number) > 1;
+  if (unsafe && runtime) {
+    runtime.speakerProtectionMuteCount = (runtime.speakerProtectionMuteCount || 0) + 1;
+    runtime.speakerProtectionPeak = Math.max(
+      Number(runtime.speakerProtectionPeak) || 0,
+      Number.isFinite(number) ? Math.abs(number) : Infinity,
+    );
+    runtime.lastSpeakerProtection = { nodeId, peak: runtime.speakerProtectionPeak };
+  }
+  return unsafe ? 0 : number;
+}
+
 function nodeGraphOnePoleHighpassSample(state, input, frequency, sampleRate, runtime = null, nodeId = "") {
   const rate = Math.max(1, Number(sampleRate) || nodeGraphMvp.sampleRate || 44100);
   const safeInput = nodeGraphSafeFilterNumber(input, runtime, nodeId, state, "highpass input");
@@ -1581,6 +1595,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     ),
     0,
   );
+  const hasInput = (nodeId, port) => runtime.inputConnections.has(`${nodeId}.${port}`);
 
   const graphSampleX = (node, nodeId) => {
     const mode = Math.round(readNodeGraphLiveEffectiveParam(runtime, node, "mode", 0, frame, frames, frameValues));
@@ -2220,33 +2235,73 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           ? nodeGraphMidiKeyboardFallbackSignal()
           : null
       );
-      const midi = Math.max(0, Math.min(127, Number(signal?.midi) || 60));
-      const frequency = Math.max(0, Number(signal?.frequency) || 440 * (2 ** ((midi - 69) / 12)));
+      const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+      const manualRawMidi = Number.isFinite(Number(signal?.rawMidi))
+        ? Number(signal.rawMidi)
+        : Number(signal?.midi) || 60;
+      const manualOctave = Number(signal?.octave) || 0;
+      const octave = hasInput(nodeId, "Octave")
+        ? Math.max(-6, Math.min(6, Math.round(Number(mixInput(nodeId, "Octave")) || 0)))
+        : manualOctave;
+      const rawMidi = resetActive
+        ? 60
+        : (hasInput(nodeId, "MIDI Note") ? Number(mixInput(nodeId, "MIDI Note")) || 0 : manualRawMidi);
+      const midi = Math.max(0, Math.min(127, Math.round(rawMidi + octave * 12)));
+      const automatedPitch = resetActive || hasInput(nodeId, "MIDI Note") || hasInput(nodeId, "Octave");
+      const key = automatedPitch
+        ? Math.max(0, Math.min(24, Math.round(rawMidi) - 48))
+        : Math.max(0, Math.min(24, Math.round(Number(signal?.keyIndex) || 0)));
+      const q = automatedPitch
+        ? key / 24
+        : Math.max(0, Math.min(1, Number(signal?.keyQuantized) || key / 24));
+      const x = resetActive ? 0.5 : (hasInput(nodeId, "X")
+        ? Math.max(0, Math.min(1, Number(mixInput(nodeId, "X")) || 0))
+        : Math.max(0, Math.min(1, Number(signal?.x) || q)));
+      const y = resetActive ? 0 : (hasInput(nodeId, "Y")
+        ? Math.max(0, Math.min(1, Number(mixInput(nodeId, "Y")) || 0))
+        : Math.max(0, Math.min(1, Number(signal?.y) || 0)));
+      const gate = resetActive ? 0 : (hasInput(nodeId, "Gate")
+        ? (Number(mixInput(nodeId, "Gate")) > 0 ? 1 : 0)
+        : (Number(signal?.gate) > 0 ? 1 : 0));
+      const hold = hasInput(nodeId, "Hold") && Number(mixInput(nodeId, "Hold")) > 0 ? 1 : 0;
+      const velocity = hasInput(nodeId, "Velocity")
+        ? Math.max(0, Math.min(1, Number(mixInput(nodeId, "Velocity")) || 0))
+        : y;
+      const frequency = Math.max(0, 440 * (2 ** ((midi - 69) / 12)));
       const keyboardRate = Math.max(1, Number(sampleRate) || nodeGraphMvp.sampleRate || 44100);
-      const increment = Math.max(0, Number(signal?.increment) || frequency / keyboardRate);
+      const increment = Math.max(0, frequency / keyboardRate);
       value = {
-        "1 Sample Gate": Number(signal?.gatePulse) > 0 ? 1 : 0,
-        "0.1V/Oct": Math.max(0, Math.min(1, Number(signal?.tenthVoltPerOctave) || midi / 120)),
-        Double: Math.max(0, Math.min(1, Number(signal?.midiNormalized) || midi / 127)),
+        "1 Sample Gate": hasInput(nodeId, "Gate") ? gate : (Number(signal?.gatePulse) > 0 ? 1 : 0),
+        "0.1V/Oct": Math.max(0, Math.min(1, midi / 120)),
+        Double: Math.max(0, Math.min(1, midi / 127)),
         Frequency: frequency,
-        Gate: Number(signal?.gate) > 0 ? 1 : 0,
+        Gate: Math.max(gate, hold),
         Increment: increment,
-        Key: Math.max(0, Number(signal?.keyIndex) || 0),
+        Key: key,
         MIDI: midi,
-        Pitch: Math.max(0, Math.min(127, Number(signal?.pitchValue) || midi)),
-        Q: Math.max(0, Math.min(1, Number(signal?.keyQuantized) || 0)),
-        X: Math.max(0, Math.min(1, Number(signal?.x) || 0)),
-        Y: Math.max(0, Math.min(1, Number(signal?.y) || 0)),
+        Pitch: midi,
+        Q: q,
+        X: x,
+        Y: velocity,
       };
     } else if (node?.type === "macroControls") {
+      const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
       const macros = Array.isArray(nodeGraphMvp?.macroControls) ? nodeGraphMvp.macroControls : [];
       value = {};
       for (let index = 0; index < 10; index += 1) {
-        value[`M${index + 1}`] = Math.max(0, Math.min(1, Number(macros[index]) || 0));
+        const port = `M${index + 1} In`;
+        value[`M${index + 1}`] = resetActive
+          ? 0
+          : Math.max(0, Math.min(1, hasInput(nodeId, port) ? Number(mixInput(nodeId, port)) || 0 : Number(macros[index]) || 0));
       }
     } else if (node?.type === "pitchModWheel") {
-      const pitch = Math.max(-1, Math.min(1, Number(nodeGraphMvp?.pitchWheelSignal) || 0));
-      const mod = Math.max(0, Math.min(1, Number(nodeGraphMvp?.modWheelSignal) || 0));
+      const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+      const pitch = resetActive ? 0 : Math.max(-1, Math.min(1, hasInput(nodeId, "Pitch")
+        ? Number(mixInput(nodeId, "Pitch")) || 0
+        : Number(nodeGraphMvp?.pitchWheelSignal) || 0));
+      const mod = resetActive ? 0 : Math.max(0, Math.min(1, hasInput(nodeId, "Mod")
+        ? Number(mixInput(nodeId, "Mod")) || 0
+        : Number(nodeGraphMvp?.modWheelSignal) || 0));
       value = {
         "Mod Wheel": mod,
         "Pitch Wheel": pitch,
@@ -2715,6 +2770,8 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       };
     } else if (node?.type === "badvalMonitor") {
       value = nodeGraphBadValueMonitorSample(mixInput(nodeId), runtime, nodeId);
+    } else if (node?.type === "speakerProtection") {
+      value = nodeGraphSpeakerProtectionSample(mixInput(nodeId), runtime, nodeId);
     } else if (node?.type === "groupOutput") {
       value = {
         Out: mixInput(nodeId, "In"),

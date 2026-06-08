@@ -17,11 +17,11 @@ async function initNodeGraphMvp() {
   markNodeGraphRenderPending();
   applyNodeGraphZoom();
   renderNodeGraphGridToggle();
-  bindNodeGraphMacroControlsPanelEvents();
-  bindNodeGraphMidiKeyboardPanelEvents();
+  bindNodeGraphMacroControlModuleEvents();
+  bindNodeGraphKeyboardControllerModuleEvents();
   bindNodeGraphMetadataPopoverEvents();
   renderNodeGraphMacroControls();
-  renderNodeGraphMidiKeyboardToggle();
+  renderNodeGraphKeyboardControllerModules();
   renderNodeGraphModuleVisibilityToggles();
   renderNodeGraphPatchTimingControls();
   renderNodeGraphVisibilityMenuButton();

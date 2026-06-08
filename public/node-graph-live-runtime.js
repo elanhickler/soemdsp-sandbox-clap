@@ -248,18 +248,10 @@ function nodeGraphLiveOutputStartCancelled(serial) {
 }
 
 function nodeGraphLiveInputIsUnderConstruction() {
-  return true;
+  return false;
 }
 
 function toggleNodeGraphLiveInput() {
-  if (nodeGraphLiveInputIsUnderConstruction()) {
-    nodeGraphMvp.live.inputActive = false;
-    stopNodeGraphLiveInputSource();
-    setNodeGraphLiveInputStatus("off", "Live INPUT is under construction.");
-    setNodeGraphLiveMicStatus("off", "Live INPUT is under construction.");
-    renderNodeGraphLiveControls();
-    return;
-  }
   nodeGraphMvp.live.inputActive = !nodeGraphMvp.live.inputActive;
   const addedInputModule = nodeGraphMvp.live.inputActive
     ? ensureNodeGraphLiveInputModule()
@@ -378,6 +370,26 @@ function renderNodeGraphLiveScriptBlock(event) {
     }
     if (nodeGraphOutputSampleClipped(frameOutput.right)) {
       runtime.meterClipCount += 1;
+    }
+    if (
+      nodeGraphOutputSampleTripsEarProtection(frameOutput.left) ||
+      nodeGraphOutputSampleTripsEarProtection(frameOutput.right)
+    ) {
+      runtime.meterProtectionMuteCount = (runtime.meterProtectionMuteCount || 0) + 1;
+      runtime.speakerProtectionPeak = Math.max(
+        Number(runtime.speakerProtectionPeak) || 0,
+        Number.isFinite(Number(frameOutput.left)) ? Math.abs(Number(frameOutput.left)) : Infinity,
+        Number.isFinite(Number(frameOutput.right)) ? Math.abs(Number(frameOutput.right)) : Infinity,
+      );
+      nodeGraphTripEarProtection({
+        source: "live output > 1.0",
+        protectionMuteCount: runtime.meterProtectionMuteCount,
+        protectionPeak: Number(runtime.speakerProtectionPeak) || 0,
+      });
+      for (let channel = 0; channel < output.numberOfChannels; channel += 1) {
+        output.getChannelData(channel)[frame] = 0;
+      }
+      continue;
     }
     const protectedFrame = runtime.earProtector?.protect(frameOutput.left, frameOutput.right) || {
       left: frameOutput.left,
@@ -856,6 +868,8 @@ function handleNodeGraphLiveWorkletMessage(event) {
     }
     if (Number(message.protectionMuteCount) > 0) {
       nodeGraphTripEarProtection({
+        nodeId: message.protectionNodeId || "",
+        protectionPeak: Number(message.protectionPeak) || 0,
         source: "worklet",
         protectionMuteCount: Number(message.protectionMuteCount) || 0,
       });
@@ -1279,7 +1293,10 @@ async function createNodeGraphLiveWorkletNode(context) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
-  await context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=modulated-delay-1");
+  await nodeGraphLiveAwaitStartup(
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=oscilloscope-buffered-inputs-1"),
+    "AudioWorklet startup timed out",
+  );
   const workletNode = new AudioWorkletNode(
     context,
     "node-live-audio-processor",
@@ -1294,6 +1311,13 @@ async function createNodeGraphLiveWorkletNode(context) {
     setNodeGraphLiveProcessorError("AudioWorklet processor crashed");
   };
   return workletNode;
+}
+
+function nodeGraphLiveAwaitStartup(promise, message = "live audio startup timed out", timeoutMs = 5000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error(message)), timeoutMs)),
+  ]);
 }
 
 function createNodeGraphLiveScriptProcessorNode(context, plan) {

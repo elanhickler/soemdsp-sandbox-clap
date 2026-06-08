@@ -68,7 +68,30 @@ function createNodeGraphHeaderTimingInput(key, label, options = {}) {
   field.setAttribute("aria-label", label);
 
   const caption = document.createElement("span");
+  caption.className = "node-header-timing-caption";
   caption.textContent = label;
+  if (key === "tempoBpm") {
+    caption.classList.add("node-header-bpm-tap-target");
+    caption.role = "button";
+    caption.tabIndex = 0;
+    caption.title = "Tap tempo";
+    caption.setAttribute("aria-label", "Tap tempo for patch BPM");
+    const tapBpm = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handleNodeGraphTapTempo();
+    };
+    caption.addEventListener("click", tapBpm);
+    caption.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    caption.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        tapBpm(event);
+      }
+    });
+  }
   field.append(caption);
 
   const input = document.createElement("input");
@@ -153,18 +176,6 @@ function handleNodeGraphTapTempo() {
   });
 }
 
-function createNodeGraphTapTempoButton() {
-  const button = document.createElement("button");
-  button.id = "nodeTapTempoButton";
-  button.className = "node-header-tap-tempo-button";
-  button.type = "button";
-  button.innerHTML = '<span class="node-header-tap-tempo-symbol" aria-hidden="true">&#x23F1;</span>';
-  button.setAttribute("aria-label", "Tap tempo for patch BPM");
-  button.title = "Tap tempo";
-  button.addEventListener("click", handleNodeGraphTapTempo);
-  return button;
-}
-
 function createNodeGraphHeaderTimingWidgets() {
   const group = document.createElement("div");
   group.className = "node-header-timing-widgets";
@@ -174,7 +185,6 @@ function createNodeGraphHeaderTimingWidgets() {
     createNodeGraphHeaderSpeedPlaceholder(),
     createNodeGraphHeaderTimingInput("timeSignatureNumerator", "Beats"),
     createNodeGraphHeaderTimingInput("timeSignatureDenominator", "Unit"),
-    createNodeGraphTapTempoButton(),
   );
   return group;
 }

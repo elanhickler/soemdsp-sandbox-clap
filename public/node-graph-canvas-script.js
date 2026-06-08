@@ -1,6 +1,7 @@
 const nodeGraphCanvasScriptModuleDefaultsStorageKey = "soemdsp-sandbox.canvasScriptModuleDefaults.v1";
 
 const nodeGraphCanvasScriptState = {
+  dialogDrag: null,
   targetNodeId: "",
 };
 
@@ -10,6 +11,75 @@ function nodeGraphCanvasScriptDialog() {
 
 function nodeGraphCanvasScriptSource() {
   return document.getElementById("nodeCanvasScriptSource");
+}
+
+function nodeGraphCanvasScriptDialogCanDragTarget(target) {
+  return Boolean(target?.closest?.(".node-canvas-script-heading")) &&
+    !target?.closest?.("button, textarea, input, select, option");
+}
+
+function positionNodeGraphCanvasScriptDialog(left, top) {
+  const dialog = nodeGraphCanvasScriptDialog();
+  if (!dialog) {
+    return;
+  }
+  const margin = 12;
+  const rect = dialog.getBoundingClientRect();
+  const clamp = typeof clampNodeSliderValue === "function"
+    ? clampNodeSliderValue
+    : (value, min, max) => Math.max(min, Math.min(max, value));
+  const nextLeft = clamp(Number(left) || 0, margin, Math.max(margin, window.innerWidth - rect.width - margin));
+  const nextTop = clamp(Number(top) || 0, margin, Math.max(margin, window.innerHeight - rect.height - margin));
+  dialog.style.left = `${nextLeft}px`;
+  dialog.style.top = `${nextTop}px`;
+  dialog.style.right = "auto";
+  dialog.style.bottom = "auto";
+}
+
+function beginNodeGraphCanvasScriptDialogDrag(event) {
+  if (event.button > 0 || !nodeGraphCanvasScriptDialogCanDragTarget(event.target)) {
+    return;
+  }
+  const dialog = nodeGraphCanvasScriptDialog();
+  if (!dialog || dialog.hidden) {
+    return;
+  }
+  const rect = dialog.getBoundingClientRect();
+  nodeGraphCanvasScriptState.dialogDrag = {
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    pointerId: event.pointerId ?? null,
+  };
+  dialog.classList.add("dragging");
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeGraphCanvasScriptDialog(event) {
+  const drag = nodeGraphCanvasScriptState.dialogDrag;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  positionNodeGraphCanvasScriptDialog(event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+  event.preventDefault();
+}
+
+function endNodeGraphCanvasScriptDialogDrag(event) {
+  const drag = nodeGraphCanvasScriptState.dialogDrag;
+  if (
+    !drag ||
+    (drag.pointerId !== null && event.pointerId !== undefined && drag.pointerId !== event.pointerId)
+  ) {
+    return;
+  }
+  nodeGraphCanvasScriptState.dialogDrag = null;
+  nodeGraphCanvasScriptDialog()?.classList.remove("dragging");
+  event.currentTarget.releasePointerCapture?.(event.pointerId);
+  event.preventDefault();
 }
 
 function nodeGraphCanvasScriptStatus(message = "ready", isError = false) {
@@ -63,8 +133,12 @@ function syncNodeGraphCanvasScriptPreview() {
   if (!preview) {
     return;
   }
-  preview.style.setProperty("--node-canvas-preview-aspect", String(script.width / Math.max(1, script.height)));
-  preview.dataset.canvasBackground = script.background || "transparent";
+  preview.style.setProperty("--node-canvas-preview-aspect", String(Math.max(0.001, Number(script.aspectRatio) || 1)));
+  preview.dataset.canvasFaceBackground = script.faceBackground === "checkerboard" ? "checkerboard" : "color";
+  preview.dataset.canvasScreenBackground = script.faceScreen === "checkerboard" ? "checkerboard" : "color";
+  preview.dataset.canvasScreenFit = script.faceFit || "contain";
+  preview.style.setProperty("--node-canvas-face-background", script.faceBackground === "checkerboard" ? "#000000" : script.faceBackground || "#000000");
+  preview.style.setProperty("--node-canvas-screen-background", script.faceScreen === "checkerboard" ? "#000000" : script.faceScreen || "#000000");
   let layerHost = preview.querySelector("[data-node-canvas-script-layers]");
   if (!layerHost) {
     layerHost = document.createElement("div");
@@ -86,7 +160,7 @@ function syncNodeGraphCanvasScriptPreview() {
   }));
   const label = preview.querySelector("strong");
   if (label) {
-    label.textContent = `${script.width} x ${script.height} ${script.output || "canvas"} (${script.layers.length} layers)`;
+    label.textContent = `${script.ratioWidth}:${script.ratioHeight} ${script.output || "canvas"} (${script.layers.length} layers)`;
   }
 }
 
@@ -227,4 +301,9 @@ function bindNodeGraphCanvasScriptEvents() {
   document.getElementById("nodeCanvasScriptStarter")?.addEventListener("click", resetNodeGraphCanvasScriptStarter);
   document.getElementById("nodeCanvasScriptSaveDefault")?.addEventListener("click", saveNodeGraphCanvasScriptDefaultFromDialog);
   document.getElementById("nodeCanvasScriptSource")?.addEventListener("input", syncNodeGraphCanvasScriptPreview);
+  const panel = document.querySelector("#nodeCanvasScriptDialog .node-canvas-script-panel");
+  panel?.addEventListener("pointerdown", beginNodeGraphCanvasScriptDialogDrag);
+  panel?.addEventListener("pointermove", dragNodeGraphCanvasScriptDialog);
+  panel?.addEventListener("pointerup", endNodeGraphCanvasScriptDialogDrag);
+  panel?.addEventListener("pointercancel", endNodeGraphCanvasScriptDialogDrag);
 }

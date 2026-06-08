@@ -2398,6 +2398,86 @@ function nodeGraphModuleScopeOfflineConnectionSum(context, connections, localTim
   ), 0);
 }
 
+function nodeGraphModuleScopeOfflineVisualOscilloscopeBuffer(slot) {
+  if (slot?.type !== "visualOscilloscope") {
+    return null;
+  }
+  const node = nodeGraphModuleScopeNodeForSlot(slot);
+  if (!node) {
+    return null;
+  }
+  const nodeMap = nodeGraphModuleScopeNodeMap();
+  const inConnections = nodeGraphModuleScopeConnectionsTo(node.id, "In");
+  const xConnections = nodeGraphModuleScopeConnectionsTo(node.id, "X");
+  const yConnections = nodeGraphModuleScopeConnectionsTo(node.id, "Y");
+  const hasSignalInput = inConnections.length || xConnections.length || yConnections.length;
+  if (!hasSignalInput) {
+    return null;
+  }
+  const sampleRate = Number(nodeGraphModuleScopeState.sampleRate) || nodeGraphMvp.sampleRate || 44100;
+  const settings = nodeGraphModuleScopeEffectiveSettingForSlot(slot);
+  const sourceFrequency = nodeGraphModuleScopeOfflineConnectionsSourceFrequency(
+    [...inConnections, ...xConnections, ...yConnections],
+    nodeMap,
+  );
+  const cycles = nodeGraphModuleScopeEffectiveCycles(settings) || nodeGraphModuleScopeDefaultSettings.cycles;
+  const windowSeconds = sourceFrequency > 0
+    ? cycles / sourceFrequency
+    : Math.max(0.005, (settings.timeMs || nodeGraphModuleScopeDefaultSettings.timeMs) / 1000);
+  const frames = 2048;
+  const time = nodeGraphModuleScopeModelFrameTime(slot);
+  const context = {
+    nodeMap,
+    scopeStartTime: time,
+    zeroFrequencyDisplayCycles: sourceFrequency > 0 ? 0 : cycles,
+    zeroFrequencyDisplayFrames: frames,
+  };
+  const shader = nodeGraphModuleScopeShaderConfigForSlot(slot);
+  if (shader.mode === "x_y") {
+    const x = new Float32Array(frames);
+    const y = new Float32Array(frames);
+    const useLinearX = !xConnections.length;
+    const ySourceConnections = yConnections.length ? yConnections : inConnections;
+    for (let index = 0; index < frames; index += 1) {
+      const progress = index / Math.max(1, frames - 1);
+      const localTime = time + progress * windowSeconds;
+      const sampleIndex = Math.floor(localTime * sampleRate);
+      context.zeroFrequencyDisplayFrame = sourceFrequency > 0 ? null : index;
+      x[index] = useLinearX
+        ? progress * 2 - 1
+        : nodeGraphModuleScopeOfflineConnectionSum(context, xConnections, localTime, sampleIndex);
+      y[index] = nodeGraphModuleScopeOfflineConnectionSum(context, ySourceConnections, localTime, sampleIndex);
+    }
+    return {
+      length: frames,
+      nodeGraphScopeAnalyzer: nodeGraphModuleScopeBufferStats(y),
+      nodeGraphScopeDrawProgress: 1,
+      nodeGraphScopeSourceFrequency: sourceFrequency,
+      nodeGraphScopeUseFullWindow: true,
+      nodeGraphScopeVisualPointLimit: frames,
+      nodeGraphScopeXy: true,
+      x,
+      y,
+    };
+  }
+  const buffer = new Float32Array(frames);
+  const sourceConnections = inConnections.length ? inConnections : (yConnections.length ? yConnections : xConnections);
+  for (let index = 0; index < frames; index += 1) {
+    const progress = index / Math.max(1, frames - 1);
+    const localTime = time + progress * windowSeconds;
+    const sampleIndex = Math.floor(localTime * sampleRate);
+    context.zeroFrequencyDisplayFrame = sourceFrequency > 0 ? null : index;
+    buffer[index] = nodeGraphModuleScopeOfflineConnectionSum(context, sourceConnections, localTime, sampleIndex);
+  }
+  buffer.nodeGraphScopeAnalyzer = nodeGraphModuleScopeBufferStats(buffer);
+  buffer.nodeGraphScopeDrawProgress = 1;
+  buffer.nodeGraphScopePeriodSamples = sourceFrequency > 0 ? frames / cycles : 0;
+  buffer.nodeGraphScopeSourceFrequency = sourceFrequency;
+  buffer.nodeGraphScopeSyncBuffer = buffer;
+  buffer.nodeGraphScopeUseFullWindow = true;
+  return buffer;
+}
+
 function nodeGraphModuleScopeOfflineOutputAnalyzerBuffer(slot) {
   if (slot?.type !== "output") {
     return null;
@@ -2709,7 +2789,9 @@ function nodeGraphModuleScopeDisplayBuffer(slot, capturedBuffer = null) {
   } else if (slot?.type === "stereoNoise") {
     buffer = nodeGraphModuleScopeCapturedStereoNoiseXyBuffer(slot, capturedBuffer) || capturedBuffer;
   } else if (slot?.type === "visualOscilloscope") {
-    buffer = nodeGraphModuleScopeCapturedVisualOscilloscopeXyBuffer(slot, capturedBuffer) || capturedBuffer;
+    buffer = nodeGraphModuleScopeCapturedVisualOscilloscopeXyBuffer(slot, capturedBuffer) ||
+      capturedBuffer ||
+      nodeGraphModuleScopeOfflineVisualOscilloscopeBuffer(slot);
   } else if (slot?.type === "spiral" || slot?.type === "ellipsoid" || slot?.type === "lorenzAttractor") {
     buffer = nodeGraphModuleScopeCapturedOutputPairXyBuffer(slot, "X", "Y") || capturedBuffer;
   } else if (slot?.type === "output") {

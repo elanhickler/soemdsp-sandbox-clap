@@ -47,6 +47,11 @@ function nodeGraphOutputSampleClipped(value) {
   );
 }
 
+function nodeGraphOutputSampleTripsEarProtection(value) {
+  const number = Number(value);
+  return !Number.isFinite(number) || Math.abs(number) > 1;
+}
+
 function nodeGraphTemporaryPrefilterForResample(samples, sourceRate, outputRate) {
   if (!samples?.length || !Number.isFinite(sourceRate) || !Number.isFinite(outputRate) || sourceRate <= outputRate) {
     return samples;
@@ -874,6 +879,17 @@ async function renderNodeGraphAudio() {
       if (nodeGraphOutputSampleClipped(frameOutput.right)) {
         clipCount += 1;
       }
+      if (
+        nodeGraphOutputSampleTripsEarProtection(frameOutput.left) ||
+        nodeGraphOutputSampleTripsEarProtection(frameOutput.right)
+      ) {
+        protectionMuteCount += 1;
+        runtime.speakerProtectionPeak = Math.max(
+          Number(runtime.speakerProtectionPeak) || 0,
+          Number.isFinite(Number(frameOutput.left)) ? Math.abs(Number(frameOutput.left)) : Infinity,
+          Number.isFinite(Number(frameOutput.right)) ? Math.abs(Number(frameOutput.right)) : Infinity,
+        );
+      }
       const protectedFrame = earProtector.protect(frameOutput.left, frameOutput.right);
       if (protectedFrame.muted) {
         protectionMuteCount += 1;
@@ -886,6 +902,7 @@ async function renderNodeGraphAudio() {
     finishNodeGraphParameterSmoothing(runtime.smoothers);
   }
   finishNodeGraphRenderedScopeCapture(scopeCapture);
+  protectionMuteCount += Number(runtime.speakerProtectionMuteCount) || 0;
 
   const leftSamples = nodeGraphResampleRenderedChannel(
     engineLeftSamples,
@@ -943,7 +960,12 @@ async function renderNodeGraphAudio() {
     badNumberCount: runtime.badNumberCount || 0,
   };
   if (protectionMuteCount > 0) {
-    nodeGraphTripEarProtection({ source: "render", protectionMuteCount });
+    nodeGraphTripEarProtection({
+      nodeId: runtime.lastSpeakerProtection?.nodeId || "",
+      protectionPeak: Number(runtime.speakerProtectionPeak) || 0,
+      source: "render",
+      protectionMuteCount,
+    });
     nodeGraphMvp.rendered = null;
     return;
   }

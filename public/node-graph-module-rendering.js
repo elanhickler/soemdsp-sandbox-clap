@@ -134,15 +134,16 @@ function createNodeGraphModuleElement(type, node) {
   const outputPorts = nodeGraphPatchNodeOutputPorts(patchNode).filter(
     (port) => !parameterDefinitions.some((parameter) => parameter.key === port),
   );
+  const layout = nodeGraphPatchNodeLayout(patchNode);
   const article = document.createElement("article");
-  article.className = `dsp-node${definition.output ? " output-node" : ""}${definition.layout === "textBox" ? " text-box-layout" : ""}${definition.layout === "image" ? " image-node-layout" : ""}${definition.layout === "canvas" ? " canvas-node-layout" : ""}${definition.layout === "visualScope" ? " visual-scope-layout" : ""}${definition.layout === "graph" ? " graph-node-layout" : ""}${definition.layout === "filterCurve" ? " filter-curve-layout" : ""}${definition.layout === "sliderWidget" ? " slider-widget-layout" : ""}${definition.layout === "moduleShop" ? " module-shop-layout" : ""}${definition.layout === "moduleHome" ? " module-home-layout" : ""}${definition.layout === "modulePlaceholder" ? " module-placeholder-layout" : ""}${definition.layout === "clapPlugin" ? " clap-plugin-layout" : ""}${definition.layout === "led" ? " led-layout" : ""}`;
+  article.className = `dsp-node${definition.output ? " output-node" : ""}${layout === "textBox" ? " text-box-layout" : ""}${layout === "image" ? " image-node-layout" : ""}${definition.layout === "canvas" ? " canvas-node-layout" : ""}${layout === "visualScope" ? " visual-scope-layout" : ""}${layout === "graph" ? " graph-node-layout" : ""}${layout === "filterCurve" ? " filter-curve-layout" : ""}${layout === "sliderWidget" ? " slider-widget-layout" : ""}${layout === "moduleShop" ? " module-shop-layout" : ""}${layout === "moduleHome" ? " module-home-layout" : ""}${layout === "modulePlaceholder" ? " module-placeholder-layout" : ""}${layout === "keyboardController" ? " keyboard-controller-layout" : ""}${layout === "macroControls" ? " macro-controls-layout" : ""}${layout === "pitchModWheel" ? " pitch-mod-wheel-layout" : ""}${layout === "speakerProtection" ? " speaker-protection-layout" : ""}${layout === "clapPlugin" ? " clap-plugin-layout" : ""}${layout === "led" ? " led-layout" : ""}`;
   article.dataset.node = node;
   article.dataset.nodeType = type;
   article.dataset.portSignature = `${inputPorts.join(",")}=>${outputPorts.join(",")}`;
   article.style.setProperty("--node-grid-width-units", String(nodeGraphPatchNodeGridWidthUnits(patchNode)));
   article.style.setProperty("--node-grid-height-units", String(nodeGraphPatchNodeGridHeightUnits(patchNode)));
 
-  if (definition.layout === "led") {
+  if (layout === "led") {
     const ledFace = createNodeGraphLedFace(node, type);
     article.append(ledFace);
     registerNodeGraphModuleScopeSlot(article, {
@@ -154,11 +155,11 @@ function createNodeGraphModuleElement(type, node) {
   } else {
     article.append(createNodeGraphModuleHeader(type, node, definition));
   }
-  if (definition.layout === "led") {
+  if (layout === "led") {
     // Compact LED body is the whole module face.
-  } else if (definition.layout === "textBox") {
+  } else if (layout === "textBox") {
     article.append(createNodeGraphTextBoxBody(node));
-  } else if (definition.layout === "image") {
+  } else if (layout === "image") {
     article.append(createNodeGraphImageBody(node));
     const ioSection = document.createElement("div");
     ioSection.className = "dsp-node-io-section";
@@ -167,7 +168,11 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.append(outputColumn || document.createElement("div"));
     article.append(ioSection);
   } else if (definition.layout === "canvas") {
-    article.append(createNodeGraphCanvasBody(node));
+    const canvasBody = createNodeGraphCanvasBody(node);
+    if (layout === "visualScope") {
+      canvasBody.classList.add("node-module-square-scope-window");
+    }
+    article.append(canvasBody);
     const ioSection = document.createElement("div");
     ioSection.className = "dsp-node-io-section";
     const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
@@ -175,7 +180,7 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
     article.append(ioSection);
-  } else if (definition.layout === "visualScope") {
+  } else if (layout === "visualScope") {
     const scopeSection = createNodeGraphModuleScopeSection(node, type);
     scopeSection.classList.add("node-module-square-scope-window");
     article.append(scopeSection);
@@ -215,6 +220,21 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(outputColumn || document.createElement("div"));
     article.append(ioSection);
+  } else if (definition.layout === "keyboardController" || definition.layout === "macroControls" || definition.layout === "pitchModWheel") {
+    if (definition.layout === "keyboardController") {
+      article.append(createNodeGraphKeyboardControllerBody(node));
+    } else if (definition.layout === "macroControls") {
+      article.append(createNodeGraphMacroControlsBody(node));
+    } else {
+      article.append(createNodeGraphPitchModWheelBody(node));
+    }
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
   } else if (definition.layout === "moduleShop") {
     article.append(createNodeGraphModuleShopBody(node));
   } else if (definition.layout === "moduleHome") {
@@ -223,6 +243,15 @@ function createNodeGraphModuleElement(type, node) {
     const label = type === "moduleGoods" ? "Goods" : "Services";
     const note = type === "moduleGoods" ? "Placeholder catalog shelf" : "Placeholder workbench shelf";
     article.append(createNodeGraphModulePlaceholderBody(node, label, note));
+  } else if (layout === "speakerProtection") {
+    article.append(createNodeGraphSpeakerProtectionBody(node));
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
   } else if (definition.layout === "clapPlugin") {
     if (typeof createNodeGraphClapPluginBody === "function") {
       article.append(createNodeGraphClapPluginBody(node));

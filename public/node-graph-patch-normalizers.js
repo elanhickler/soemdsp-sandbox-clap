@@ -70,25 +70,20 @@ blend.mode      = laser;`;
 const nodeGraphScopeShaderVisualOscilloscopeDefaultSource = nodeGraphScopeShaderDefaultSource
   .replace("scope.mode      = 1d_full;", "scope.mode      = x_y;");
 
-const nodeGraphCanvasScriptDefaultSource = `canvas.size(1024, 1024);
-canvas.background = transparent;
-bufferInput("A");
-bufferInput("B");
-bufferInput("X");
-bufferInput("Y");
-bufferInput("Opacity");
+const nodeGraphCanvasScriptDefaultSource = `canvas.ratio(1, 1);
+canvas.background = #00000000;
+canvas.layout = oscilloscope;
+canvas.grid(7, 12);
+canvas.face.background = checkerboard;
+canvas.face.screen = #000000;
+bufferInput("a_buffer");
+input("a not buffer");
 
-layer("A").input   = A;
-layer("A").x       = 0.5;
-layer("A").y       = 0.5;
-layer("A").scale   = 1.0;
-layer("A").opacity = 1.0;
-
-layer("B").input   = B;
-layer("B").x       = 0.5;
-layer("B").y       = 0.5;
-layer("B").scale   = 1.0;
-layer("B").opacity = 0.5;
+layer("a_buffer").input   = a_buffer;
+layer("a_buffer").x       = 0.5;
+layer("a_buffer").y       = 0.5;
+layer("a_buffer").scale   = 1.0;
+layer("a_buffer").opacity = 1.0;
 
 output = canvas;`;
 
@@ -193,15 +188,52 @@ function normalizeNodeGraphScopeShader(scopeShader = {}) {
   };
 }
 
-function parseNodeGraphCanvasScriptSize(source = "") {
-  const match = String(source || "").match(/(?:^|\n)\s*canvas\.size\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*;/i);
-  const normalizeDimension = (value) => {
+function normalizeNodeGraphCanvasScriptRatioValue(value, fallback = 1) {
+  const number = Math.round(Number(value));
+  const safeFallback = Math.max(1, Math.round(Number(fallback)) || 1);
+  return Number.isFinite(number) ? Math.max(1, Math.min(1000, number)) : safeFallback;
+}
+
+function reduceNodeGraphCanvasScriptRatio(width, height) {
+  let a = normalizeNodeGraphCanvasScriptRatioValue(width);
+  let b = normalizeNodeGraphCanvasScriptRatioValue(height);
+  const gcd = (x, y) => y ? gcd(y, x % y) : x;
+  const divisor = gcd(a, b) || 1;
+  a = Math.max(1, Math.round(a / divisor));
+  b = Math.max(1, Math.round(b / divisor));
+  return {
+    aspectRatio: a / b,
+    ratioHeight: b,
+    ratioWidth: a,
+  };
+}
+
+function parseNodeGraphCanvasScriptRatio(source = "") {
+  const text = String(source || "");
+  const ratioCall = text.match(/(?:^|\n)\s*canvas\.ratio\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*;/i);
+  if (ratioCall) {
+    return reduceNodeGraphCanvasScriptRatio(ratioCall[1], ratioCall[2]);
+  }
+  const ratioAssignment = text.match(/(?:^|\n)\s*canvas\.ratio\s*=\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\s*;/i);
+  if (ratioAssignment) {
+    return reduceNodeGraphCanvasScriptRatio(ratioAssignment[1], ratioAssignment[2]);
+  }
+  const legacySize = text.match(/(?:^|\n)\s*canvas\.size\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*;/i);
+  if (legacySize) {
+    return reduceNodeGraphCanvasScriptRatio(legacySize[1], legacySize[2]);
+  }
+  return reduceNodeGraphCanvasScriptRatio(1, 1);
+}
+
+function parseNodeGraphCanvasScriptGrid(source = "") {
+  const match = String(source || "").match(/(?:^|\n)\s*canvas\.grid\s*\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*;/i);
+  const normalizeGridUnit = (value) => {
     const number = Math.round(Number(value));
-    return Number.isFinite(number) ? Math.max(1, Math.min(4096, number)) : 1024;
+    return Number.isFinite(number) ? Math.max(1, Math.min(24, number)) : null;
   };
   return {
-    height: normalizeDimension(match?.[2]),
-    width: normalizeDimension(match?.[1]),
+    heightGu: normalizeGridUnit(match?.[2]),
+    widthGu: normalizeGridUnit(match?.[1]),
   };
 }
 
@@ -223,6 +255,21 @@ function normalizeNodeGraphCanvasScriptScalar(value = "", fallback = 0, min = -I
 function normalizeNodeGraphCanvasScriptToken(value = "", fallback = "") {
   const text = String(value || "").trim();
   return text.replace(/^["']|["']$/g, "") || fallback;
+}
+
+function normalizeNodeGraphCanvasScriptHexColor(value = "", fallback = "#00000000", options = {}) {
+  const text = normalizeNodeGraphCanvasScriptToken(value, fallback).toLowerCase();
+  if (options.allowCheckerboard && text === "checkerboard") {
+    return "checkerboard";
+  }
+  return /^#[0-9a-f]{3}(?:[0-9a-f]{1})?$|^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(text)
+    ? text
+    : fallback;
+}
+
+function nodeGraphCanvasScriptColorIsTransparent(value = "") {
+  const text = String(value || "").trim().toLowerCase();
+  return text === "#0000" || /^[#][0-9a-f]{6}00$/i.test(text);
 }
 
 function normalizeNodeGraphBufferedInputName(value = "") {
@@ -251,9 +298,46 @@ function parseNodeGraphCanvasScriptBufferedInputs(source = "", allowedPorts = []
   return normalizeNodeGraphBufferedInputList(names, allowedPorts);
 }
 
+function parseNodeGraphCanvasScriptInputs(source = "") {
+  const names = [];
+  const text = String(source || "");
+  for (const match of text.matchAll(/(?:^|\n)\s*(?:bufferInput|input)\s*\(\s*([^)\n]+?)\s*\)\s*;/gi)) {
+    names.push(normalizeNodeGraphCanvasScriptToken(match[1], ""));
+  }
+  return normalizeNodeGraphBufferedInputList(names);
+}
+
 function parseNodeGraphCanvasScriptBackground(source = "") {
   const match = String(source || "").match(/(?:^|\n)\s*canvas\.background\s*=\s*([^;\n]+)\s*;/i);
-  return normalizeNodeGraphCanvasScriptToken(match?.[1], "transparent").slice(0, 64);
+  return normalizeNodeGraphCanvasScriptHexColor(match?.[1], "#00000000").slice(0, 64);
+}
+
+function parseNodeGraphCanvasScriptLayout(source = "") {
+  const match = String(source || "").match(/(?:^|\n)\s*canvas\.layout\s*=\s*([^;\n]+)\s*;/i);
+  const layout = normalizeNodeGraphCanvasScriptToken(match?.[1], "canvas").toLowerCase();
+  if (layout === "oscilloscope" || layout === "scope" || layout === "visualscope") {
+    return "oscilloscope";
+  }
+  return "canvas";
+}
+
+function parseNodeGraphCanvasScriptFace(source = "", canvasBackground = "#00000000") {
+  const text = String(source || "");
+  const token = (property, fallback = "", options = {}) => {
+    const match = text.match(new RegExp(`(?:^|\\n)\\s*canvas\\.face\\.${property}\\s*=\\s*([^;\\n]+)\\s*;`, "i"));
+    return normalizeNodeGraphCanvasScriptHexColor(match?.[1], fallback, options).slice(0, 64);
+  };
+  const fitMatch = text.match(/(?:^|\n)\s*canvas\.face\.fit\s*=\s*([^;\n]+)\s*;/i);
+  const fit = normalizeNodeGraphCanvasScriptToken(fitMatch?.[1], "contain").toLowerCase();
+  return {
+    background: token("background", "#000000", { allowCheckerboard: true }),
+    fit: fit === "stretch" || fit === "fill" ? "stretch" : "contain",
+    screen: token(
+      "screen",
+      nodeGraphCanvasScriptColorIsTransparent(canvasBackground) ? "#000000" : canvasBackground,
+      { allowCheckerboard: true },
+    ),
+  };
 }
 
 function parseNodeGraphCanvasScriptOutput(source = "") {
@@ -307,15 +391,25 @@ function parseNodeGraphCanvasScriptLayers(source = "") {
 
 function parseNodeGraphCanvasScriptModel(source = "") {
   const normalizedSource = String(source || "").trim() || nodeGraphCanvasScriptDefaultSource;
-  const size = parseNodeGraphCanvasScriptSize(normalizedSource);
-  const canvasPorts = nodeGraphModuleDefinitions?.canvas?.inputs || [];
+  const ratio = parseNodeGraphCanvasScriptRatio(normalizedSource);
+  const grid = parseNodeGraphCanvasScriptGrid(normalizedSource);
+  const background = parseNodeGraphCanvasScriptBackground(normalizedSource);
+  const face = parseNodeGraphCanvasScriptFace(normalizedSource, background);
   return {
-    background: parseNodeGraphCanvasScriptBackground(normalizedSource),
-    bufferedInputs: parseNodeGraphCanvasScriptBufferedInputs(normalizedSource, canvasPorts),
-    height: size.height,
+    aspectRatio: ratio.aspectRatio,
+    background,
+    bufferedInputs: parseNodeGraphCanvasScriptBufferedInputs(normalizedSource),
+    faceBackground: face.background,
+    faceFit: face.fit,
+    faceScreen: face.screen,
+    gridHeightGu: grid.heightGu,
+    gridWidthGu: grid.widthGu,
+    inputs: parseNodeGraphCanvasScriptInputs(normalizedSource),
+    layout: parseNodeGraphCanvasScriptLayout(normalizedSource),
     layers: parseNodeGraphCanvasScriptLayers(normalizedSource),
     output: parseNodeGraphCanvasScriptOutput(normalizedSource),
-    width: size.width,
+    ratioHeight: ratio.ratioHeight,
+    ratioWidth: ratio.ratioWidth,
   };
 }
 
@@ -329,17 +423,25 @@ function normalizeNodeGraphCanvasScript(canvasScript = {}) {
   const normalizedSource = String(source || "").trim().slice(0, 100000);
   const model = parseNodeGraphCanvasScriptModel(normalizedSource || nodeGraphCanvasScriptDefaultSource);
   return {
+    aspectRatio: model.aspectRatio,
     background: model.background,
     bufferedInputs: model.bufferedInputs,
     bufferSampleLimit: nodeGraphBufferedInputSampleLimit,
     enabled: canvasScript?.enabled !== false,
-    height: model.height,
+    faceBackground: model.faceBackground,
+    faceFit: model.faceFit,
+    faceScreen: model.faceScreen,
+    gridHeightGu: model.gridHeightGu,
+    gridWidthGu: model.gridWidthGu,
+    inputs: model.inputs,
     kind: "canvasScript",
     language,
+    layout: model.layout,
     layers: model.layers,
     output: model.output,
+    ratioHeight: model.ratioHeight,
+    ratioWidth: model.ratioWidth,
     source: normalizedSource || nodeGraphCanvasScriptDefaultSource,
-    width: model.width,
   };
 }
 

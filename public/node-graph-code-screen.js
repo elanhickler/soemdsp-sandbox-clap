@@ -4879,15 +4879,16 @@ function nodeGraphCodeScreenWorkspaceVisualApi() {
 
 function nodeGraphCodeScreenWorkspaceCanvasApi() {
   const cloneScript = (script) => ({
+    aspectRatio: script.aspectRatio,
     background: script.background,
     enabled: script.enabled,
-    height: script.height,
     kind: script.kind,
     language: script.language,
     layers: (script.layers || []).map((layer) => ({ ...layer })),
     output: script.output,
+    ratioHeight: script.ratioHeight,
+    ratioWidth: script.ratioWidth,
     source: script.source,
-    width: script.width,
   });
   return {
     layers(source = "") {
@@ -4902,7 +4903,7 @@ function nodeGraphCodeScreenWorkspaceCanvasApi() {
       const lines = [
         "# Canvas Script",
         "",
-        `size: ${model.width} x ${model.height}`,
+        `ratio: ${model.ratioWidth}:${model.ratioHeight}`,
         `background: ${model.background}`,
         `output: ${model.output}`,
         `layers: ${model.layers.length}`,
@@ -4928,7 +4929,7 @@ function nodeGraphCodeScreenWorkspaceCanvasApi() {
       return {
         canvasScript: script,
         id: normalizeNodeGraphCodeScreenId(name, "canvas"),
-        inputs: ["A", "B", "X", "Y", "Opacity"],
+        inputs: script.inputs,
         outputs: ["RGBA"],
         runtime: "plan only",
         title: name,
@@ -8049,7 +8050,7 @@ function nodeGraphCodeScreenLibraryDemoScript() {
     "  console.test(\"items filter found lead note\", leadItems.length === 1),",
     "  console.test(\"canvas starter parsed layers\", canvasLayers.length >= 2),",
     "  console.test(\"canvas module has RGBA output\", canvasModule.outputs.includes(\"RGBA\")),",
-    "  console.test(\"canvas markdown names size\", canvasMarkdown.includes(\"size: 1024 x 1024\")),",
+    "  console.test(\"canvas markdown names ratio\", canvasMarkdown.includes(\"ratio: 1:1\")),",
     "  console.test(\"watch snapshot copied\", leadSnapshot.tags.note === \"C3\"),",
     "  console.test(\"watch diff changed\", itemSummaryDelta.changed === true),",
     "  console.test(\"watch vars returned named values\", demoVars.itemSummary.total === 3 && demoVars.velocityCounts.hard === 1),",

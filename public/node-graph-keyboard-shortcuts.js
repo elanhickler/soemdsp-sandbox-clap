@@ -32,6 +32,38 @@ function nudgeSelectedNodeGraphModulesOnGrid(axis, direction) {
   return true;
 }
 
+function nodeGraphCanvasScriptSourceWithGridUnits(source, widthGu, heightGu) {
+  const nextWidthGu = normalizeNodeGraphModuleWidthUnits("canvas", widthGu);
+  const nextHeightGu = normalizeNodeGraphModuleHeightUnits("canvas", heightGu);
+  const gridLine = `canvas.grid(${nextWidthGu}, ${nextHeightGu});`;
+  const baseSource = String(source || nodeGraphCanvasScriptDefaultSource || "").trim();
+  const gridPattern = /(^|\n)\s*canvas\.grid\s*\(\s*[-+]?\d+(?:\.\d+)?\s*,\s*[-+]?\d+(?:\.\d+)?\s*\)\s*;?/i;
+  if (gridPattern.test(baseSource)) {
+    return baseSource.replace(gridPattern, (match, prefix) => `${prefix}${gridLine}`);
+  }
+  return `${gridLine}\n${baseSource}`;
+}
+
+function resizeNodeGraphCanvasModuleOnGrid(patchNode, axis, delta) {
+  const canvasScript = normalizeNodeGraphCanvasScript(patchNode.canvasScript);
+  const currentWidthGu = nodeGraphPatchNodeGridWidthUnits(patchNode);
+  const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(patchNode);
+  const nextWidthGu = axis === "width"
+    ? normalizeNodeGraphModuleWidthUnits("canvas", currentWidthGu + delta)
+    : currentWidthGu;
+  const nextHeightGu = axis === "height"
+    ? normalizeNodeGraphModuleHeightUnits("canvas", currentHeightGu + delta, patchNode.ui)
+    : currentHeightGu;
+  if (nextWidthGu === currentWidthGu && nextHeightGu === currentHeightGu) {
+    return false;
+  }
+  const source = nodeGraphCanvasScriptSourceWithGridUnits(canvasScript.source, nextWidthGu, nextHeightGu);
+  patchNode.canvasScript = normalizeNodeGraphCanvasScript({ ...canvasScript, source });
+  delete patchNode.widthGu;
+  delete patchNode.heightGu;
+  return true;
+}
+
 function resizeSelectedNodeGraphModulesOnGrid(axis, delta) {
   const selectedNodeIds = new Set([...nodeGraphSelectedNodeIds()].filter((id) =>
     nodeGraphMvp.activeNodes.has(id),
@@ -44,6 +76,13 @@ function resizeSelectedNodeGraphModulesOnGrid(axis, delta) {
   let changedCount = 0;
   for (const patchNode of patch.nodes) {
     if (!selectedNodeIds.has(patchNode.id)) {
+      continue;
+    }
+
+    if (patchNode.type === "canvas") {
+      if (resizeNodeGraphCanvasModuleOnGrid(patchNode, axis, delta)) {
+        changedCount += 1;
+      }
       continue;
     }
 

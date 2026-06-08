@@ -61,19 +61,9 @@ function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) 
     }
   };
   if (inputButton) {
-    const inputUnderConstruction = nodeGraphLiveInputIsUnderConstruction();
     const deviceSelect = document.getElementById("nodeLiveInputDeviceSelect");
-    inputButton.classList.toggle("node-under-construction-control", inputUnderConstruction);
-    inputButton.disabled = inputUnderConstruction;
-    inputButton.setAttribute("aria-disabled", inputUnderConstruction ? "true" : "false");
     if (deviceSelect) {
-      deviceSelect.disabled = inputUnderConstruction;
-    }
-    if (inputUnderConstruction && (nodeGraphMvp.live.inputActive || nodeGraphMvp.live.inputStream)) {
-      nodeGraphMvp.live.inputActive = false;
-      stopNodeGraphLiveInputSource();
-      setNodeGraphLiveInputStatus("off", "Live INPUT is under construction.");
-      setNodeGraphLiveMicStatus("off", "Live INPUT is under construction.");
+      deviceSelect.disabled = false;
     }
     const inputActive = Boolean(nodeGraphMvp.live.inputActive);
     const inputStreaming = Boolean(nodeGraphMvp.live.inputStream);
@@ -104,14 +94,14 @@ function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) 
     }
     inputButton.classList.toggle("active", inputActive);
     inputButton.setAttribute("aria-pressed", inputActive ? "true" : "false");
-    labelLiveToggle(inputButton, "Input", inputActive, inputUnderConstruction ? "Under Construction" : null);
-    inputButton.title = inputUnderConstruction
-      ? nodeGraphTooltipText("audio.liveInputUnderConstruction")
-      : inputStreaming
-        ? nodeGraphTooltipText("audio.liveInputConnected")
-        : inputActive
-          ? nodeGraphTooltipText("audio.liveInputVisible")
-          : nodeGraphTooltipText("audio.liveInputShow");
+    inputButton.disabled = false;
+    inputButton.setAttribute("aria-disabled", "false");
+    labelLiveToggle(inputButton, "Input", inputActive);
+    inputButton.title = inputStreaming
+      ? nodeGraphTooltipText("audio.liveInputConnected")
+      : inputActive
+        ? nodeGraphTooltipText("audio.liveInputVisible")
+        : nodeGraphTooltipText("audio.liveInputShow");
   }
   if (outputButton) {
     const protectionTripped = nodeGraphEarProtectionIsTripped();

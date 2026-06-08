@@ -209,17 +209,6 @@ function nodeGraphRgbaOutputDataUrlForConnection(connection, visited = new Set()
   return "";
 }
 
-function nodeGraphDrawCanvasLayerPlaceholder(context, surface, layer, index) {
-  const hue = (index * 67) % 360;
-  const width = surface.width * 0.36 * layer.scale;
-  const height = surface.height * 0.36 * layer.scale;
-  context.fillStyle = `hsl(${hue} 76% 58%)`;
-  context.strokeStyle = "rgba(243, 241, 236, 0.72)";
-  context.lineWidth = Math.max(1, Math.min(surface.width, surface.height) * 0.008);
-  context.fillRect(-width * 0.5, -height * 0.5, width, height);
-  context.strokeRect(-width * 0.5, -height * 0.5, width, height);
-}
-
 function nodeGraphDrawCanvasLayerImage(context, surface, layer, image) {
   const width = surface.width * Math.max(0, layer.scale);
   const height = surface.height * Math.max(0, layer.scale);
@@ -238,14 +227,14 @@ function nodeGraphCanvasOutputDataUrl(nodeId, visited = new Set()) {
   const script = nodeGraphCanvasScriptForNode(node);
   const surface = document.createElement("canvas");
   const maxDimension = 512;
-  const scale = Math.min(1, maxDimension / Math.max(script.width, script.height, 1));
-  surface.width = Math.max(1, Math.round(script.width * scale));
-  surface.height = Math.max(1, Math.round(script.height * scale));
+  const aspect = Math.max(0.001, Number(script.aspectRatio) || 1);
+  surface.width = Math.max(1, Math.round(aspect >= 1 ? maxDimension : maxDimension * aspect));
+  surface.height = Math.max(1, Math.round(aspect >= 1 ? maxDimension / aspect : maxDimension));
   const context = surface.getContext("2d");
   if (!context) {
     return "";
   }
-  if (script.background === "black" || script.background === "white" || /^#[0-9a-f]{6}$/i.test(script.background)) {
+  if (/^#[0-9a-f]{3}(?:[0-9a-f]{1})?$|^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(script.background)) {
     context.fillStyle = script.background;
     context.fillRect(0, 0, surface.width, surface.height);
   }
@@ -257,16 +246,18 @@ function nodeGraphCanvasOutputDataUrl(nodeId, visited = new Set()) {
     const x = surface.width * layer.x;
     const y = surface.height * layer.y;
     const connection = nodeGraphCanvasLayerSourceConnection(nodeId, layer.input);
+    if (!connection) {
+      return;
+    }
     const image = nodeGraphImageElementForDataUrl(nodeGraphRgbaOutputDataUrlForConnection(connection, visited));
+    if (!image?.complete || image.naturalWidth <= 0) {
+      return;
+    }
     context.save();
     context.translate(x, y);
     context.rotate((Number(layer.rotation) || 0) * Math.PI / 180);
     context.globalAlpha = Math.max(0, Math.min(1, layer.opacity));
-    if (image?.complete && image.naturalWidth > 0) {
-      nodeGraphDrawCanvasLayerImage(context, surface, layer, image);
-    } else {
-      nodeGraphDrawCanvasLayerPlaceholder(context, surface, layer, index);
-    }
+    nodeGraphDrawCanvasLayerImage(context, surface, layer, image);
     context.restore();
   });
   visited.delete(nodeId);
@@ -301,6 +292,10 @@ function createNodeGraphCanvasBody(nodeId) {
   preview.dataset.nodeCanvasPreview = nodeId;
   preview.setAttribute("aria-label", "Canvas preview");
 
+  const frame = document.createElement("div");
+  frame.className = "node-canvas-frame";
+  frame.dataset.nodeCanvasFrame = nodeId;
+
   const layers = document.createElement("div");
   layers.className = "node-canvas-layers";
   layers.dataset.nodeCanvasLayers = nodeId;
@@ -310,7 +305,8 @@ function createNodeGraphCanvasBody(nodeId) {
   status.dataset.nodeCanvasStatus = nodeId;
   status.textContent = "canvas";
 
-  preview.append(layers, status);
+  frame.append(layers, status);
+  preview.append(frame);
   body.append(preview);
   renderNodeGraphCanvasBody(body, nodeId);
   return body;
@@ -318,14 +314,27 @@ function createNodeGraphCanvasBody(nodeId) {
 
 function renderNodeGraphCanvasBody(body, nodeId = body?.dataset?.node) {
   const preview = body?.querySelector?.("[data-node-canvas-preview]");
+  const frame = body?.querySelector?.("[data-node-canvas-frame]");
   const layers = body?.querySelector?.("[data-node-canvas-layers]");
   const status = body?.querySelector?.("[data-node-canvas-status]");
-  if (!preview || !layers || !status || !nodeId) {
+  if (!preview || !frame || !layers || !status || !nodeId) {
     return;
   }
   const script = nodeGraphCanvasScriptForNode(nodeId);
-  preview.dataset.canvasBackground = script.background || "transparent";
-  layers.replaceChildren(...(script.layers || []).map((layer, index) => {
+  const aspect = Math.max(0.001, Number(script.aspectRatio) || 1);
+  preview.dataset.canvasFaceBackground = script.faceBackground === "checkerboard" ? "checkerboard" : "color";
+  frame.dataset.canvasScreenBackground = script.faceScreen === "checkerboard" ? "checkerboard" : "color";
+  frame.dataset.canvasScreenFit = script.faceFit || "contain";
+  preview.style.setProperty("--node-canvas-face-background", script.faceBackground === "checkerboard" ? "#000000" : script.faceBackground || "#000000");
+  frame.style.setProperty("--node-canvas-screen-background", script.faceScreen === "checkerboard" ? "#000000" : script.faceScreen || "#000000");
+  frame.style.setProperty("--node-canvas-aspect", String(aspect));
+  const visibleLayers = (script.layers || []).filter((layer) =>
+    layer.visible !== false &&
+    layer.opacity > 0 &&
+    layer.scale > 0 &&
+    nodeGraphCanvasLayerSourceConnection(nodeId, layer.input),
+  );
+  layers.replaceChildren(...visibleLayers.map((layer, index) => {
     const element = document.createElement("span");
     element.className = "node-canvas-layer";
     element.dataset.layer = layer.id;
@@ -338,7 +347,7 @@ function renderNodeGraphCanvasBody(body, nodeId = body?.dataset?.node) {
     element.style.setProperty("--node-canvas-layer-hue", String((index * 67) % 360));
     return element;
   }));
-  status.textContent = `${script.width} x ${script.height} ${script.output || "canvas"} (${script.layers.length} layers)`;
+  status.textContent = `${script.ratioWidth}:${script.ratioHeight} ${script.output || "canvas"}`;
 }
 
 function refreshNodeGraphCanvasBodies() {

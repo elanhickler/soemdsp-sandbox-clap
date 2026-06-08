@@ -61,6 +61,7 @@ const nodeGraphNodeLabels = Object.freeze({
   canvas: "Canvas",
   led: "LED",
   visualOscilloscope: "Oscilloscope",
+  speakerProtection: "Speaker Protection",
   badvalMonitor: "BADVAL Monitor",
   textBox: "Text Box",
   output: "Output",
@@ -1144,6 +1145,8 @@ const nodeGraphModuleDefinitions = Object.freeze({
     parameters: [],
   },
   keyboardController: {
+    inputs: ["MIDI Note", "Gate", "Velocity", "Octave", "Reset", "Hold", "X", "Y"],
+    layout: "keyboardController",
     outputs: ["Gate", "1 Sample Gate", "Key", "Q", "MIDI", "Double", "0.1V/Oct", "Increment", "Frequency", "Pitch", "X", "Y"],
     parameters: [],
   },
@@ -1177,10 +1180,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   macroControls: {
+    inputs: ["M1 In", "M2 In", "M3 In", "M4 In", "M5 In", "M6 In", "M7 In", "M8 In", "M9 In", "M10 In", "Reset"],
+    layout: "macroControls",
     outputs: ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10"],
     parameters: [],
   },
   pitchModWheel: {
+    inputs: ["Pitch", "Mod", "Reset"],
+    layout: "pitchModWheel",
     outputs: ["Pitch Wheel", "Mod Wheel"],
     parameters: [],
   },
@@ -1470,14 +1477,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
     parameters: [],
   },
   canvas: {
-    bufferedInputs: ["A", "B", "X", "Y", "Opacity"],
-    inputs: ["A", "B", "X", "Y", "Opacity"],
+    bufferedInputs: ["a_buffer"],
+    inputs: ["a_buffer", "a not buffer"],
     layout: "canvas",
     outputs: ["RGBA"],
     parameters: [],
     visualInputs: [
-      { key: "canvasA", label: "A", port: "A" },
-      { key: "canvasB", label: "B", port: "B" },
+      { key: "canvasABuffer", label: "a_buffer", port: "a_buffer" },
+      { key: "canvasANotBuffer", label: "a not buffer", port: "a not buffer" },
     ],
     visualSink: true,
   },
@@ -1492,6 +1499,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     visualSink: true,
   },
   visualOscilloscope: {
+    bufferedInputs: ["In", "X", "Y"],
     inputs: ["In", "X", "Y"],
     layout: "visualScope",
     outputs: ["RGBA"],
@@ -1507,6 +1515,12 @@ const nodeGraphModuleDefinitions = Object.freeze({
     inputs: ["In"],
     outputs: ["Out"],
     monitorSink: true,
+    parameters: [],
+  },
+  speakerProtection: {
+    inputs: ["In"],
+    layout: "speakerProtection",
+    outputs: ["Out"],
     parameters: [],
   },
   textBox: {
@@ -1568,6 +1582,18 @@ const nodeGraphPatchFormat = Object.freeze({
 function nodeGraphModuleVisualInputs(type) {
   const inputs = nodeGraphModuleDefinitions[type]?.visualInputs;
   return Array.isArray(inputs) ? inputs.map((input) => ({ ...input })) : [];
+}
+
+function nodeGraphPatchNodeVisualInputs(node) {
+  const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
+  if (patchNode?.type === "canvas") {
+    return nodeGraphPatchNodeInputPorts(patchNode).map((port) => ({
+      key: `canvas:${port}`,
+      label: port,
+      port,
+    }));
+  }
+  return nodeGraphModuleVisualInputs(patchNode?.type);
 }
 
 function nodeGraphModuleBufferedInputs(type) {

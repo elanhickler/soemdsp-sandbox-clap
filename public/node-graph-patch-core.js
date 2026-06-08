@@ -551,6 +551,12 @@ function applyNodeGraphPatchToDom() {
     }
   }
   syncNodeGraphInputModuleLiveState();
+  if (typeof bindNodeGraphMacroControlModuleEvents === "function") {
+    bindNodeGraphMacroControlModuleEvents();
+  }
+  if (typeof renderNodeGraphKeyboardControllerModules === "function") {
+    renderNodeGraphKeyboardControllerModules();
+  }
   if (typeof renderNodeGraphCameraView === "function") {
     renderNodeGraphCameraView();
   }

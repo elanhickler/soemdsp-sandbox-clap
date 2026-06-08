@@ -148,6 +148,7 @@ function nodeGraphConsumeEarProtectionPatchRecovery() {
 }
 
 function nodeGraphApplyEarProtectionFaultUi(details = {}) {
+  globalThis.nodeGraphEarProtectionDetails = { ...details };
   document.body?.classList.add("node-ear-protection-tripped");
 
   const detail = document.getElementById("nodeEarProtectionFaultDetail");
@@ -198,6 +199,9 @@ function nodeGraphApplyEarProtectionFaultUi(details = {}) {
     }
     if (typeof renderNodeGraphLiveControls === "function") {
       renderNodeGraphLiveControls(false);
+    }
+    if (typeof refreshNodeGraphSpeakerProtectionBodies === "function") {
+      refreshNodeGraphSpeakerProtectionBodies();
     }
   } catch (_error) {
     // Status surfaces are helpful but not required for the safety latch.
