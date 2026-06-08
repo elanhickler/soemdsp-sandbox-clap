@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=wire-hit-selection-1">
+  <link rel="stylesheet" href="./public/styles.css?v=scope-gpu-metrics-1">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
@@ -57,27 +57,6 @@
       </div>
     </section>
 
-    <section class="node-clap-host-strip" aria-label="CLAP host connection">
-      <div>
-        <span id="nodeClapHostStatus" class="warn">CLAP Host: Disconnected</span>
-        <small id="nodeClapHostDetail">run the local companion, then connect</small>
-      </div>
-      <label class="node-clap-host-url-control">
-        <span>Host</span>
-        <input
-          id="nodeClapHostUrl"
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
-          value="http://127.0.0.1:47991"
-          aria-label="CLAP host URL">
-      </label>
-      <button id="nodeClapHostConnectButton" type="button">Connect Local Host</button>
-      <button id="nodeClapHostPluginsButton" type="button" disabled>Refresh Plugins</button>
-      <button id="nodeClapHostDiagnosticsButton" type="button">Diagnostics</button>
-      <button id="nodeClapHostCommandButton" type="button">Copy Host Command</button>
-    </section>
-
     <section id="nodeWiringPanel" class="panel node-wiring-panel" aria-label="Node wiring MVP">
       <div class="node-view-toolbar" aria-label="Modular view mode">
         <div class="node-view-tabs" role="group" aria-label="Node graph view">
@@ -86,6 +65,12 @@
             type="button"
             aria-label="Patch settings"
             aria-pressed="false">&#9881;</button>
+          <button
+            id="nodeModuleShopButton"
+            class="node-module-shop-button"
+            type="button"
+            hidden
+            aria-pressed="false"><span>Module</span><span>Browser</span></button>
           <span class="node-modular-view-button-group" role="group" aria-label="Modular view mode">
             <button
               id="nodeModularViewButton"
@@ -97,10 +82,7 @@
               type="button"
               aria-pressed="false"><span>Modular</span><span>Only</span></button>
           </span>
-          <button
-            id="nodeCodeScreenViewButton"
-            type="button"
-            aria-pressed="false"><span>Code</span><span>Screen</span></button>
+          <button id="nodeGlobalScopeMenuButton" type="button" aria-pressed="false"><span>Oscilloscope</span><span>Settings</span></button>
           <button
             id="nodeUiViewButton"
             type="button"
@@ -108,18 +90,12 @@
           <button
             id="nodeVideoViewButton"
             type="button"
-            aria-label="Show Camera View"
-            aria-pressed="false"><span>Show</span><span>Camera View</span></button>
-          <button
-            id="nodeMappingViewButton"
-            type="button"
-            aria-pressed="false"><span>Mapping</span></button>
-          <button
-            id="nodeModuleShopButton"
-            class="node-module-shop-button"
-            type="button"
-            hidden
-            aria-pressed="false"><span>Module</span><span>Browser</span></button>
+            aria-label="Camera"
+            aria-pressed="false"><span>Camera</span></button>
+          <span id="nodeWorldPositionReadout" class="node-world-position-readout" aria-label="World position" aria-live="polite">
+            <span>X 0</span>
+            <span>Y 0</span>
+          </span>
           <span class="node-zoom-controls" role="group" aria-label="Node graph zoom">
             <span class="node-zoom-label">zoom</span>
             <span class="node-zoom-buttons">
@@ -139,7 +115,6 @@
             aria-pressed="false"><span>UI</span><span>Settings</span></button>
           <span id="nodePatchTimingControls" class="node-patch-timing-controls" aria-label="Patch timing"></span>
           <button id="nodeVisibilityMenuButton" type="button" aria-pressed="false" aria-haspopup="menu">Visibility</button>
-          <button id="nodeGlobalScopeMenuButton" type="button" aria-pressed="false">Oscilloscope Settings</button>
           <a
             id="nodeDonateFiveButton"
             class="node-donate-five-button"
@@ -147,7 +122,7 @@
             target="_blank"
             rel="noopener"
             data-support-amount="10"
-            aria-label="Donate ten dollars to support Soundemote Sandbox"><span>Donate</span><span>$10</span></a>
+            aria-label="Donate ten dollars to support Soundemote Sandbox"><span>Donate$10</span></a>
           <button id="nodeShaderScriptButton" type="button" aria-pressed="false">Shader</button>
         </div>
         <div
@@ -192,6 +167,11 @@
             <strong>GPU</strong>
             <span>constrained</span>
           </label>
+          <span id="nodeScopeGpuMetrics" class="node-scope-gpu-metrics" aria-live="polite">
+            <span>scope fps <strong data-scope-gpu-metric="fps">--</strong></span>
+            <span>points <strong data-scope-gpu-metric="points">--</strong></span>
+            <span class="node-scope-gpu-debug" data-scope-gpu-debug="summary">debug --</span>
+          </span>
         </div>
       </div>
 
@@ -206,6 +186,17 @@
           aria-label="Return to full modular view"
           data-tooltip-key="workspace.backToFull">&larr;</button>
         <div id="nodeGridHeatmap" class="node-grid-heatmap" aria-hidden="true"></div>
+        <div id="nodeGraphZoomSurface" class="node-graph-zoom-surface">
+          <div id="nodeGraphOriginMarker" class="node-graph-origin-marker" aria-hidden="true" title="Grid origin: X 0, Y 0"></div>
+          <svg
+            id="nodeWireSvg"
+            class="node-wire-svg"
+            aria-hidden="true"
+            focusable="false"></svg>
+          <div id="nodeGraphNodes" class="node-graph-nodes"></div>
+          <div id="nodeCameraOverlayLayer" class="node-camera-overlay-layer" aria-hidden="true"></div>
+          <div id="nodeSelectionMarquee" class="node-selection-marquee" hidden></div>
+        </div>
         <canvas
           id="nodeModuleScopeCanvas"
           class="node-module-scope-canvas"
@@ -218,16 +209,6 @@
           id="nodeModularShaderCanvas"
           class="node-modular-shader-canvas"
           aria-hidden="true"></canvas>
-        <div id="nodeGraphZoomSurface" class="node-graph-zoom-surface">
-          <svg
-            id="nodeWireSvg"
-            class="node-wire-svg"
-            aria-hidden="true"
-            focusable="false"></svg>
-          <div id="nodeGraphNodes" class="node-graph-nodes"></div>
-          <div id="nodeCameraOverlayLayer" class="node-camera-overlay-layer" aria-hidden="true"></div>
-          <div id="nodeSelectionMarquee" class="node-selection-marquee" hidden></div>
-        </div>
         <button
           id="nodeGraphEmptyModuleButton"
           class="node-graph-empty-module-button"
@@ -626,10 +607,6 @@
         </div>
         <div class="node-script-actions" aria-label="Patch script editor actions">
           <button
-            id="saveNodeGraphScriptEditorButton"
-            type="button"
-            data-tooltip-key="script.apply">Save</button>
-          <button
             id="copyNodeGraphScriptButton"
             type="button"
             data-tooltip-key="script.copy">Copy</button>
@@ -641,10 +618,6 @@
             id="pasteNodeGraphScriptButton"
             type="button"
             data-tooltip-key="script.paste">Paste</button>
-          <button
-            id="updateDefaultPresetButton"
-            type="button"
-            data-tooltip-key="script.updateDefault">Update Default</button>
         </div>
         <div class="node-script-grid-settings" aria-label="Grid unit pixel settings">
           <label>Grid Unit W PX
@@ -757,17 +730,27 @@
               id="nodeSettingsScriptViewButton"
               type="button"
               aria-pressed="false"
-              data-tooltip-key="script.view"><span>Patch</span><span>Script</span></button>
+              data-tooltip-key="script.view"><span>View</span><span>Code</span></button>
             <button
               id="nodeSettingsSaveScriptButton"
               type="button"
               data-tooltip-key="script.save"><span>Save</span><span>Patch Script</span></button>
+            <button
+              id="updateDefaultPresetButton"
+              type="button"
+              data-tooltip-key="script.updateDefault"><span>Update</span><span>Default</span></button>
           </div>
-          <button
-            id="nodeUiDevButton"
-            type="button"
-            aria-pressed="false"
-            data-tooltip-key="settings.uiDevOpen"><span>UIDEV</span></button>
+          <div class="node-settings-view-action-group" role="group" aria-label="Developer views">
+            <button
+              id="nodeCodeScreenViewButton"
+              type="button"
+              aria-pressed="false"><span>Code</span><span>Screen</span></button>
+            <button
+              id="nodeUiDevButton"
+              type="button"
+              aria-pressed="false"
+              data-tooltip-key="settings.uiDevOpen"><span>UIDEV</span></button>
+          </div>
           <div class="node-settings-dev-action-group" role="group" aria-label="In-development build actions">
             <button
               id="makePluginButton"
@@ -1910,19 +1893,6 @@
         <section class="node-scope-settings-section node-scope-global-settings" aria-label="Global oscilloscope settings">
         <div class="node-scope-settings-section-title">Global Settings</div>
         <div class="scene-context-text-box-controls">
-          <span>screen settings</span>
-          <div class="six scene-context-scope-fields">
-            <label>
-              <span>screen burn</span>
-              <input id="nodeMasterScopeBurn" type="number" min="0" max="1" step="0.01" data-global-scope-input="burn" data-global-scope-number-drag="true" value="0">
-            </label>
-            <label>
-              <span>fps</span>
-              <input id="nodeMasterScopeFps" type="number" min="1" max="240" step="1" data-global-scope-input="framesPerSecond" data-global-scope-number-drag="true" value="60">
-            </label>
-          </div>
-        </div>
-        <div class="scene-context-text-box-controls">
           <span>trace image</span>
           <div class="three scene-context-scope-fields">
             <label>
@@ -2137,6 +2107,26 @@
             inputmode="decimal"
             aria-label="Render sample length in seconds">
         </label>
+        <section class="node-clap-host-strip node-clap-host-under-construction" aria-label="CLAP host connection">
+          <div>
+            <span id="nodeClapHostStatus" class="warn">CLAP Host: Under Construction</span>
+            <small id="nodeClapHostDetail">local companion UI is being built here under the render controls</small>
+          </div>
+          <label class="node-clap-host-url-control">
+            <span>Host</span>
+            <input
+              id="nodeClapHostUrl"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              value="http://127.0.0.1:47991"
+              aria-label="CLAP host URL">
+          </label>
+          <button id="nodeClapHostConnectButton" type="button">Connect Local Host</button>
+          <button id="nodeClapHostPluginsButton" type="button" disabled>Refresh Plugins</button>
+          <button id="nodeClapHostDiagnosticsButton" type="button">Diagnostics</button>
+          <button id="nodeClapHostCommandButton" type="button">Copy Host Command</button>
+        </section>
         <div class="node-live-controls" aria-label="Live Audio">
           <span id="nodeLiveInputStatus" class="pill">input off</span>
           <span id="nodeLiveMicStatus" class="pill">mic off</span>
@@ -2761,7 +2751,7 @@
   <script src="./public/node-graph-default-buttons.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-cookbook-filter.js?v=filter-curve-zero-cutoffs-1780822200000"></script>
   <script src="./public/node-graph-color-standards.js?v=color-standards-1"></script>
-  <script src="./public/node-graph-module-definitions.js?v=oscilloscope-buffered-inputs-1"></script>
+  <script src="./public/node-graph-module-definitions.js?v=oscilloscope-mono-label-1"></script>
   <script src="./public/node-graph-module-store.js?v=speaker-protection-1"></script>
   <script src="./public/node-graph-module-sizing.js?v=canvas-script-layout-1"></script>
   <script src="./public/node-graph-metadata-kinds.js?v=slider-unit-color-1780307400000"></script>
@@ -2782,33 +2772,33 @@
   <script src="./public/node-graph-settings-fields.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-settings-view.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-settings-text-fit.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-default-preset.js?v=camera-output-wires-1780801800000"></script>
+  <script src="./public/node-graph-default-preset.js?v=default-visible-nodes-1"></script>
   <script src="./public/node-graph-script-status.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-view-controls.js?v=performance-modules-1"></script>
+  <script src="./public/node-graph-view-controls.js?v=camera-button-label-1"></script>
   <script src="./public/node-graph-workspace-geometry.js?v=module-whole-grid-pan-half-grid-1"></script>
-  <script src="./public/node-graph-workspace-zoom.js?v=wheel-zoom-tenth-step-1"></script>
-  <script src="./public/node-graph-workspace-view.js?v=module-whole-grid-pan-half-grid-1"></script>
+  <script src="./public/node-graph-workspace-zoom.js?v=scope-redraw-on-zoom-2"></script>
+  <script src="./public/node-graph-workspace-view.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-camera-view.js?v=utility-camera-feed-1780810000000"></script>
-  <script src="./public/node-graph-clap-host.js?v=clap-diagnostics-1"></script>
+  <script src="./public/node-graph-clap-host.js?v=clap-under-construction-1"></script>
   <script src="./public/node-graph-marquee-selection.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-node-dragging.js?v=module-whole-grid-pan-half-grid-1"></script>
   <script src="./public/node-graph-context-menu.js?v=shop-module-1"></script>
-  <script src="./public/node-graph-module-actions.js?v=canvas-origin-1"></script>
+  <script src="./public/node-graph-module-actions.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-code-screen.js?v=canvas-ratio-language-2"></script>
-  <script src="./public/node-graph-module-scopes.js?v=oscilloscope-offline-inputs-1"></script>
+  <script src="./public/node-graph-module-scopes.js?v=scope-debug-freeze-3"></script>
   <script src="./public/node-graph-shader-script.js?v=one-value-line-length-1"></script>
   <script src="./public/node-graph-canvas-script.js?v=canvas-hex-colors-1"></script>
-  <script src="./public/node-graph-module-factories.js?v=speaker-protection-1"></script>
-  <script src="./public/node-graph-module-header-rendering.js?v=bpm-title-tap-tempo-1"></script>
+  <script src="./public/node-graph-module-factories.js?v=oscilloscope-mono-label-1"></script>
+  <script src="./public/node-graph-module-header-rendering.js?v=scope-burn-fps-header-1"></script>
   <script src="./public/node-graph-module-rendering.js?v=speaker-protection-1"></script>
   <script src="./public/node-graph-history.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-visual-utils.js?v=text-light-registry-1780800000000"></script>
-  <script src="./public/node-graph-patch-clone.js?v=sample-playback-1"></script>
+  <script src="./public/node-graph-patch-clone.js?v=module-title-cleanup-1"></script>
   <script src="./public/node-graph-slider-metadata.js?v=slider-math-input-1780438200000"></script>
   <script src="./public/node-graph-slider-values.js?v=slider-zoom-geometry-1780615800000"></script>
   <script src="./public/node-graph-slider-dragging.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-node-accessors.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-selection.js?v=goods-services-1"></script>
+  <script src="./public/node-graph-selection.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-port-geometry.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-slider-readout.js?v=choice-square-bottom-plus-2"></script>
   <script src="./public/node-graph-slider-readout-controls.js?v=graph2-smoothing-3"></script>
@@ -2826,12 +2816,12 @@
   <script src="./public/node-graph-execution-summary.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-wire-actions.js?v=graph2-smoothing-3"></script>
   <script src="./public/node-graph-trace-router.js?v=no-self-burst-1780321400000"></script>
-  <script src="./public/node-graph-wire-rendering.js?v=external-graph-inputs-1780816800000"></script>
+  <script src="./public/node-graph-wire-rendering.js?v=port-endpoint-wire-render-1"></script>
   <script src="./public/node-graph-render-output.js?v=output-one-trip-1"></script>
   <script src="./public/node-graph-debug-copy.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-debug-api.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-debug-view.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-tooltips.js?v=scope-shader-authoring-1"></script>
+  <script src="./public/node-graph-tooltips.js?v=speed-under-construction-1"></script>
   <script src="./public/node-graph-interaction-help.js?v=performance-modules-1"></script>
   <script src="./public/presets/useruisettings.js?v=scope-line-thickness-default-1"></script>
   <script src="./public/node-graph-ui-settings-definitions.js?v=text-light-registry-1780800000000"></script>
@@ -2849,7 +2839,7 @@
   <script src="./public/node-graph-live-control-rendering.js?v=input-ready-status-1"></script>
   <script src="./public/node-graph-default-patch.js?v=canvas-script-layout-1"></script>
   <script src="./public/node-graph-state.js?v=performance-modules-1"></script>
-  <script src="./public/node-graph-patch-core.js?v=performance-modules-1"></script>
+  <script src="./public/node-graph-patch-core.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-live-plan-runtime.js?v=buffered-inputs-1"></script>
   <script src="./public/node-graph-live-parameter-runtime.js?v=clap-tail-source-silence-1"></script>
   <script src="./public/node-graph-oscillator-runtime.js?v=ellipsoid-audio-1"></script>
@@ -2861,14 +2851,14 @@
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=canvas-origin-1"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=copy-visual-output-1"></script>
-  <script src="./public/node-graph-header-event-bindings.js?v=viewport-youtube-loop-1"></script>
+  <script src="./public/node-graph-header-event-bindings.js?v=scope-burn-fps-header-1"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=node-graph-help-event-bindings-refactor-1780369200000"></script>
   <script src="./public/node-graph-scene-menu-event-bindings.js?v=canvas-module-1"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-settings-event-bindings.js?v=metadata-popover-bind-1"></script>
   <script src="./public/node-graph-slider-event-bindings.js?v=node-graph-slider-event-bindings-refactor-1780369200000"></script>
   <script src="./public/node-graph-event-bindings.js?v=graph-ui-editor-2"></script>
-  <script src="./public/node-graph-bootstrap.js?v=performance-modules-1"></script>
+  <script src="./public/node-graph-bootstrap.js?v=startup-modules-visible-1"></script>
   <script src="./public/app-event-bindings.js?v=app-event-bindings-refactor-1780361400000"></script>
   <script src="./public/app.js?v=interface-ready-startup-task-timeout-1"></script>
 </body>
