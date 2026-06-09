@@ -82,28 +82,6 @@ function createNodeGraphHeaderTimingInput(key, label, options = {}) {
   const caption = document.createElement("span");
   caption.className = "node-header-timing-caption";
   caption.textContent = label;
-  if (key === "tempoBpm") {
-    caption.classList.add("node-header-bpm-tap-target");
-    caption.role = "button";
-    caption.tabIndex = 0;
-    caption.title = "Tap tempo";
-    caption.setAttribute("aria-label", "Tap tempo for patch BPM");
-    const tapBpm = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      handleNodeGraphTapTempo();
-    };
-    caption.addEventListener("click", tapBpm);
-    caption.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-    });
-    caption.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        tapBpm(event);
-      }
-    });
-  }
   field.append(caption);
 
   const input = document.createElement("input");
@@ -119,6 +97,27 @@ function createNodeGraphHeaderTimingInput(key, label, options = {}) {
   field.append(input);
 
   return field;
+}
+
+function createNodeGraphTapTempoButton() {
+  const button = document.createElement("button");
+  button.className = "node-header-tap-tempo-button";
+  button.type = "button";
+  button.textContent = "Tap";
+  button.title = "Tap tempo";
+  button.setAttribute("aria-label", "Tap tempo for patch BPM");
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleNodeGraphTapTempo();
+  });
+  button.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
+  button.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+  });
+  return button;
 }
 
 function createNodeGraphHeaderSpeedPlaceholder() {
@@ -223,6 +222,7 @@ function createNodeGraphHeaderTimingWidgets() {
   group.className = "node-header-timing-widgets";
   group.setAttribute("aria-label", "Patch timing");
   group.append(
+    createNodeGraphTapTempoButton(),
     createNodeGraphHeaderTimingInput("tempoBpm", "BPM", { max: 320 }),
     createNodeGraphHeaderTimingInput("timeSignatureNumerator", "Beats"),
     createNodeGraphHeaderTimingInput("timeSignatureDenominator", "Unit"),

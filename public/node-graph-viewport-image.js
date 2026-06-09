@@ -595,14 +595,10 @@ function setNodeGraphViewportImageButtonStatus(text, options = {}) {
   }
 }
 
-async function copyNodeGraphViewportImageToClipboard() {
+async function exportNodeGraphViewportPng() {
   const buttons = [
     document.getElementById("nodeCopyViewportImageOverlayButton"),
   ].filter(Boolean);
-  if (!navigator.clipboard?.write || typeof ClipboardItem !== "function") {
-    setNodeGraphViewportImageButtonStatus("Clipboard Unavailable");
-    return;
-  }
   let image = null;
   try {
     for (const button of buttons) {
@@ -610,25 +606,22 @@ async function copyNodeGraphViewportImageToClipboard() {
     }
     image = await createNodeGraphViewportImage();
     if (!image?.pngBlob) {
-      setNodeGraphViewportImageButtonStatus("Copy Failed");
+      setNodeGraphViewportImageButtonStatus("PNG Failed");
       return;
     }
   } catch (_error) {
     console.warn("Viewport image capture failed", _error);
-    setNodeGraphViewportImageButtonStatus("Copy Failed");
+    setNodeGraphViewportImageButtonStatus("PNG Failed");
     for (const button of buttons) {
       button.disabled = false;
     }
     return;
   }
   try {
-    await navigator.clipboard.write([
-      new ClipboardItem({ "image/png": image.pngBlob }),
-    ]);
-    setNodeGraphViewportImageButtonStatus("PNG Copied");
-    setNodeGraphViewportLastFileMade("", { label: "PNG copied to clipboard" });
+    const saved = downloadNodeGraphViewportBlob(image.pngBlob, nodeGraphViewportImageFileName());
+    setNodeGraphViewportImageButtonStatus(saved ? "PNG Saved" : "PNG Ready");
   } catch (_error) {
-    setNodeGraphViewportImageButtonStatus("Copy Blocked");
+    setNodeGraphViewportImageButtonStatus("PNG Failed");
   } finally {
     for (const button of buttons) {
       button.disabled = false;

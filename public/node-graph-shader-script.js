@@ -82,7 +82,7 @@ void main() {
 }
 `;
 
-function nodeGraphShaderScriptCameraPhosphorFragment(preset) {
+function nodeGraphShaderScriptBrightnessContrastDefaultFragment() {
   return `
 precision mediump float;
 
@@ -104,10 +104,13 @@ float grain(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
+vec3 adjustBrightnessContrast(vec3 color, float brightness, float contrast) {
+  return (color - 0.5) * contrast + 0.5 + brightness;
+}
+
 void main() {
   vec2 uv = vUv;
   float vignette = smoothstep(0.14, 0.92, length((uv - 0.5) * vec2(1.28, 1.0)));
-  float darkness = ${preset.darknessBase} + vignette * ${preset.darknessVignette};
   float glow = 0.0;
   float core = 0.0;
 
@@ -115,57 +118,58 @@ void main() {
     if (i < uScopeCount) {
       vec4 rect = uScopeRects[i];
       float d = rectDistance(uv, rect);
-      float halo = exp(-max(d, 0.0) * (${preset.haloFalloff} + uZoom * ${preset.zoomFalloff}));
-      float nearPane = smoothstep(${preset.paneEdge}, -0.003, d);
-      float scan = ${preset.scanBase} + ${preset.scanAmount} * sin((uv.y * uResolution.y * ${preset.scanDensity}) + uTime * ${preset.scanSpeed});
-      glow += halo * ${preset.haloAmount} + nearPane * scan * ${preset.paneAmount};
+      float halo = exp(-max(d, 0.0) * (42.0 + uZoom * 2.0));
+      float nearPane = smoothstep(0.020, -0.003, d);
+      float scan = 0.82 + 0.18 * sin((uv.y * uResolution.y * 1.2) + uTime * 2.2);
+      glow += halo * 0.26 + nearPane * scan * 0.085;
       core += nearPane;
     }
   }
 
   glow = clamp(glow, 0.0, 1.0);
   core = clamp(core, 0.0, 1.0);
-  float dust = (grain(gl_FragCoord.xy + uTime * ${preset.dustSpeed}) - 0.5) * ${preset.dustAmount};
-  vec3 trace = vec3(${preset.glowColor}) * glow + vec3(${preset.coreColor}) * core * ${preset.coreAmount};
-  vec3 room = vec3(${preset.roomColor});
+  float dust = (grain(gl_FragCoord.xy + uTime * 14.0) - 0.5) * 0.012;
+  vec3 trace = vec3(0.16, 0.62, 0.54) * glow + vec3(0.78, 0.96, 0.86) * core * 0.075;
+  vec3 room = vec3(0.002, 0.008, 0.010);
+  vec3 color = room + trace;
+
+  // Settings: realtime safe. Tweak these two values first.
   float brightness = 0.06;
   float contrast = 1.18;
-  vec3 color = room + trace;
-  color = (color - 0.5) * contrast + 0.5 + brightness;
-  float alpha = clamp(darkness - glow * ${preset.glowAlphaCut} + dust, ${preset.alphaMin}, ${preset.alphaMax});
+
+  float alphaBase = 0.20;
+  float vignetteAmount = 0.16;
+  float glowAlphaCut = 0.08;
+  float alphaMin = 0.06;
+  float alphaMax = 0.42;
+
+  // Brightness and contrast only.
+  color = adjustBrightnessContrast(color, brightness, contrast);
+
+  float darkness = alphaBase + vignette * vignetteAmount;
+  float alpha = clamp(darkness - glow * glowAlphaCut + dust, alphaMin, alphaMax);
   gl_FragColor = vec4(color, alpha);
 }
-
-/*
-pseudocode:
-brightness = this
-contrast = that
-*/
 `.trim();
 }
 
-const nodeGraphShaderScriptDefaultFragmentSource = nodeGraphShaderScriptCameraPhosphorFragment({
-  alphaMax: "0.42",
-  alphaMin: "0.06",
-  coreAmount: "0.075",
-  coreColor: "0.78, 0.96, 0.86",
-  darknessBase: "0.20",
-  darknessVignette: "0.16",
-  dustAmount: "0.012",
-  dustSpeed: "14.0",
-  glowAlphaCut: "0.08",
-  glowColor: "0.16, 0.62, 0.54",
-  haloAmount: "0.26",
-  haloFalloff: "42.0",
-  paneAmount: "0.085",
-  paneEdge: "0.020",
-  roomColor: "0.002, 0.008, 0.010",
-  scanAmount: "0.18",
-  scanBase: "0.82",
-  scanDensity: "1.2",
-  scanSpeed: "2.2",
-  zoomFalloff: "2.0",
-});
+const nodeGraphShaderScriptDefaultFragmentSource = nodeGraphShaderScriptBrightnessContrastDefaultFragment();
+
+function nodeGraphShaderScriptIsLegacyDefaultFragmentSource(source = "") {
+  const text = String(source || "");
+  return text.includes("function nodeGraphShaderScriptCameraPhosphorFragment")
+    || text.includes("color = (color - 0.5) * contrast + 0.5 + brightness")
+    || text.includes("float darkness = 0.20 + vignette * 0.16")
+    || text.includes("color = adjustSaturation(color, saturation)")
+    || text.includes("color = posterize(color, posterizeLevels, posterizeAmount)")
+    || text.includes("color = chromaticGlitch(color, uv, chromaticGlitchAmount)")
+    || text.includes("color = scanlineGlow(color, uv, scanlineAmount)")
+    || (
+      text.includes("pseudocode:")
+      && text.includes("brightness = this")
+      && text.includes("contrast = that")
+    );
+}
 
 const nodeGraphShaderScriptState = {
   animationFrame: 0,
@@ -179,6 +183,7 @@ const nodeGraphShaderScriptState = {
   program: null,
   previewFrame: 0,
   renderer: null,
+  liveApplyTimer: 0,
   colorWidget: null,
   colorWidgetLoad: null,
   scopeTargetNodeId: "",
@@ -198,13 +203,23 @@ function nodeGraphShaderScriptWorkspace() {
 function loadNodeGraphShaderScriptState() {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(nodeGraphShaderScriptStorageKey) || "{}");
-    if (typeof parsed.fragmentSource === "string" && parsed.fragmentSource.trim()) {
-      nodeGraphShaderScriptState.fragmentSource = parsed.fragmentSource;
+    const storedFragmentSource = typeof parsed.fragmentSource === "string" ? parsed.fragmentSource.trim() : "";
+    const shouldUseStoredFragment = storedFragmentSource
+      && !nodeGraphShaderScriptIsLegacyDefaultFragmentSource(storedFragmentSource);
+    if (
+      shouldUseStoredFragment
+    ) {
+      nodeGraphShaderScriptState.fragmentSource = storedFragmentSource;
+    } else {
+      nodeGraphShaderScriptState.fragmentSource = nodeGraphShaderScriptDefaultFragmentSource.trim();
     }
     nodeGraphShaderScriptState.editorFontSizePx = normalizeNodeGraphShaderScriptEditorFontSize(
       parsed.editorFontSizePx,
     );
     nodeGraphShaderScriptState.syntaxColors = normalizeNodeGraphShaderScriptSyntaxColors(parsed.syntaxColors);
+    if (storedFragmentSource && !shouldUseStoredFragment) {
+      saveNodeGraphShaderScriptState();
+    }
   } catch {
     nodeGraphShaderScriptState.fragmentSource = nodeGraphShaderScriptDefaultFragmentSource.trim();
     nodeGraphShaderScriptState.editorFontSizePx = nodeGraphShaderScriptEditorFontSizeLimits.defaultPx;
@@ -436,9 +451,45 @@ function nodeGraphShaderScriptStatus(message, isError = false) {
   if (!status) {
     return;
   }
-  status.textContent = String(message || "ready").slice(0, 140);
+  const text = String(message || "ready");
+  status.dataset.fullText = text;
+  status.textContent = text.slice(0, 140);
   status.classList.toggle("warn", Boolean(isError));
   status.classList.toggle("good", !isError);
+}
+
+async function copyNodeGraphShaderScriptStatus() {
+  const status = document.getElementById("nodeShaderScriptStatus");
+  const text = status?.dataset.fullText || status?.textContent || "";
+  if (!text.trim()) {
+    nodeGraphShaderScriptStatus("nothing to copy", true);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    const previous = {
+      isError: status?.classList.contains("warn") || false,
+      text,
+    };
+    nodeGraphShaderScriptStatus("error copied", false);
+    window.setTimeout(() => nodeGraphShaderScriptStatus(previous.text, previous.isError), 900);
+  } catch (_error) {
+    const button = document.getElementById("nodeShaderScriptCopyStatus");
+    if (status) {
+      const range = document.createRange();
+      range.selectNodeContents(status);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+    if (button) {
+      const previousText = button.textContent || "Copy Error";
+      button.textContent = "Selected";
+      window.setTimeout(() => {
+        button.textContent = previousText;
+      }, 900);
+    }
+  }
 }
 
 function escapeNodeGraphShaderScriptHtml(text = "") {
@@ -726,6 +777,12 @@ function replaceNodeGraphShaderScriptToken(nextToken) {
     token: replacement,
   };
   updateNodeGraphShaderScriptHighlight();
+  syncNodeGraphShaderScriptVideoInputControls();
+  if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
+    scheduleNodeGraphModuleScopeDraw();
+  }
+  scheduleNodeGraphShaderScriptScopePreview();
+  scheduleNodeGraphShaderScriptLiveApply();
 }
 
 function findNodeGraphShaderScriptNumberTokenAtPoint(event, options = {}) {
@@ -1096,9 +1153,7 @@ function replaceNodeGraphShaderScriptVideoInputLine(value) {
   } else {
     source.value = `video.input     = ${nextValue};\n${text}`;
   }
-  updateNodeGraphShaderScriptHighlight();
-  syncNodeGraphShaderScriptVideoInputControls();
-  scheduleNodeGraphShaderScriptScopePreview();
+  handleNodeGraphShaderScriptSourceChanged();
 }
 
 function syncNodeGraphShaderScriptVideoInputControls() {
@@ -1320,12 +1375,21 @@ function syncNodeGraphShaderScriptControls(options = {}) {
   const enable = document.getElementById("nodeShaderScriptEnable");
   if (enable) {
     enable.hidden = scopeMode;
-    enable.textContent = nodeGraphShaderScriptState.enabled ? "Enabled" : "Disabled";
-    enable.setAttribute("aria-pressed", String(Boolean(nodeGraphShaderScriptState.enabled)));
+    enable.textContent = "Disable";
+    enable.setAttribute(
+      "aria-label",
+      "Disable live post processing shader"
+    );
+    enable.setAttribute("aria-pressed", String(!nodeGraphShaderScriptState.enabled && !scopeMode));
   }
   const applyButton = document.getElementById("nodeShaderScriptApply");
   if (applyButton) {
     applyButton.textContent = scopeMode ? "Save" : "Apply";
+    applyButton.setAttribute("aria-pressed", String(Boolean(nodeGraphShaderScriptState.enabled && !scopeMode)));
+    applyButton.setAttribute(
+      "aria-label",
+      scopeMode ? "Save scope shader" : "Apply and enable live post processing shader"
+    );
   }
   const previewPanel = document.getElementById("nodeShaderScriptPreviewPanel");
   if (previewPanel) {
@@ -1452,6 +1516,10 @@ function scheduleNodeGraphShaderScriptDraw() {
 function setNodeGraphShaderScriptEnabled(enabled, options = {}) {
   const nextEnabled = Boolean(enabled);
   nodeGraphShaderScriptState.enabled = nextEnabled;
+  if (!nextEnabled && nodeGraphShaderScriptState.liveApplyTimer) {
+    window.clearTimeout(nodeGraphShaderScriptState.liveApplyTimer);
+    nodeGraphShaderScriptState.liveApplyTimer = 0;
+  }
   if (options.persist !== false) {
     saveNodeGraphShaderScriptState();
   }
@@ -1559,8 +1627,9 @@ function openNodeGraphScopeShaderScript(nodeId) {
   return true;
 }
 
-function toggleNodeGraphShaderScriptEnabled() {
-  setNodeGraphShaderScriptEnabled(!nodeGraphShaderScriptState.enabled);
+function disableNodeGraphShaderScriptLiveApply() {
+  setNodeGraphShaderScriptEnabled(false);
+  nodeGraphShaderScriptStatus("post processing disabled", false);
 }
 
 function saveNodeGraphScopeShaderScriptFromDialog() {
@@ -1598,6 +1667,39 @@ function applyNodeGraphShaderScriptFromDialog() {
   }
 }
 
+function applyNodeGraphShaderScriptLiveFromEditor() {
+  nodeGraphShaderScriptState.liveApplyTimer = 0;
+  if (nodeGraphShaderScriptState.dialogMode !== "global" || !nodeGraphShaderScriptState.enabled) {
+    return;
+  }
+  const source = document.getElementById("nodeShaderScriptSource")?.value || "";
+  updateNodeGraphShaderProgram(source);
+}
+
+function scheduleNodeGraphShaderScriptLiveApply() {
+  if (nodeGraphShaderScriptState.dialogMode !== "global" || !nodeGraphShaderScriptState.enabled) {
+    return;
+  }
+  if (nodeGraphShaderScriptState.liveApplyTimer) {
+    window.clearTimeout(nodeGraphShaderScriptState.liveApplyTimer);
+  }
+  nodeGraphShaderScriptState.liveApplyTimer = window.setTimeout(
+    applyNodeGraphShaderScriptLiveFromEditor,
+    90,
+  );
+}
+
+function handleNodeGraphShaderScriptSourceChanged() {
+  updateNodeGraphShaderScriptHighlight();
+  closeNodeGraphShaderScriptTokenWidget();
+  syncNodeGraphShaderScriptVideoInputControls();
+  if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
+    scheduleNodeGraphModuleScopeDraw();
+  }
+  scheduleNodeGraphShaderScriptScopePreview();
+  scheduleNodeGraphShaderScriptLiveApply();
+}
+
 function bindNodeGraphShaderScriptEvents() {
   loadNodeGraphShaderScriptState();
   syncNodeGraphShaderScriptControls();
@@ -1607,6 +1709,7 @@ function bindNodeGraphShaderScriptEvents() {
     closeNodeGraphShaderScriptDialogWithDirtyCheck());
   document.getElementById("nodeShaderScriptApply")?.addEventListener("click", applyNodeGraphShaderScriptFromDialog);
   document.getElementById("nodeShaderScriptCopy")?.addEventListener("click", copyNodeGraphShaderScriptSource);
+  document.getElementById("nodeShaderScriptCopyStatus")?.addEventListener("click", copyNodeGraphShaderScriptStatus);
   document.getElementById("nodeShaderScriptPaste")?.addEventListener("click", pasteNodeGraphShaderScriptSource);
   document.getElementById("nodeShaderScriptToDesktop")?.addEventListener("click", exportNodeGraphShaderScriptToDesktop);
   document.getElementById("nodeShaderScriptTextSizeDecrease")?.addEventListener("click", () =>
@@ -1619,15 +1722,7 @@ function bindNodeGraphShaderScriptEvents() {
     input.addEventListener("input", () => setNodeGraphShaderScriptSyntaxColor(input.dataset.shaderSyntaxColor, input.value));
   });
   const source = document.getElementById("nodeShaderScriptSource");
-  source?.addEventListener("input", () => {
-    updateNodeGraphShaderScriptHighlight();
-    closeNodeGraphShaderScriptTokenWidget();
-    syncNodeGraphShaderScriptVideoInputControls();
-    if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
-      scheduleNodeGraphModuleScopeDraw();
-    }
-    scheduleNodeGraphShaderScriptScopePreview();
-  });
+  source?.addEventListener("input", handleNodeGraphShaderScriptSourceChanged);
   source?.addEventListener("scroll", updateNodeGraphShaderScriptHighlight);
   source?.addEventListener("pointerdown", beginNodeGraphShaderScriptNumberTokenDrag);
   source?.addEventListener("pointermove", dragNodeGraphShaderScriptNumberToken);
@@ -1662,7 +1757,7 @@ function bindNodeGraphShaderScriptEvents() {
   panel?.addEventListener("pointermove", dragNodeGraphShaderScriptDialog);
   panel?.addEventListener("pointerup", endNodeGraphShaderScriptDialogDrag);
   panel?.addEventListener("pointercancel", endNodeGraphShaderScriptDialogDrag);
-  document.getElementById("nodeShaderScriptEnable")?.addEventListener("click", toggleNodeGraphShaderScriptEnabled);
+  document.getElementById("nodeShaderScriptEnable")?.addEventListener("click", disableNodeGraphShaderScriptLiveApply);
   updateNodeGraphShaderProgram(nodeGraphShaderScriptState.fragmentSource);
   if (nodeGraphShaderScriptState.enabled) {
     scheduleNodeGraphShaderScriptDraw();

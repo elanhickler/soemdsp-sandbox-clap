@@ -269,6 +269,9 @@ function nodeGraphPatchNodeInputPorts(node) {
   if (patchNode?.type === "canvas") {
     return normalizeNodeGraphCanvasScript(patchNode.canvasScript).inputs;
   }
+  if (patchNode?.type === "screenSpaceShader") {
+    return normalizeNodeGraphScreenSpaceShader(patchNode.screenSpaceShader).inputs;
+  }
   return nodeGraphModuleDefinitions[patchNode?.type]?.inputs || [];
 }
 

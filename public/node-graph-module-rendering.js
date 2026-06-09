@@ -74,6 +74,43 @@ function attachNodeGraphNodeEvents(node) {
     event.stopPropagation();
     openNodeGraphModuleShop(null);
   });
+  node.querySelector("[data-screen-space-shader-apply]")?.addEventListener("click", applyNodeGraphScreenSpaceShaderScript);
+  const screenSpaceShaderSource = node.querySelector("[data-screen-space-shader-source]");
+  screenSpaceShaderSource?.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
+  screenSpaceShaderSource?.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+  });
+  screenSpaceShaderSource?.addEventListener("input", (event) => {
+    refreshNodeGraphScreenSpaceShaderBodyStatus(event.currentTarget.closest(".node-screen-space-shader-body"));
+  });
+}
+
+function applyNodeGraphScreenSpaceShaderScript(event) {
+  const body = event.currentTarget?.closest?.(".node-screen-space-shader-body");
+  const nodeId = body?.dataset?.node || "";
+  const source = body?.querySelector?.("[data-screen-space-shader-source]")?.value || "";
+  const targetNode = nodeGraphPatchNode(nodeId);
+  if (!targetNode || targetNode.type !== "screenSpaceShader") {
+    return false;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const node = patch.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) {
+    return false;
+  }
+  const screenSpaceShader = normalizeNodeGraphScreenSpaceShader({
+    ...node.screenSpaceShader,
+    source,
+  });
+  node.screenSpaceShader = screenSpaceShader;
+  const inputSet = new Set(screenSpaceShader.inputs);
+  patch.connections = (patch.connections || []).filter((connection) =>
+    connection.destinationNode !== nodeId || inputSet.has(nodeGraphCanonicalInputPort("screenSpaceShader", connection.destinationPort)),
+  );
+  commitNodeGraphPatch(patch, { status: "screen space shader applied" });
+  return true;
 }
 
 function nodeGraphModuleButtonsHiddenForNode(node) {
@@ -126,6 +163,37 @@ function toggleNodeGraphModuleBypassFromNode(node, event) {
   return true;
 }
 
+function nodeGraphModuleLayoutClassNames(definition, layout) {
+  const classes = ["dsp-node"];
+  if (definition.output) {
+    classes.push("output-node");
+  }
+  const layoutClasses = {
+    clapPlugin: "clap-plugin-layout",
+    filterCurve: "filter-curve-layout",
+    graph: "graph-node-layout",
+    image: "image-node-layout",
+    keyboardController: "keyboard-controller-layout",
+    led: "led-layout",
+    macroControls: "macro-controls-layout",
+    moduleHome: "module-home-layout",
+    moduleShop: "module-shop-layout",
+    pitchModWheel: "pitch-mod-wheel-layout",
+    screenSpaceShader: "screen-space-shader-layout",
+    sliderWidget: "slider-widget-layout",
+    speakerProtection: "speaker-protection-layout",
+    textBox: "text-box-layout",
+    visualScope: "visual-scope-layout",
+  };
+  if (definition.layout === "canvas") {
+    classes.push("canvas-node-layout");
+  }
+  if (layoutClasses[layout]) {
+    classes.push(layoutClasses[layout]);
+  }
+  return classes.join(" ");
+}
+
 function createNodeGraphModuleElement(type, node) {
   const definition = nodeGraphModuleDefinitions[type];
   const patchNode = nodeGraphPatchNode(node) || { id: node, type };
@@ -136,7 +204,7 @@ function createNodeGraphModuleElement(type, node) {
   );
   const layout = nodeGraphPatchNodeLayout(patchNode);
   const article = document.createElement("article");
-  article.className = `dsp-node${definition.output ? " output-node" : ""}${layout === "textBox" ? " text-box-layout" : ""}${layout === "image" ? " image-node-layout" : ""}${definition.layout === "canvas" ? " canvas-node-layout" : ""}${layout === "visualScope" ? " visual-scope-layout" : ""}${layout === "graph" ? " graph-node-layout" : ""}${layout === "filterCurve" ? " filter-curve-layout" : ""}${layout === "sliderWidget" ? " slider-widget-layout" : ""}${layout === "moduleShop" ? " module-shop-layout" : ""}${layout === "moduleHome" ? " module-home-layout" : ""}${layout === "keyboardController" ? " keyboard-controller-layout" : ""}${layout === "macroControls" ? " macro-controls-layout" : ""}${layout === "pitchModWheel" ? " pitch-mod-wheel-layout" : ""}${layout === "speakerProtection" ? " speaker-protection-layout" : ""}${layout === "clapPlugin" ? " clap-plugin-layout" : ""}${layout === "led" ? " led-layout" : ""}`;
+  article.className = nodeGraphModuleLayoutClassNames(definition, layout);
   article.dataset.node = node;
   article.dataset.nodeType = type;
   article.dataset.portSignature = `${inputPorts.join(",")}=>${outputPorts.join(",")}`;
@@ -166,6 +234,14 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.append(document.createElement("div"));
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(outputColumn || document.createElement("div"));
+    article.append(ioSection);
+  } else if (layout === "screenSpaceShader") {
+    article.append(createNodeGraphScreenSpaceShaderBody(node));
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(document.createElement("div"));
     article.append(ioSection);
   } else if (definition.layout === "canvas") {
     const canvasBody = createNodeGraphCanvasBody(node);

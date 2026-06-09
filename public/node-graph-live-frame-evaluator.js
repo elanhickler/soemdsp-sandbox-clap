@@ -382,6 +382,31 @@ function nodeGraphVisualControlSigned(value, runtime, nodeId, source = "visual c
   return clampNodeSliderValue(safeValue, -1, 1);
 }
 
+function nodeGraphScreenSpaceShaderSample(node, readInput, runtime, nodeId, sampleRate) {
+  const script = normalizeNodeGraphScreenSpaceShader(node?.screenSpaceShader);
+  const value = {};
+  for (const input of script.visualInputs || []) {
+    if (input.mode === "raw") {
+      continue;
+    }
+    const raw = readInput(input.port);
+    const signed = input.mode === "signed";
+    const target = signed
+      ? nodeGraphVisualControlSigned(raw, runtime, nodeId, `screen space shader ${input.port}`)
+      : nodeGraphVisualControlIntensity(raw, runtime, nodeId, `screen space shader ${input.port}`);
+    value[input.key] = nodeGraphSmoothVisualControl(
+      runtime,
+      input.key,
+      target,
+      sampleRate,
+      signed ? 0.045 : 0.025,
+      signed ? -1 : 0,
+      1,
+    );
+  }
+  return value;
+}
+
 function nodeGraphVisualHslToRgb(hue, saturation, lightness) {
   const h = ((Number(hue) || 0) % 1 + 1) % 1;
   const s = clampNodeSliderValue(Number(saturation) || 0, 0, 1);
@@ -2660,6 +2685,14 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         X: x,
         Y: y,
       };
+    } else if (node?.type === "screenSpaceShader") {
+      value = nodeGraphScreenSpaceShaderSample(
+        node,
+        (port) => mixInput(nodeId, port),
+        runtime,
+        nodeId,
+        sampleRate,
+      );
     } else if (node?.type === "bloomGlow") {
       const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
       const screenDim = nodeGraphSmoothVisualControl(

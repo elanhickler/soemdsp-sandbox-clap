@@ -52,6 +52,7 @@ const nodeGraphNodeLabels = Object.freeze({
   pluckEnvelope: "Pluck Envelope",
   vactrolEnvelope: "Vactrol Envelope",
   sandboxVisuals: "Screen Visuals",
+  screenSpaceShader: "Screen Space Shader",
   bloomGlow: "Bloom & Glow",
   rgbaHsla: "RGBA / HSLA",
   chromaColor: "Chroma Color",
@@ -1417,6 +1418,13 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
     visualSink: true,
   },
+  screenSpaceShader: {
+    inputs: ["Shake", "X", "Y", "Dim", "Red", "Green", "Blue", "Scope Off", "Pause", "Trace Image"],
+    layout: "screenSpaceShader",
+    outputs: [],
+    parameters: [],
+    visualSink: true,
+  },
   bloomGlow: {
     outputs: [],
     parameters: [
@@ -1595,6 +1603,9 @@ function nodeGraphPatchNodeVisualInputs(node) {
       port,
     }));
   }
+  if (patchNode?.type === "screenSpaceShader") {
+    return normalizeNodeGraphScreenSpaceShader(patchNode.screenSpaceShader).visualInputs;
+  }
   return nodeGraphModuleVisualInputs(patchNode?.type);
 }
 
@@ -1608,6 +1619,8 @@ function nodeGraphPatchNodeBufferedInputs(node) {
   const metadataInputs = nodeGraphModuleBufferedInputs(node?.type);
   const scriptInputs = node?.type === "canvas"
     ? normalizeNodeGraphCanvasScript(node.canvasScript).bufferedInputs
+    : node?.type === "screenSpaceShader"
+      ? normalizeNodeGraphScreenSpaceShader(node.screenSpaceShader).bufferedInputs
     : [];
   return normalizeNodeGraphBufferedInputList([...metadataInputs, ...scriptInputs], nodeGraphPatchNodeInputPorts(node));
 }

@@ -19,7 +19,7 @@
     "resizeTitle": "Resize modular workspace",
     "origin": "World origin: X 0, Y 0",
     "backToFull": "Return to full modular view",
-    "copyViewportImage": "Copy the visible modular viewport as a PNG image"
+    "copyViewportImage": "Save the visible modular viewport or rendered media to Downloads"
   },
   "view": {
     "patchSettings": "Patch settings",

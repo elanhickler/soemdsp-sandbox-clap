@@ -187,6 +187,9 @@ function cloneNodeGraphPatch(patch) {
         ...(node.type === "canvas"
           ? { canvasScript: normalizeNodeGraphCanvasScript(node.canvasScript) }
           : {}),
+        ...(node.type === "screenSpaceShader"
+          ? { screenSpaceShader: normalizeNodeGraphScreenSpaceShader(node.screenSpaceShader) }
+          : {}),
         ...(Object.hasOwn(node, "scopeShader")
           ? { scopeShader: normalizeNodeGraphScopeShader(node.scopeShader) }
           : {}),

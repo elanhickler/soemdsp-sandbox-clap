@@ -1,4 +1,5 @@
 function bindNodeGraphHeaderControlEvents() {
+  bindNodeGraphEarProtectionFaultUi();
   bindNodeGraphShaderScriptEvents();
   bindNodeGraphCanvasScriptEvents();
   bindNodeGraphCodeScreenEvents();
@@ -27,7 +28,7 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodeGlobalScopeMenuButton").addEventListener("click", toggleNodeGlobalScopeMenu);
   document
     .getElementById("nodeCopyViewportImageOverlayButton")
-    .addEventListener("click", copyNodeGraphViewportImageToClipboard);
+    .addEventListener("click", exportNodeGraphViewportPng);
   document
     .getElementById("nodeExportViewportGifButton")
     .addEventListener("click", exportNodeGraphViewportGif);

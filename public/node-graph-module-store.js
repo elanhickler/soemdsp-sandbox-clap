@@ -82,6 +82,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "pluckEnvelope",
   "vactrolEnvelope",
   "sandboxVisuals",
+  "screenSpaceShader",
   "bloomGlow",
   "rgbaHsla",
   "chromaColor",
@@ -714,6 +715,11 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Visual",
     description: "Sink module for routing patch signals into the screen view. Drive shake, dim, color, scope pause/shutoff, or patch X/Y for direct visual motion.",
     notes: ["visual sink", "shake input", "scope pause"],
+  },
+  screenSpaceShader: {
+    category: "Visual",
+    description: "Scripted screen-space visual sink. Declare custom inputs and map them into screen shake, dim, color, scope pause, and offset controls.",
+    notes: ["scripted visual sink", "custom inputs", "screen shader controls"],
   },
   bloomGlow: {
     category: "Visual",

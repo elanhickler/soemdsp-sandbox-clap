@@ -71,7 +71,30 @@ function nodeGraphEarProtectionFaultDetail(details = {}) {
   const source = details.source ? `${details.source} ` : "";
   const count = Number(details.protectionMuteCount ?? details.count) || 0;
   const countText = count ? ` after ${count} protected frame${count === 1 ? "" : "s"}` : "";
-  return `${source}audio output locked${countText}. Refresh the page, your patch will be saved.`;
+  return `${source}audio output locked${countText}.`;
+}
+
+function closeNodeGraphEarProtectionFaultUi() {
+  const fault = document.getElementById("nodeEarProtectionFault");
+  if (fault) {
+    fault.hidden = true;
+  }
+  document.body?.classList.remove("node-ear-protection-tripped");
+}
+
+function bindNodeGraphEarProtectionFaultUi() {
+  document
+    .getElementById("nodeEarProtectionFaultClose")
+    ?.addEventListener("click", closeNodeGraphEarProtectionFaultUi);
+  if (document.documentElement.dataset.nodeEarProtectionFaultDelegatedClose === "true") {
+    return;
+  }
+  document.documentElement.dataset.nodeEarProtectionFaultDelegatedClose = "true";
+  document.addEventListener("click", (event) => {
+    if (event.target?.closest?.("#nodeEarProtectionFaultClose")) {
+      closeNodeGraphEarProtectionFaultUi();
+    }
+  });
 }
 
 function nodeGraphSaveEarProtectionPatchRecovery(details = {}) {

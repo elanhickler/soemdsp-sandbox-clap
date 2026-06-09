@@ -177,6 +177,7 @@ const nodeGraphMvp = {
     rgbaHsla: 0,
     sampleHold: 0,
     sandboxVisuals: 0,
+    screenSpaceShader: 0,
     slewLimiter: 0,
     spiral: 0,
     stereoNoise: 0,

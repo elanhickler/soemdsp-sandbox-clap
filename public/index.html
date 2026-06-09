@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=module-browser-context-menu-1">
+  <link rel="stylesheet" href="./public/styles.css?v=ear-protection-selectable-text-1">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
@@ -29,7 +29,11 @@
         If you come up with an ear or speaker protection algorithm better than this one, let us know at
         soundemote@gmail.com
       </span>
-      <span class="node-ear-protection-fault-reset">Refresh the page, your patch will be saved.</span>
+      <button
+        id="nodeEarProtectionFaultClose"
+        class="node-ear-protection-fault-close"
+        type="button"
+        onclick="this.closest('#nodeEarProtectionFault').hidden = true; document.body.classList.remove('node-ear-protection-tripped');">Close</button>
     </div>
   </div>
   <script src="./public/boot-loading.js?v=minimal-loading-screen-1"></script>
@@ -115,6 +119,7 @@
             target="_blank"
             rel="noopener"
             data-support-amount="50"
+            hidden
             aria-label="Download for fifty dollars. Donation refund available."><span>Download$50</span><span class="node-toolbar-subline">(donation refund available)</span></a>
           <button id="nodeVisibilityMenuButton" type="button" aria-pressed="false" aria-haspopup="menu">Visibility</button>
         </div>
@@ -244,7 +249,7 @@
           id="nodeCopyViewportImageOverlayButton"
           class="node-copy-viewport-image-button"
           type="button"
-          aria-label="Copy modular viewport image"
+          aria-label="Export modular viewport PNG"
           data-tooltip-key="workspace.copyViewportImage">PNG</button>
         <button
           id="nodeExportViewportWavButton"
@@ -442,7 +447,10 @@
               <button id="nodeShaderScriptTextSizeIncrease" type="button" aria-label="Increase shader editor text size">+</button>
               <button id="nodeShaderScriptSyntaxColorsButton" type="button" aria-expanded="false">Colors</button>
               <span class="node-shader-script-quick-actions" aria-label="Shader script quick actions">
-                <button id="nodeShaderScriptApply" type="button">Apply</button>
+                <span class="node-shader-script-live-toggle-group" role="group" aria-label="Post processing live shader state">
+                  <button id="nodeShaderScriptApply" type="button" aria-pressed="false">Apply</button>
+                  <button id="nodeShaderScriptEnable" type="button" aria-pressed="false">Disable</button>
+                </span>
                 <button id="nodeShaderScriptCopy" type="button">Copy</button>
                 <button id="nodeShaderScriptPaste" type="button">Paste</button>
                 <button id="nodeShaderScriptToDesktop" type="button">To Desktop</button>
@@ -512,8 +520,8 @@
             </label>
           </div>
           <div class="node-shader-script-actions">
-            <button id="nodeShaderScriptEnable" type="button" aria-pressed="false">Disabled</button>
             <span id="nodeShaderScriptStatus" class="pill">ready</span>
+            <button id="nodeShaderScriptCopyStatus" type="button">Copy Error</button>
           </div>
         </div>
       </div>
@@ -2793,7 +2801,7 @@
   <script src="./public/node-graph-module-actions.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-code-screen.js?v=canvas-ratio-language-2"></script>
   <script src="./public/node-graph-module-scopes.js?v=scope-debug-freeze-3"></script>
-  <script src="./public/node-graph-shader-script.js?v=post-processing-brightness-contrast-1"></script>
+  <script src="./public/node-graph-shader-script.js?v=shader-brightness-contrast-only-1"></script>
   <script src="./public/node-graph-canvas-script.js?v=canvas-hex-colors-1"></script>
   <script src="./public/node-graph-module-factories.js?v=oscilloscope-mono-label-1"></script>
   <script src="./public/node-graph-module-header-rendering.js?v=scope-controls-lower-row-1"></script>
@@ -2812,10 +2820,10 @@
   <script src="./public/node-graph-ghost-sliders.js?v=slider-lane-inset-1780328200000"></script>
   <script src="./public/node-graph-metadata-editor.js?v=metadata-key-reference-1"></script>
   <script src="./public/node-graph-render-settings.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-ear-protection.js?v=speaker-protection-1"></script>
+  <script src="./public/node-graph-ear-protection.js?v=ear-protection-close-1"></script>
   <script src="./public/node-graph-rendered-audio.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-rendered-visual-output.js?v=copy-visual-output-1"></script>
-  <script src="./public/node-graph-viewport-image.js?v=viewport-youtube-upload-1"></script>
+  <script src="./public/node-graph-viewport-image.js?v=viewport-png-download-1"></script>
   <script src="./public/node-graph-av-export.js?v=viewport-last-file-1"></script>
   <script src="./public/node-graph-rendered-output-canvases.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-wires.js?v=external-graph-inputs-1780816800000"></script>
@@ -2858,7 +2866,7 @@
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=canvas-origin-1"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=copy-visual-output-1"></script>
-  <script src="./public/node-graph-header-event-bindings.js?v=module-browser-context-menu-1"></script>
+  <script src="./public/node-graph-header-event-bindings.js?v=viewport-png-download-1"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=node-graph-help-event-bindings-refactor-1780369200000"></script>
   <script src="./public/node-graph-scene-menu-event-bindings.js?v=module-browser-context-menu-1"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=text-light-registry-1780800000000"></script>

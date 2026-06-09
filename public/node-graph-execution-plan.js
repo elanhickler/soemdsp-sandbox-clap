@@ -496,6 +496,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type !== "randomWalk" &&
       type !== "rgbaHsla" &&
       type !== "sandboxVisuals" &&
+      type !== "screenSpaceShader" &&
       type !== "stepSequencer" &&
       type !== "triggerCounter" &&
       type !== "triggerDivider" &&

@@ -153,6 +153,9 @@ function validateNodeGraphPatch(patch) {
     if (type === "canvas") {
       normalizedNode.canvasScript = normalizeNodeGraphCanvasScript(node.canvasScript);
     }
+    if (type === "screenSpaceShader") {
+      normalizedNode.screenSpaceShader = normalizeNodeGraphScreenSpaceShader(node.screenSpaceShader);
+    }
     if (Object.hasOwn(node, "scopeShader")) {
       normalizedNode.scopeShader = normalizeNodeGraphScopeShader(node.scopeShader);
     }

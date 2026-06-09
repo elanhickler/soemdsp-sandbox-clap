@@ -236,6 +236,44 @@ function refreshNodeGraphSpeakerProtectionBodies() {
   });
 }
 
+function createNodeGraphScreenSpaceShaderBody(node) {
+  const patchNode = nodeGraphPatchNode(node);
+  const script = normalizeNodeGraphScreenSpaceShader(patchNode?.screenSpaceShader);
+  const body = document.createElement("div");
+  body.className = "node-screen-space-shader-body";
+  body.dataset.node = node;
+
+  const editor = document.createElement("textarea");
+  editor.className = "node-screen-space-shader-source";
+  editor.dataset.screenSpaceShaderSource = "true";
+  editor.spellcheck = false;
+  editor.value = script.source;
+  editor.setAttribute("aria-label", "Screen space shader script");
+
+  const footer = document.createElement("div");
+  footer.className = "node-screen-space-shader-footer";
+  const status = document.createElement("span");
+  status.dataset.screenSpaceShaderStatus = "true";
+  status.textContent = `${script.inputs.length} inputs / ${script.visualInputs.length} controls`;
+  const apply = document.createElement("button");
+  apply.type = "button";
+  apply.dataset.screenSpaceShaderApply = "true";
+  apply.textContent = "Apply";
+  footer.append(status, apply);
+  body.append(editor, footer);
+  return body;
+}
+
+function refreshNodeGraphScreenSpaceShaderBodyStatus(body) {
+  const source = body?.querySelector?.("[data-screen-space-shader-source]")?.value || "";
+  const status = body?.querySelector?.("[data-screen-space-shader-status]");
+  if (!status) {
+    return;
+  }
+  const script = normalizeNodeGraphScreenSpaceShader({ source });
+  status.textContent = `${script.inputs.length} inputs / ${script.visualInputs.length} controls`;
+}
+
 function createNodeGraphMacroControlsBody(node) {
   const section = document.createElement("section");
   section.className = "node-macro-controls-panel node-macro-controls-module";

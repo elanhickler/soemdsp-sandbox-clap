@@ -39,6 +39,9 @@ function createNodeGraphPatchNode(type, options = {}) {
   if (type === "canvas") {
     node.canvasScript = normalizeNodeGraphCanvasScript(options.canvasScript);
   }
+  if (type === "screenSpaceShader") {
+    node.screenSpaceShader = normalizeNodeGraphScreenSpaceShader(options.screenSpaceShader);
+  }
   if (Object.hasOwn(options, "scopeShader")) {
     node.scopeShader = normalizeNodeGraphScopeShader(options.scopeShader);
   }
