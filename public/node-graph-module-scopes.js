@@ -2477,8 +2477,13 @@ function nodeGraphModuleScopeOfflineGainAnalyzerBuffer(slot) {
 
 function nodeGraphModuleScopeXyTraceFrameCount(length, overdrawPoints) {
   const safeLength = Math.max(2, Math.floor(Number(length) || 0));
+  return Math.min(safeLength, nodeGraphModuleScopeOverdrawPointCount(512, overdrawPoints));
+}
+
+function nodeGraphModuleScopeOverdrawPointCount(baseCount, overdrawPoints) {
+  const safeBaseCount = Math.max(1, Math.floor(Number(baseCount) || 1));
   const safeOverdraw = Math.max(1, Math.floor(Number(overdrawPoints) || 1));
-  return Math.min(safeLength, Math.max(512, 512 * safeOverdraw));
+  return safeBaseCount * safeOverdraw;
 }
 
 function nodeGraphModuleScopeOutputInputConnections(nodeId) {
@@ -2825,9 +2830,10 @@ function nodeGraphModuleScopeScanHistoryBuffer(slot, buffer) {
   if (state.lastTick !== tick) {
     state.lastTick = tick;
     state.samples.push(nodeGraphModuleScopeCurrentBufferSample(buffer));
-    const scanTrailLimit = slot?.type === "visualOscilloscope"
-      ? Math.max(overdrawPoints, 128)
-      : overdrawPoints;
+    const scanTrailLimit = nodeGraphModuleScopeOverdrawPointCount(
+      slot?.type === "visualOscilloscope" ? 128 : 1,
+      overdrawPoints,
+    );
     const limit = Math.max(1, Math.min(2048, scanTrailLimit));
     if (state.samples.length > limit) {
       state.samples.splice(0, state.samples.length - limit);
@@ -4330,8 +4336,8 @@ function nodeGraphModuleScopeBufferSegmentPoints(
   const overdrawPoints = typeof normalizeNodeGraphModuleScopeOverdrawPoints === "function"
     ? normalizeNodeGraphModuleScopeOverdrawPoints(nodeGraphMvp?.moduleScopeOverdrawPoints ?? 1)
     : 1;
-  const scanTrailPointLimit = slot?.type === "visualOscilloscope" && scanTrailMode
-    ? Math.max(overdrawPoints, Math.min(buffer.length, 128))
+  const scanTrailPointLimit = scanTrailMode
+    ? nodeGraphModuleScopeOverdrawPointCount(slot?.type === "visualOscilloscope" ? 128 : 1, overdrawPoints)
     : overdrawPoints;
   const fullTraceOversample = fullTraceMode ? 4 : 1;
   const pointCount = spectrumMode
