@@ -5540,16 +5540,10 @@ function drawNodeGraphModuleScopeCanvasDotPath(context, points, proxyCanvas, pix
   if (pixelPoints.length < 4) {
     return false;
   }
-  const sprite = nodeGraphModuleScopeCanvasDotSprite(heatmapMode);
-  if (!sprite?.canvas) {
-    return false;
-  }
-  const dotSize = clampNodeSliderValue(
-    nodeGraphModuleScopeDotSizeScale() * Math.max(1, pixelRatio) * (heatmapMode ? 2.9 : 3.2),
-    2,
-    128,
+  const lineThickness = normalizeNodeGraphModuleScopeLineThickness(
+    nodeGraphMvp?.moduleScopeLineThickness ?? nodeGraphModuleScopeDefaultSettings.lineThickness,
   );
-  const radius = dotSize * 0.5;
+  const strokeUnit = Math.max(1, lineThickness * Math.max(1, pixelRatio));
   const rawValues = Array.isArray(points?.nodeGraphScopeRawValues)
     ? points.nodeGraphScopeRawValues
     : null;
@@ -5562,9 +5556,6 @@ function drawNodeGraphModuleScopeCanvasDotPath(context, points, proxyCanvas, pix
       ? normalizeNodeGraphModuleScopeDiscontinuitySkipSamples(nodeGraphMvp?.moduleScopeDiscontinuitySkipSamples ?? 1)
       : 1;
   const colors = heatmapMode ? nodeGraphModuleScopeHeatmapTraceColors() : nodeGraphModuleScopeTraceColors(slot);
-  const stampLimit = 4096;
-  let stampCount = 0;
-  let skipThroughSegment = -1;
   let segmentCount = 0;
 
   context.save();
@@ -5615,50 +5606,16 @@ function drawNodeGraphModuleScopeCanvasDotPath(context, points, proxyCanvas, pix
         pathOpen = true;
       }
       context.lineTo(x2, y2);
+      segmentCount += 1;
     }
     context.stroke();
   };
 
-  drawConnectedStroke(dotSize * 0.72, dotSize * 0.38, colors.halo, heatmapMode ? 0.18 : 0.22);
-  drawConnectedStroke(dotSize * 0.26, dotSize * 0.1, colors.core, heatmapMode ? 0.42 : 0.64);
-  context.shadowBlur = 0;
-  context.globalAlpha = heatmapMode ? 0.28 : 0.36;
-
-  const stamp = (x, y) => {
-    if (stampCount >= stampLimit) {
-      return;
-    }
-    context.drawImage(sprite.canvas, x - radius, y - radius, dotSize, dotSize);
-    stampCount += 1;
-  };
-  stamp(pixelPoints[0], pixelPoints[1]);
-  for (let index = 0; index + 3 < pixelPoints.length && stampCount < stampLimit; index += 2) {
-    const segmentIndex = index / 2;
-    if (skippedPoints?.[segmentIndex] || skippedPoints?.[segmentIndex + 1]) {
-      continue;
-    }
-    if (skipSamples > 0 && rawValues && segmentIndex + 1 < rawValues.length) {
-      const previousRaw = Number(rawValues[segmentIndex]);
-      const currentRaw = Number(rawValues[segmentIndex + 1]);
-      if (
-        Number.isFinite(previousRaw) &&
-        Number.isFinite(currentRaw) &&
-        Math.abs(currentRaw - previousRaw) > nodeGraphModuleScopeDiscontinuityThreshold
-      ) {
-        skipThroughSegment = Math.max(skipThroughSegment, segmentIndex + skipSamples - 1);
-      }
-    }
-    if (segmentIndex <= skipThroughSegment) {
-      continue;
-    }
-    const x2 = pixelPoints[index + 2];
-    const y2 = pixelPoints[index + 3];
-    segmentCount += 1;
-    stamp(x2, y2);
-  }
+  drawConnectedStroke(strokeUnit * 5.5, strokeUnit * 4.5, colors.halo, heatmapMode ? 0.14 : 0.18);
+  drawConnectedStroke(strokeUnit * 1.65, strokeUnit * 1.25, colors.core, heatmapMode ? 0.5 : 0.76);
   context.restore();
-  recordNodeGraphModuleScopeRenderMetrics(points.length / 2, segmentCount + stampCount);
-  return segmentCount > 0 || stampCount > 0;
+  recordNodeGraphModuleScopeRenderMetrics(points.length / 2, segmentCount);
+  return segmentCount > 0;
 }
 
 function drawNodeGraphVisualOscilloscopeLocalFallback(screenItem, pixelRatio) {
