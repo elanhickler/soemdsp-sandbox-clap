@@ -39,9 +39,21 @@ async function waitForNodeSandboxFontsReady(timeoutMs = 1500) {
   ]);
 }
 
+function setNodeSandboxStartupProgress(progress, label) {
+  window.dispatchEvent(new CustomEvent("nodeSandboxStartupProgress", {
+    detail: {
+      label,
+      progress,
+    },
+  }));
+}
+
 async function markNodeSandboxInterfaceReady() {
+  setNodeSandboxStartupProgress(88, "settling layout");
   await waitForNodeSandboxFontsReady();
+  setNodeSandboxStartupProgress(94, "stabilizing");
   await waitForNodeSandboxStableLayout();
+  setNodeSandboxStartupProgress(100, "ready");
   document.documentElement.dataset.nodeSandboxInterfaceReady = "true";
   globalThis.nodeSandboxInterfaceReady = true;
   window.dispatchEvent(new CustomEvent("nodeSandboxInterfaceReady", {
@@ -51,10 +63,12 @@ async function markNodeSandboxInterfaceReady() {
 
 async function nodeSandboxStartupTask(label, task, timeoutMs = 4000) {
   let settled = false;
+  setNodeSandboxStartupProgress(label === "manifest" ? 18 : 34, `loading ${label}`);
   const timeout = new Promise((resolve) => {
     window.setTimeout(() => {
       if (!settled) {
         console.warn(`Sandbox startup step timed out: ${label}`);
+        setNodeSandboxStartupProgress(label === "manifest" ? 54 : 72, `${label} timed out`);
       }
       resolve();
     }, timeoutMs);
@@ -67,13 +81,16 @@ async function nodeSandboxStartupTask(label, task, timeoutMs = 4000) {
       })
       .finally(() => {
         settled = true;
+        setNodeSandboxStartupProgress(label === "manifest" ? 56 : 78, `${label} ready`);
       }),
     timeout,
   ]);
 }
 
 async function initSandboxApp() {
+  setNodeSandboxStartupProgress(8, "loading");
   loadSignalPlotSettings();
+  setNodeSandboxStartupProgress(12, "loading settings");
   await Promise.all([
     nodeSandboxStartupTask("manifest", loadManifest),
     nodeSandboxStartupTask("node graph", initNodeGraphMvp),

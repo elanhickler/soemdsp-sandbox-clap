@@ -6282,7 +6282,10 @@ def require_node_graph_mvp_contract() -> None:
         '<script src="./public/boot-loading.js?v=minimal-loading-screen-1"></script>',
         "node-boot-loading-screen",
         'aria-label="loading"',
-        "    loading\n  </div>",
+        "nodeBootLoadingLabel",
+        "nodeBootLoadingBarFill",
+        'role="progressbar"',
+        'aria-valuenow="8"',
         "nodeEarProtectionFault",
         "Audio Safety Circuit Open",
         "Ear Protection Tripped",
@@ -11001,6 +11004,10 @@ def require_node_graph_mvp_contract() -> None:
         "window.setTimeout(resolve, 100)",
         "async function waitForNodeSandboxStableLayout",
         "async function nodeSandboxStartupTask",
+        "function setNodeSandboxStartupProgress(progress, label)",
+        "nodeSandboxStartupProgress",
+        "setNodeSandboxStartupProgress(88, \"settling layout\")",
+        "setNodeSandboxStartupProgress(100, \"ready\")",
         "Sandbox startup step timed out:",
         "nodeSandboxStartupTask(\"manifest\", loadManifest)",
         "nodeSandboxStartupTask(\"node graph\", initNodeGraphMvp)",
@@ -11844,6 +11851,8 @@ def require_node_graph_mvp_contract() -> None:
         and 'document.body.classList.remove("node-boot-fading")' in boot_loading_source
         and 'document.body.classList.add("node-boot-ready")' in boot_loading_source
         and "}, 333);" in boot_loading_source
+        and "function setNodeBootLoadingProgress(value, label = \"\")" in boot_loading_source
+        and 'window.addEventListener("nodeSandboxStartupProgress"' in boot_loading_source
         and 'window.addEventListener("nodeSandboxInterfaceReady", finishNodeBootLoading, { once: true });' in boot_loading_source
         and 'document.body.dataset.nodeBootFinished = "interface-ready";' in boot_loading_source,
         "boot loading veil should fade after the interface ready event",
@@ -11890,6 +11899,9 @@ def require_node_graph_mvp_contract() -> None:
         "body.node-boot-fading",
         "body.node-boot-loading .shell",
         ".node-boot-loading-screen",
+        ".node-boot-loading-panel",
+        ".node-boot-loading-bar",
+        ".node-boot-loading-bar span",
         "transition: opacity 333ms ease",
         "body.node-boot-loading .node-boot-loading-screen",
         "body.node-boot-fading .node-boot-loading-screen",

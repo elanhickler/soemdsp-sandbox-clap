@@ -8,7 +8,18 @@
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
-    loading
+    <div class="node-boot-loading-panel">
+      <span id="nodeBootLoadingLabel" class="node-boot-loading-label">loading</span>
+      <div
+        class="node-boot-loading-bar"
+        role="progressbar"
+        aria-label="loading progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="8">
+        <span id="nodeBootLoadingBarFill" style="width: 8%;"></span>
+      </div>
+    </div>
   </div>
   <div
     id="nodeEarProtectionFault"

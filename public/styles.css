@@ -58,6 +58,36 @@ body.node-boot-loading .shell {
   transition: opacity 333ms ease;
 }
 
+.node-boot-loading-panel {
+  display: grid;
+  grid-template-columns: minmax(0, min(52vw, 320px));
+  gap: 10px;
+  justify-items: stretch;
+}
+
+.node-boot-loading-label {
+  text-align: center;
+}
+
+.node-boot-loading-bar {
+  position: relative;
+  overflow: hidden;
+  height: 7px;
+  border: 1px solid rgba(127, 199, 217, 0.26);
+  border-radius: 999px;
+  background: rgba(127, 199, 217, 0.08);
+}
+
+.node-boot-loading-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(127, 199, 217, 0.42), rgba(243, 241, 236, 0.92));
+  box-shadow: 0 0 18px rgba(127, 199, 217, 0.34);
+  transition: width 180ms ease;
+}
+
 body.node-boot-loading .node-boot-loading-screen,
 body.node-boot-fading .node-boot-loading-screen {
   display: grid;
