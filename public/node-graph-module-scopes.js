@@ -5420,6 +5420,176 @@ function nodeGraphModuleScopeFallbackBufferView(buffer, limit = 384) {
   return buffer;
 }
 
+function nodeGraphModuleScopeCanvasDotSprite(heatmapMode = false) {
+  const dataUrl = typeof nodeGraphTraceImageDataUrl === "function" ? nodeGraphTraceImageDataUrl() : "";
+  if (dataUrl && !heatmapMode) {
+    const imageKey = `canvas-dot-image:${dataUrl}`;
+    const cachedImage = nodeGraphModuleScopeState.lightSpriteTextures.get(imageKey);
+    if (cachedImage?.image?.complete) {
+      return cachedImage;
+    }
+    if (!cachedImage) {
+      const image = new Image();
+      image.onload = () => scheduleNodeGraphModuleScopeDraw();
+      image.src = dataUrl;
+      nodeGraphModuleScopeState.lightSpriteTextures.set(imageKey, { canvas: image, image, size: 64 });
+      nodeGraphModuleScopeTrimLightSpriteCache();
+    }
+  }
+
+  const core1Size = normalizeNodeGraphModuleScopeDotCoreSize(
+    nodeGraphMvp?.moduleScopeDotCore1Size ?? nodeGraphModuleScopeDefaultDotCores.dot1.size,
+    nodeGraphModuleScopeDefaultDotCores.dot1.size,
+  );
+  const core1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(
+    nodeGraphMvp?.moduleScopeDotCore1Brightness ?? nodeGraphModuleScopeDefaultDotCores.dot1.brightness,
+    nodeGraphModuleScopeDefaultDotCores.dot1.brightness,
+  );
+  const core1Color = normalizeNodeGraphModuleScopeDotCoreColor(
+    nodeGraphMvp?.moduleScopeDotCore1Color ?? nodeGraphModuleScopeDefaultDotCores.dot1.color,
+    nodeGraphModuleScopeDefaultDotCores.dot1.color,
+  );
+  const core2Size = normalizeNodeGraphModuleScopeDotCoreSize(
+    nodeGraphMvp?.moduleScopeDotCore2Size ?? nodeGraphModuleScopeDefaultDotCores.dot2.size,
+    nodeGraphModuleScopeDefaultDotCores.dot2.size,
+  );
+  const core2Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(
+    nodeGraphMvp?.moduleScopeDotCore2Brightness ?? nodeGraphModuleScopeDefaultDotCores.dot2.brightness,
+    nodeGraphModuleScopeDefaultDotCores.dot2.brightness,
+  );
+  const core2Color = normalizeNodeGraphModuleScopeDotCoreColor(
+    nodeGraphMvp?.moduleScopeDotCore2Color ?? nodeGraphModuleScopeDefaultDotCores.dot2.color,
+    nodeGraphModuleScopeDefaultDotCores.dot2.color,
+  );
+  const lineThickness = normalizeNodeGraphModuleScopeLineThickness(
+    nodeGraphMvp?.moduleScopeLineThickness ?? nodeGraphModuleScopeDefaultSettings.lineThickness,
+  );
+  const key = [
+    "canvas-dot-generated",
+    heatmapMode ? "heatmap" : "color",
+    core1Size.toFixed(3),
+    core1Brightness.toFixed(3),
+    heatmapMode ? "#ffffff" : core1Color,
+    core2Size.toFixed(3),
+    core2Brightness.toFixed(3),
+    heatmapMode ? "#ffffff" : core2Color,
+    lineThickness.toFixed(3),
+  ].join(":");
+  const cached = nodeGraphModuleScopeState.lightSpriteTextures.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+  const pixels = nodeGraphModuleScopeGeneratedDotTextureData({
+    core1Blur: 0,
+    core1Brightness: heatmapMode ? Math.max(0.55, core1Brightness) : core1Brightness,
+    core1Color: heatmapMode ? "#ffffff" : core1Color,
+    core1Size,
+    core2Blur: 0,
+    core2Brightness: heatmapMode ? Math.max(0.18, core2Brightness * 0.65) : core2Brightness,
+    core2Color: heatmapMode ? "#ffffff" : core2Color,
+    core2Size,
+    lineThickness,
+    size,
+  });
+  context.putImageData(new ImageData(new Uint8ClampedArray(pixels), size, size), 0, 0);
+  const sprite = { canvas, size };
+  nodeGraphModuleScopeState.lightSpriteTextures.set(key, sprite);
+  nodeGraphModuleScopeTrimLightSpriteCache();
+  return sprite;
+}
+
+function drawNodeGraphModuleScopeCanvasDotPath(context, points, proxyCanvas, pixelRatio, heatmapMode = false) {
+  const pixelPoints = nodeGraphModuleScopePixelPoints(points, proxyCanvas);
+  if (pixelPoints.length < 4) {
+    return false;
+  }
+  const sprite = nodeGraphModuleScopeCanvasDotSprite(heatmapMode);
+  if (!sprite?.canvas) {
+    return false;
+  }
+  const dotSize = clampNodeSliderValue(
+    nodeGraphModuleScopeDotSizeScale() * Math.max(1, pixelRatio) * (heatmapMode ? 2.35 : 2.65),
+    2,
+    96,
+  );
+  const radius = dotSize * 0.5;
+  const spacing = Math.max(0.55, dotSize * 0.22);
+  const rawValues = Array.isArray(points?.nodeGraphScopeRawValues)
+    ? points.nodeGraphScopeRawValues
+    : null;
+  const skippedPoints = Array.isArray(points?.nodeGraphScopeSkippedPoints)
+    ? points.nodeGraphScopeSkippedPoints
+    : null;
+  const skipSamples = points?.nodeGraphScopeDisableDiscontinuitySkip === true
+    ? 0
+    : typeof normalizeNodeGraphModuleScopeDiscontinuitySkipSamples === "function"
+      ? normalizeNodeGraphModuleScopeDiscontinuitySkipSamples(nodeGraphMvp?.moduleScopeDiscontinuitySkipSamples ?? 1)
+      : 1;
+  const stampLimit = 12000;
+  let stampCount = 0;
+  let skipThroughSegment = -1;
+
+  context.save();
+  context.globalCompositeOperation = "lighter";
+  context.globalAlpha = heatmapMode ? 0.72 : 0.86;
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+
+  const stamp = (x, y) => {
+    if (stampCount >= stampLimit) {
+      return;
+    }
+    context.drawImage(sprite.canvas, x - radius, y - radius, dotSize, dotSize);
+    stampCount += 1;
+  };
+  stamp(pixelPoints[0], pixelPoints[1]);
+  for (let index = 0; index + 3 < pixelPoints.length && stampCount < stampLimit; index += 2) {
+    const segmentIndex = index / 2;
+    if (skippedPoints?.[segmentIndex] || skippedPoints?.[segmentIndex + 1]) {
+      continue;
+    }
+    if (skipSamples > 0 && rawValues && segmentIndex + 1 < rawValues.length) {
+      const previousRaw = Number(rawValues[segmentIndex]);
+      const currentRaw = Number(rawValues[segmentIndex + 1]);
+      if (
+        Number.isFinite(previousRaw) &&
+        Number.isFinite(currentRaw) &&
+        Math.abs(currentRaw - previousRaw) > nodeGraphModuleScopeDiscontinuityThreshold
+      ) {
+        skipThroughSegment = Math.max(skipThroughSegment, segmentIndex + skipSamples - 1);
+      }
+    }
+    if (segmentIndex <= skipThroughSegment) {
+      continue;
+    }
+    const x1 = pixelPoints[index];
+    const y1 = pixelPoints[index + 1];
+    const x2 = pixelPoints[index + 2];
+    const y2 = pixelPoints[index + 3];
+    const distance = Math.hypot(x2 - x1, y2 - y1);
+    if (distance < 0.001) {
+      continue;
+    }
+    const steps = Math.max(1, Math.ceil(distance / spacing));
+    for (let step = 1; step <= steps && stampCount < stampLimit; step += 1) {
+      const mix = step / steps;
+      stamp(x1 + (x2 - x1) * mix, y1 + (y2 - y1) * mix);
+    }
+  }
+  context.restore();
+  recordNodeGraphModuleScopeRenderMetrics(points.length / 2, stampCount);
+  return stampCount > 0;
+}
+
 function drawNodeGraphVisualOscilloscopeLocalFallback(screenItem, pixelRatio) {
   const { buffer, drawRect, screenRect, settings, slot, visibleDrawRect, visibleProgressRange } = screenItem || {};
   if (slot?.type !== "visualOscilloscope" || !buffer || !drawRect || !screenRect) {
@@ -5468,36 +5638,15 @@ function drawNodeGraphVisualOscilloscopeLocalFallback(screenItem, pixelRatio) {
     height: canvas.height,
     width: canvas.width,
   };
-  const drawPointPath = (points) => {
-    const pixelPoints = nodeGraphModuleScopePixelPoints(points, proxyCanvas);
-    if (pixelPoints.length < 4) {
-      return false;
-    }
-    context.beginPath();
-    context.moveTo(pixelPoints[0], pixelPoints[1]);
-    for (let index = 2; index + 1 < pixelPoints.length; index += 2) {
-      context.lineTo(pixelPoints[index], pixelPoints[index + 1]);
-    }
-    context.stroke();
-    recordNodeGraphModuleScopeRenderMetrics(points.length / 2, points.length / 2);
-    return true;
-  };
-  context.save();
-  context.globalCompositeOperation = "lighter";
-  context.lineCap = "round";
-  context.lineJoin = "round";
   const heatmapMode = nodeGraphModuleScopeHeatmapEnabled(slot);
-  context.shadowColor = heatmapMode ? "rgba(255, 255, 255, 0.5)" : "rgba(61, 224, 255, 0.5)";
-  context.shadowBlur = Math.max(2, 3.5 * pixelRatio);
-  context.strokeStyle = heatmapMode ? "rgba(255, 255, 255, 0.22)" : "rgba(61, 224, 255, 0.38)";
-  context.lineWidth = Math.max(1, 3 * pixelRatio);
   const xyPoints = nodeGraphModuleScopeXyPoints(fallbackBuffer, localRect, proxyCanvas, pixelRatio, slot);
   let drewTrace = false;
   if (xyPoints.length >= 4) {
-    drewTrace = drawPointPath(xyPoints);
+    drewTrace = drawNodeGraphModuleScopeCanvasDotPath(context, xyPoints, proxyCanvas, pixelRatio, heatmapMode);
   } else {
     for (const [start, end] of nodeGraphModuleScopeBufferProgressRanges(fallbackBuffer)) {
-      drewTrace = drawPointPath(
+      drewTrace = drawNodeGraphModuleScopeCanvasDotPath(
+        context,
         nodeGraphModuleScopeBufferSegmentPoints(
           fallbackBuffer,
           localRect,
@@ -5508,31 +5657,15 @@ function drawNodeGraphVisualOscilloscopeLocalFallback(screenItem, pixelRatio) {
           end,
           localVisibleOptions,
         ),
+        proxyCanvas,
+        pixelRatio,
+        heatmapMode,
       ) || drewTrace;
     }
   }
-  if (drewTrace) {
-    context.shadowBlur = 0;
-    context.strokeStyle = heatmapMode ? "rgba(255, 255, 255, 0.46)" : "rgba(130, 244, 255, 0.82)";
-    context.lineWidth = Math.max(1, 1.2 * pixelRatio);
-    if (xyPoints.length >= 4) {
-      drawPointPath(xyPoints);
-    } else {
-      for (const [start, end] of nodeGraphModuleScopeBufferProgressRanges(fallbackBuffer)) {
-        drawPointPath(nodeGraphModuleScopeBufferSegmentPoints(
-          fallbackBuffer,
-          localRect,
-          proxyCanvas,
-          pixelRatio,
-          slot,
-          start,
-          end,
-          localVisibleOptions,
-        ));
-      }
-    }
+  if (!drewTrace) {
+    recordNodeGraphModuleScopeRenderMetrics(0, 0);
   }
-  context.restore();
 }
 
 function nodeGraphModuleScopeLightSpriteKey(options) {
