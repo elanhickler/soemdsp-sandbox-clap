@@ -5215,9 +5215,6 @@ function nodeGraphModuleScopeScissorRect(gl, canvas, rect, pixelRatio = window.d
 }
 
 function nodeGraphModuleScopeShouldDecaySlot(slot, buffer, settings) {
-  if (slot?.type === "visualOscilloscope") {
-    return false;
-  }
   if (nodeGraphModuleScopeTraceBurn(settings) <= 0) {
     return true;
   }
@@ -6039,12 +6036,9 @@ function drawNodeGraphModuleScopes() {
   const visibleItems = nodeGraphModuleScopeScreenItems(workspace, canvas, pixelRatio);
   debug.visibleItems = visibleItems.length;
   for (const item of visibleItems) {
-    if (item.slot?.type !== "visualOscilloscope") {
-      continue;
+    if (item.slot?.type === "visualOscilloscope") {
+      clearNodeGraphModuleScopeLocalFallback(item.slot);
     }
-    setNodeGraphModuleScopeDebugPhase("visual-fallback");
-    renderNodeGraphModuleScopeAnalyzer(item.slot, item.buffer);
-    drawNodeGraphVisualOscilloscopeLocalFallback(item, pixelRatio);
   }
   const firstVisibleSlot = visibleItems.find((item) => item.slot?.type !== "visualOscilloscope")?.slot;
   setNodeGraphModuleScopeDebugPhase("decay-regions");
@@ -6076,9 +6070,6 @@ function drawNodeGraphModuleScopes() {
       visibleProgressRange,
       visibleScopeRect,
     } = item;
-    if (slot?.type === "visualOscilloscope") {
-      continue;
-    }
     renderNodeGraphModuleScopeAnalyzer(slot, buffer);
     if (buffer?.nodeGraphScopeLightDisplay) {
       continue;
