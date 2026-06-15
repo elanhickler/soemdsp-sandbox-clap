@@ -140,6 +140,43 @@ function downloadNodeGraphViewportBlob(blob, fileName) {
   }
 }
 
+function nodeGraphViewportBlobBase64(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",").pop() : result);
+    }, { once: true });
+    reader.addEventListener("error", () => resolve(""), { once: true });
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function saveNodeGraphViewportBlobToDownloads(blob, fileName) {
+  if (!blob || !fileName) {
+    return null;
+  }
+  const contentBase64 = await nodeGraphViewportBlobBase64(blob);
+  if (!contentBase64) {
+    return null;
+  }
+  const response = await fetch("/api/viewport-export/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contentBase64,
+      fileName,
+      mimeType: blob.type || "application/octet-stream",
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok || !payload?.path) {
+    throw new Error(String(payload?.error || "viewport export save failed"));
+  }
+  setNodeGraphViewportLastFileMade(payload.path, { folder: payload.folder });
+  return payload;
+}
+
 function openNodeGraphYoutubeUploadPage() {
   const url = "https://studio.youtube.com/channel/UC/videos/upload";
   try {
@@ -618,9 +655,10 @@ async function exportNodeGraphViewportPng() {
     return;
   }
   try {
-    const saved = downloadNodeGraphViewportBlob(image.pngBlob, nodeGraphViewportImageFileName());
+    const saved = await saveNodeGraphViewportBlobToDownloads(image.pngBlob, nodeGraphViewportImageFileName());
     setNodeGraphViewportImageButtonStatus(saved ? "PNG Saved" : "PNG Ready");
   } catch (_error) {
+    console.warn("Viewport PNG save failed", _error);
     setNodeGraphViewportImageButtonStatus("PNG Failed");
   } finally {
     for (const button of buttons) {

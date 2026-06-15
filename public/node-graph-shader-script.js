@@ -22,7 +22,7 @@ const nodeGraphShaderScriptScopeSyncPatternSource = nodeGraphShaderScriptScopeSy
   .map((mode) => mode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
 const nodeGraphShaderScriptHighlightTokenPattern = new RegExp(
-  `#[0-9a-fA-F]{3,8}\\b|\\b(?:dot[12]\\.(?:global|globals)\\.(?:size|brightness|color)|(?:dot[12]|blend|video|scope)\\.[a-zA-Z_]\\w*|globalsize|global\\.size)\\b|\\b(?:${nodeGraphShaderScriptBlendModePatternSource}|${nodeGraphShaderScriptScopeModePatternSource}|${nodeGraphShaderScriptScopeSyncPatternSource}|none|output\\d+)\\b|~|-?\\d+(?:\\.\\d+)?\\b|[=*]`,
+  `#[0-9a-fA-F]{3,8}\\b|\\b(?:dot[12]\\.(?:global|globals)\\.(?:size|brightness|blur|color)|(?:dot[12]|blend|video|scope)\\.[a-zA-Z_]\\w*|globalsize|global\\.size)\\b|\\b(?:${nodeGraphShaderScriptBlendModePatternSource}|${nodeGraphShaderScriptScopeModePatternSource}|${nodeGraphShaderScriptScopeSyncPatternSource}|none|output\\d+)\\b|~|-?\\d+(?:\\.\\d+)?\\b|[=*]`,
   "g",
 );
 const nodeGraphShaderScriptEditableTokenPattern = new RegExp(
@@ -53,15 +53,54 @@ function normalizeNodeGraphScopeShaderModuleDefaults(defaults = {}) {
   return Object.fromEntries(
     Object.entries(source)
       .filter(([key, value]) => key && typeof value === "string" && value.trim())
-      .map(([key, value]) => [String(key).slice(0, 80), String(value).slice(0, 20000)]),
+      .map(([key, value]) => [
+        String(key).slice(0, 80),
+        nodeGraphScopeShaderCanonicalModuleDefaultSource(String(key), String(value).slice(0, 20000)),
+      ]),
   );
+}
+
+function nodeGraphScopeShaderCanonicalModuleDefaultSource(type, source = "") {
+  const current = String(source || "").trim();
+  if (!current) {
+    return "";
+  }
+  const compact = compactNodeGraphShaderScriptSource(current);
+  const genericLegacy = compactNodeGraphShaderScriptSource(`video.input     = ~;
+scope.mode      = 1d_full;
+scope.sync      = inherit;
+scope.cycles    = 1.7639;
+scope.zoom      = 1.0;
+scope.length    = 1.0;
+scope.padding   = 0.04;
+scope.syncSpeed = 1.0;
+dot1.color      = dot1.global.color;
+dot1.size       = 1.0 * dot1.global.size;
+dot1.blur       = 0.00;
+dot1.brightness = 4.50;
+dot2.color      = dot2.global.color;
+dot2.size       = 1.0 * dot2.global.size;
+dot2.blur       = 0.00;
+dot2.brightness = 0.45;
+blend.mode      = laser;`);
+  const visualLegacy = compactNodeGraphShaderScriptSource(
+    genericLegacy.replace("scope.mode      = 1d_full;", "scope.mode      = x_y;"),
+  );
+  if (compact === genericLegacy || compact === visualLegacy) {
+    return nodeGraphScopeShaderDefaultSourceForType(type);
+  }
+  return current;
 }
 
 function loadNodeGraphScopeShaderModuleDefaults() {
   try {
-    return normalizeNodeGraphScopeShaderModuleDefaults(
-      JSON.parse(window.localStorage.getItem(nodeGraphScopeShaderModuleDefaultsStorageKey) || "{}"),
-    );
+    const stored = window.localStorage.getItem(nodeGraphScopeShaderModuleDefaultsStorageKey) || "{}";
+    const normalized = normalizeNodeGraphScopeShaderModuleDefaults(JSON.parse(stored));
+    const serialized = JSON.stringify(normalized);
+    if (serialized !== stored) {
+      window.localStorage.setItem(nodeGraphScopeShaderModuleDefaultsStorageKey, serialized);
+    }
+    return normalized;
   } catch {
     return {};
   }

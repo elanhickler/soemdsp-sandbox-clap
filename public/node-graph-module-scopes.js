@@ -70,7 +70,7 @@ const nodeGraphModuleScopeMaxBackingStoreSize = 4096;
 const nodeGraphModuleScopeDefaultSettings = Object.freeze({
   blinkLightShape: "circle",
   brightness: 1,
-  cycles: 1.7639,
+  cycles: 2,
   gain: 1,
   lineThickness: 1,
   offset: 0,
@@ -307,7 +307,10 @@ function nodeGraphModuleScopeShaderGlobalValue(dotName, key, fallback) {
         nodeGraphMvp?.moduleScopeDotCore1Size ?? defaultCore.size,
         defaultCore.size,
       );
-    return clampNodeSliderValue((Number(fallback) || 0) * (size / defaultCore.size), 0, 1);
+    return normalizeNodeGraphModuleScopeDotCoreSize(
+      (Number(fallback) || 0) * (size / defaultCore.size),
+      defaultCore.size,
+    );
   }
   if (key === "brightness") {
     if (!enabled) {
@@ -323,6 +326,9 @@ function nodeGraphModuleScopeShaderGlobalValue(dotName, key, fallback) {
         defaultCore.brightness,
       );
   }
+  if (key === "blur") {
+    return Number.isFinite(Number(defaultCore.blur)) ? normalizeNodeGraphModuleScopeDotBlur(defaultCore.blur, 0) : 0;
+  }
   return fallback;
 }
 
@@ -334,7 +340,7 @@ function nodeGraphModuleScopeShaderExpressionPartValue(part, dotName, key, fallb
   if (/^-?\d+(?:\.\d+)?$/.test(text)) {
     return Number(text);
   }
-  const globalMatch = text.match(/^dot([12])\.(?:global|globals)\.(size|brightness)$/);
+  const globalMatch = text.match(/^dot([12])\.(?:global|globals)\.(size|brightness|blur)$/);
   if (globalMatch) {
     return nodeGraphModuleScopeShaderGlobalValue(`dot${globalMatch[1]}`, globalMatch[2], fallback);
   }
@@ -3971,6 +3977,28 @@ function nodeGraphModuleScopeDotStyle(slot, buffer) {
   const source = nodeGraphModuleScopeShaderSourceForSlot(slot);
   const coreFallback = nodeGraphModuleScopeShaderGlobalColor("dot1");
   const haloFallback = nodeGraphModuleScopeShaderGlobalColor("dot2");
+  const coreSize = nodeGraphMvp?.moduleScopeDotCore1Enabled === false
+    ? 0
+    : nodeGraphModuleScopeShaderNumber(
+      source,
+      "dot1",
+      "size",
+      normalizeNodeGraphModuleScopeDotCoreSize(
+        nodeGraphMvp?.moduleScopeDotCore1Size ?? nodeGraphModuleScopeDefaultDotCores.dot1.size,
+        nodeGraphModuleScopeDefaultDotCores.dot1.size,
+      ),
+    );
+  const haloSize = nodeGraphMvp?.moduleScopeDotCore2Enabled === false
+    ? 0
+    : nodeGraphModuleScopeShaderNumber(
+      source,
+      "dot2",
+      "size",
+      normalizeNodeGraphModuleScopeDotCoreSize(
+        nodeGraphMvp?.moduleScopeDotCore2Size ?? nodeGraphModuleScopeDefaultDotCores.dot2.size,
+        nodeGraphModuleScopeDefaultDotCores.dot2.size,
+      ),
+    );
   const coreBrightness = nodeGraphMvp?.moduleScopeDotCore1Enabled === false
     ? 0
     : nodeGraphModuleScopeShaderNumber(
@@ -3998,6 +4026,7 @@ function nodeGraphModuleScopeDotStyle(slot, buffer) {
     coreColor: nodeGraphScopeHexColorToRgb(
       nodeGraphModuleScopeShaderColor(source, "dot1", coreFallback),
     ),
+    coreSize: normalizeNodeGraphModuleScopeDotCoreSize(coreSize, nodeGraphModuleScopeDefaultDotCores.dot1.size),
     haloBrightness: clampNodeSliderValue(haloBrightness, 0, 40),
     haloColor: nodeGraphModuleScopeMixColor(
       nodeGraphScopeHexColorToRgb(
@@ -4006,6 +4035,7 @@ function nodeGraphModuleScopeDotStyle(slot, buffer) {
       [0, 0, 0],
       0.15,
     ),
+    haloSize: normalizeNodeGraphModuleScopeDotCoreSize(haloSize, nodeGraphModuleScopeDefaultDotCores.dot2.size),
   };
 }
 
@@ -4741,11 +4771,11 @@ function nodeGraphModuleScopeSpectrumBarVertices(buffer, rect, canvas, options =
 
 function nodeGraphModuleScopeBurnDecaySettings(settings) {
   const masterBurn = typeof normalizeNodeGraphModuleScopeBurn === "function"
-    ? normalizeNodeGraphModuleScopeBurn(nodeGraphMvp?.moduleScopeBurn ?? 0.85)
-    : 0.85;
+    ? normalizeNodeGraphModuleScopeBurn(nodeGraphMvp?.moduleScopeBurn ?? 0)
+    : 0;
   const decayAmount = typeof normalizeNodeGraphModuleScopeDecay === "function"
-    ? normalizeNodeGraphModuleScopeDecay(nodeGraphMvp?.moduleScopeDecay ?? 0.78)
-    : 0.78;
+    ? normalizeNodeGraphModuleScopeDecay(nodeGraphMvp?.moduleScopeDecay ?? 0)
+    : 0;
   const burn = clampNodeSliderValue((Number(settings?.screenBurn) || 0) * masterBurn, 0, 1);
   if (burn <= 0) {
     return {
@@ -4811,8 +4841,8 @@ function nodeGraphModuleScopeTraceLineThickness(slot, settings) {
 
 function nodeGraphModuleScopeTraceBurn(settings) {
   const masterBurn = typeof normalizeNodeGraphModuleScopeBurn === "function"
-    ? normalizeNodeGraphModuleScopeBurn(nodeGraphMvp?.moduleScopeBurn ?? 0.85)
-    : 0.85;
+    ? normalizeNodeGraphModuleScopeBurn(nodeGraphMvp?.moduleScopeBurn ?? 0)
+    : 0;
   return clampNodeSliderValue((Number(settings?.screenBurn) || 0) * masterBurn, 0, 1);
 }
 
@@ -4915,7 +4945,6 @@ function nodeGraphModuleScopeGeneratedDotTextureData(...args) {
 function nodeGraphModuleScopeGeneratedDotTexture(renderer) {
   const state = nodeGraphModuleScopeState.traceImageTexture;
   const core1Enabled = nodeGraphMvp?.moduleScopeDotCore1Enabled !== false;
-  const core1Enabled = nodeGraphMvp?.moduleScopeDotCore1Enabled !== false;
   const core1Size = normalizeNodeGraphModuleScopeDotCoreSize(
     nodeGraphMvp?.moduleScopeDotCore1Size ?? nodeGraphModuleScopeDefaultDotCores.dot1.size,
     nodeGraphModuleScopeDefaultDotCores.dot1.size,
@@ -4928,7 +4957,6 @@ function nodeGraphModuleScopeGeneratedDotTexture(renderer) {
     nodeGraphMvp?.moduleScopeDotCore1Color ?? nodeGraphModuleScopeDefaultDotCores.dot1.color,
     nodeGraphModuleScopeDefaultDotCores.dot1.color,
   );
-  const core2Enabled = nodeGraphMvp?.moduleScopeDotCore2Enabled !== false;
   const core2Enabled = nodeGraphMvp?.moduleScopeDotCore2Enabled !== false;
   const core2Size = normalizeNodeGraphModuleScopeDotCoreSize(
     nodeGraphMvp?.moduleScopeDotCore2Size ?? nodeGraphModuleScopeDefaultDotCores.dot2.size,
@@ -5039,6 +5067,14 @@ function nodeGraphModuleScopeDotSizeScale() {
   return clampNodeSliderValue(Math.max(core1Size, core2Size) * lineThickness, 0.01, 40);
 }
 
+function nodeGraphModuleScopeTraceDotSizeScale(dotSize, fallback = 1) {
+  const size = normalizeNodeGraphModuleScopeDotCoreSize(dotSize, fallback);
+  const lineThickness = normalizeNodeGraphModuleScopeLineThickness(
+    nodeGraphMvp?.moduleScopeLineThickness ?? nodeGraphModuleScopeDefaultSettings.lineThickness,
+  );
+  return clampNodeSliderValue(size * lineThickness, 0.01, 40);
+}
+
 function nodeGraphModuleScopeDotBlurMask(distanceSquared, radius, blurValue = 0) {
   const radiusValue = Math.max(0.0001, Number(radius) || 0.0001);
   const blur = normalizeNodeGraphModuleScopeDotBlur(blurValue, 0);
@@ -5104,9 +5140,13 @@ function drawNodeGraphModuleScopeBufferWebGl(renderer, rect, buffer, pixelRatio,
   const fixedDotSizePx = Number.isFinite(fixedDotSizeRatio) && fixedDotSizeRatio > 0
     ? Math.max(1, Math.min(visibleRect.width, visibleRect.height) * clampNodeSliderValue(fixedDotSizeRatio, 0.01, 1))
     : 0;
+  const requestedDotSizeScale = Number(options.dotSizeScale);
+  const dotSizeScale = Number.isFinite(requestedDotSizeScale) && requestedDotSizeScale > 0
+    ? requestedDotSizeScale
+    : nodeGraphModuleScopeDotSizeScale();
   const dotThicknessPx = Math.max(
     1,
-    fixedDotSizePx || (traceThicknessPx * nodeGraphModuleScopeDotSizeScale()),
+    fixedDotSizePx || (traceThicknessPx * dotSizeScale),
   );
   const safeDotThicknessPx = Math.min(512, dotThicknessPx * pixelRatio);
   const vertices = [];
@@ -5298,8 +5338,8 @@ function drawNodeGraphModuleScopePhosphorFade(renderer, settings = nodeGraphModu
     return null;
   }
   const masterBurn = typeof normalizeNodeGraphModuleScopeBurn === "function"
-    ? normalizeNodeGraphModuleScopeBurn(nodeGraphMvp?.moduleScopeBurn ?? 0.85)
-    : 0.85;
+    ? normalizeNodeGraphModuleScopeBurn(nodeGraphMvp?.moduleScopeBurn ?? 0)
+    : 0;
   const read = renderer.phosphorTargets[renderer.phosphorReadIndex];
   const writeIndex = 1 - renderer.phosphorReadIndex;
   const write = renderer.phosphorTargets[writeIndex];
@@ -5455,8 +5495,8 @@ function clearNodeGraphModuleScopeLocalFallback(slot) {
 function applyNodeGraphModuleScopeCanvasAnalogFade(context, canvas, settings) {
   const burn = nodeGraphModuleScopeTraceBurn(settings);
   const decay = typeof normalizeNodeGraphModuleScopeDecay === "function"
-    ? normalizeNodeGraphModuleScopeDecay(nodeGraphMvp?.moduleScopeDecay ?? 0.78)
-    : 0.78;
+    ? normalizeNodeGraphModuleScopeDecay(nodeGraphMvp?.moduleScopeDecay ?? 0)
+    : 0;
   if (!canvas?.width || !canvas?.height || !context) {
     return;
   }
@@ -5510,6 +5550,8 @@ function nodeGraphModuleScopeCanvasDotSprite(heatmapMode = false) {
     }
   }
 
+  const core1Enabled = nodeGraphMvp?.moduleScopeDotCore1Enabled !== false;
+  const core2Enabled = nodeGraphMvp?.moduleScopeDotCore2Enabled !== false;
   const core1Size = normalizeNodeGraphModuleScopeDotCoreSize(
     nodeGraphMvp?.moduleScopeDotCore1Size ?? nodeGraphModuleScopeDefaultDotCores.dot1.size,
     nodeGraphModuleScopeDefaultDotCores.dot1.size,
@@ -6176,6 +6218,9 @@ function drawNodeGraphModuleScopes() {
       applyNodeGraphModuleScopeTraceBlendMode(gl, blendMode);
       drawNodeGraphModuleScopeBufferWebGl(renderer, scopeRect, buffer, pixelRatio, slot, {
         color: colors.haloColor ?? colors.halo,
+        dotSizeScale: heatmapMode
+          ? undefined
+          : nodeGraphModuleScopeTraceDotSizeScale(colors.haloSize, nodeGraphModuleScopeDefaultDotCores.dot2.size),
         intensity: (heatmapMode ? 0.05 : 0.028 + (bloomEnabled ? burn * 0.016 : 0.006)) * brightness * haloBrightness,
         thicknessPx: 3.25 * zoomScale,
         visibleProgressRange,
@@ -6187,6 +6232,9 @@ function drawNodeGraphModuleScopes() {
       applyNodeGraphModuleScopeTraceBlendMode(gl, blendMode);
       drawNodeGraphModuleScopeBufferWebGl(renderer, scopeRect, buffer, pixelRatio, slot, {
         color: colors.coreColor ?? colors.core,
+        dotSizeScale: heatmapMode
+          ? undefined
+          : nodeGraphModuleScopeTraceDotSizeScale(colors.coreSize, nodeGraphModuleScopeDefaultDotCores.dot1.size),
         intensity: (heatmapMode ? 0.34 : 1.0 + (bloomEnabled ? burn * 0.08 : 0)) * brightness * coreBrightness,
         thicknessPx: 1.25 * zoomScale,
         visibleProgressRange,

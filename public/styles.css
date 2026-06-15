@@ -1491,6 +1491,7 @@ audio {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--line);
+  --node-toolbar-row-height: 2.8rem;
 }
 
 .node-view-toolbar button,
@@ -1509,6 +1510,9 @@ audio {
   align-items: stretch;
   gap: 1px;
   min-width: 0;
+  height: 3.25rem;
+  min-height: 0;
+  overflow: hidden;
   background: var(--line);
 }
 
@@ -1556,7 +1560,7 @@ audio {
   flex: 2 1 0;
   align-self: stretch;
   min-inline-size: 0;
-  min-height: 3.5rem;
+  min-height: var(--node-toolbar-row-height);
   overflow: hidden;
   background: rgba(127, 199, 217, 0.16);
 }
@@ -1575,7 +1579,7 @@ audio {
 
 .node-zoom-controls {
   flex: 2.8 1 0;
-  grid-template-rows: minmax(18px, 0.56fr) minmax(0, 1.44fr);
+  grid-template-rows: minmax(10px, 0.34fr) minmax(0, 1.66fr);
   min-inline-size: 0;
   border-width: 0 0 0 1px;
   border-radius: 0;
@@ -1608,12 +1612,17 @@ audio {
   min-height: 0;
   width: 100%;
   height: 100%;
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   line-height: 1;
   white-space: nowrap;
+}
+
+.node-view-toolbar .node-zoom-buttons button {
+  padding: 0;
 }
 
 .node-zoom-buttons button + button {
@@ -1644,7 +1653,7 @@ audio {
   justify-content: center;
   align-self: stretch;
   flex: 1 1 0;
-  min-height: 3.5rem;
+  min-height: var(--node-toolbar-row-height);
   min-width: 0;
   padding: 0 0.35rem;
   font-size: clamp(0.82rem, 1.04vw, 1.08rem);
@@ -1653,6 +1662,10 @@ audio {
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: normal;
+}
+
+.node-history-controls > * {
+  min-height: 0;
 }
 
 .node-world-position-readout {
@@ -1885,17 +1898,17 @@ audio {
 }
 
 #nodeSettingsViewButton {
-  padding: 8px;
-  font-size: clamp(2rem, 3vw, 2.75rem);
+  padding: 0.25rem;
+  font-size: clamp(1.35rem, 1.65vw, 1.7rem);
   line-height: 1;
 }
 
 .node-zoom-label {
-  font-size: clamp(0.82rem, 0.95vw, 1rem);
+  font-size: clamp(0.48rem, 0.58vw, 0.62rem);
 }
 
 .node-zoom-buttons button {
-  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-size: clamp(1.42rem, 1.8vw, 1.9rem);
   line-height: 1;
 }
 
@@ -1903,7 +1916,7 @@ audio {
   align-items: center;
   justify-content: center;
   font-family: Consolas, "Courier New", monospace;
-  font-size: 1.05rem;
+  font-size: clamp(0.92rem, 1.18vw, 1.18rem);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
@@ -2879,12 +2892,30 @@ audio {
   outline: none;
 }
 
-.node-viewport-path-row {
+.node-viewport-path-group {
   flex: 1 0 100%;
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  gap: 4px;
+  column-gap: 4px;
+  row-gap: 4px;
+}
+
+.node-viewport-path-row {
+  display: contents;
+}
+
+.node-viewport-path-row > * {
+  min-width: 0;
+}
+
+.node-viewport-path-open-button {
+  grid-column: 1;
+}
+
+.node-viewport-path-box {
+  grid-column: 2;
 }
 
 .node-viewport-path-box {
@@ -2909,7 +2940,7 @@ audio {
 }
 
 .node-viewport-path-open-button {
-  flex: 0 0 auto;
+  width: 100%;
   min-width: 86px;
   height: 24px;
   min-height: 24px;
@@ -8179,8 +8210,8 @@ audio {
 .node-header-timing-widgets {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 40%) minmax(0, 60%);
   min-width: 0;
   width: 100%;
   height: 100%;
@@ -8205,17 +8236,18 @@ audio {
 .node-header-timing-field {
   box-sizing: border-box;
   display: grid;
-  grid-template-rows: minmax(0, 0.72fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 0.9em) minmax(0, 1.55em);
+  align-content: center;
   align-items: stretch;
   justify-items: stretch;
   min-width: 0;
   height: 100%;
-  padding: 2px 3px;
+  padding: 1px 2px;
   gap: 1px;
   border-inline-end: 1px solid rgba(127, 199, 217, 0.08);
   color: rgba(199, 226, 226, 0.68);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
-  font-size: calc(var(--node-header-height) * 0.105);
+  font-size: clamp(0.56rem, 0.66vw, 0.66rem);
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -8250,7 +8282,12 @@ audio {
 }
 
 .node-header-tap-tempo-button {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
   min-width: 0;
+  min-height: 0;
+  height: auto;
   padding: 0 6px;
   border: 0;
   border-inline-end: 1px solid var(--border);
@@ -8258,7 +8295,7 @@ audio {
   color: rgba(127, 199, 217, 0.92);
   background: rgba(127, 199, 217, 0.08);
   font-family: inherit;
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
@@ -8273,6 +8310,10 @@ audio {
 .node-header-tap-tempo-button:focus-visible {
   outline: 1px solid rgba(127, 199, 217, 0.52);
   outline-offset: -1px;
+}
+
+.node-history-controls .node-header-tap-tempo-button {
+  min-height: 0;
 }
 
 .node-header-speed-placeholder {
@@ -8301,7 +8342,8 @@ audio {
   justify-self: center;
   width: min(100%, 5.8ch);
   min-width: 0;
-  height: 100%;
+  height: 1.55em;
+  min-height: 0;
   padding: 0;
   border: 1px solid rgba(127, 199, 217, 0.18);
   border-radius: 3px;

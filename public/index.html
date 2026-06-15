@@ -321,38 +321,40 @@
           value="1280"
           aria-label="Viewport export target width"
           title="Viewport export target width">
-        <div class="node-viewport-path-row">
-          <button
-            id="nodeViewportOpenFolderButton"
-            class="node-copy-viewport-image-button node-viewport-path-open-button"
-            type="button"
-            data-path="C:\Users\argit\Downloads"
-            aria-label="Open last export folder">Open Folder</button>
-          <input
-            id="nodeViewportLastFolderBox"
-            class="node-viewport-path-box"
-            type="text"
-            readonly
-            value="C:\Users\argit\Downloads"
-            aria-label="Last export folder full path"
-            title="Last export folder full path">
-        </div>
-        <div class="node-viewport-path-row">
-          <button
-            id="nodeViewportOpenFileButton"
-            class="node-copy-viewport-image-button node-viewport-path-open-button"
-            type="button"
-            disabled
-            aria-disabled="true"
-            aria-label="Open last exported file">Open File</button>
-          <input
-            id="nodeViewportLastFilePathBox"
-            class="node-viewport-path-box"
-            type="text"
-            readonly
-            value="file path: none"
-            aria-label="Last exported file full path"
-            title="Last exported file full path">
+        <div class="node-viewport-path-group">
+          <div class="node-viewport-path-row">
+            <button
+              id="nodeViewportOpenFolderButton"
+              class="node-copy-viewport-image-button node-viewport-path-open-button"
+              type="button"
+              data-path="C:\Users\argit\Downloads"
+              aria-label="Open last export folder">Open Folder</button>
+            <input
+              id="nodeViewportLastFolderBox"
+              class="node-viewport-path-box"
+              type="text"
+              readonly
+              value="C:\Users\argit\Downloads"
+              aria-label="Last export folder full path"
+              title="Last export folder full path">
+          </div>
+          <div class="node-viewport-path-row">
+            <button
+              id="nodeViewportOpenFileButton"
+              class="node-copy-viewport-image-button node-viewport-path-open-button"
+              type="button"
+              disabled
+              aria-disabled="true"
+              aria-label="Open last exported file">Open File</button>
+            <input
+              id="nodeViewportLastFilePathBox"
+              class="node-viewport-path-box"
+              type="text"
+              readonly
+              value="file path: none"
+              aria-label="Last exported file full path"
+              title="Last exported file full path">
+          </div>
         </div>
       </div>
 
@@ -1959,14 +1961,14 @@
                 class="node-master-scope-dot-core-title"
                 type="button"
                 data-global-scope-dot-toggle="dot1"
-                aria-pressed="true">Dot 1</button>
+                aria-pressed="false">Dot 1</button>
               <label>
               <span>size px</span>
-              <input id="nodeMasterScopeDotCore1Size" type="number" min="0.01" max="10" step="0.01" data-global-scope-input="dotCore1Size" data-global-scope-number-drag="true" value="3.18">
+              <input id="nodeMasterScopeDotCore1Size" type="number" min="0.01" max="10" step="0.01" data-global-scope-input="dotCore1Size" data-global-scope-number-drag="true" value="2">
               </label>
               <label>
               <span>brightness</span>
-              <input id="nodeMasterScopeDotCore1Brightness" type="number" min="0" max="40" step="0.01" data-global-scope-input="dotCore1Brightness" data-global-scope-number-drag="true" value="4.5">
+              <input id="nodeMasterScopeDotCore1Brightness" type="number" min="0" max="40" step="0.01" data-global-scope-input="dotCore1Brightness" data-global-scope-number-drag="true" value="0.23">
               </label>
               <label>
                 <span>color</span>
@@ -2049,7 +2051,7 @@
                 autocomplete="off"
                 spellcheck="false"
                 data-scope-input="cycles"
-                value="1.7639">
+                value="2">
             </label>
             <button id="nodeSceneScopeSync" type="button" data-scope-control="sync" aria-pressed="true">sync</button>
             <button
@@ -2801,7 +2803,7 @@
   <script src="./public/node-graph-graph-utils.js?v=graph2-through-curves-1"></script>
   <script src="./public/node-graph-samples.js?v=sample-playback-1"></script>
   <script src="./public/node-graph-text-box-rendering.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-patch-normalizers.js?v=canvas-hex-colors-1"></script>
+  <script src="./public/node-graph-patch-normalizers.js?v=scope-default-globals-1"></script>
   <script src="./public/node-graph-ui-view.js?v=graph-endpoint-lock-1"></script>
   <script src="./public/node-graph-audio-derivation.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-grid-utils.js?v=half-grid-window-drag-1"></script>
@@ -2813,10 +2815,10 @@
   <script src="./public/node-graph-settings-text-fit.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-default-preset.js?v=default-visible-nodes-1"></script>
   <script src="./public/node-graph-script-status.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-view-controls.js?v=module-browser-context-menu-1"></script>
+  <script src="./public/node-graph-view-controls.js?v=burn-decay-zero-1"></script>
   <script src="./public/node-graph-workspace-geometry.js?v=module-whole-grid-pan-half-grid-1"></script>
   <script src="./public/node-graph-workspace-zoom.js?v=log-zoom-feel-1"></script>
-  <script src="./public/node-graph-workspace-view.js?v=module-origin-independent-1"></script>
+  <script src="./public/node-graph-workspace-view.js?v=touch-pan-1"></script>
   <script src="./public/node-graph-camera-view.js?v=utility-camera-feed-1780810000000"></script>
   <script src="./public/node-graph-clap-host.js?v=clap-under-construction-2"></script>
   <script src="./public/node-graph-marquee-selection.js?v=slider-unit-color-1780307400000"></script>
@@ -2824,11 +2826,11 @@
   <script src="./public/node-graph-context-menu.js?v=home-context-menu-1"></script>
   <script src="./public/node-graph-module-actions.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-code-screen.js?v=canvas-ratio-language-2"></script>
-  <script src="./public/node-graph-module-scopes.js?v=scope-debug-freeze-3"></script>
-  <script src="./public/node-graph-shader-script.js?v=shader-brightness-contrast-only-1"></script>
+  <script src="./public/node-graph-module-scopes.js?v=burn-decay-zero-1"></script>
+  <script src="./public/node-graph-shader-script.js?v=scope-default-globals-1"></script>
   <script src="./public/node-graph-canvas-script.js?v=canvas-hex-colors-1"></script>
   <script src="./public/node-graph-module-factories.js?v=oscilloscope-mono-label-1"></script>
-  <script src="./public/node-graph-module-header-rendering.js?v=scope-controls-lower-row-1"></script>
+  <script src="./public/node-graph-module-header-rendering.js?v=burn-decay-zero-1"></script>
   <script src="./public/node-graph-module-rendering.js?v=speaker-protection-1"></script>
   <script src="./public/node-graph-history.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-visual-utils.js?v=text-light-registry-1780800000000"></script>
@@ -2867,7 +2869,7 @@
   <script src="./public/node-graph-ui-settings-utils.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-user-ui-settings-controls.js?v=master-scope-fps-1780618200000"></script>
   <script src="./public/node-graph-ui-settings-panels.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-ui-settings-persistence.js?v=scope-line-thickness-default-1"></script>
+  <script src="./public/node-graph-ui-settings-persistence.js?v=burn-decay-zero-1"></script>
   <script src="./public/node-graph-ui-settings-sync.js?v=text-light-registry-1780800000000"></script>
   <script src="./public/node-graph-keyboard-shortcuts.js?v=origin-canvas-grid-resize-1"></script>
   <script src="./public/node-graph-live-status-text.js?v=sample-rate-oversampling-1780468200000"></script>
@@ -2877,7 +2879,7 @@
   <script src="./public/node-graph-live-evidence.js?v=sample-rate-oversampling-1780468200000"></script>
   <script src="./public/node-graph-live-control-rendering.js?v=input-ready-status-1"></script>
   <script src="./public/node-graph-default-patch.js?v=canvas-script-layout-1"></script>
-  <script src="./public/node-graph-state.js?v=performance-modules-1"></script>
+  <script src="./public/node-graph-state.js?v=burn-decay-zero-1"></script>
   <script src="./public/node-graph-patch-core.js?v=module-origin-independent-1"></script>
   <script src="./public/node-graph-live-plan-runtime.js?v=buffered-inputs-1"></script>
   <script src="./public/node-graph-live-parameter-runtime.js?v=clap-tail-source-silence-1"></script>

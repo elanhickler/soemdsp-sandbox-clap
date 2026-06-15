@@ -22,6 +22,7 @@ DEFAULT_UI_SETTINGS = PUBLIC / "presets" / "useruisettings.json"
 DEFAULT_UI_SETTINGS_SCRIPT = PUBLIC / "presets" / "useruisettings.js"
 MAX_PRESET_BYTES = 512 * 1024
 MAX_YOUTUBE_UPLOAD_JSON_BYTES = 256 * 1024 * 1024
+MAX_VIEWPORT_EXPORT_JSON_BYTES = 128 * 1024 * 1024
 DEFAULT_SOEMDSP_ROOT = ROOT.parent / "soemdsp"
 DEFAULT_MANIFEST = (
     DEFAULT_SOEMDSP_ROOT / "runtime_dsp_object_bound_wav_resync_demo.manifest.json"
@@ -274,6 +275,9 @@ class SandboxServer(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/open-path":
             self.open_local_path()
+            return
+        if parsed.path == "/api/viewport-export/save":
+            self.save_viewport_export()
             return
         if parsed.path == "/api/youtube/upload":
             self.upload_youtube_video()
@@ -609,6 +613,60 @@ class SandboxServer(BaseHTTPRequestHandler):
             return
 
         self.send_json({"ok": True, "path": str(target)})
+
+    def save_viewport_export(self) -> None:
+        payload = self.read_json_payload(
+            "viewport export",
+            max_bytes=MAX_VIEWPORT_EXPORT_JSON_BYTES,
+        )
+        if payload is None:
+            return
+
+        file_name = payload.get("fileName")
+        content_base64 = payload.get("contentBase64")
+        if not isinstance(file_name, str) or not file_name.strip():
+            self.send_json({"ok": False, "error": "fileName is required"}, status=400)
+            return
+        if not isinstance(content_base64, str) or not content_base64.strip():
+            self.send_json({"ok": False, "error": "contentBase64 is required"}, status=400)
+            return
+
+        safe_name = Path(file_name.strip()).name
+        allowed_suffixes = {".flac", ".gif", ".mp4", ".ogg", ".png", ".wav", ".webm"}
+        if safe_name != file_name.strip() or Path(safe_name).suffix.lower() not in allowed_suffixes:
+            self.send_json({"ok": False, "error": "unsupported export file name"}, status=400)
+            return
+
+        try:
+            content = base64.b64decode(content_base64, validate=True)
+        except binascii.Error as exc:
+            self.send_json({"ok": False, "error": f"contentBase64 decode failed: {exc}"}, status=400)
+            return
+        if not content:
+            self.send_json({"ok": False, "error": "export content is empty"}, status=400)
+            return
+
+        downloads = (Path.home() / "Downloads").resolve()
+        downloads.mkdir(parents=True, exist_ok=True)
+        target = (downloads / safe_name).resolve()
+        if not target.is_relative_to(downloads):
+            self.send_json({"ok": False, "error": "export path must stay inside Downloads"}, status=403)
+            return
+
+        try:
+            target.write_bytes(content)
+        except OSError as exc:
+            self.send_json({"ok": False, "error": f"export save failed: {exc}"}, status=500)
+            return
+
+        self.send_json(
+            {
+                "ok": True,
+                "bytes": target.stat().st_size,
+                "folder": str(downloads),
+                "path": str(target),
+            },
+        )
 
     def upload_youtube_video(self) -> None:
         payload = self.read_json_payload(

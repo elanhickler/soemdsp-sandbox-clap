@@ -229,7 +229,7 @@ function createNodeGraphHeaderTimingWidgets() {
     createNodeGraphHeaderScopeInput(
       "nodeMasterScopeBurn",
       "Burn",
-      normalizeNodeGraphModuleScopeBurn(nodeGraphMvp.moduleScopeBurn ?? 0.85).toFixed(2),
+      normalizeNodeGraphModuleScopeBurn(nodeGraphMvp.moduleScopeBurn ?? 0).toFixed(2),
       {
         ariaLabel: "Oscilloscope screen burn",
         max: 1,
@@ -242,7 +242,7 @@ function createNodeGraphHeaderTimingWidgets() {
     createNodeGraphHeaderScopeInput(
       "nodeMasterScopeDecay",
       "Decay",
-      normalizeNodeGraphModuleScopeDecay(nodeGraphMvp.moduleScopeDecay ?? 0.78).toFixed(2),
+      normalizeNodeGraphModuleScopeDecay(nodeGraphMvp.moduleScopeDecay ?? 0).toFixed(2),
       {
         ariaLabel: "Oscilloscope initial phosphor decay",
         max: 1,

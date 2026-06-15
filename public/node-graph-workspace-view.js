@@ -534,7 +534,7 @@ function handleNodeGraphWindowResize() {
 }
 
 function beginNodeGraphWorkspacePan(event) {
-  if (event.button !== 1 || event.ctrlKey || event.altKey) {
+  if (!nodeGraphWorkspacePanPointerAllowed(event)) {
     return;
   }
 
@@ -551,6 +551,51 @@ function beginNodeGraphWorkspacePan(event) {
   workspace.setPointerCapture(event.pointerId);
   event.preventDefault();
   event.stopPropagation();
+}
+
+function nodeGraphWorkspacePanPointerAllowed(event) {
+  if (event.ctrlKey || event.altKey) {
+    return false;
+  }
+  if (event.pointerType === "touch") {
+    return event.isPrimary !== false && nodeGraphWorkspaceTouchPanTargetAllowed(event.target);
+  }
+  return event.button === 1;
+}
+
+function nodeGraphWorkspaceTouchPanTargetAllowed(target) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  if (!target.closest("#nodeGraphWorkspace")) {
+    return false;
+  }
+  if (target.closest(nodeGraphWorkspaceTouchPanBlockSelector())) {
+    return false;
+  }
+  return true;
+}
+
+function nodeGraphWorkspaceTouchPanBlockSelector() {
+  return [
+    ".dsp-node",
+    ".node-camera-frame",
+    ".node-graph-empty-module-button",
+    ".node-graph-resize-handle",
+    ".node-module-shop-card",
+    ".node-port",
+    ".node-param-port",
+    ".node-ui-item",
+    "a",
+    "button",
+    "input",
+    "label",
+    "output",
+    "select",
+    "textarea",
+    "[contenteditable='true']",
+    "[role='button']",
+  ].join(",");
 }
 
 function dragNodeGraphWorkspacePan(event) {

@@ -14,7 +14,7 @@
     "gpu": "Show GPU-constrained controls. These can make visual rendering or shader work heavier."
   },
   "workspace": {
-    "pan": "Mouse: middle-drag to move the modular view freely. Ctrl+middle-drag or Alt+middle-drag slowly zooms, including over modules and controls. Ctrl+Shift+G aligns the view to the grid.",
+    "pan": "Mouse: middle-drag to move the modular view freely. Touch: drag empty workspace to move the view. Ctrl+middle-drag or Alt+middle-drag slowly zooms, including over modules and controls. Ctrl+Shift+G aligns the view to the grid.",
     "resize": "Mouse: drag to resize workspace by grid units.",
     "resizeTitle": "Resize modular workspace",
     "origin": "World origin: X 0, Y 0",
