@@ -70,6 +70,9 @@ blend.mode      = laser;`;
 const nodeGraphScopeShaderVisualOscilloscopeDefaultSource = nodeGraphScopeShaderDefaultSource
   .replace("scope.mode      = 1d_full;", "scope.mode      = x_y;");
 
+const nodeGraphScopeShaderAudioPlayerDefaultSource = nodeGraphScopeShaderDefaultSource
+  .replace("scope.mode      = 1d_full;", "scope.mode      = x_y;");
+
 const nodeGraphCanvasScriptDefaultSource = `canvas.ratio(1, 1);
 canvas.background = #00000000;
 canvas.layout = oscilloscope;
@@ -118,6 +121,8 @@ function nodeGraphScopeShaderDefaultSourceForType(type) {
       moduleType === "ellipsoid" ||
       moduleType === "lorenzAttractor"
     ? nodeGraphScopeShaderVisualOscilloscopeDefaultSource
+    : moduleType === "audioPlayer"
+      ? nodeGraphScopeShaderAudioPlayerDefaultSource
     : nodeGraphScopeShaderDefaultSource;
 }
 
@@ -741,7 +746,7 @@ function normalizeNodeGraphPatchWindows(windows = {}) {
 }
 
 const nodeGraphWorkspaceViewLimits = Object.freeze({
-  minHeightGu: 4,
+  minHeightGu: 2,
   minWidthGu: 4,
 });
 

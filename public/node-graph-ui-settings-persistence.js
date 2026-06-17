@@ -81,6 +81,11 @@ function normalizeNodeUiDevSettings(settings = {}) {
     view.sliderPositionVisible ??
     nodeGraphMvp.sliderPositionVisible
   );
+  const hideMouseWhileDragging = Boolean(
+    view.hideMouseWhileDragging ??
+    nodeGraphMvp.hideMouseWhileDragging ??
+    true
+  );
   const moduleCatalogVisibility = normalizeNodeGraphModuleCatalogVisibility(
     view.moduleCatalogVisibility ?? settings.moduleCatalogVisibility ?? nodeGraphMvp.moduleCatalogVisibility,
   );
@@ -124,6 +129,7 @@ function normalizeNodeUiDevSettings(settings = {}) {
       sliderLayout,
       sliderAmountVisible,
       sliderPositionVisible,
+      hideMouseWhileDragging,
       moduleCatalogVisibility,
     },
   };
@@ -181,6 +187,7 @@ function readNodeUiDevSettingsFromControls() {
       sliderLayout: normalizeNodeGraphSliderLayout(nodeGraphMvp.sliderLayout),
       sliderAmountVisible: Boolean(nodeGraphMvp.sliderAmountVisible),
       sliderPositionVisible: Boolean(nodeGraphMvp.sliderPositionVisible),
+      hideMouseWhileDragging: Boolean(nodeGraphMvp.hideMouseWhileDragging),
       moduleCatalogVisibility: nodeGraphModuleCatalogVisibility(),
     },
   });
@@ -253,6 +260,10 @@ function applyNodeUiDevSettings(settings) {
   nodeGraphMvp.sliderLayout = normalizeNodeGraphSliderLayout(normalized.view.sliderLayout);
   nodeGraphMvp.sliderAmountVisible = Boolean(normalized.view.sliderAmountVisible);
   nodeGraphMvp.sliderPositionVisible = Boolean(normalized.view.sliderPositionVisible);
+  nodeGraphMvp.hideMouseWhileDragging = Boolean(normalized.view.hideMouseWhileDragging);
+  if (typeof syncNodeSliderHiddenMouseClass === "function") {
+    syncNodeSliderHiddenMouseClass();
+  }
   applyNodeGraphModuleCatalogVisibility(normalized.view.moduleCatalogVisibility);
   renderNodeGraphGridToggle();
   renderNodeGraphModuleVisibilityToggles();

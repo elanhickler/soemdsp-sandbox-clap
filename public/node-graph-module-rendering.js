@@ -1,3 +1,5 @@
+const NODE_GRAPH_KNOB_WIDGET_DRAG_DISTANCE_PX = 174;
+
 function ensureNodeGraphDragHandle(node) {
   const actions = node.querySelector(".node-header-actions");
   if (!actions || actions.querySelector(".node-drag-handle")) {
@@ -51,7 +53,7 @@ function syncNodeGraphKnobWidgetControl(control) {
   control.style.setProperty("--knob-widget-value", String(normalized));
   control.style.setProperty("--knob-widget-angle", `${-132 + normalized * 264}deg`);
   control.setAttribute("aria-valuenow", String(value));
-  const readout = control.querySelector("[data-knob-widget-value]");
+  const readout = control.closest(".node-knob-widget-body")?.querySelector("[data-knob-widget-value]");
   if (readout) {
     readout.textContent = formatNodeSliderNumber(value, {
       kind: input.dataset.kind,
@@ -74,6 +76,7 @@ function setNodeGraphKnobWidgetValue(control, value, options = {}) {
     record: options.record,
     status: options.status || "knob changed",
   });
+  syncNodeGraphGhostSliders();
   markNodeGraphRenderPending();
   scheduleNodeGraphLiveParameterSync();
   if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
@@ -113,7 +116,9 @@ function dragNodeGraphKnobWidget(event) {
   const startX = Number(control.dataset.knobDragStartX) || event.clientX;
   const startY = Number(control.dataset.knobDragStartY) || event.clientY;
   const startValue = Number(control.dataset.knobDragStartValue) || 0;
-  const speed = event.shiftKey ? 420 : 140;
+  const speed = event.shiftKey
+    ? NODE_GRAPH_KNOB_WIDGET_DRAG_DISTANCE_PX * 3
+    : NODE_GRAPH_KNOB_WIDGET_DRAG_DISTANCE_PX;
   const delta = ((startY - event.clientY) + (event.clientX - startX)) / speed;
   setNodeGraphKnobWidgetValue(control, startValue + delta * range);
 }
@@ -143,6 +148,7 @@ function attachNodeGraphNodeEvents(node) {
   node.querySelector(".node-drag-handle")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-header-title-row")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-led-face")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
+  node.querySelector(".node-knob-widget-body")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-bypass-button")?.addEventListener("click", toggleNodeGraphModuleBypass);
   node.querySelector(".node-action-button")?.addEventListener("click", openNodeModuleActionMenu);
   node.addEventListener("lostpointercapture", endNodeGraphNodeDrag);

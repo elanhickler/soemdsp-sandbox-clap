@@ -3495,6 +3495,7 @@ def require_node_graph_mvp_contract() -> None:
         "store": script_sources["./public/node-graph-module-store.js"],
         "metadata": script_sources["./public/node-graph-parameter-metadata.js"],
         "patch core": script_sources["./public/node-graph-patch-core.js"],
+        "parameter metadata": script_sources["./public/node-graph-parameter-metadata.js"],
         "actions": script_sources["./public/node-graph-module-actions.js"],
         "code screen": script_sources["./public/node-graph-code-screen.js"],
         "code screen model": script_sources["./public/node-graph-code-screen-model.js"],
@@ -3752,10 +3753,10 @@ def require_node_graph_mvp_contract() -> None:
             graph_contract_sources["index"],
             [
                 "nodeSceneGraphControls",
-                "nodeSceneGraphHeightControls",
-                "nodeSceneGraphHeightDecrease",
-                "nodeSceneGraphHeightValue",
-                "nodeSceneGraphHeightIncrease",
+                "nodeSceneTextBoxHeightControls",
+                "nodeSceneTextBoxHeightDecrease",
+                "nodeSceneTextBoxHeightValue",
+                "nodeSceneTextBoxHeightIncrease",
                 "nodeSceneGraphCursorX",
                 "nodeSceneGraphPreviousNode",
                 "nodeSceneGraphNodeIndex",
@@ -3906,10 +3907,12 @@ def require_node_graph_mvp_contract() -> None:
             [
                 "const targetIsGraphType = nodeGraphModuleIsGraphType(targetNode?.type)",
                 "graphControls.hidden = !(moduleMode && targetIsGraphType)",
-                "graphHeightControls.hidden = !(moduleMode && targetIsGraphType)",
-                "targetIsGraphType || [\"textBox\", \"valueSlider\"].includes(targetNode?.type)",
+                "const canResizeHeight = moduleMode && Boolean(targetNode)",
+                "textBoxHeightControls.hidden = !canResizeHeight",
                 "`${heightGu} height gu`",
-                "graphHeightValue.textContent = `${heightGu} height gu`",
+                "textBoxHeightValue.textContent = `${heightGu} height gu`",
+                "Make this module one grid unit shorter.",
+                "Make this module one grid unit taller.",
                 "syncNodeGraphGraphControls(nodeGraphGraphForNode(targetNode))",
                 "nodeSceneGraphCursorX",
                 "nodeSceneGraphPreviousNode",
@@ -3949,8 +3952,8 @@ def require_node_graph_mvp_contract() -> None:
                 "copyNodeGraphGraphFromContext",
                 "nodeSceneGraphPaste",
                 "pasteNodeGraphGraphFromContext",
-                "nodeSceneGraphHeightDecrease",
-                "nodeSceneGraphHeightIncrease",
+                "nodeSceneTextBoxHeightDecrease",
+                "nodeSceneTextBoxHeightIncrease",
                 "adjustNodeGraphModuleHeightFromContext(-1)",
                 "adjustNodeGraphModuleHeightFromContext(1)",
                 "nodeSceneGraphPreviousNode",
@@ -4072,7 +4075,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "worklet cache",
             delay_contract_sources["live runtime"],
-            ['node-live-audio-worklet.js?v=audio-player-module-1'],
+            ['node-live-audio-worklet.js?v=lorenz-unbounded-speed-1'],
         ),
     ]:
         for snippet in snippets:
@@ -6308,8 +6311,10 @@ def require_node_graph_mvp_contract() -> None:
         "nodeEarProtectionFault",
         "Audio Safety Circuit Open",
         "Ear Protection Tripped",
+        "Audio output was muted for safety.",
+        "Close this dialog to clear the trip and continue working.",
         "nodeEarProtectionFaultClose",
-        "node-ear-protection-tripped",
+        "globalThis.nodeGraphResetEarProtectionFault?.()",
         "Close",
         'aria-pressed="false">Show Evidence</button>',
         "nodeParameterMetadataPopover",
@@ -6583,12 +6588,19 @@ def require_node_graph_mvp_contract() -> None:
         "execution plan": script_sources["./public/node-graph-execution-plan.js"],
         "live plan": script_sources["./public/node-graph-live-plan-runtime.js"],
         "live runtime": script_sources["./public/node-graph-live-runtime.js"],
+        "parameter metadata": script_sources["./public/node-graph-parameter-metadata.js"],
+        "patch core": script_sources["./public/node-graph-patch-core.js"],
         "patch runtime": script_sources["./public/node-graph-patch-runtime.js"],
+        "patch normalizers": script_sources["./public/node-graph-patch-normalizers.js"],
         "rendering": script_sources["./public/node-graph-module-rendering.js"],
         "runtime": script_sources["./public/node-graph-live-frame-evaluator.js"],
         "samples": script_sources["./public/node-graph-samples.js"],
+        "sizing": script_sources["./public/node-graph-module-sizing.js"],
+        "scopes": script_sources["./public/node-graph-module-scopes.js"],
         "state": script_sources["./public/node-graph-state.js"],
         "store": script_sources["./public/node-graph-module-store.js"],
+        "server": server_source,
+        "styles": style_source,
         "worklet": worklet_source,
     }
     for name, source_text, snippets in [
@@ -6597,11 +6609,17 @@ def require_node_graph_mvp_contract() -> None:
             "\n".join([audio_player_contract_sources["definitions"], audio_player_contract_sources["store"]]),
             [
                 'audioPlayer: "Music Player"',
-                'inputs: ["Play", "Reset", "Phase", "Speed"]',
-                'outputs: ["Left", "Right", "Mono", "Phase"]',
-                'key: "sample"',
-                'label: "File"',
-                'key: "loop"',
+                'inputs: ["Reset", "Speed", "Phase"]',
+                'outputs: ["Mono", "Left", "Right", "Phase"]',
+                'key: "transport"',
+                'choices: ["Off (reset)", "Stop", "Pause", "Play", "Loop"]',
+                'label: "Play Mode"',
+                'key: "speed", label: "Speed", linearSmoothing: false',
+                'unboundedMax: true, unboundedMin: true',
+                'unit: "x"',
+                'key: "start", label: "Start", linearSmoothing: false, max: "1", mid: "0.5"',
+                'key: "end", label: "End", linearSmoothing: false, max: "1", mid: "0.5"',
+                'nonlinearSlider: false',
                 '"audioPlayer"',
                 "scrubbable",
                 "phasor",
@@ -6609,10 +6627,60 @@ def require_node_graph_mvp_contract() -> None:
         ),
         (
             "sample data",
-            "\n".join([audio_player_contract_sources["samples"], audio_player_contract_sources["clone"]]),
+            "\n".join([
+                audio_player_contract_sources["samples"],
+                audio_player_contract_sources["clone"],
+                audio_player_contract_sources["patch core"],
+                audio_player_contract_sources["parameter metadata"],
+            ]),
             [
                 "channelData = Array.from",
                 "nodeGraphLiveSamplesForPlan",
+                "nodeGraphEnsureLiveSamplesForPlan",
+                "nodeGraphSampleStatusForNode",
+                "nodeGraphSampleStatusElementForNode",
+                "nodeGraphSampleNameElementForNode",
+                "nodeGraphSamplePhaseElementForNode",
+                "nodeGraphSamplePhaseForNode",
+                "nodeGraphSamplePhaseCopyTextForNode",
+                "copyNodeGraphSamplePhaseForNode",
+                "nodeGraphSamplePhaseForNode(nodeId).toPrecision(17)",
+                "Copy Phase",
+                "data-sample-phase-for-node",
+                "node-sample-phase-readout",
+                "node-sample-copy-phase-button",
+                "phaseValue.textContent = nodeGraphSamplePhaseForNode(nodeId).toFixed(4)",
+                "setNodeGraphSampleStatus",
+                "syncNodeGraphSampleDisplayForNode",
+                "stopNodeGraphSampleControlEvent",
+                "protectNodeGraphSampleControl",
+                "nodeGraphSampleLoadErrorMessage",
+                "loadNodeGraphSampleDataUrlForNode",
+                "loadNodeGraphSamplePathForNode",
+                "transcodeNodeGraphSampleDataUrl",
+                "/api/audio-file/transcode-data-url",
+                "browser decode failed; transcoding...",
+                "/api/audio-file/data-url",
+                "sampleLoadErrors",
+                ".wav,.wave,.mp3,.ogg,.oga,.opus,.flac,.m4a,.aac",
+                "file picker opened",
+                "file selection changed",
+                "no file selected",
+                "loading ${file.name || \"audio\"}",
+                "could not decode ${format}",
+                "node-sample-file-picker",
+                "node-sample-file-input",
+                "picker.htmlFor = inputId",
+                "input.id = inputId",
+                "Load music file",
+                "node-sample-path-loader",
+                "node-sample-path-input",
+                "Load Path",
+                "protectNodeGraphSampleControl(pathButton)",
+                "protectNodeGraphSampleControl(pathInput)",
+                "normalizedNode.sample = { id: normalizeNodeGraphSampleId(node.sample?.id) }",
+                "samples: typeof normalizeNodeGraphPatchSamples === \"function\"",
+                "type === \"audioPlayer\" && [\"speed\", \"start\", \"end\", \"loop\", \"transport\"].includes(key)",
                 'node.type === "audioPlayer"',
                 'patchNode?.type === "audioPlayer"',
                 'node.type === "samplePlayer" || node.type === "sampleLooper" || node.type === "audioPlayer"',
@@ -6635,15 +6703,38 @@ def require_node_graph_mvp_contract() -> None:
                 "samplePlaybackStates",
                 "audioPlayer: counts.audioPlayer || 0",
                 "sampleBuffers: new Map()",
-                'node-live-audio-worklet.js?v=audio-player-module-1',
+                "await nodeGraphEnsureLiveSamplesForPlan(plan, nodeGraphMvp.patch)",
+                'node-live-audio-worklet.js?v=lorenz-unbounded-speed-1',
+                "phase: Number(message.audioPlayerPhase) || 0",
             ],
         ),
         (
             "rendering",
-            audio_player_contract_sources["rendering"],
+            "\n".join([
+                audio_player_contract_sources["rendering"],
+                audio_player_contract_sources["sizing"],
+                audio_player_contract_sources["styles"],
+            ]),
             [
                 'type === "samplePlayer" || type === "sampleLooper" || type === "audioPlayer"',
                 "createNodeGraphSampleModuleBody",
+                ".node-sample-path-loader",
+                "clip-path: inset(50%)",
+                'type === "audioPlayer"',
+                "defaultGridUnits + 4",
+                ".node-sample-phase-readout",
+            ],
+        ),
+        (
+            "scope x/y",
+            "\n".join([
+                audio_player_contract_sources["patch normalizers"],
+                audio_player_contract_sources["scopes"],
+            ]),
+            [
+                "const nodeGraphScopeShaderAudioPlayerDefaultSource",
+                'moduleType === "audioPlayer"',
+                'nodeGraphModuleScopeCapturedOutputPairXyBuffer(slot, "Left", "Right")',
             ],
         ),
         (
@@ -6655,16 +6746,69 @@ def require_node_graph_mvp_contract() -> None:
                 'node?.type === "audioPlayer"',
                 'nodeGraphInputKey(nodeId, "Phase")',
                 'this.inputKey(nodeId, "Phase")',
-                'nodeGraphInputKey(nodeId, "Play")',
-                'this.inputKey(nodeId, "Play")',
-                "playConnected ? readInput(\"Play\") : 1",
+                "state.playing = (transportPlayOnce || transportLooping) && !state.completed",
+                "transportFallback",
+                "transportMode",
+                "transportLooping",
+                "state.completed",
+                "this.samplePlaybackStates = new Map();",
+                "const hasMetadataRange = Number.isFinite(min) && Number.isFinite(max) && max > min",
+                "return base + modulationSignal",
                 "rangeKey",
+                "state.sampleId !== sampleId",
+                "state.rangeKey !== rangeKey",
+                "currentPhase < startPhase || currentPhase > endPhase",
+                "const speed = readParam(\"speed\", 1) + speedInput",
+                "const speed = readParam(\"speed\", 1) + readInput(\"Speed\")",
+                "speed < 0 && nextPhase <= startPhase",
+                "const collapsedRange = Math.abs(end - start) <= 0.000001",
+                "const startPhase = collapsedRange ? 0 : Math.min(start, end)",
+                "const endPhase = collapsedRange ? 1 : Math.max(start, end)",
+                "Phase: boundedPhase",
+                "audioPlayerPhase: this.audioPlayerMeterPhase",
+                "this.audioPlayerMeterPhase = boundedPhase",
+                "clampNodeSliderValue(readInput(\"Phase\"), 0, 1)",
+                "this.clampValue(readInput(\"Phase\"), 0, 1)",
                 "sampleStereoAt",
             ],
         ),
     ]:
         for snippet in snippets:
             require(snippet in source_text, f"missing audio player {name} contract: {snippet}")
+    require(
+        "CSS.escape" not in audio_player_contract_sources["samples"],
+        "sample loader should not depend on CSS.escape in the embedded browser",
+    )
+    sample_style_start = style_source.index(".node-sample-module-body")
+    sample_style_end = style_source.index(".node-wiring-panel", sample_style_start)
+    sample_style_source = style_source[sample_style_start:sample_style_end]
+    for snippet in [
+        "document.body.append(input)",
+        "input.remove()",
+        "input.hidden = true",
+    ]:
+        require(snippet not in audio_player_contract_sources["samples"], f"sample loader should use visible native input: {snippet}")
+    require(
+        "opacity: 0" not in sample_style_source,
+        "sample file input should be visible, not transparent",
+    )
+    for snippet in [
+        'parsed.path == "/api/audio-file/data-url"',
+        "def audio_file_data_url(self) -> None:",
+        "SUPPORTED_AUDIO_FILE_SUFFIXES",
+        "MAX_AUDIO_FILE_BYTES",
+        "MAX_AUDIO_UPLOAD_JSON_BYTES",
+        "MAX_AUDIO_TRANSCODE_BYTES",
+        "def audio_file_transcode_data_url(self) -> None:",
+        "def transcode_audio_file_to_wav(self, target: Path)",
+        "tempfile.TemporaryDirectory",
+        '"ffmpeg"',
+        '"pcm_s16le"',
+        "data:audio/wav;base64",
+        "audio path must stay inside the user home folder",
+        "base64.b64encode(content).decode('ascii')",
+    ]:
+        require(snippet in audio_player_contract_sources["server"], f"missing local audio path server contract: {snippet}")
 
     fallback_index = metadata_defaults_source.index("const fallbackNodeMetadataKindTemplates")
     fallback_waveform_index = metadata_defaults_source.index("waveform: {", fallback_index)
@@ -7109,6 +7253,7 @@ def require_node_graph_mvp_contract() -> None:
         "lorenzAttractor: {",
         'inputs: ["Reset"]',
         'outputs: ["X", "Y", "Z"]',
+        'unboundedMax: true',
         "key: \"sigma\"",
         "key: \"rho\"",
         "key: \"beta\"",
@@ -7424,7 +7569,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphWorkspaceHeightCss(heightPx)",
         "Math.round(widthPx + nodeGraphWorkspaceChromeSize(\"x\"))",
         "Math.round(heightPx + nodeGraphWorkspaceChromeSize(\"y\"))",
-        "minHeightGu: 4",
+        "minHeightGu: 2",
         "minWidthGu: 4",
         "function applyNodeGraphWorkspaceView()",
         "syncNodeGraphWorkspaceResizeHandlePosition()",
@@ -7501,8 +7646,13 @@ def require_node_graph_mvp_contract() -> None:
         "view: normalizeNodeGraphPatchView(patch.view)",
         "output module id must be output",
         "output module cannot be bypassed",
+        'destinationType === "output" && destinationPort === "In"',
+        'destinationPort = "Mono"',
         "patchNode.paramMeta?.[parameter.key]",
         "function normalizeNodeGraphPatchParameter(type, key, value, metadata = null)",
+        "const unboundedMin = Boolean(metadata?.unboundedMin ?? parameter?.unboundedMin)",
+        "const unboundedMax = Boolean(metadata?.unboundedMax ?? parameter?.unboundedMax)",
+        "if (unboundedMin && unboundedMax)",
         "function nodeGraphReadPatchParameterValue(node, key)",
         "function nodeGraphReadPatchParameterMetadata(node, key)",
         "function nodeGraphPatchChoiceLabel(metadata, value)",
@@ -7736,6 +7886,8 @@ def require_node_graph_mvp_contract() -> None:
         "node-knob-widget-body",
         "node-knob-widget-control",
         "node-knob-widget-output",
+        "function setNodeGraphKnobWidgetValue(control, value, options = {})",
+        "syncNodeGraphGhostSliders();",
         "function createNodeGraphSliderWidgetBody(node, type)",
         "slider-widget-layout",
         "node-slider-widget-body",
@@ -7770,10 +7922,18 @@ def require_node_graph_mvp_contract() -> None:
         "moduleActionWindowPosition",
         "function syncNodeGraphPatchWindowPosition(key, position)",
         "function setNodeSliderMetadata(slider, metadata)",
+        "slider.dataset.unboundedMax = metadata.unboundedMax ? \"true\" : \"false\"",
+        "slider.dataset.unboundedMin = metadata.unboundedMin ? \"true\" : \"false\"",
+        "slider.dataset.unboundedValue",
+        "delete slider.dataset.unboundedValue",
+        "applyNodeGraphInputUnboundedValue(input, value)",
         "function normalizedNodeSliderMid(slider)",
         "function nodeSliderSkewExponent(slider)",
         "function nodeSliderShouldUseNonlinearSlider(slider)",
+        "const nodeSliderMinSkewExponent = 0.25",
+        "const nodeSliderMaxSkewExponent = 4",
         "function nodeSliderValueFromTravel(slider, travel)",
+        "function nodeSliderValueFromPointerTravel(slider, travel)",
         "function nodeSliderTravelFromValue(slider, value)",
         "function wrapNodeSliderValue(value, min, max)",
         "function shortestNodeGraphWrapDelta(from, to, min, max)",
@@ -7782,6 +7942,12 @@ def require_node_graph_mvp_contract() -> None:
         "function readNodeGraphSmoothedParameter(smoother, frame, frames)",
         "function finishNodeGraphParameterSmoothing(smoothers)",
         "function normalizeNodeSliderValue(slider, value",
+        "clampNodeSliderValue((x - lane.inset) / lane.travelWidth, 0, 1)",
+        "nodeSliderValueFromPointerTravel(drag.slider, nextTravel)",
+        "if (nextTravel <= 0 || nextTravel >= 1)",
+        'wraparound: fallback.wraparound && Object.hasOwn(source, "wraparound")',
+        "const midInsideRange = safeMid > safeMin && safeMid < safeMax",
+        "midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON",
         "function openNodeMetadataPopover(event, readout)",
         "function beginNodeMetadataPopoverDrag(event)",
         "nodeGraphDialogDragTargetIsInteractive(event)",
@@ -7947,17 +8113,14 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphEarProtectionIsTripped()",
         "function nodeGraphTripEarProtection(details = {})",
         "globalThis.nodeGraphEarProtectionDetails = { ...details }",
+        "function nodeGraphResetEarProtectionFault()",
+        "globalThis.nodeGraphEarProtectionTripped = false",
+        "setNodeGraphLiveOutputMuted(false)",
         "nodeGraphApplyEarProtectionFaultUi(details)",
         "refreshNodeGraphSpeakerProtectionBodies();",
-        "const nodeGraphEarProtectionPatchRecoveryStorageKey",
-        "function nodeGraphEarProtectionRecoveryStores()",
         "function closeNodeGraphEarProtectionFaultUi()",
         "function bindNodeGraphEarProtectionFaultUi()",
         "nodeEarProtectionFaultDelegatedClose",
-        "function nodeGraphSaveEarProtectionPatchRecovery(details = {})",
-        "function nodeGraphConsumeEarProtectionPatchRecovery()",
-        "nodeGraphSaveEarProtectionPatchRecovery(details)",
-        "ear protection patch restored",
         'nodeGraphTripEarProtection({ source: "manual", protectionMuteCount: 1 })',
         "setNodeGraphAudioStats();",
         "audioStats.dataset.renderClips = String(clipCount)",
@@ -8286,8 +8449,10 @@ def require_node_graph_mvp_contract() -> None:
         "const visualTravelWidth = Math.max(1, drag.width * (Number(drag.visualScale) || 1))",
         "const travelDelta = ((horizontalDelta + verticalDelta) / visualTravelWidth) * drag.fineScale",
         "const nextTravel = drag.startTravel + travelDelta",
-        "nodeSliderValueFromTravel(drag.slider, nextTravel)",
+        "nodeSliderValueFromPointerTravel(drag.slider, nextTravel)",
         "reanchorNodeSliderDragAtPointer(drag, event)",
+        "function syncNodeSliderHiddenMouseClass()",
+        "nodeGraphMvp.hideMouseWhileDragging !== false",
         'document.body.classList.add("node-slider-dragging")',
         'document.body.classList.remove("node-slider-dragging")',
         'addEventListener("pointerdown", beginNodeSliderDrag, true)',
@@ -8591,6 +8756,8 @@ def require_node_graph_mvp_contract() -> None:
         "function jerobeamSpiralSample(options)",
         "function nodeGraphLorenzAttractorSample(options = {})",
         "function createNodeGraphLorenzAttractorState()",
+        "const dt = (0.75 * speed) / sampleRate;",
+        "const steps = Math.max(1, Math.ceil(dt / 0.0007));",
         "function spiralRender(inX, inY, inZ, zDepth)",
         "function spiralShape(lophas, phasor, dense, div, morph)",
         "function spiralRotate(inX, inY, inZ, rotX, rotY)",
@@ -8848,7 +9015,7 @@ def require_node_graph_mvp_contract() -> None:
         "node.querySelector(\".node-header-title-row\")?.addEventListener(\"pointerdown\", beginNodeGraphNodeDrag)",
         "node.querySelector(\".node-led-face\")?.addEventListener(\"pointerdown\", beginNodeGraphNodeDrag)",
         "node.querySelector(\".node-bypass-button\")?.addEventListener(\"click\", toggleNodeGraphModuleBypass)",
-        '".node-drag-handle, .node-header-title-row, .node-led-face"',
+        '".node-drag-handle, .node-header-title-row, .node-led-face, .node-knob-widget-body"',
         "node.querySelector(\".node-action-button\")?.addEventListener(\"click\", openNodeModuleActionMenu)",
         "handle.setPointerCapture(event.pointerId)",
         "handle.classList.add(\"dragging\")",
@@ -8893,6 +9060,8 @@ def require_node_graph_mvp_contract() -> None:
         "runtime.modulationConnections = nodeGraphLiveModulationConnectionMap(plan)",
         "runtime.order = [...(plan.order || [])]",
         "function nodeGraphApplyParameterBounds(value, metadata = {})",
+        "metadata.unboundedMin && metadata.unboundedMax",
+        "metadata.unboundedMax && Number.isFinite(min)",
         "function nodeGraphParameterValueToNormalizedSignal(value, metadata = {})",
         "function nodeGraphNormalizedSignalToParameterValue(signal, metadata = {})",
         "function normalizeNodeGraphParameterModulationInput(value, metadata = {})",
@@ -9050,8 +9219,8 @@ def require_node_graph_mvp_contract() -> None:
         "runtime.meterClipCount",
         "runtime.meterProtectionMuteCount",
         "function setNodeGraphLiveOutputMuted(muted)",
-        "Ear Protection tripped. Refresh the page to reset audio.",
-        "Refresh Required",
+        "Ear Protection tripped. Close the dialog to reset audio.",
+        "Close Dialog",
         "function setNodeGraphLiveEngineStatus(text = \"engine idle\", state = \"\")",
         "function setNodeGraphLiveEngineTitle(text = \"\")",
         "function clearNodeGraphLiveStatusTitle()",
@@ -9275,7 +9444,7 @@ def require_node_graph_mvp_contract() -> None:
         "clearNodeGraphModuleScopeBuffers();",
         "if (nodeGraphMvp.live.node || nodeGraphMvp.live.context)",
         "function scheduleNodeGraphLivePlanSync()",
-        "function sendNodeGraphLivePlan()",
+        "async function sendNodeGraphLivePlan()",
         "function handleNodeGraphLiveWorkletMessage(event)",
         "nodeGraphRecordBadValueEvent({",
         "lastBadValueNodeId",
@@ -9674,6 +9843,7 @@ def require_node_graph_mvp_contract() -> None:
         "moduleScopeBackgroundColor",
         "sliderAmountVisible",
         "sliderPositionVisible",
+        "hideMouseWhileDragging",
         "nodeGlobalScopeMenuButton",
         "nodeGlobalScopeMenu",
         "nodeGlobalScopeDragHandle",
@@ -10463,6 +10633,9 @@ def require_node_graph_mvp_contract() -> None:
         "const frames = nodeGraphModuleScopeXyTraceFrameCount(16384)",
         "function nodeGraphModuleScopeXyTraceFrameCount(length)",
         "return safeLength",
+        "function nodeGraphModuleScopeCapturedXyTraceFrameCount(slot, length)",
+        'slot?.type === "audioPlayer"',
+        "Math.min(frames, 256)",
         "function nodeGraphModuleScopeCapturedCurrentLightTarget(capturedBuffer)",
         "for (let index = capturedBuffer.length - 1; index >= 0; index -= 1)",
         "return clampNodeSliderValue(Math.abs(sample), 0, 1)",
@@ -10978,9 +11151,10 @@ def require_node_graph_mvp_contract() -> None:
         "phosphorFrame: {",
         "nodeGraphModuleScopeState.phosphorFrame = {",
         "if (!nodeGraphModuleScopePhosphorFrameReady(firstVisibleSlot))",
-        "const decayRegions = nodeGraphModuleScopeDecayRegions(visibleItems)",
-        "drawNodeGraphModuleScopePhosphorFade(\n    renderer,\n    nodeGraphModuleScopeSetting(firstVisibleSlot?.nodeId || \"\"),\n    decayRegions,\n  );",
-        "compositeNodeGraphModuleScopePhosphor(renderer);",
+        'setNodeGraphModuleScopeDebugPhase("clear-current-frame")',
+        "gl.bindFramebuffer(gl.FRAMEBUFFER, null)",
+        "gl.clear(gl.COLOR_BUFFER_BIT)",
+        'setNodeGraphModuleScopeDebugPhase("current-frame-ready")',
         "function nodeGraphModuleScopeBloomEnabled()",
         "Boolean(nodeGraphMvp?.scopeBloomEnabled)",
         "function applyNodeGraphModuleScopeTraceBlendMode(gl, blendMode = \"laser\")",
@@ -11496,7 +11670,7 @@ def require_node_graph_mvp_contract() -> None:
         node_graph_source.index("function scheduleNodeGraphModuleScopeDraw()")
     ]
     fps_gate_start = scope_draw_source.index("if (!nodeGraphModuleScopePhosphorFrameReady(firstVisibleSlot)) {")
-    fps_gate_end = scope_draw_source.index("  drawNodeGraphModuleScopePhosphorFade(", fps_gate_start)
+    fps_gate_end = scope_draw_source.index('  setNodeGraphModuleScopeDebugPhase("clear-current-frame")', fps_gate_start)
     fps_gate_source = scope_draw_source[fps_gate_start:fps_gate_end]
     require(
         "scheduleNodeGraphModuleScopeDraw();" in fps_gate_source
@@ -11827,12 +12001,12 @@ def require_node_graph_mvp_contract() -> None:
     )
 
     require(
-        "body.node-slider-dragging,\nbody.node-slider-dragging * {\n  cursor: none !important;\n}" in style_source
-        and "body.node-slider-dragging::after" in style_source
+        "body.node-hide-mouse-while-dragging,\nbody.node-hide-mouse-while-dragging * {\n  cursor: none !important;\n}" in style_source
+        and "body.node-slider-dragging.node-hide-mouse-while-dragging::after" in style_source
         and style_source.count("cursor:") == 1
         and "style.cursor" not in shader_script_source
         and "cursor:" not in color_widget_source,
-        "sandbox cursor policy should only use the slider drag dot cursor",
+        "sandbox cursor policy should only hide the cursor through the drag setting",
     )
 
     require(
@@ -11840,28 +12014,22 @@ def require_node_graph_mvp_contract() -> None:
         "paused oscilloscopes should not switch to a special powered-off screen style",
     )
 
-    phosphor_fade_source = node_graph_source[
-        node_graph_source.index("function drawNodeGraphModuleScopePhosphorFade("):
-        node_graph_source.index("function compositeNodeGraphModuleScopePhosphor(")
+    scope_draw_source = node_graph_source[
+        node_graph_source.index("function drawNodeGraphModuleScopes()"):
+        node_graph_source.index("function scheduleNodeGraphModuleScopeDraw()")
     ]
-    region_branch_start = phosphor_fade_source.index("} else if (Array.isArray(regions)) {")
-    region_branch_end = phosphor_fade_source.index("  } else {", region_branch_start)
-    region_branch_source = phosphor_fade_source[region_branch_start:region_branch_end]
     require(
-        "gl.clearColor(0, 0, 0, 0);" in region_branch_source
-        and "gl.clear(gl.COLOR_BUFFER_BIT);" in region_branch_source,
-        "region-scoped phosphor fade should clear screen-space pixels outside active scope panes",
+        'setNodeGraphModuleScopeDebugPhase("clear-current-frame")' in scope_draw_source
+        and "gl.bindFramebuffer(gl.FRAMEBUFFER, null)" in scope_draw_source
+        and "gl.clearColor(0, 0, 0, 0)" in scope_draw_source
+        and "gl.clear(gl.COLOR_BUFFER_BIT)" in scope_draw_source,
+        "module scope draw should clear the visible canvas before drawing the current frame",
     )
     require(
-        "drawNodeGraphModuleScopeTexturedQuad(renderer, read.texture, 0);" not in region_branch_source,
-        "region-scoped phosphor fade should not preserve the full screen-space phosphor texture",
-    )
-    require(
-        "scrollPixels / canvas.width" in region_branch_source
-        and "vertices: nodeGraphModuleScopeTextureQuadForRect(canvas, region.rect, pixelRatio)" in region_branch_source
-        and "gl.clear(gl.COLOR_BUFFER_BIT);" in region_branch_source
-        and "region.scrollPixels" in node_graph_source,
-        "output scope decay mode should scroll old phosphor pixels left, clear the right strip, and draw new samples on the right edge",
+        "drawNodeGraphModuleScopePhosphorFade(" not in scope_draw_source
+        and "compositeNodeGraphModuleScopePhosphor(" not in scope_draw_source
+        and "phosphorTargets[renderer.phosphorReadIndex]" not in scope_draw_source,
+        "module scope draw should not preserve or composite phosphor history",
     )
 
     clear_scope_source = node_graph_source[
@@ -12102,7 +12270,7 @@ def require_node_graph_mvp_contract() -> None:
         "width: calc(100% - 6px)",
         "height: max(560px, calc(100vh - 230px))",
         "min-width: calc(var(--node-grid-width) * 4)",
-        "min-height: calc(var(--node-grid-height) * 4)",
+        "min-height: calc(var(--node-grid-height) * 2)",
         "margin: 3px auto 0",
         ".node-graph-workspace.panning",
         ".node-zoom-label",
@@ -12331,9 +12499,9 @@ def require_node_graph_mvp_contract() -> None:
         "grid-template-rows: var(--node-header-height) var(--node-module-scope-height) auto minmax(0, 1fr)",
         ".dsp-node-body",
         "grid-auto-rows: minmax(var(--node-body-row-height), 1fr)",
-        ".node-graph-workspace.module-buttons-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.screen-space-shader-layout)",
+        ".node-graph-workspace.module-buttons-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.screen-space-shader-layout)",
         "grid-template-rows: var(--node-header-height) var(--node-module-scope-height) auto auto minmax(0, 1fr)",
-        ".node-graph-workspace.module-buttons-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.screen-space-shader-layout)::after",
+        ".node-graph-workspace.module-buttons-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.screen-space-shader-layout)::after",
         "grid-auto-rows: var(--node-body-row-height)",
         "gap: var(--node-body-row-gap)",
         ".dsp-node-io-section",
@@ -12880,6 +13048,8 @@ def require_node_graph_mvp_contract() -> None:
         "this.lorenzAttractorStates = new Map()",
         "createLorenzAttractorState()",
         "lorenzAttractorSample(options = {})",
+        "const dt = (0.75 * speed) / sampleRateValue;",
+        "const steps = Math.max(1, Math.ceil(dt / 0.0007));",
         "this.triangleStates = new Map()",
         "polyBlep(phaseCycle, phaseIncrement)",
         "polyBlepSquare(phaseCycle, phaseIncrement)",

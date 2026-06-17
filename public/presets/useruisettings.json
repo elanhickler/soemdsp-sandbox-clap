@@ -117,7 +117,8 @@
     "moduleScopeDiscontinuitySkipSamples": 1,
     "sliderLayout": "text-inside",
     "sliderAmountVisible": false,
-    "sliderPositionVisible": true
+    "sliderPositionVisible": true,
+    "hideMouseWhileDragging": true
   },
   "nodeColors": {
     "--node-module-fill": "#171a1f",

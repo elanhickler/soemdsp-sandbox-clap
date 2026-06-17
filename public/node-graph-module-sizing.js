@@ -17,6 +17,23 @@ const nodeGraphModuleHeightLimits = Object.freeze({
   minGu: 1,
 });
 
+function nodeGraphModuleWidthLimitsForType(type) {
+  if (nodeGraphModuleDefinitions[type]?.layout === "led") {
+    return { ...nodeGraphModuleWidthLimits, minGu: 1 };
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "knobWidget") {
+    return { ...nodeGraphModuleWidthLimits, minGu: 2 };
+  }
+  return nodeGraphModuleWidthLimits;
+}
+
+function nodeGraphModuleHeightLimitsForType(type) {
+  if (nodeGraphModuleDefinitions[type]?.layout === "knobWidget") {
+    return { ...nodeGraphModuleHeightLimits, minGu: 2 };
+  }
+  return nodeGraphModuleHeightLimits;
+}
+
 const nodeGraphTextBoxHeightLimits = Object.freeze({
   maxGu: 24,
   minGu: 1,
@@ -100,9 +117,7 @@ function nodeGraphDefaultModuleGridWidthUnits(type) {
 
 function normalizeNodeGraphModuleWidthUnits(type, widthGu) {
   const fallback = nodeGraphDefaultModuleGridWidthUnits(type);
-  const limits = nodeGraphModuleDefinitions[type]?.layout === "led"
-    ? { ...nodeGraphModuleWidthLimits, minGu: 1 }
-    : nodeGraphModuleWidthLimits;
+  const limits = nodeGraphModuleWidthLimitsForType(type);
   const value = Math.round(Number(widthGu));
   return Number.isFinite(value)
     ? Math.max(limits.minGu, Math.min(limits.maxGu, value))
@@ -123,9 +138,10 @@ function nodeGraphPatchNodeGridWidthUnits(node) {
 
 function normalizeNodeGraphModuleHeightUnits(type, heightGu, ui = {}) {
   const fallback = nodeGraphModuleGridHeightUnitsForUi(type, ui);
+  const limits = nodeGraphModuleHeightLimitsForType(type);
   const value = Math.round(Number(heightGu));
   return Number.isFinite(value)
-    ? Math.max(nodeGraphModuleHeightLimits.minGu, Math.min(nodeGraphModuleHeightLimits.maxGu, value))
+    ? Math.max(limits.minGu, Math.min(limits.maxGu, value))
     : fallback;
 }
 
@@ -302,7 +318,10 @@ function nodeGraphModuleGridHeightUnitsForUi(type, ui = {}) {
   const headerReduction = nodeGraphModuleLayout.headerHeightGu - nodeGraphModuleHeaderHeightUnits(ui);
   const roughGridUnits = 4 + nodeGraphModuleVisibleBodyRowCount(type) * 1.25 - headerReduction;
   const requiredGridUnits = nodeGraphModuleRequiredHeightUnitsForUi(type, ui);
-  return Math.ceil(Math.max(roughGridUnits, requiredGridUnits));
+  const defaultGridUnits = Math.ceil(Math.max(roughGridUnits, requiredGridUnits));
+  return type === "audioPlayer"
+    ? Math.min(nodeGraphModuleHeightLimits.maxGu, defaultGridUnits + 4)
+    : defaultGridUnits;
 }
 
 function nodeGraphPatchNodeGridHeightUnits(node) {

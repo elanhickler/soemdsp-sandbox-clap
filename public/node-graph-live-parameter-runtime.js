@@ -14,6 +14,15 @@ function readNodeGraphLiveSmoothedParam(runtime, node, key, fallback, frame, fra
 function nodeGraphApplyParameterBounds(value, metadata = {}) {
   const min = Number(metadata.min);
   const max = Number(metadata.max);
+  if (metadata.unboundedMin && metadata.unboundedMax) {
+    return value;
+  }
+  if (metadata.unboundedMin && Number.isFinite(max)) {
+    return Math.min(value, max);
+  }
+  if (metadata.unboundedMax && Number.isFinite(min)) {
+    return Math.max(value, min);
+  }
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
     return value;
   }

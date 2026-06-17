@@ -163,6 +163,20 @@ function createNodeUserUiSettingsViewControl() {
   });
 }
 
+function createNodeUserUiSettingsHideMouseWhileDraggingControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "hideMouseWhileDragging",
+    label: "Hide mouse while dragging",
+    getValue: () => nodeGraphMvp.hideMouseWhileDragging !== false,
+    setValue: (visible) => {
+      nodeGraphMvp.hideMouseWhileDragging = visible;
+      if (typeof syncNodeSliderHiddenMouseClass === "function") {
+        syncNodeSliderHiddenMouseClass();
+      }
+    },
+  });
+}
+
 function createNodeUserUiSettingsSliderAmountControl() {
   return createNodeUserUiSettingsViewCheckbox({
     key: "sliderAmountVisible",
@@ -385,6 +399,7 @@ function renderNodeUserUiSettingsControls() {
   for (const section of nodeUiDevSettingSections) {
     const controls = [];
     if (section.title === "workspace") {
+      controls.push(createNodeUserUiSettingsHideMouseWhileDraggingControl());
       controls.push(createNodeUserUiSettingsViewControl());
       controls.push(createNodeUserUiSettingsSliderAmountControl());
       controls.push(createNodeUserUiSettingsSliderPositionControl());
@@ -437,6 +452,12 @@ function syncNodeUserUiSettingsViewControls() {
       continue;
     }
     input.checked = Boolean(nodeGraphMvp.sliderPositionVisible);
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='hideMouseWhileDragging']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = nodeGraphMvp.hideMouseWhileDragging !== false;
   }
   for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleButtonsVisible']")) {
     if (document.activeElement === input) {

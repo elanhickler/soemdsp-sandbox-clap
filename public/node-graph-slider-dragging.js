@@ -101,7 +101,17 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
     return;
   }
 
-  slider.value = String(normalizeNodeSliderValue(slider, value));
+  const unboundedMin = slider.dataset.unboundedMin === "true";
+  const unboundedMax = slider.dataset.unboundedMax === "true";
+  const min = Number(slider.min);
+  const max = Number(slider.max);
+  if ((unboundedMin && Number.isFinite(min) && value < min) || (unboundedMax && Number.isFinite(max) && value > max)) {
+    slider.dataset.unboundedValue = String(value);
+    slider.value = String(normalizeNodeSliderValue(slider, value));
+  } else {
+    delete slider.dataset.unboundedValue;
+    slider.value = String(normalizeNodeSliderValue(slider, value));
+  }
   syncNodeSliderReadout(slider);
   syncNodeGraphPatchParameterFromSlider(slider, {
     record: true,
@@ -115,6 +125,7 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
 }
 
 function setNodeSliderValue(slider, value) {
+  delete slider.dataset.unboundedValue;
   slider.value = String(
     normalizeNodeSliderValue(slider, value),
   );
@@ -159,14 +170,22 @@ function updateNodeSliderDotCursor(event) {
   document.body.style.setProperty("--node-slider-cursor-y", `${event.clientY}px`);
 }
 
+function syncNodeSliderHiddenMouseClass() {
+  document.body.classList.toggle(
+    "node-hide-mouse-while-dragging",
+    Boolean(nodeGraphMvp.sliderDragging) && nodeGraphMvp.hideMouseWhileDragging !== false,
+  );
+}
+
 function clearNodeSliderDotCursor() {
+  document.body.classList.remove("node-hide-mouse-while-dragging");
   document.body.classList.remove("node-slider-dragging");
   document.body.style.removeProperty("--node-slider-cursor-x");
   document.body.style.removeProperty("--node-slider-cursor-y");
 }
 
 function nodeSliderValueFromPointer(slider, surface, clientX) {
-  return nodeSliderValueFromTravel(slider, nodeSliderTravelFromPointer(slider, surface, clientX));
+  return nodeSliderValueFromPointerTravel(slider, nodeSliderTravelFromPointer(slider, surface, clientX));
 }
 
 function nodeSliderFineTuneScale(event) {
@@ -294,6 +313,7 @@ function beginNodeSliderDrag(event) {
   };
   surface.classList.add("value-dragging");
   document.body.classList.add("node-slider-dragging");
+  syncNodeSliderHiddenMouseClass();
   nodeGraphWireInteractions?.clearHover?.();
   updateNodeSliderDotCursor(event);
   if (event.pointerId !== undefined) {
@@ -333,10 +353,10 @@ function dragNodeSlider(event) {
       drag.slider,
       quantizeNodeSliderDragValue(
         drag.slider,
-        nodeSliderValueFromTravel(drag.slider, nextTravel),
+        nodeSliderValueFromPointerTravel(drag.slider, nextTravel),
       ),
     );
-    if (!nodeSliderShouldWraparound(drag.slider) && (nextTravel <= 0 || nextTravel >= 1)) {
+    if (nextTravel <= 0 || nextTravel >= 1) {
       reanchorNodeSliderDragAtPointer(drag, event);
     }
   }

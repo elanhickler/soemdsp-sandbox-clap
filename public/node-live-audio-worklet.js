@@ -17,6 +17,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.lastBadValueReason = "";
     this.lastBadValueNodeId = "";
     this.lastBadValueSource = "";
+    this.audioPlayerMeterNodeId = "";
+    this.audioPlayerMeterPeak = 0;
+    this.audioPlayerMeterPhase = 0;
+    this.audioPlayerMeterReason = "";
+    this.audioPlayerMeterSamples = 0;
+    this.audioPlayerNodeIds = [];
     this.inputMeterPeak = 0;
     this.inputMeterSamples = 0;
     this.inputMeterSquareSum = 0;
@@ -75,6 +81,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.planSerial = 0;
     this.randomClockStates = new Map();
     this.sampleHoldStates = new Map();
+    this.samplePlaybackStates = new Map();
+    this.samples = new Map();
     this.randomWalkStates = new Map();
     this.sessionId = 0;
     this.scopeBuffers = new Map();
@@ -426,6 +434,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.resetRaptEllipticDecimator();
     }
     const nodes = Array.isArray(plan?.nodes) ? plan.nodes : [];
+    this.audioPlayerNodeIds = nodes
+      .filter((node) => node?.type === "audioPlayer")
+      .map((node) => String(node.id || ""))
+      .filter(Boolean);
     const ids = new Set(nodes.map((node) => node.id));
     this.nodes = new Map(nodes.map((node) => [node.id, {
       id: node.id,
@@ -1538,6 +1550,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   applyParameterBounds(value, metadata = {}) {
     const min = Number(metadata.min);
     const max = Number(metadata.max);
+    if (metadata.unboundedMin && metadata.unboundedMax) {
+      return value;
+    }
+    if (metadata.unboundedMin && Number.isFinite(max)) {
+      return Math.min(value, max);
+    }
+    if (metadata.unboundedMax && Number.isFinite(min)) {
+      return Math.max(value, min);
+    }
     if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
       return value;
     }
@@ -1637,6 +1658,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const base = this.readSmoothedParameter(node, key, fallback, frame, frames);
     const metadata = node?.paramMeta?.[key] || {};
     const modulations = this.modulationConnections.get(this.parameterKey(node?.id, key)) || [];
+    const min = Number(metadata.min);
+    const max = Number(metadata.max);
+    const hasMetadataRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
+    if (!hasMetadataRange && !modulations.length) {
+      return base;
+    }
     const modulationSignal = modulations.reduce(
       (sum, modulation) => sum + this.normalizeParameterModulationInput(this.readRuntimePortOutput(
         frameValues,
@@ -1647,6 +1674,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       ), metadata),
       0,
     );
+    if (!hasMetadataRange) {
+      return base + modulationSignal;
+    }
     return this.applyParameterModulation(base, modulationSignal, metadata);
   }
 
@@ -2116,7 +2146,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
   createSamplePlaybackState() {
     return {
-      lastPlay: 0,
       lastReset: 0,
       phase: 0,
       playing: false,
@@ -2805,34 +2834,52 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const sampleId = String(node?.sample?.id || "");
     const sample = this.samples.get(sampleId);
     const frames = Math.max(0, Number(sample?.frames) || sample?.samples?.length || sample?.channelData?.[0]?.length || 0);
+    this.audioPlayerMeterNodeId = nodeId;
     if (!sample || frames <= 1) {
+      this.audioPlayerMeterReason = sampleId ? "engine waiting for sample" : "engine no sample id";
       return { Left: 0, Mono: 0, Out: 0, Phase: 0, Right: 0 };
     }
     const start = this.clampValue(readParam("start", 0), 0, 1);
     const end = this.clampValue(readParam("end", 1), 0, 1);
-    const startPhase = Math.min(start, end);
-    const endPhase = Math.max(start, end);
+    const collapsedRange = Math.abs(end - start) <= 0.000001;
+    const startPhase = collapsedRange ? 0 : Math.min(start, end);
+    const endPhase = collapsedRange ? 1 : Math.max(start, end);
     const span = Math.max(0.000001, endPhase - startPhase);
     const rangeKey = `${startPhase}:${endPhase}`;
-    if (state.sampleId !== sampleId || state.rangeKey !== rangeKey) {
+    if (state.sampleId !== sampleId) {
       state.phase = startPhase;
+      state.completed = false;
       state.sampleId = sampleId;
+    } else if (state.rangeKey !== rangeKey) {
+      const currentPhase = Number(state.phase);
+      if (!Number.isFinite(currentPhase) || currentPhase < startPhase || currentPhase > endPhase) {
+        state.phase = startPhase;
+      }
+      state.completed = false;
+    }
+    if (state.rangeKey !== rangeKey) {
       state.rangeKey = rangeKey;
     }
-    const playConnected = this.inputConnections?.has?.(this.inputKey(nodeId, "Play"));
-    const play = playConnected ? readInput("Play") : 1;
+    const transportFallback = Object.hasOwn(node?.params || {}, "transport")
+      ? 4
+      : ((Number(node?.params?.loop) || 0) >= 0.5 ? 4 : 0);
+    const transportMode = Math.max(0, Math.min(4, Math.round(readParam("transport", transportFallback))));
+    const transportReset = transportMode <= 0;
+    const transportStopped = transportMode === 1;
+    const transportPaused = transportMode === 2;
+    const transportPlayOnce = transportMode === 3;
+    const transportLooping = transportMode >= 4;
+    if (state.transportMode !== transportMode) {
+      state.completed = false;
+      state.transportMode = transportMode;
+    }
     const reset = readInput("Reset");
     const resetEdge = state.lastReset <= 0 && reset > 0;
-    if (resetEdge) {
+    if (resetEdge || transportReset || transportStopped) {
       state.phase = startPhase;
-      state.playing = false;
+      state.completed = false;
     }
-    if (play > 0) {
-      state.playing = true;
-    } else if (state.lastPlay > 0 && play <= 0) {
-      state.playing = false;
-    }
-    state.lastPlay = play;
+    state.playing = (transportPlayOnce || transportLooping) && !state.completed;
     state.lastReset = reset;
 
     const phaseConnected = this.inputConnections?.has?.(this.inputKey(nodeId, "Phase"));
@@ -2840,33 +2887,60 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const sampleRateRatio = (Number(sample.sampleRate) || rate || 44100) / Math.max(1, rate || 44100);
     const increment = (speed * sampleRateRatio) / frames;
     const phase = phaseConnected
-      ? startPhase + this.clampValue(readInput("Phase"), 0, 1) * span
-      : state.phase;
-    const loop = readParam("loop", 1) >= 0.5;
-    const boundedPhase = loop
-      ? startPhase + this.wrapValue((phase - startPhase) / span, 0, 1) * span
-      : this.clampValue(phase, startPhase, endPhase);
+      ? this.clampValue(readInput("Phase"), 0, 1)
+      : this.clampValue(state.phase, 0, 1);
+    const boundedPhase = phase < startPhase || phase > endPhase
+      ? startPhase
+      : phase;
     const stereo = this.sampleStereoAt(sample, boundedPhase * (frames - 1));
     const level = readParam("level", 1);
+    const outputActive = state.playing;
+    const left = outputActive ? stereo.Left * level : 0;
+    const mono = outputActive ? stereo.Mono * level : 0;
+    const right = outputActive ? stereo.Right * level : 0;
+    this.audioPlayerMeterPhase = boundedPhase;
+    this.audioPlayerMeterPeak = Math.max(
+      this.audioPlayerMeterPeak,
+      Math.abs(left),
+      Math.abs(mono),
+      Math.abs(right),
+    );
+    this.audioPlayerMeterReason = state.playing
+      ? (transportLooping ? "engine looping" : "engine playing")
+      : transportPaused
+        ? "engine paused"
+        : transportStopped
+          ? "engine stopped"
+          : state.completed
+            ? "engine complete"
+            : "engine off reset";
+    this.audioPlayerMeterSamples += 1;
     if (!phaseConnected && state.playing) {
       const nextPhase = boundedPhase + increment;
-      if (loop) {
+      if (transportLooping) {
         state.phase = startPhase + this.wrapValue((nextPhase - startPhase) / span, 0, 1) * span;
+      } else if (speed >= 0 && nextPhase >= endPhase) {
+        state.phase = endPhase;
+        state.completed = true;
+        state.playing = false;
+      } else if (speed < 0 && nextPhase <= startPhase) {
+        state.phase = startPhase;
+        state.completed = true;
+        state.playing = false;
       } else {
         state.phase = this.clampValue(nextPhase, startPhase, endPhase);
-        if (state.phase >= endPhase || state.phase <= startPhase) {
-          state.playing = false;
-        }
       }
+    } else if (!phaseConnected && (transportReset || transportStopped)) {
+      state.phase = startPhase;
     } else {
       state.phase = boundedPhase;
     }
     return {
-      Left: stereo.Left * level,
-      Mono: stereo.Mono * level,
-      Out: stereo.Mono * level,
-      Phase: this.clampValue((boundedPhase - startPhase) / span, 0, 1),
-      Right: stereo.Right * level,
+      Left: left,
+      Mono: mono,
+      Out: mono,
+      Phase: boundedPhase,
+      Right: right,
     };
   }
 
@@ -4009,8 +4083,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const sigma = Math.max(0, Number(options.sigma) || 10);
     const rho = Number.isFinite(Number(options.rho)) ? Number(options.rho) : 28;
     const beta = Math.max(0, Number(options.beta) || 8 / 3);
-    const dt = Math.min(0.004, (0.75 * speed) / sampleRateValue);
-    const steps = Math.max(1, Math.min(8, Math.ceil(dt / 0.0007)));
+    const dt = (0.75 * speed) / sampleRateValue;
+    const steps = Math.max(1, Math.ceil(dt / 0.0007));
     const stepDt = steps > 0 ? dt / steps : 0;
     for (let index = 0; index < steps; index += 1) {
       const dx = sigma * (state.y - state.x);
@@ -5298,6 +5372,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.meterCounter += frames;
     if (this.meterCounter >= sampleRate / 10) {
       this.port.postMessage({
+        audioPlayerNodeId: this.audioPlayerMeterNodeId || this.audioPlayerNodeIds[0] || "",
+        audioPlayerNodeIds: [...this.audioPlayerNodeIds],
+        audioPlayerPeak: this.audioPlayerMeterPeak,
+        audioPlayerPhase: this.audioPlayerMeterPhase,
+        audioPlayerReason: this.audioPlayerMeterReason,
+        audioPlayerSamples: this.audioPlayerMeterSamples,
         clipCount: this.meterClipCount,
         badNumberCount: this.badNumberCount,
         lastBadValueReason: this.lastBadValueReason,
@@ -5315,6 +5395,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       });
       this.meterCounter = 0;
       this.inputMeterPeak = 0;
+      this.audioPlayerMeterNodeId = "";
+      this.audioPlayerMeterPeak = 0;
+      this.audioPlayerMeterPhase = 0;
+      this.audioPlayerMeterReason = "";
+      this.audioPlayerMeterSamples = 0;
       this.inputMeterSamples = 0;
       this.inputMeterSquareSum = 0;
       this.meterClipCount = 0;

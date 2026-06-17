@@ -27,6 +27,10 @@ function nodeGraphReadNodeNumber(node, key) {
   const input = nodeGraphNodeElement(node)?.querySelector(
     `input[data-param="${CSS.escape(key)}"]`,
   );
+  const unboundedValue = Number(input?.dataset?.unboundedValue);
+  if (Number.isFinite(unboundedValue)) {
+    return unboundedValue;
+  }
   const value = Number(input?.value);
   return Number.isFinite(value)
     ? value

@@ -172,6 +172,23 @@ function nodeGraphKnobWidgetValueAngle(value, parameter) {
   return -132 + normalized * 264;
 }
 
+function applyNodeGraphInputUnboundedValue(input, value) {
+  const number = Number(value);
+  const min = Number(input?.min);
+  const max = Number(input?.max);
+  const unboundedMin = input?.dataset?.unboundedMin === "true";
+  const unboundedMax = input?.dataset?.unboundedMax === "true";
+  if (
+    Number.isFinite(number) &&
+    ((unboundedMin && Number.isFinite(min) && number < min) ||
+      (unboundedMax && Number.isFinite(max) && number > max))
+  ) {
+    input.dataset.unboundedValue = String(number);
+  } else if (input) {
+    delete input.dataset.unboundedValue;
+  }
+}
+
 function createNodeGraphKnobWidgetBody(node, type) {
   const definition = nodeGraphModuleDefinitions[type];
   const parameter = definition?.parameters?.[0];
@@ -193,15 +210,16 @@ function createNodeGraphKnobWidgetBody(node, type) {
   control.setAttribute("aria-valuenow", String(value));
   control.style.setProperty("--knob-widget-angle", `${nodeGraphKnobWidgetValueAngle(value, parameter)}deg`);
 
+  const knobSlot = document.createElement("span");
+  knobSlot.className = "node-knob-widget-slot";
   const face = document.createElement("span");
   face.className = "node-knob-widget-face";
-  const label = document.createElement("strong");
-  label.textContent = type === "bipolarKnob" ? "Bi" : "Knob";
   const readout = document.createElement("span");
   readout.className = "node-knob-widget-value";
   readout.dataset.knobWidgetValue = "true";
   readout.textContent = formatNodeSliderNumber(value);
-  control.append(face, label, readout);
+  knobSlot.append(face);
+  control.append(knobSlot);
 
   const input = document.createElement("input");
   input.className = "node-knob-widget-input";
@@ -214,10 +232,13 @@ function createNodeGraphKnobWidgetBody(node, type) {
   input.dataset.unit = parameter?.unit ?? "";
   input.dataset.linearSmoothing = parameter?.linearSmoothing === false ? "false" : "true";
   input.dataset.nonlinearSlider = parameter?.nonlinearSlider ? "true" : "false";
+  input.dataset.unboundedMax = parameter?.unboundedMax ? "true" : "false";
+  input.dataset.unboundedMin = parameter?.unboundedMin ? "true" : "false";
   input.min = parameter?.min ?? "0";
   input.max = parameter?.max ?? "1";
   input.step = parameter?.step === "any" ? "any" : (parameter?.step ?? "0.01");
   input.value = String(value);
+  applyNodeGraphInputUnboundedValue(input, value);
 
   const outputKey = parameter?.key || "value";
   const output = createNodeGraphPort(node, type, outputKey, "output");
@@ -225,7 +246,7 @@ function createNodeGraphKnobWidgetBody(node, type) {
   output.dataset.param = outputKey;
   output.dataset.alias = `${nodeGraphNodeDisplayName(node)} knob value`;
 
-  body.append(control, input, output);
+  body.append(control, readout, input, output);
   return body;
 }
 
@@ -599,7 +620,10 @@ function createNodeGraphParameter(node, type, parameter) {
   input.dataset.linearSmoothing = parameter.linearSmoothing === false ? "false" : "true";
   input.dataset.nonlinearSlider = metadata?.nonlinearSlider ? "true" : "false";
   input.dataset.showSign = parameter.showSign ? "true" : "false";
+  input.dataset.unboundedMax = metadata?.unboundedMax ? "true" : "false";
+  input.dataset.unboundedMin = metadata?.unboundedMin ? "true" : "false";
   input.dataset.wraparound = parameter.wraparound ? "true" : "false";
+  applyNodeGraphInputUnboundedValue(input, input.value);
   input.setAttribute("aria-label", `${nodeGraphNodeLabels[type]} ${parameter.label}`);
   label.append(input);
   row.append(label);

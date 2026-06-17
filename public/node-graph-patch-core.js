@@ -18,6 +18,17 @@ function normalizeNodeGraphPatchParameter(type, key, value, metadata = null) {
       : 0;
   const min = Number(metadata?.min ?? parameter?.min);
   const max = Number(metadata?.max ?? parameter?.max);
+  const unboundedMin = Boolean(metadata?.unboundedMin ?? parameter?.unboundedMin);
+  const unboundedMax = Boolean(metadata?.unboundedMax ?? parameter?.unboundedMax);
+  if (unboundedMin && unboundedMax) {
+    return candidate;
+  }
+  if (unboundedMin && Number.isFinite(max)) {
+    return Math.min(candidate, max);
+  }
+  if (unboundedMax && Number.isFinite(min)) {
+    return Math.max(candidate, min);
+  }
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
     return candidate;
   }
@@ -165,6 +176,12 @@ function validateNodeGraphPatch(patch) {
     if (type === "clapPlugin") {
       normalizedNode.clap = normalizeNodeGraphClapPluginBinding(node.clap);
     }
+    if (
+      (type === "samplePlayer" || type === "sampleLooper" || type === "audioPlayer") &&
+      normalizeNodeGraphSampleId(node.sample?.id)
+    ) {
+      normalizedNode.sample = { id: normalizeNodeGraphSampleId(node.sample?.id) };
+    }
     const ui = nodeGraphModuleDefinitions[type].layout === "textBox" && !Object.hasOwn(node, "ui")
       ? { buttonsHidden: true }
       : normalizeNodeGraphPatchNodeUi(node.ui);
@@ -247,7 +264,7 @@ function validateNodeGraphPatch(patch) {
       throw new Error(`connection source port invalid: ${sourceNode}.${sourcePort}`);
     }
     if (destinationType === "output" && destinationPort === "In") {
-      destinationPort = "Left";
+      destinationPort = "Mono";
     }
     destinationPort = nodeGraphCanonicalInputPort(destinationType, destinationPort);
     if (!nodeGraphPatchNodeInputPorts(nodes.find((node) => node.id === destinationNode)).includes(destinationPort)) {
@@ -380,6 +397,9 @@ function validateNodeGraphPatch(patch) {
       nodes,
     }),
     nodes,
+    samples: typeof normalizeNodeGraphPatchSamples === "function"
+      ? normalizeNodeGraphPatchSamples(patch.samples)
+      : [],
     timing: normalizeNodeGraphPatchTiming(patch.timing),
     uiItems,
     view,
@@ -493,10 +513,12 @@ function applyNodeGraphPatchToDom() {
         patchNode.paramMeta?.[parameter.key] ||
         nodeGraphParameterDefinitionMetadata(parameter),
       );
-      input.value = String(
-        patchNode.params?.[parameter.key] ??
-        nodeGraphParameterFallback(patchNode.type, parameter.key),
-      );
+      const value = patchNode.params?.[parameter.key] ??
+        nodeGraphParameterFallback(patchNode.type, parameter.key);
+      if (typeof applyNodeGraphInputUnboundedValue === "function") {
+        applyNodeGraphInputUnboundedValue(input, value);
+      }
+      input.value = String(value);
       syncNodeSliderReadout(input);
     }
     if (nodeGraphModuleDefinitions[patchNode.type]?.layout === "textBox") {

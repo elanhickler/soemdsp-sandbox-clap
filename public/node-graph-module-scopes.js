@@ -2490,6 +2490,13 @@ function nodeGraphModuleScopeXyTraceFrameCount(length) {
   return safeLength;
 }
 
+function nodeGraphModuleScopeCapturedXyTraceFrameCount(slot, length) {
+  const frames = nodeGraphModuleScopeXyTraceFrameCount(length);
+  return slot?.type === "audioPlayer"
+    ? Math.min(frames, 256)
+    : frames;
+}
+
 function nodeGraphModuleScopeOutputInputConnections(nodeId) {
   return {
     Mono: nodeGraphModuleScopeConnectionsTo(nodeId, "Mono"),
@@ -2930,6 +2937,8 @@ function nodeGraphModuleScopeDisplayBuffer(slot, capturedBuffer = null) {
       nodeGraphModuleScopeOfflineVisualOscilloscopeBuffer(slot);
   } else if (slot?.type === "spiral" || slot?.type === "ellipsoid" || slot?.type === "lorenzAttractor") {
     buffer = nodeGraphModuleScopeCapturedOutputPairXyBuffer(slot, "X", "Y") || capturedBuffer;
+  } else if (slot?.type === "audioPlayer") {
+    buffer = nodeGraphModuleScopeCapturedOutputPairXyBuffer(slot, "Left", "Right") || capturedBuffer;
   } else if (slot?.type === "output") {
     const offlineAnalyzer = nodeGraphModuleScopeOfflineOutputAnalyzerBuffer(slot);
     const capturedAnalyzer = nodeGraphModuleScopeCapturedOutputAnalyzerBuffer(slot, capturedBuffer);
@@ -2962,7 +2971,7 @@ function nodeGraphModuleScopeCapturedOutputPairXyBuffer(slot, xPort = "X", yPort
   if (length <= 1) {
     return null;
   }
-  const frames = nodeGraphModuleScopeXyTraceFrameCount(length);
+  const frames = nodeGraphModuleScopeCapturedXyTraceFrameCount(slot, length);
   const start = Math.max(0, length - frames);
   const x = new Float32Array(frames);
   const y = new Float32Array(frames);
@@ -6128,23 +6137,20 @@ function drawNodeGraphModuleScopes() {
     }
   }
   const firstVisibleSlot = visibleItems.find((item) => item.slot?.type !== "visualOscilloscope")?.slot;
-  setNodeGraphModuleScopeDebugPhase("decay-regions");
-  const decayRegions = nodeGraphModuleScopeDecayRegions(visibleItems);
   if (!nodeGraphModuleScopePhosphorFrameReady(firstVisibleSlot)) {
     setNodeGraphModuleScopeDebugPhase("fps-gate");
     commitNodeGraphModuleScopeRenderMetricsFrame(animationTime);
     scheduleNodeGraphModuleScopeDraw();
     return;
   }
-  setNodeGraphModuleScopeDebugPhase("fade");
-  drawNodeGraphModuleScopePhosphorFade(
-    renderer,
-    nodeGraphModuleScopeSetting(firstVisibleSlot?.nodeId || ""),
-    decayRegions,
-  );
-  setNodeGraphModuleScopeDebugPhase("webgl-setup");
-  gl.bindFramebuffer(gl.FRAMEBUFFER, renderer.phosphorTargets[renderer.phosphorReadIndex]?.framebuffer || null);
+  setNodeGraphModuleScopeDebugPhase("clear-current-frame");
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.disable(gl.SCISSOR_TEST);
+  gl.disable(gl.BLEND);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  setNodeGraphModuleScopeDebugPhase("webgl-setup");
   gl.enable(gl.BLEND);
   gl.blendEquation(gl.FUNC_ADD);
   gl.blendFunc(gl.ONE, gl.ONE);
@@ -6207,10 +6213,9 @@ function drawNodeGraphModuleScopes() {
       });
     }
   }
-  setNodeGraphModuleScopeDebugPhase("composite");
+  setNodeGraphModuleScopeDebugPhase("current-frame-ready");
   gl.disable(gl.SCISSOR_TEST);
   gl.disable(gl.BLEND);
-  compositeNodeGraphModuleScopePhosphor(renderer);
   setNodeGraphModuleScopeDebugPhase("lights");
   drawNodeGraphModuleScopeLightDisplays(visibleItems, pixelRatio);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);

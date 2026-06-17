@@ -307,6 +307,9 @@ function syncNodeSliderReadout(slider) {
   const labelText = readout.querySelector(".node-slider-readout-label");
   const valueText = readout.querySelector(".node-slider-readout-value");
   const unitText = readout.querySelector(".node-slider-readout-unit");
+  const displayValue = Number.isFinite(Number(slider.dataset.unboundedValue))
+    ? Number(slider.dataset.unboundedValue)
+    : Number(slider.value);
   const position = nodeSliderTravelFromValue(slider, Number(slider.value)) * 100;
   const unit = (slider.dataset.unit || "").trim();
   const choiceLabel = nodeSliderChoiceLabel(slider);
@@ -318,7 +321,7 @@ function syncNodeSliderReadout(slider) {
   if (labelText) {
     labelText.textContent = readout.dataset.paramLabel || nodeSliderLabelText(slider);
   }
-  valueText.textContent = choiceLabel ? ` ${choiceLabel}` : formatNodeSliderNumber(slider.value, {
+  valueText.textContent = choiceLabel ? ` ${choiceLabel}` : formatNodeSliderNumber(displayValue, {
     kind: slider.dataset.kind,
     maxDigits: slider.dataset.maxDigits,
     reserveSignSpace: true,
@@ -327,7 +330,7 @@ function syncNodeSliderReadout(slider) {
   unitText.textContent = unit;
   unitText.classList.toggle("is-empty", !unit);
   unitText.setAttribute("aria-hidden", unit ? "false" : "true");
-  readout.dataset.value = slider.value;
+  readout.dataset.value = String(displayValue);
   readout.dataset.unit = unit;
   readout.dataset.choiceCount = usesChoices ? String(choices.length) : "0";
   readout.classList.toggle("choices-divided", dividesChoices);

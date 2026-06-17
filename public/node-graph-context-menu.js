@@ -414,10 +414,6 @@ function configureNodeSceneContextMenu(mode) {
   const graphNodeShape = document.getElementById("nodeSceneGraphNodeShape");
   const graphNodeList = document.getElementById("nodeSceneGraphNodeList");
   const graphRemoveNode = document.getElementById("nodeSceneGraphRemoveNode");
-  const graphHeightControls = document.getElementById("nodeSceneGraphHeightControls");
-  const graphHeightDecrease = document.getElementById("nodeSceneGraphHeightDecrease");
-  const graphHeightIncrease = document.getElementById("nodeSceneGraphHeightIncrease");
-  const graphHeightValue = document.getElementById("nodeSceneGraphHeightValue");
   const toggleButtonsButton = document.getElementById("nodeSceneToggleButtons");
   const toggleOscilloscopeButton = document.getElementById("nodeSceneToggleOscilloscope");
   const toggleTitleButton = document.getElementById("nodeSceneToggleTitle");
@@ -466,6 +462,12 @@ function configureNodeSceneContextMenu(mode) {
   const canGroup = moduleMode && nodeGraphModuleGroupSelection().length > 0;
   const widthGu = targetNode ? nodeGraphPatchNodeGridWidthUnits(targetNode) : 0;
   const heightGu = targetNode ? nodeGraphPatchNodeGridHeightUnits(targetNode) : 0;
+  const widthLimits = targetNode
+    ? nodeGraphModuleWidthLimitsForType(targetNode.type)
+    : nodeGraphModuleWidthLimits;
+  const heightLimits = targetNode
+    ? nodeGraphModuleHeightLimitsForType(targetNode.type)
+    : nodeGraphModuleHeightLimits;
   const targetNodeUi = normalizeNodeGraphPatchNodeUi(targetNode?.ui);
   const buttonsHidden = targetNodeUi.buttonsHidden || nodeGraphMvp.moduleButtonsVisible === false;
   const oscilloscopeHidden = targetNodeUi.oscilloscopeHidden;
@@ -491,9 +493,8 @@ function configureNodeSceneContextMenu(mode) {
   wireTypeControl.hidden = !wireMode;
   aliasControl.hidden = !moduleMode;
   widthControls.hidden = !moduleMode;
-  const canResizeHeight = moduleMode && (targetIsGraphType || ["textBox", "valueSlider"].includes(targetNode?.type));
-  textBoxHeightControls.hidden = !canResizeHeight || targetIsGraphType;
-  graphHeightControls.hidden = !(moduleMode && targetIsGraphType);
+  const canResizeHeight = moduleMode && Boolean(targetNode);
+  textBoxHeightControls.hidden = !canResizeHeight;
   textBoxTextSizeControls.hidden = !(moduleMode && targetNode?.type === "textBox");
   textBoxTextControls.hidden = !(moduleMode && targetNode?.type === "textBox");
   codeblockControls.hidden = !(moduleMode && targetNode?.type === "codeblock");
@@ -546,20 +547,15 @@ function configureNodeSceneContextMenu(mode) {
         ? nodeGraphTooltipText("actions.deleteUnavailableOutput")
         : nodeGraphTooltipText("actions.deleteUnavailableOneModule");
     widthValue.textContent = `${widthGu} gu`;
-    widthDecrease.disabled = !targetNode || widthGu <= nodeGraphModuleWidthLimits.minGu;
+    widthDecrease.disabled = !targetNode || widthGu <= widthLimits.minGu;
     widthDecrease.title = nodeGraphTooltipText("actions.widthDecrease");
-    widthIncrease.disabled = !targetNode || widthGu >= nodeGraphModuleWidthLimits.maxGu;
+    widthIncrease.disabled = !targetNode || widthGu >= widthLimits.maxGu;
     widthIncrease.title = nodeGraphTooltipText("actions.widthIncrease");
-    textBoxHeightValue.textContent = targetIsGraphType ? `${heightGu} height gu` : `${heightGu} gu high`;
-    textBoxHeightDecrease.disabled = !canResizeHeight || heightGu <= nodeGraphModuleHeightLimits.minGu;
-    textBoxHeightDecrease.title = nodeGraphTooltipText("actions.textBoxHeightDecrease");
-    textBoxHeightIncrease.disabled = !canResizeHeight || heightGu >= nodeGraphModuleHeightLimits.maxGu;
-    textBoxHeightIncrease.title = nodeGraphTooltipText("actions.textBoxHeightIncrease");
-    graphHeightValue.textContent = `${heightGu} height gu`;
-    graphHeightDecrease.disabled = !targetNode || !targetIsGraphType || heightGu <= nodeGraphModuleHeightLimits.minGu;
-    graphHeightDecrease.title = "Make this graph module one grid unit shorter.";
-    graphHeightIncrease.disabled = !targetNode || !targetIsGraphType || heightGu >= nodeGraphModuleHeightLimits.maxGu;
-    graphHeightIncrease.title = "Make this graph module one grid unit taller.";
+    textBoxHeightValue.textContent = `${heightGu} height gu`;
+    textBoxHeightDecrease.disabled = !canResizeHeight || heightGu <= heightLimits.minGu;
+    textBoxHeightDecrease.title = "Make this module one grid unit shorter.";
+    textBoxHeightIncrease.disabled = !canResizeHeight || heightGu >= heightLimits.maxGu;
+    textBoxHeightIncrease.title = "Make this module one grid unit taller.";
     textBoxTextSizeValue.textContent = `${textBoxLayout.textSizePercent}% text`;
     textBoxTextSizeDecrease.disabled =
       !targetNode ||

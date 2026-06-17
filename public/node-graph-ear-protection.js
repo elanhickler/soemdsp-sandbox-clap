@@ -6,12 +6,6 @@ const nodeGraphEarProtectionDefaults = Object.freeze({
   threshold: Math.pow(10, 6 / 20),
 });
 
-const nodeGraphEarProtectionPatchRecoveryStorageKey = "soemdsp.nodeGraph.earProtectionPatchRecovery";
-
-function nodeGraphEarProtectionRecoveryStores() {
-  return [window.localStorage, window.sessionStorage].filter(Boolean);
-}
-
 function nodeGraphOnePoleHighPassCoefficients(frequency, sampleRate) {
   const rate = Math.max(1, Number(sampleRate) || 44100);
   const frequencyValue = Math.max(0, Number(frequency) || 0);
@@ -71,7 +65,7 @@ function nodeGraphEarProtectionFaultDetail(details = {}) {
   const source = details.source ? `${details.source} ` : "";
   const count = Number(details.protectionMuteCount ?? details.count) || 0;
   const countText = count ? ` after ${count} protected frame${count === 1 ? "" : "s"}` : "";
-  return `${source}audio output locked${countText}.`;
+  return `${source}audio output muted${countText}. Close to reset.`;
 }
 
 function closeNodeGraphEarProtectionFaultUi() {
@@ -82,92 +76,62 @@ function closeNodeGraphEarProtectionFaultUi() {
   document.body?.classList.remove("node-ear-protection-tripped");
 }
 
+function nodeGraphResetEarProtectionFault() {
+  globalThis.nodeGraphEarProtectionTripped = false;
+  globalThis.nodeGraphEarProtectionDetails = null;
+  closeNodeGraphEarProtectionFaultUi();
+  try {
+    if (typeof setNodeGraphLiveOutputMuted === "function") {
+      setNodeGraphLiveOutputMuted(false);
+    }
+    if (typeof nodeGraphMvp !== "undefined") {
+      nodeGraphMvp.live.outputEnabled = false;
+    }
+    if (typeof setNodeGraphLiveStatus === "function") {
+      setNodeGraphLiveStatus("idle", "");
+    }
+    if (typeof setNodeGraphLiveEngineStatus === "function") {
+      setNodeGraphLiveEngineStatus("engine idle", "");
+    }
+    if (typeof setNodeGraphLiveEngineTitle === "function") {
+      setNodeGraphLiveEngineTitle("");
+    }
+    if (typeof setNodeGraphLivePlanStatus === "function") {
+      setNodeGraphLivePlanStatus("plan idle", "");
+    }
+    if (typeof setNodeGraphLiveScheduleStatus === "function") {
+      setNodeGraphLiveScheduleStatus("schedule idle", "");
+    }
+    if (typeof setNodeGraphLiveMeter === "function") {
+      setNodeGraphLiveMeter();
+    }
+    if (typeof labelPrimaryAudioTitle === "function") {
+      labelPrimaryAudioTitle("Audio ready", true);
+    }
+    if (typeof renderNodeGraphLiveControls === "function") {
+      renderNodeGraphLiveControls(false);
+    }
+    if (typeof refreshNodeGraphSpeakerProtectionBodies === "function") {
+      refreshNodeGraphSpeakerProtectionBodies();
+    }
+  } catch (_error) {
+    // Reset is best effort; the latch is already cleared above.
+  }
+}
+
 function bindNodeGraphEarProtectionFaultUi() {
   document
     .getElementById("nodeEarProtectionFaultClose")
-    ?.addEventListener("click", closeNodeGraphEarProtectionFaultUi);
+    ?.addEventListener("click", nodeGraphResetEarProtectionFault);
   if (document.documentElement.dataset.nodeEarProtectionFaultDelegatedClose === "true") {
     return;
   }
   document.documentElement.dataset.nodeEarProtectionFaultDelegatedClose = "true";
   document.addEventListener("click", (event) => {
     if (event.target?.closest?.("#nodeEarProtectionFaultClose")) {
-      closeNodeGraphEarProtectionFaultUi();
+      nodeGraphResetEarProtectionFault();
     }
   });
-}
-
-function nodeGraphSaveEarProtectionPatchRecovery(details = {}) {
-  try {
-    if (typeof serializeNodeGraphPatch !== "function" || typeof nodeGraphMvp === "undefined") {
-      return false;
-    }
-    const patchText = serializeNodeGraphPatch();
-    const recovery = JSON.stringify({
-      details,
-      patchText,
-      patchFingerprint: typeof nodeGraphPatchFingerprint === "function" ? nodeGraphPatchFingerprint(patchText) : "",
-      savedAt: new Date().toISOString(),
-      version: 1,
-    });
-    let saved = false;
-    for (const store of nodeGraphEarProtectionRecoveryStores()) {
-      try {
-        store.setItem(nodeGraphEarProtectionPatchRecoveryStorageKey, recovery);
-        saved = true;
-      } catch (_error) {
-        // Try the next browser storage surface.
-      }
-    }
-    return saved;
-  } catch (error) {
-    console.warn("Ear protection patch recovery save failed", error);
-    return false;
-  }
-}
-
-function nodeGraphConsumeEarProtectionPatchRecovery() {
-  try {
-    const stores = nodeGraphEarProtectionRecoveryStores();
-    const text = stores
-      .map((store) => {
-        try {
-          return store.getItem(nodeGraphEarProtectionPatchRecoveryStorageKey);
-        } catch (_error) {
-          return "";
-        }
-      })
-      .find(Boolean);
-    if (!text) {
-      return null;
-    }
-    for (const store of stores) {
-      try {
-        store.removeItem(nodeGraphEarProtectionPatchRecoveryStorageKey);
-      } catch (_error) {
-        // Storage cleanup is best effort.
-      }
-    }
-    const recovery = JSON.parse(text);
-    const patchText = String(recovery.patchText || "");
-    if (!patchText || typeof loadNodeGraphPatchFromScript !== "function") {
-      return null;
-    }
-    return {
-      ...recovery,
-      patch: loadNodeGraphPatchFromScript(patchText),
-    };
-  } catch (error) {
-    console.warn("Ear protection patch recovery load failed", error);
-    try {
-      for (const store of nodeGraphEarProtectionRecoveryStores()) {
-        store.removeItem(nodeGraphEarProtectionPatchRecoveryStorageKey);
-      }
-    } catch (_error) {
-      // Storage cleanup is best effort.
-    }
-    return null;
-  }
 }
 
 function nodeGraphApplyEarProtectionFaultUi(details = {}) {
@@ -192,30 +156,30 @@ function nodeGraphApplyEarProtectionFaultUi(details = {}) {
     }
     const audioStats = document.getElementById("nodeAudioStats");
     if (audioStats) {
-      audioStats.textContent = `audio locked / protected ${Number(details.protectionMuteCount ?? details.count) || 1}`;
+      audioStats.textContent = `audio muted / protected ${Number(details.protectionMuteCount ?? details.count) || 1}`;
       audioStats.className = "pill warn";
       audioStats.dataset.renderProtectionMutes = String(Number(details.protectionMuteCount ?? details.count) || 1);
     }
     if (typeof labelPrimaryAudioTitle === "function") {
-      labelPrimaryAudioTitle("Ear Protection tripped. Refresh the page to reset audio.", false);
+      labelPrimaryAudioTitle("Ear Protection tripped. Close the dialog to reset audio.", false);
     }
     if (typeof labelPrimaryAudio === "function") {
-      labelPrimaryAudio("Audio locked until refresh", false);
+      labelPrimaryAudio("Audio muted for safety", false);
     }
     if (typeof setNodeGraphLiveStatus === "function") {
       setNodeGraphLiveStatus("protection tripped", "warn");
     }
     if (typeof setNodeGraphLiveEngineStatus === "function") {
-      setNodeGraphLiveEngineStatus("audio locked", "warn");
+      setNodeGraphLiveEngineStatus("audio muted", "warn");
     }
     if (typeof setNodeGraphLiveEngineTitle === "function") {
-      setNodeGraphLiveEngineTitle("Ear Protection tripped. Refresh the page to reset audio.");
+      setNodeGraphLiveEngineTitle("Ear Protection tripped. Close the dialog to reset audio.");
     }
     if (typeof setNodeGraphLivePlanStatus === "function") {
-      setNodeGraphLivePlanStatus("refresh required", "warn");
+      setNodeGraphLivePlanStatus("reset available", "warn");
     }
     if (typeof setNodeGraphLiveScheduleStatus === "function") {
-      setNodeGraphLiveScheduleStatus("ear protection tripped; refresh required", "warn");
+      setNodeGraphLiveScheduleStatus("ear protection tripped; close dialog to reset", "warn");
     }
     if (typeof setNodeGraphLiveMeter === "function") {
       setNodeGraphLiveMeter(0, 0, 0, Number(details.protectionMuteCount ?? details.count) || 1);
@@ -236,7 +200,6 @@ function nodeGraphTripEarProtection(details = {}) {
     nodeGraphApplyEarProtectionFaultUi(details);
     return true;
   }
-  nodeGraphSaveEarProtectionPatchRecovery(details);
   globalThis.nodeGraphEarProtectionTripped = true;
   nodeGraphApplyEarProtectionFaultUi(details);
 
@@ -245,7 +208,7 @@ function nodeGraphTripEarProtection(details = {}) {
       stopNodeGraphRenderedPlayback();
     }
   } catch (_error) {
-    // Best effort; the latch state below still prevents playback restart.
+    // Best effort; closing the dialog clears the trip.
   }
   try {
     if (typeof clearNodeGraphRenderedAudioElement === "function") {
@@ -269,11 +232,15 @@ function nodeGraphTripEarProtection(details = {}) {
     if (typeof stopNodeGraphLiveAudio === "function") {
       const stopResult = stopNodeGraphLiveAudio();
       if (stopResult && typeof stopResult.finally === "function") {
-        stopResult.finally(() => nodeGraphApplyEarProtectionFaultUi(details));
+        stopResult.finally(() => {
+          if (nodeGraphEarProtectionIsTripped()) {
+            nodeGraphApplyEarProtectionFaultUi(details);
+          }
+        });
       }
     }
   } catch (_error) {
-    // Best effort; refresh is still required to clear the latch.
+    // Best effort; closing the dialog clears the trip.
   }
   return true;
 }

@@ -6,6 +6,8 @@ import binascii
 import json
 import mimetypes
 import os
+import subprocess
+import tempfile
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -23,6 +25,20 @@ DEFAULT_UI_SETTINGS_SCRIPT = PUBLIC / "presets" / "useruisettings.js"
 MAX_PRESET_BYTES = 512 * 1024
 MAX_YOUTUBE_UPLOAD_JSON_BYTES = 256 * 1024 * 1024
 MAX_VIEWPORT_EXPORT_JSON_BYTES = 128 * 1024 * 1024
+MAX_AUDIO_FILE_BYTES = 128 * 1024 * 1024
+MAX_AUDIO_UPLOAD_JSON_BYTES = 192 * 1024 * 1024
+MAX_AUDIO_TRANSCODE_BYTES = 256 * 1024 * 1024
+SUPPORTED_AUDIO_FILE_SUFFIXES = {
+    ".aac",
+    ".flac",
+    ".m4a",
+    ".mp3",
+    ".oga",
+    ".ogg",
+    ".opus",
+    ".wav",
+    ".wave",
+}
 DEFAULT_SOEMDSP_ROOT = ROOT.parent / "soemdsp"
 DEFAULT_MANIFEST = (
     DEFAULT_SOEMDSP_ROOT / "runtime_dsp_object_bound_wav_resync_demo.manifest.json"
@@ -275,6 +291,12 @@ class SandboxServer(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/open-path":
             self.open_local_path()
+            return
+        if parsed.path == "/api/audio-file/data-url":
+            self.audio_file_data_url()
+            return
+        if parsed.path == "/api/audio-file/transcode-data-url":
+            self.audio_file_transcode_data_url()
             return
         if parsed.path == "/api/viewport-export/save":
             self.save_viewport_export()
@@ -613,6 +635,168 @@ class SandboxServer(BaseHTTPRequestHandler):
             return
 
         self.send_json({"ok": True, "path": str(target)})
+
+    def audio_file_data_url(self) -> None:
+        payload = self.read_json_payload(
+            "audio file",
+            max_bytes=16 * 1024,
+        )
+        if payload is None:
+            return
+
+        source_path = payload.get("path")
+        if not isinstance(source_path, str) or not source_path.strip():
+            self.send_json({"ok": False, "error": "path is required"}, status=400)
+            return
+
+        try:
+            target = Path(source_path).expanduser().resolve()
+        except OSError as exc:
+            self.send_json({"ok": False, "error": f"path resolve failed: {exc}"}, status=400)
+            return
+
+        home = Path.home().resolve()
+        if not target.is_relative_to(home):
+            self.send_json({"ok": False, "error": "audio path must stay inside the user home folder"}, status=403)
+            return
+        if not target.exists() or not target.is_file():
+            self.send_json({"ok": False, "error": "audio file does not exist", "path": str(target)}, status=404)
+            return
+        if target.suffix.lower() not in SUPPORTED_AUDIO_FILE_SUFFIXES:
+            self.send_json({"ok": False, "error": "unsupported audio file extension"}, status=400)
+            return
+        try:
+            size = target.stat().st_size
+        except OSError as exc:
+            self.send_json({"ok": False, "error": f"audio file stat failed: {exc}"}, status=500)
+            return
+        if size <= 0:
+            self.send_json({"ok": False, "error": "audio file is empty"}, status=400)
+            return
+        if size > MAX_AUDIO_FILE_BYTES:
+            self.send_json({"ok": False, "error": "audio file is too large"}, status=413)
+            return
+
+        transcoded = self.transcode_audio_file_to_wav(target)
+        if transcoded is not None:
+            self.send_json(
+                {
+                    "ok": True,
+                    "dataUrl": f"data:audio/wav;base64,{base64.b64encode(transcoded).decode('ascii')}",
+                    "name": f"{target.stem}.wav",
+                    "originalName": target.name,
+                    "path": str(target),
+                    "size": len(transcoded),
+                    "sourceSize": size,
+                    "transcoded": True,
+                },
+            )
+            return
+
+        try:
+            content = target.read_bytes()
+        except OSError as exc:
+            self.send_json({"ok": False, "error": f"audio file read failed: {exc}"}, status=500)
+            return
+
+        mime_type = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        self.send_json(
+            {
+                "ok": True,
+                "dataUrl": f"data:{mime_type};base64,{base64.b64encode(content).decode('ascii')}",
+                "name": target.name,
+                "path": str(target),
+                "size": size,
+            },
+        )
+
+    def audio_file_transcode_data_url(self) -> None:
+        payload = self.read_json_payload(
+            "audio upload",
+            max_bytes=MAX_AUDIO_UPLOAD_JSON_BYTES,
+        )
+        if payload is None:
+            return
+
+        name = str(payload.get("name") or "audio").strip()[:128]
+        data_url = payload.get("dataUrl")
+        if not isinstance(data_url, str) or "," not in data_url:
+            self.send_json({"ok": False, "error": "audio data URL is required"}, status=400)
+            return
+        suffix = Path(name).suffix.lower() or ".audio"
+        if suffix not in SUPPORTED_AUDIO_FILE_SUFFIXES:
+            self.send_json({"ok": False, "error": "unsupported audio file extension"}, status=400)
+            return
+        try:
+            content = base64.b64decode(data_url.split(",", 1)[1], validate=True)
+        except (binascii.Error, ValueError):
+            self.send_json({"ok": False, "error": "audio data URL base64 decode failed"}, status=400)
+            return
+        if not content:
+            self.send_json({"ok": False, "error": "audio file is empty"}, status=400)
+            return
+        if len(content) > MAX_AUDIO_FILE_BYTES:
+            self.send_json({"ok": False, "error": "audio file is too large"}, status=413)
+            return
+
+        with tempfile.TemporaryDirectory(prefix="soemdsp-audio-upload-") as directory:
+            source = Path(directory) / f"source{suffix}"
+            try:
+                source.write_bytes(content)
+            except OSError as exc:
+                self.send_json({"ok": False, "error": f"audio upload write failed: {exc}"}, status=500)
+                return
+            transcoded = self.transcode_audio_file_to_wav(source)
+
+        if transcoded is None:
+            self.send_json({"ok": False, "error": "audio transcode failed"}, status=422)
+            return
+        self.send_json(
+            {
+                "ok": True,
+                "dataUrl": f"data:audio/wav;base64,{base64.b64encode(transcoded).decode('ascii')}",
+                "name": f"{Path(name).stem or 'audio'}.wav",
+                "originalName": name,
+                "size": len(transcoded),
+                "sourceSize": len(content),
+                "transcoded": True,
+            },
+        )
+
+    def transcode_audio_file_to_wav(self, target: Path) -> bytes | None:
+        with tempfile.TemporaryDirectory(prefix="soemdsp-audio-") as directory:
+            output = Path(directory) / "audio.wav"
+            command = [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                str(target),
+                "-vn",
+                "-acodec",
+                "pcm_s16le",
+                str(output),
+            ]
+            try:
+                completed = subprocess.run(
+                    command,
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    timeout=90,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                return None
+            if completed.returncode != 0 or not output.exists():
+                return None
+            try:
+                if output.stat().st_size > MAX_AUDIO_TRANSCODE_BYTES:
+                    return None
+                return output.read_bytes()
+            except OSError:
+                return None
 
     def save_viewport_export(self) -> None:
         payload = self.read_json_payload(

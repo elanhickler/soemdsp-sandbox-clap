@@ -93,7 +93,6 @@ function createNodeGraphSampleHoldState() {
 
 function createNodeGraphSamplePlaybackState() {
   return {
-    lastPlay: 0,
     lastReset: 0,
     phase: 0,
     playing: false,
@@ -1663,29 +1662,44 @@ function nodeGraphAudioPlayerSample(runtime, node, nodeId, readInput, readParam,
   }
   const start = clampNodeSliderValue(readParam("start", 0), 0, 1);
   const end = clampNodeSliderValue(readParam("end", 1), 0, 1);
-  const startPhase = Math.min(start, end);
-  const endPhase = Math.max(start, end);
+  const collapsedRange = Math.abs(end - start) <= 0.000001;
+  const startPhase = collapsedRange ? 0 : Math.min(start, end);
+  const endPhase = collapsedRange ? 1 : Math.max(start, end);
   const span = Math.max(0.000001, endPhase - startPhase);
   const rangeKey = `${startPhase}:${endPhase}`;
-  if (state.sampleId !== sampleId || state.rangeKey !== rangeKey) {
+  if (state.sampleId !== sampleId) {
     state.phase = startPhase;
+    state.completed = false;
     state.sampleId = sampleId;
+  } else if (state.rangeKey !== rangeKey) {
+    const currentPhase = Number(state.phase);
+    if (!Number.isFinite(currentPhase) || currentPhase < startPhase || currentPhase > endPhase) {
+      state.phase = startPhase;
+    }
+    state.completed = false;
+  }
+  if (state.rangeKey !== rangeKey) {
     state.rangeKey = rangeKey;
   }
-  const playConnected = runtime.inputConnections?.has?.(nodeGraphInputKey(nodeId, "Play"));
-  const play = playConnected ? readInput("Play") : 1;
+  const transportFallback = Object.hasOwn(node?.params || {}, "transport")
+    ? 4
+    : ((Number(node?.params?.loop) || 0) >= 0.5 ? 4 : 0);
+  const transportMode = Math.max(0, Math.min(4, Math.round(readParam("transport", transportFallback))));
+  const transportReset = transportMode <= 0;
+  const transportStopped = transportMode === 1;
+  const transportPlayOnce = transportMode === 3;
+  const transportLooping = transportMode >= 4;
+  if (state.transportMode !== transportMode) {
+    state.completed = false;
+    state.transportMode = transportMode;
+  }
   const reset = readInput("Reset");
   const resetEdge = state.lastReset <= 0 && reset > 0;
-  if (resetEdge) {
+  if (resetEdge || transportReset || transportStopped) {
     state.phase = startPhase;
-    state.playing = false;
+    state.completed = false;
   }
-  if (play > 0) {
-    state.playing = true;
-  } else if (state.lastPlay > 0 && play <= 0) {
-    state.playing = false;
-  }
-  state.lastPlay = play;
+  state.playing = (transportPlayOnce || transportLooping) && !state.completed;
   state.lastReset = reset;
 
   const phaseConnected = runtime.inputConnections?.has?.(nodeGraphInputKey(nodeId, "Phase"));
@@ -1694,33 +1708,41 @@ function nodeGraphAudioPlayerSample(runtime, node, nodeId, readInput, readParam,
   const sampleRateRatio = (Number(sample.sampleRate) || sampleRate || 44100) / Math.max(1, sampleRate || 44100);
   const increment = (speed * sampleRateRatio) / frames;
   const phase = phaseConnected
-    ? startPhase + clampNodeSliderValue(readInput("Phase"), 0, 1) * span
-    : state.phase;
-  const boundedPhase = readParam("loop", 1) >= 0.5
-    ? startPhase + wrapNodeSliderValue((phase - startPhase) / span, 0, 1) * span
-    : clampNodeSliderValue(phase, startPhase, endPhase);
+    ? clampNodeSliderValue(readInput("Phase"), 0, 1)
+    : clampNodeSliderValue(state.phase, 0, 1);
+  const boundedPhase = phase < startPhase || phase > endPhase
+    ? startPhase
+    : phase;
   const frameIndex = boundedPhase * (frames - 1);
   const stereo = nodeGraphSampleStereoAt(sample, frameIndex);
   const level = readParam("level", 1);
   if (!phaseConnected && state.playing) {
     const nextPhase = boundedPhase + increment;
-    if (readParam("loop", 1) >= 0.5) {
+    if (transportLooping) {
       state.phase = startPhase + wrapNodeSliderValue((nextPhase - startPhase) / span, 0, 1) * span;
+    } else if (speed >= 0 && nextPhase >= endPhase) {
+      state.phase = endPhase;
+      state.completed = true;
+      state.playing = false;
+    } else if (speed < 0 && nextPhase <= startPhase) {
+      state.phase = startPhase;
+      state.completed = true;
+      state.playing = false;
     } else {
       state.phase = clampNodeSliderValue(nextPhase, startPhase, endPhase);
-      if (state.phase >= endPhase || state.phase <= startPhase) {
-        state.playing = false;
-      }
     }
+  } else if (!phaseConnected && (transportReset || transportStopped)) {
+    state.phase = startPhase;
   } else {
     state.phase = boundedPhase;
   }
+  const outputActive = state.playing;
   return {
-    Left: stereo.Left * level,
-    Mono: stereo.Mono * level,
-    Out: stereo.Mono * level,
-    Phase: clampNodeSliderValue((boundedPhase - startPhase) / span, 0, 1),
-    Right: stereo.Right * level,
+    Left: outputActive ? stereo.Left * level : 0,
+    Mono: outputActive ? stereo.Mono * level : 0,
+    Out: outputActive ? stereo.Mono * level : 0,
+    Phase: boundedPhase,
+    Right: outputActive ? stereo.Right * level : 0,
   };
 }
 

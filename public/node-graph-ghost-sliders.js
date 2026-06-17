@@ -18,7 +18,7 @@ function nodeGraphParameterGhostSignal(node, key) {
   const metadata = nodeGraphReadPatchParameterMetadata(patchNode, key);
   const targetSlider = nodeGraphSliderForParameter(node, key);
   const baseSignal = nodeGraphParameterValueToNormalizedSignal(
-    targetSlider ? Number(targetSlider.value) : nodeGraphReadPatchParameterValue(patchNode, key),
+    targetSlider ? nodeGraphReadNodeNumber(node, key) : nodeGraphReadPatchParameterValue(patchNode, key),
     metadata,
   );
   let contribution = 0;
@@ -35,7 +35,7 @@ function nodeGraphParameterGhostSignal(node, key) {
     const sourceSlider = nodeGraphSliderForParameter(modulation.sourceNode, modulation.sourcePort);
     contribution += nodeGraphParameterValueToNormalizedSignal(
       sourceSlider
-        ? Number(sourceSlider.value)
+        ? nodeGraphReadNodeNumber(modulation.sourceNode, modulation.sourcePort)
         : nodeGraphReadPatchParameterValue(modulation.sourceNode, modulation.sourcePort),
       nodeGraphReadPatchParameterMetadata(modulation.sourceNode, modulation.sourcePort),
     );

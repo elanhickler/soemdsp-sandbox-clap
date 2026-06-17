@@ -856,6 +856,16 @@ function handleNodeGraphLiveWorkletMessage(event) {
       Number(message.protectionMuteCount) || 0,
       Number(message.badNumberCount) || 0,
     );
+    if (typeof syncNodeGraphAudioPlayerRuntimeStatus === "function") {
+      syncNodeGraphAudioPlayerRuntimeStatus({
+        nodeId: message.audioPlayerNodeId || "",
+        nodeIds: message.audioPlayerNodeIds || [],
+        peak: Number(message.audioPlayerPeak) || 0,
+        phase: Number(message.audioPlayerPhase) || 0,
+        reason: message.audioPlayerReason || "",
+        samples: Number(message.audioPlayerSamples) || 0,
+      });
+    }
     if (Number(message.badNumberCount) > 0) {
       nodeGraphRecordBadValueEvent({
         count: Number(message.badNumberCount) || 1,
@@ -1031,13 +1041,16 @@ function assertNodeGraphLivePlanSupportsClap(plan = {}) {
   throw error;
 }
 
-function sendNodeGraphLivePlan() {
+async function sendNodeGraphLivePlan() {
   if (!nodeGraphMvp.live.node && !nodeGraphMvp.live.context) {
     return;
   }
 
   try {
     const plan = nodeGraphBuildLivePlan();
+    if (typeof nodeGraphEnsureLiveSamplesForPlan === "function") {
+      await nodeGraphEnsureLiveSamplesForPlan(plan, nodeGraphMvp.patch);
+    }
     assertNodeGraphLivePlanSupportsClap(plan);
     const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
     nodeGraphMvp.live.activeNodeIds = new Set(plan.order);
@@ -1294,7 +1307,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=audio-player-module-1"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=lorenz-unbounded-speed-1"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

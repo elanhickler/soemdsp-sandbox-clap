@@ -6,7 +6,7 @@ function nodeGraphLiveOutputIsActive(running = Boolean(nodeGraphMvp.live.node)) 
 
 function nodeGraphLiveOutputButtonTitle(outputActive, outputEnabled) {
   if (nodeGraphEarProtectionIsTripped()) {
-    return "Ear Protection tripped. Refresh the page to reset audio.";
+    return "Ear Protection tripped. Close the dialog to reset audio.";
   }
   const inputActive = Boolean(nodeGraphMvp.live.inputActive);
   const inputStreaming = Boolean(nodeGraphMvp.live.inputStream);
@@ -110,7 +110,7 @@ function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) 
     outputButton.classList.toggle("node-under-construction-control", protectionTripped);
     outputButton.setAttribute("aria-pressed", outputEnabled && !protectionTripped ? "true" : "false");
     outputButton.setAttribute("aria-disabled", protectionTripped ? "true" : "false");
-    labelLiveToggle(outputButton, "Output", protectionTripped ? false : outputEnabled, protectionTripped ? "Refresh Required" : null);
+    labelLiveToggle(outputButton, "Output", protectionTripped ? false : outputEnabled, protectionTripped ? "Close Dialog" : null);
     outputButton.title = nodeGraphLiveOutputButtonTitle(outputActive, outputEnabled);
   }
   syncNodeGraphOutputBypassButton(outputEnabled);

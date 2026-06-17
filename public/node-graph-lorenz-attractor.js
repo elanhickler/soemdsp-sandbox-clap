@@ -26,8 +26,8 @@ function nodeGraphLorenzAttractorSample(options = {}) {
   const sigma = Math.max(0, Number(options.sigma) || 10);
   const rho = Number.isFinite(Number(options.rho)) ? Number(options.rho) : 28;
   const beta = Math.max(0, Number(options.beta) || 8 / 3);
-  const dt = Math.min(0.004, (0.75 * speed) / sampleRate);
-  const steps = Math.max(1, Math.min(8, Math.ceil(dt / 0.0007)));
+  const dt = (0.75 * speed) / sampleRate;
+  const steps = Math.max(1, Math.ceil(dt / 0.0007));
   const stepDt = steps > 0 ? dt / steps : 0;
 
   for (let index = 0; index < steps; index += 1) {

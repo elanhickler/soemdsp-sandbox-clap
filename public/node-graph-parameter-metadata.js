@@ -367,6 +367,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
   const step = Number(parameter.step);
   const safeMid = clampNodeSliderValue(Number.isFinite(mid) ? mid : (safeMin + safeMax) / 2, safeMin, safeMax);
   const kind = nodeGraphInferParameterMetadataKind(parameter);
+  const midInsideRange = safeMid > safeMin && safeMid < safeMax;
   return {
     choices: normalizeNodeGraphMetadataChoices(parameter.choices || []),
     def: clampNodeSliderValue(Number.isFinite(def) ? def : safeMin, safeMin, safeMax),
@@ -382,9 +383,11 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
     min: safeMin,
     nonlinearSlider: Object.hasOwn(parameter, "nonlinearSlider")
       ? Boolean(parameter.nonlinearSlider)
-      : Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON,
+      : midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON,
     showSign: Boolean(parameter.showSign),
     step: Number.isFinite(step) && step > 0 ? step : 0,
+    unboundedMax: Boolean(parameter.unboundedMax),
+    unboundedMin: Boolean(parameter.unboundedMin),
     unit: parameter.unit ?? "",
     wraparound: Boolean(parameter.wraparound),
   };
@@ -439,6 +442,8 @@ function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
     nonlinearSlider: Boolean(source.nonlinearSlider),
     showSign: Boolean(source.showSign),
     step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 0,
+    unboundedMax: Boolean(source.unboundedMax),
+    unboundedMin: Boolean(source.unboundedMin),
     unit: String(source.unit || ""),
     wraparound: Boolean(source.wraparound),
   };
@@ -456,7 +461,8 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
   if (!fallback) {
     return null;
   }
-  const source = metadata && typeof metadata === "object" ? metadata : {};
+  const definitionLocked = type === "audioPlayer" && ["speed", "start", "end", "loop", "transport"].includes(key);
+  const source = !definitionLocked && metadata && typeof metadata === "object" ? metadata : {};
   let min = Number(Object.hasOwn(source, "min") ? source.min : fallback.min);
   let max = Number(Object.hasOwn(source, "max") ? source.max : fallback.max);
   if (!Number.isFinite(min)) {
@@ -504,8 +510,14 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
       : fallback.nonlinearSlider,
     showSign: Object.hasOwn(source, "showSign") ? Boolean(source.showSign) : fallback.showSign,
     step: Number.isFinite(step) && step > 0 ? step : 0,
+    unboundedMax: Object.hasOwn(source, "unboundedMax")
+      ? Boolean(source.unboundedMax)
+      : Boolean(fallback.unboundedMax),
+    unboundedMin: Object.hasOwn(source, "unboundedMin")
+      ? Boolean(source.unboundedMin)
+      : Boolean(fallback.unboundedMin),
     unit: String(Object.hasOwn(source, "unit") ? source.unit ?? "" : fallback.unit),
-    wraparound: Object.hasOwn(source, "wraparound")
+    wraparound: fallback.wraparound && Object.hasOwn(source, "wraparound")
       ? Boolean(source.wraparound)
       : fallback.wraparound,
   };

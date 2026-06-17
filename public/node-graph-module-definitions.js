@@ -411,7 +411,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     inputs: ["Reset"],
     outputs: ["X", "Y", "Z"],
     parameters: [
-      { key: "speed", label: "Speed", defaultValue: "1", min: "0", mid: "1", max: "8", step: "0.01" },
+      { key: "speed", label: "Speed", defaultValue: "1", min: "0", mid: "1", max: "8", step: "0.01", unboundedMax: true },
       { key: "sigma", label: "Sigma", defaultValue: "10", min: "0", mid: "10", max: "30", step: "0.01" },
       { key: "rho", label: "Rho", defaultValue: "28", min: "0", mid: "28", max: "60", step: "0.01" },
       { key: "beta", label: "Beta", defaultValue: "2.6667", min: "0", mid: "2.6667", max: "10", step: "0.0001" },
@@ -1216,15 +1216,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   audioPlayer: {
-    inputs: ["Play", "Reset", "Phase", "Speed"],
-    outputs: ["Left", "Right", "Mono", "Phase"],
+    inputs: ["Reset", "Speed", "Phase"],
+    outputs: ["Mono", "Left", "Right", "Phase"],
     parameters: [
-      { defaultValue: "0", key: "sample", label: "File", linearSmoothing: false, max: "4096", mid: "0", min: "0", step: "1" },
       { defaultValue: "1", key: "level", label: "Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
-      { defaultValue: "1", key: "speed", label: "Speed", max: "4", mid: "1", min: "-4", step: "any" },
-      { defaultValue: "0", key: "start", label: "Start", max: "1", mid: "0", min: "0", step: "any" },
-      { defaultValue: "1", key: "end", label: "End", max: "1", mid: "1", min: "0", step: "any" },
-      { choices: ["Off", "On"], defaultValue: "1", displayChoices: true, divideChoicesVisibly: true, key: "loop", label: "Loop", linearSmoothing: false, max: "1", mid: "1", min: "0", nonlinearSlider: false, step: "1" },
+      { defaultValue: "1", key: "speed", label: "Speed", linearSmoothing: false, max: "4", mid: "1", min: "-4", step: "any", unboundedMax: true, unboundedMin: true, unit: "x" },
+      { defaultValue: "0", key: "start", label: "Start", linearSmoothing: false, max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "1", key: "end", label: "End", linearSmoothing: false, max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
+      { choices: ["Off (reset)", "Stop", "Pause", "Play", "Loop"], defaultValue: "4", displayChoices: true, divideChoicesVisibly: true, key: "transport", label: "Play Mode", linearSmoothing: false, max: "4", mid: "2", min: "0", nonlinearSlider: false, step: "1" },
     ],
   },
   macroControls: {

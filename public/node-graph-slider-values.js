@@ -1,6 +1,8 @@
 const nodeSliderHandleHalfWidthPx = 8;
 const nodeSliderHandleLeftWallClearancePx = 1;
 const nodeSliderHandleRightWallClearancePx = 3;
+const nodeSliderMinSkewExponent = 0.25;
+const nodeSliderMaxSkewExponent = 4;
 
 function clampNodeSliderValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -105,7 +107,8 @@ function nodeSliderSkewExponent(slider) {
   if (!nodeSliderShouldUseNonlinearSlider(slider)) {
     return 1;
   }
-  return Math.log(normalizedNodeSliderMid(slider)) / Math.log(0.5);
+  const exponent = Math.log(normalizedNodeSliderMid(slider)) / Math.log(0.5);
+  return clampNodeSliderValue(exponent, nodeSliderMinSkewExponent, nodeSliderMaxSkewExponent);
 }
 
 function nodeSliderValueFromTravel(slider, travel) {
@@ -120,6 +123,19 @@ function nodeSliderValueFromTravel(slider, travel) {
   const normalizedTravel = nodeSliderShouldWraparound(slider)
     ? wrapNodeSliderValue(travel, 0, 1)
     : clampNodeSliderValue(travel, 0, 1);
+  return min + range * normalizedTravel ** exponent;
+}
+
+function nodeSliderValueFromPointerTravel(slider, travel) {
+  const min = Number(slider.min);
+  const max = Number(slider.max);
+  const range = max - min;
+  if (!Number.isFinite(range) || range <= 0) {
+    return min;
+  }
+
+  const exponent = nodeSliderSkewExponent(slider);
+  const normalizedTravel = clampNodeSliderValue(Number(travel) || 0, 0, 1);
   return min + range * normalizedTravel ** exponent;
 }
 
@@ -210,12 +226,7 @@ function nodeSliderTravelFromPointer(slider, surface, clientX) {
   const lane = nodeSliderVisualLane(surface, slider);
   const scale = nodeSliderElementVisualScale(surface);
   const x = (clientX - rect.left) / scale;
-  const rawTravel = nodeSliderShouldWraparound(slider)
-    ? x / lane.width
-    : (x - lane.inset) / lane.travelWidth;
-  return nodeSliderShouldWraparound(slider)
-    ? wrapNodeSliderValue(rawTravel, 0, 1)
-    : clampNodeSliderValue(rawTravel, 0, 1);
+  return clampNodeSliderValue((x - lane.inset) / lane.travelWidth, 0, 1);
 }
 
 function setNodeSliderMetadata(slider, metadata) {
@@ -237,6 +248,8 @@ function setNodeSliderMetadata(slider, metadata) {
   slider.dataset.linearSmoothing = metadata.linearSmoothing ? "true" : "false";
   slider.dataset.nonlinearSlider = metadata.nonlinearSlider ? "true" : "false";
   slider.dataset.showSign = metadata.showSign ? "true" : "false";
+  slider.dataset.unboundedMax = metadata.unboundedMax ? "true" : "false";
+  slider.dataset.unboundedMin = metadata.unboundedMin ? "true" : "false";
   slider.dataset.wraparound = metadata.wraparound ? "true" : "false";
   slider.value = String(normalizeNodeSliderValue(slider, Number(slider.value), metadata.min, metadata.max));
   syncNodeSliderReadout(slider);

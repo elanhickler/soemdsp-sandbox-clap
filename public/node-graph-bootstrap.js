@@ -4,16 +4,10 @@ async function initNodeGraphMvp() {
   await loadNodeGraphTooltips();
   await bindNodeGraphMvpEvents();
   nodeGraphMvp.defaultPatch = await loadNodeGraphDefaultPresetPatch();
-  const earProtectionRecovery = typeof nodeGraphConsumeEarProtectionPatchRecovery === "function"
-    ? nodeGraphConsumeEarProtectionPatchRecovery()
-    : null;
-  const recoveryPatchUsable = typeof nodeGraphDefaultPresetPatchIsUsable === "function"
-    ? nodeGraphDefaultPresetPatchIsUsable(earProtectionRecovery?.patch)
-    : Boolean(earProtectionRecovery?.patch);
-  commitNodeGraphPatch(cloneNodeGraphPatch(recoveryPatchUsable ? earProtectionRecovery.patch : nodeGraphMvp.defaultPatch), {
+  commitNodeGraphPatch(cloneNodeGraphPatch(nodeGraphMvp.defaultPatch), {
     markPending: false,
     record: false,
-    status: recoveryPatchUsable ? "ear protection patch restored" : "script synced",
+    status: "script synced",
   });
   resetNodeGraphStartupView();
   recordNodeGraphHistory();
@@ -43,14 +37,6 @@ async function initNodeGraphMvp() {
 function clearNodeGraphStartupPatchRecoveryStorage() {
   try {
     window.localStorage?.removeItem?.(nodeGraphDefaultPresetStorageKey);
-  } catch {}
-  try {
-    const stores = typeof nodeGraphEarProtectionRecoveryStores === "function"
-      ? nodeGraphEarProtectionRecoveryStores()
-      : [];
-    for (const store of stores) {
-      store.removeItem(nodeGraphEarProtectionPatchRecoveryStorageKey);
-    }
   } catch {}
 }
 
