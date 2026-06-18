@@ -2011,6 +2011,11 @@ audio {
   min-inline-size: 0;
 }
 
+#nodeSavedPatchesWindowButton {
+  flex: 1.05 1 0;
+  min-inline-size: 0;
+}
+
 #nodeShaderScriptButton {
   flex: 0.95 1 0;
   flex-direction: column;
@@ -5607,45 +5612,66 @@ audio {
   min-width: 0;
 }
 
-.node-demo-patch-panel {
+.node-saved-patches-window {
+  position: fixed;
+  z-index: 78;
   display: grid;
   gap: 8px;
-  margin-bottom: 8px;
+  width: min(420px, calc(100vw - 20px));
+  max-height: min(720px, calc(100vh - 20px));
+  overflow: auto;
   padding: 10px;
   border: 1px solid rgba(127, 199, 217, 0.18);
   border-radius: 8px;
-  background: rgba(3, 8, 9, 0.78);
+  background: rgba(3, 8, 9, 0.94);
   box-shadow: 0 16px 28px rgba(0, 0, 0, 0.24);
 }
 
-.node-demo-patch-heading {
+.node-saved-patches-window[hidden] {
+  display: none;
+}
+
+.node-saved-patches-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.node-demo-patch-heading div {
+.node-saved-patches-heading div {
   display: grid;
   gap: 2px;
 }
 
-.node-demo-patch-heading span {
+.node-saved-patches-heading span {
   color: rgba(127, 199, 217, 0.96);
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.node-demo-patch-heading strong {
+.node-saved-patches-heading strong {
   color: var(--text);
   font-size: 1rem;
+}
+
+.node-saved-patches-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.node-saved-patches-actions button {
+  min-height: 30px;
 }
 
 .node-demo-patch-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+}
+
+.node-saved-patch-window-list {
+  grid-template-columns: 1fr;
 }
 
 .node-demo-patch-row {
@@ -5698,47 +5724,6 @@ audio {
 .node-demo-patch-row small {
   color: var(--muted);
   font-size: 0.72rem;
-}
-
-.scene-context-saved-patches {
-  display: grid;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid rgba(127, 199, 217, 0.14);
-  border-radius: 6px;
-  background: rgba(3, 8, 9, 0.56);
-}
-
-.scene-context-saved-patches[hidden] {
-  display: none;
-}
-
-.scene-context-saved-patches-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.scene-context-saved-patches-heading span {
-  color: rgba(127, 199, 217, 0.96);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.scene-context-saved-patches-heading button {
-  min-height: 28px;
-  padding: 4px 8px;
-}
-
-.scene-context-saved-patch-list {
-  grid-template-columns: 1fr;
-}
-
-.scene-context-saved-patch-list .node-demo-patch-row {
-  min-height: 36px;
-  padding: 5px 7px;
 }
 
 @media (max-width: 780px) {

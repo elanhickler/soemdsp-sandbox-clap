@@ -257,7 +257,7 @@ function nodeGraphDemoPatchRows(patches) {
   return safePatches.concat(nodeGraphDemoPatchEmptySlots(10 - safePatches.length));
 }
 
-function renderNodeGraphDemoPatchRows(patches = [], listId = "nodeDemoPatchList") {
+function renderNodeGraphDemoPatchRows(patches = [], listId = "nodeSavedPatchWindowList") {
   const list = document.getElementById(listId);
   if (!list) {
     return;
@@ -294,7 +294,7 @@ async function loadNodeGraphDemoPatchEntries() {
   return result.patches || [];
 }
 
-async function renderNodeGraphDemoPatchList(listId = "nodeDemoPatchList") {
+async function renderNodeGraphDemoPatchList(listId = "nodeSavedPatchWindowList") {
   const list = document.getElementById(listId);
   if (!list) {
     return;
@@ -332,10 +332,46 @@ async function loadNodeGraphDemoPatch(filename) {
     commitNodeGraphPatch(loadNodeGraphPatchFromScript(text), {
       status: `patch loaded: ${safeFilename}`,
     });
-    closeNodeSceneContextMenu();
+    setNodeGraphSavedPatchesWindowVisible(false);
   } catch (error) {
     setNodeGraphScriptStatus(`patch load failed: ${error?.message || error}`, false);
   }
+}
+
+function positionNodeGraphSavedPatchesWindowNearButton() {
+  const panel = document.getElementById("nodeSavedPatchesWindow");
+  const button = document.getElementById("nodeSavedPatchesWindowButton");
+  if (!panel || !button) {
+    return;
+  }
+  const margin = 10;
+  const rect = button.getBoundingClientRect();
+  panel.hidden = false;
+  const panelRect = panel.getBoundingClientRect();
+  const left = Math.max(margin, Math.min(window.innerWidth - panelRect.width - margin, rect.left));
+  const top = Math.max(margin, Math.min(window.innerHeight - panelRect.height - margin, rect.bottom + 8));
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
+function setNodeGraphSavedPatchesWindowVisible(visible) {
+  const panel = document.getElementById("nodeSavedPatchesWindow");
+  const button = document.getElementById("nodeSavedPatchesWindowButton");
+  if (!panel || !button) {
+    return;
+  }
+  panel.hidden = !visible;
+  button.classList.toggle("active", visible);
+  button.setAttribute("aria-pressed", String(visible));
+  if (visible) {
+    positionNodeGraphSavedPatchesWindowNearButton();
+    renderNodeGraphDemoPatchList();
+  }
+}
+
+function toggleNodeGraphSavedPatchesWindow() {
+  const panel = document.getElementById("nodeSavedPatchesWindow");
+  setNodeGraphSavedPatchesWindowVisible(Boolean(panel?.hidden));
 }
 
 async function updateDefaultNodeGraphPreset() {

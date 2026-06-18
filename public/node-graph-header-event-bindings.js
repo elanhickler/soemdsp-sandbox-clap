@@ -140,6 +140,9 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodeModuleSlidersToggleButton").addEventListener("click", toggleNodeGraphModuleSlidersVisibility);
   document.getElementById("nodeTooltipToggleButton").addEventListener("click", toggleNodeGraphTooltipVisibility);
   document.getElementById("nodeUserUiSettingsButton").addEventListener("click", toggleNodeUserUiSettings);
+  document.getElementById("nodeSavedPatchesWindowButton").addEventListener("click", toggleNodeGraphSavedPatchesWindow);
+  document.getElementById("nodeSavedPatchesCloseButton").addEventListener("click", () => setNodeGraphSavedPatchesWindowVisible(false));
+  document.getElementById("nodeSavedPatchesRefreshButton").addEventListener("click", () => renderNodeGraphDemoPatchList());
   document
     .getElementById("nodeUserUiSettingsSaveDefault")
     .addEventListener("click", handleSaveNodeUserUiSettingsDefaultClick);
@@ -233,10 +236,8 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodePatchPresetLoadButton").addEventListener("click", loadSelectedNodeGraphPatchPreset);
   document.getElementById("nodePatchPresetDeleteButton").addEventListener("click", deleteSelectedNodeGraphPatchPreset);
   document.getElementById("nodePatchPresetSelect").addEventListener("change", handleNodeGraphPatchPresetSelectChange);
-  document.getElementById("nodeDemoPatchRefreshButton").addEventListener("click", renderNodeGraphDemoPatchList);
   document.getElementById("updateDefaultPresetButton").addEventListener("click", handleUpdateDefaultNodeGraphPresetClick);
   document.getElementById("loadNodeGraphScriptButton").addEventListener("click", loadNodeGraphScript);
   document.getElementById("nodeSettingsSaveScriptButton").addEventListener("click", saveNodeGraphScript);
   renderNodeGraphPatchPresetControls();
-  renderNodeGraphDemoPatchList();
 }
