@@ -11,6 +11,148 @@ function nodeGraphPatchFileName() {
   return `${safeName || "soemdsp-patch"}.json`;
 }
 
+const nodeGraphPatchPresetStorageKey = "soemdsp-sandbox.patchPresets.v1";
+
+function nodeGraphPatchPresetDefaultName() {
+  const info = normalizeNodeGraphPatchInfo(nodeGraphMvp.patch.info);
+  return info.name && info.name !== "Untitled Patch" ? info.name : "Preset";
+}
+
+function normalizeNodeGraphPatchPresetName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 80);
+}
+
+function loadNodeGraphPatchPresetEntries() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(nodeGraphPatchPresetStorageKey) || "[]");
+    return Array.isArray(parsed)
+      ? parsed
+        .map((entry) => ({
+          name: normalizeNodeGraphPatchPresetName(entry?.name),
+          text: typeof entry?.text === "string" ? entry.text : "",
+          updatedAt: Number(entry?.updatedAt) || 0,
+        }))
+        .filter((entry) => entry.name && entry.text)
+        .sort((a, b) => a.name.localeCompare(b.name))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNodeGraphPatchPresetEntries(entries) {
+  window.localStorage.setItem(nodeGraphPatchPresetStorageKey, JSON.stringify(entries));
+}
+
+function selectedNodeGraphPatchPresetName() {
+  const inputName = normalizeNodeGraphPatchPresetName(document.getElementById("nodePatchPresetName")?.value);
+  const selectName = normalizeNodeGraphPatchPresetName(document.getElementById("nodePatchPresetSelect")?.value);
+  return inputName || selectName;
+}
+
+function renderNodeGraphPatchPresetControls(selectedName = "") {
+  const nameInput = document.getElementById("nodePatchPresetName");
+  const select = document.getElementById("nodePatchPresetSelect");
+  const loadButton = document.getElementById("nodePatchPresetLoadButton");
+  const deleteButton = document.getElementById("nodePatchPresetDeleteButton");
+  if (!nameInput || !select || !loadButton || !deleteButton) {
+    return;
+  }
+  const entries = loadNodeGraphPatchPresetEntries();
+  const normalizedSelected = normalizeNodeGraphPatchPresetName(selectedName || select.value);
+  select.replaceChildren();
+  if (!entries.length) {
+    select.append(new Option("No saved presets", ""));
+  } else {
+    for (const entry of entries) {
+      select.append(new Option(entry.name, entry.name));
+    }
+  }
+  const selectedExists = entries.some((entry) => entry.name === normalizedSelected);
+  select.value = selectedExists ? normalizedSelected : entries[0]?.name || "";
+  if (!nameInput.value) {
+    nameInput.value = select.value || nodeGraphPatchPresetDefaultName();
+  }
+  loadButton.disabled = !select.value;
+  deleteButton.disabled = !select.value;
+}
+
+function saveCurrentNodeGraphPatchPreset() {
+  if (!nodeGraphScriptReadyForGraphAction("save preset")) {
+    return;
+  }
+  const name = selectedNodeGraphPatchPresetName();
+  if (!name) {
+    setNodeGraphScriptStatus("preset needs a name", false);
+    return;
+  }
+  const text = serializeNodeGraphPatch();
+  const entries = loadNodeGraphPatchPresetEntries().filter((entry) => entry.name !== name);
+  entries.push({ name, text, updatedAt: Date.now() });
+  try {
+    saveNodeGraphPatchPresetEntries(entries.sort((a, b) => a.name.localeCompare(b.name)));
+    const nameInput = document.getElementById("nodePatchPresetName");
+    if (nameInput) {
+      nameInput.value = name;
+    }
+    renderNodeGraphPatchPresetControls(name);
+    setNodeGraphScriptStatus(`preset saved: ${name}`, true);
+  } catch (error) {
+    setNodeGraphScriptStatus(`preset save failed: ${error?.message || error}`, false);
+  }
+}
+
+function loadSelectedNodeGraphPatchPreset() {
+  const name = normalizeNodeGraphPatchPresetName(document.getElementById("nodePatchPresetSelect")?.value);
+  const entry = loadNodeGraphPatchPresetEntries().find((candidate) => candidate.name === name);
+  if (!entry) {
+    setNodeGraphScriptStatus("choose a saved preset", false);
+    renderNodeGraphPatchPresetControls();
+    return;
+  }
+  try {
+    commitNodeGraphPatch(loadNodeGraphPatchFromScript(entry.text), { status: `preset loaded: ${entry.name}` });
+    const nameInput = document.getElementById("nodePatchPresetName");
+    if (nameInput) {
+      nameInput.value = entry.name;
+    }
+    renderNodeGraphPatchPresetControls(entry.name);
+  } catch (error) {
+    setNodeGraphScriptStatus(`preset load failed: ${error?.message || error}`, false);
+  }
+}
+
+function deleteSelectedNodeGraphPatchPreset() {
+  const name = normalizeNodeGraphPatchPresetName(document.getElementById("nodePatchPresetSelect")?.value);
+  if (!name) {
+    setNodeGraphScriptStatus("choose a saved preset", false);
+    return;
+  }
+  try {
+    const entries = loadNodeGraphPatchPresetEntries().filter((entry) => entry.name !== name);
+    saveNodeGraphPatchPresetEntries(entries);
+    const nameInput = document.getElementById("nodePatchPresetName");
+    if (nameInput) {
+      nameInput.value = entries[0]?.name || nodeGraphPatchPresetDefaultName();
+    }
+    renderNodeGraphPatchPresetControls(entries[0]?.name || "");
+    setNodeGraphScriptStatus(`preset deleted: ${name}`, true);
+  } catch (error) {
+    setNodeGraphScriptStatus(`preset delete failed: ${error?.message || error}`, false);
+  }
+}
+
+function handleNodeGraphPatchPresetSelectChange(event) {
+  const name = normalizeNodeGraphPatchPresetName(event.currentTarget.value);
+  const nameInput = document.getElementById("nodePatchPresetName");
+  if (name && nameInput) {
+    nameInput.value = name;
+  }
+}
+
 function saveNodeGraphScript() {
   if (!nodeGraphScriptReadyForGraphAction("save")) {
     return;

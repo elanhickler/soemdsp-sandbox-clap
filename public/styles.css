@@ -5580,6 +5580,39 @@ audio {
   margin-bottom: 8px;
 }
 
+.node-preset-controls {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.1fr) minmax(12rem, 1fr) repeat(3, auto);
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.node-preset-controls label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.node-preset-controls span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.node-preset-controls input,
+.node-preset-controls select {
+  min-width: 0;
+}
+
+@media (max-width: 780px) {
+  .node-preset-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .node-settings-view {
   container-type: inline-size;
   --node-settings-action-height: clamp(40px, 6cqw, 54px);
