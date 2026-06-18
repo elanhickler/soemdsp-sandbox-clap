@@ -2902,7 +2902,7 @@ audio {
   width: calc(100% - 6px);
   height: max(560px, calc(100vh - 230px));
   min-width: calc(var(--node-grid-width) * 4);
-  min-height: calc(var(--node-grid-height) * 2);
+  min-height: var(--node-grid-height);
   margin: 3px auto 0;
   overflow: hidden;
   border: 1px solid var(--line);

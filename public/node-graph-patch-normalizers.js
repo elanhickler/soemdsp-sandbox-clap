@@ -746,7 +746,7 @@ function normalizeNodeGraphPatchWindows(windows = {}) {
 }
 
 const nodeGraphWorkspaceViewLimits = Object.freeze({
-  minHeightGu: 2,
+  minHeightGu: 1,
   minWidthGu: 4,
 });
 
