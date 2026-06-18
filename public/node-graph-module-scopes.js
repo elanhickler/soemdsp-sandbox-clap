@@ -485,12 +485,20 @@ function nodeGraphModuleScopeEffectiveSettingForSlot(slot) {
 
 function nodeGraphModuleScopePositiveCycles(setting) {
   const cycles = Number(setting?.cycles);
-  const zoom = Number(setting?.shaderZoom);
-  const zoomScale = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
   if (Number.isFinite(cycles) && cycles > 0) {
-    return clampNodeSliderValue(cycles / zoomScale, nodeGraphModuleScopeMinCycles, 128);
+    return clampNodeSliderValue(cycles, nodeGraphModuleScopeMinCycles, 128);
   }
   return nodeGraphModuleScopeDefaultSettings.cycles;
+}
+
+function nodeGraphModuleScopeVisualGain(setting) {
+  const gain = Number.isFinite(Number(setting?.gain))
+    ? Number(setting.gain)
+    : nodeGraphModuleScopeDefaultSettings.gain;
+  const zoom = Number.isFinite(Number(setting?.shaderZoom)) && Number(setting.shaderZoom) > 0
+    ? Number(setting.shaderZoom)
+    : 1;
+  return clampNodeSliderValue(gain * zoom, 0.01, 100);
 }
 
 function nodeGraphModuleScopeEffectiveCycles(setting) {
@@ -3837,7 +3845,7 @@ function nodeGraphModuleScopeBufferView(buffer, slot) {
   if (buffer?.nodeGraphScopeUseFullWindow) {
     return {
       end: buffer.length,
-      gain: settings.gain,
+      gain: nodeGraphModuleScopeVisualGain(settings),
       offset: settings.offset,
       start: 0,
     };
@@ -3877,7 +3885,7 @@ function nodeGraphModuleScopeBufferView(buffer, slot) {
   start = clampNodeSliderValue(start - panSamples, 0, Math.max(0, buffer.length - visibleSamples));
   return {
     end: Math.min(buffer.length, start + visibleSamples),
-    gain: settings.gain,
+    gain: nodeGraphModuleScopeVisualGain(settings),
     offset: settings.offset,
     start,
   };
@@ -4558,10 +4566,8 @@ function nodeGraphModuleScopeXyPoints(buffer, rect, canvas, pixelRatio, slot) {
   if (!buffer?.nodeGraphScopeXy || !buffer.x?.length || !buffer.y?.length || rect.width <= 1 || rect.height <= 1) {
     return points;
   }
-  const settings = nodeGraphModuleScopeSetting(slot?.nodeId || "");
-  const gain = Number.isFinite(Number(settings.gain))
-    ? clampNodeSliderValue(Number(settings.gain), 0.01, 100)
-    : 1;
+  const settings = nodeGraphModuleScopeEffectiveSettingForSlot(slot);
+  const gain = nodeGraphModuleScopeVisualGain(settings);
   const length = Math.min(buffer.x.length, buffer.y.length);
   const square = nodeGraphModuleScopeCenteredSquareRect(rect);
   const centerX = square.left + square.width * 0.5;
