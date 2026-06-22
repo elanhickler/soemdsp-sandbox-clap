@@ -7539,6 +7539,27 @@ def require_node_graph_mvp_contract() -> None:
         'key: "traceDisplay"',
         "drawNodeGraphTraceDisplayItem",
         'slot?.type === "traceDisplay"',
+        "nodeGraphTraceDisplaySettingsDefaults",
+        "normalizeNodeGraphTraceDisplaySettings",
+        "nodeGraphTraceDisplaySettingsForSlot",
+        "function nodeGraphTraceDisplayVisibleSamples",
+        "function nodeGraphTraceDisplayBufferView",
+        "nodeTraceDisplaySettingsPopover",
+        "nodeTraceDisplaySettingsSave",
+        "nodeTraceDisplaySourceSync",
+        "nodeTraceDisplayBrightness",
+        "nodeTraceDisplayColor",
+        "openNodeGraphTraceDisplaySettings",
+        "traceDisplaySettings: normalizeNodeGraphTraceDisplaySettings(node.traceDisplaySettings)",
+        '"traceDisplay") {\n    buffer = prepareNodeGraphTraceDisplayBuffer(capturedBuffer, nodeGraphTraceDisplaySettingsForSlot(slot));',
+        '"traceDisplaySettings"',
+        'traceDisplaySettings: "nodeTraceDisplaySettingsPopover"',
+        "const nodeGraphSharedInspectorWindowKeys = Object.freeze([",
+        '"metaparameters",\n  "traceDisplaySettings"',
+        "function nodeGraphWorkspaceStatesWithSharedInspectorGeometry",
+        "function syncNodeGraphSharedInspectorGeometry",
+        "const workspaceState = nodeGraphMvp.workspaceWindowStates?.traceDisplaySettings",
+        "applyNodeGraphTraceDisplaySettingsWindowSize(workspaceState?.size)",
         "function nodeGraphModuleVisualInputs(type)",
         "function nodeGraphCanonicalInputPort(type, port)",
         "function nodeGraphCanonicalOutputPort(type, port)",
@@ -12414,6 +12435,36 @@ def require_node_graph_mvp_contract() -> None:
         and "`${selectedDepartment} ·" not in script_sources["./public/node-graph-module-store.js"],
         "module browser selected category title should not append module count",
     )
+    require(
+        "nodeGraphModuleScopeOfflineTraceDisplayBuffer" not in node_graph_source,
+        "Trace Display must draw only its captured In buffer, not secretly evaluate upstream modules through wires",
+    )
+    require(
+        "applyNodeGraphTraceDisplaySettingsWindowSize(metadataRect" not in node_graph_source
+        and "applyNodeMetadataPopoverSize(displayRect ||" not in node_graph_source,
+        "display/metaparameter right-click opens should not steal another inspector window's size",
+    )
+    for snippet in [
+        'data-trace-display-field="sampleFrames"',
+        'data-trace-display-field="pointLimit"',
+        'data-trace-display-field="minPointSpacingPx"',
+        'data-trace-display-field="dot1Size"',
+        'data-trace-display-field="dot2Size"',
+        'data-trace-display-toggle="dot1Enabled"',
+        'data-trace-display-toggle="dot2Enabled"',
+        "nodeTraceDisplayDot1Enabled",
+        "nodeTraceDisplayDot2Enabled",
+        "nodeTraceDisplayDot1Preview",
+        "nodeTraceDisplayDot2Preview",
+        "traceDisplaySettings.sampleFrames",
+        "traceDisplaySettings.pointLimit",
+        "traceDisplaySettings.minPointSpacingPx",
+        "buffer.nodeGraphScopeVisualPointLimit = Math.min(\n    traceSettings.pointLimit",
+    ]:
+        require(
+            snippet not in node_graph_source and snippet not in tooltip_source,
+            f"Trace Display should not expose fake trace sample/point-limit controls: {snippet}",
+        )
     require(
         'slot.type === "noise"' not in model_display_source
         and 'slot.type === "stereoNoise"' not in model_display_source,

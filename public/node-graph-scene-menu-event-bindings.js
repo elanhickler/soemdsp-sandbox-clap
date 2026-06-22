@@ -7,6 +7,9 @@ function bindNodeGraphSceneElementEvent(id, eventName, handler, options = undefi
 }
 
 function bindNodeGraphSceneMenuEvents() {
+  if (typeof bindNodeGraphSettingsTextInputProtection === "function") {
+    bindNodeGraphSettingsTextInputProtection(document.getElementById("nodeGlobalScopeMenu"));
+  }
   ensureNodeGraphModuleActionsWindowBody();
   bindNodeGraphSceneElementEvent("nodeModuleShopView", "click", handleNodeGraphModuleStoreClick);
   bindNodeGraphSceneElementEvent("nodeModuleShopView", "keydown", handleNodeGraphModuleStoreKeydown);

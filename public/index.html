@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=metadata-save-dirty-1">
+  <link rel="stylesheet" href="./public/styles.css?v=settings-text-selection-1">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
@@ -141,7 +141,7 @@
         <div class="node-history-controls" role="group" aria-label="Node graph history">
           <button id="nodeUndoButton" type="button" disabled>Undo</button>
           <button id="nodeRedoButton" type="button" disabled>Redo</button>
-          <button id="nodeShaderScriptButton" type="button" aria-label="Post Processing" aria-pressed="false"><span>Post</span><span>Processing</span></button>
+          <button id="nodeShaderScriptButton" type="button" aria-label="Screen Shader" aria-pressed="false"><span>Screen</span><span>Shader</span></button>
           <span id="nodePatchTimingControls" class="node-patch-timing-controls" aria-label="Patch timing"></span>
           <a
             id="nodeDonateFiveButton"
@@ -1657,7 +1657,7 @@
             </button>
             <button id="nodeSceneOpenPostProcessing" class="scene-context-window-button" type="button">
               <span class="scene-context-window-button-icon" aria-hidden="true">✨</span>
-              <span class="scene-context-window-button-label">Post Processing</span>
+              <span class="scene-context-window-button-label">Screen Shader</span>
             </button>
           </div>
         </div>
@@ -1974,11 +1974,11 @@
           <div class="three scene-context-scope-fields">
             <label>
               <span>line thickness</span>
-              <input id="nodeMasterScopeLineThickness" type="number" min="0.25" max="10" step="0.01" data-global-scope-input="lineThickness" data-global-scope-number-drag="true" value="1">
+              <input id="nodeMasterScopeLineThickness" type="number" min="0.25" max="10" step="0.01" data-global-scope-input="lineThickness" data-global-scope-number-drag="true" data-tooltip-key="displaySettings.globalLineThickness" value="1">
             </label>
             <label>
               <span>skip samples</span>
-              <input id="nodeMasterScopeDiscontinuitySkipSamples" type="number" min="0" max="2" step="1" data-global-scope-input="discontinuitySkipSamples" data-global-scope-number-drag="true" value="1">
+              <input id="nodeMasterScopeDiscontinuitySkipSamples" type="number" min="0" max="2" step="1" data-global-scope-input="discontinuitySkipSamples" data-global-scope-number-drag="true" data-tooltip-key="displaySettings.globalSkipSamples" value="1">
             </label>
           </div>
           <div class="node-master-scope-dot-core-grid" aria-label="Trace dot image layers">
@@ -1988,18 +1988,19 @@
                 class="node-master-scope-dot-core-title"
                 type="button"
                 data-global-scope-dot-toggle="dot1"
+                data-tooltip-key="displaySettings.dot1Toggle"
                 aria-pressed="false">Dot 1</button>
               <label>
               <span>size px</span>
-              <input id="nodeMasterScopeDotCore1Size" type="number" min="0.01" max="10" step="0.01" data-global-scope-input="dotCore1Size" data-global-scope-number-drag="true" value="2">
+              <input id="nodeMasterScopeDotCore1Size" type="number" min="0.01" max="10" step="0.01" data-global-scope-input="dotCore1Size" data-global-scope-number-drag="true" data-tooltip-key="displaySettings.dot1Size" value="2">
               </label>
               <label>
               <span>brightness</span>
-              <input id="nodeMasterScopeDotCore1Brightness" type="number" min="0" max="40" step="0.01" data-global-scope-input="dotCore1Brightness" data-global-scope-number-drag="true" value="0.23">
+              <input id="nodeMasterScopeDotCore1Brightness" type="number" min="0" max="40" step="0.01" data-global-scope-input="dotCore1Brightness" data-global-scope-number-drag="true" data-tooltip-key="displaySettings.dot1Brightness" value="0.23">
               </label>
               <label>
                 <span>color</span>
-                <input id="nodeMasterScopeDotCore1Color" type="color" data-global-scope-input="dotCore1Color" value="#ffffff">
+                <input id="nodeMasterScopeDotCore1Color" type="color" data-global-scope-input="dotCore1Color" data-tooltip-key="displaySettings.dot1Color" value="#ffffff">
               </label>
               <div class="node-master-scope-dot-preview-shell">
                 <span>dot image</span>
@@ -2008,6 +2009,7 @@
                   class="node-master-scope-dot-preview"
                   width="64"
                   height="64"
+                  data-tooltip-key="displaySettings.dot1Preview"
                   aria-label="Generated display dot 1 image preview"></canvas>
               </div>
             </div>
@@ -2017,18 +2019,19 @@
                 class="node-master-scope-dot-core-title"
                 type="button"
                 data-global-scope-dot-toggle="dot2"
+                data-tooltip-key="displaySettings.dot2Toggle"
                 aria-pressed="true">Dot 2</button>
               <label>
               <span>size px</span>
-              <input id="nodeMasterScopeDotCore2Size" type="number" min="0.01" max="10" step="0.01" data-global-scope-input="dotCore2Size" data-global-scope-number-drag="true" value="4">
+              <input id="nodeMasterScopeDotCore2Size" type="number" min="0.01" max="10" step="0.01" data-global-scope-input="dotCore2Size" data-global-scope-number-drag="true" data-tooltip-key="displaySettings.dot2Size" value="4">
               </label>
               <label>
               <span>brightness</span>
-              <input id="nodeMasterScopeDotCore2Brightness" type="number" min="0" max="40" step="0.01" data-global-scope-input="dotCore2Brightness" data-global-scope-number-drag="true" value="0.45">
+              <input id="nodeMasterScopeDotCore2Brightness" type="number" min="0" max="40" step="0.01" data-global-scope-input="dotCore2Brightness" data-global-scope-number-drag="true" data-tooltip-key="displaySettings.dot2Brightness" value="0.45">
               </label>
               <label>
                 <span>color</span>
-                <input id="nodeMasterScopeDotCore2Color" type="color" data-global-scope-input="dotCore2Color" value="#17002f">
+                <input id="nodeMasterScopeDotCore2Color" type="color" data-global-scope-input="dotCore2Color" data-tooltip-key="displaySettings.dot2Color" value="#17002f">
               </label>
               <div class="node-master-scope-dot-preview-shell">
                 <span>dot image</span>
@@ -2037,6 +2040,7 @@
                   class="node-master-scope-dot-preview"
                   width="64"
                   height="64"
+                  data-tooltip-key="displaySettings.dot2Preview"
                   aria-label="Generated display dot 2 image preview"></canvas>
               </div>
             </div>
@@ -2047,6 +2051,7 @@
                 class="node-master-scope-dot-preview"
                 width="64"
                 height="64"
+                data-tooltip-key="displaySettings.combinedPreview"
                 aria-label="Generated display combined dot image preview"></canvas>
             </div>
           </div>
@@ -2056,7 +2061,7 @@
           <div class="one scene-context-scope-fields">
             <label>
               <span>background</span>
-              <input id="nodeMasterScopeBackgroundColor" type="color" data-global-scope-input="backgroundColor" value="#000000">
+              <input id="nodeMasterScopeBackgroundColor" type="color" data-global-scope-input="backgroundColor" data-tooltip-key="displaySettings.background" value="#000000">
             </label>
           </div>
         </div>
@@ -2078,19 +2083,22 @@
                 autocomplete="off"
                 spellcheck="false"
                 data-scope-input="cycles"
+                data-tooltip-key="displaySettings.localCycles"
                 value="2">
             </label>
-            <button id="nodeSceneScopeSync" type="button" data-scope-control="sync" aria-pressed="true">sync</button>
+            <button id="nodeSceneScopeSync" type="button" data-scope-control="sync" data-tooltip-key="displaySettings.localSync" aria-pressed="true">sync</button>
             <button
               id="nodeSceneScopeOscillatorTraceMode"
               type="button"
               data-scope-control="oscillatorTraceMode"
+              data-tooltip-key="displaySettings.localFrequencyReset"
               aria-pressed="true"
               hidden>freq reset</button>
             <button
               id="nodeSceneScopeOutputTraceMode"
               type="button"
               data-scope-control="outputTraceMode"
+              data-tooltip-key="displaySettings.localScroll"
               aria-pressed="false"
               hidden>scroll</button>
           </div>
@@ -2100,7 +2108,7 @@
           <div class="scene-context-scope-fields">
             <label>
               <span>shape</span>
-              <select id="nodeSceneBlinkLightShape" data-scope-input="blinkLightShape">
+              <select id="nodeSceneBlinkLightShape" data-scope-input="blinkLightShape" data-tooltip-key="displaySettings.blinkShape">
                 <option value="circle">circle</option>
                 <option value="square">square</option>
                 <option value="diamond">diamond</option>
@@ -2259,14 +2267,14 @@
         class="node-parameter-metadata-popover"
         hidden
         aria-label="Parameter metadata editor">
-        <div class="metadata-popover-heading">
+        <div class="metadata-popover-heading scene-context-heading">
           <button
             id="metadataPopoverDragHandle"
-            class="metadata-popover-drag-handle node-drag-handle"
+            class="metadata-popover-drag-handle scene-context-drag-handle node-drag-handle"
             type="button"
             aria-label="Move parameter metadata editor"
             data-tooltip-key="metadata.move">&#x2725;</button>
-          <div class="metadata-popover-title-group">
+          <div class="metadata-popover-title-group scene-context-title">
             <span id="metadataPopoverTitle">Parameter Metadata</span>
             <small id="metadataPopoverSubtitle">module controls</small>
           </div>
@@ -2897,7 +2905,7 @@
   <script src="./public/node-graph-cookbook-filter.js?v=filter-curve-zero-cutoffs-1780822200000"></script>
   <script src="./public/node-graph-color-standards.js?v=color-standards-1"></script>
   <script src="./public/node-graph-module-definitions.js?v=trace-display-1"></script>
-  <script src="./public/node-graph-module-store.js?v=floating-drag-stable-1"></script>
+  <script src="./public/node-graph-module-store.js?v=module-card-buttons-1"></script>
   <script src="./public/node-graph-module-sizing.js?v=trace-display-1"></script>
   <script src="./public/node-graph-metadata-kinds.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-parameter-metadata.js?v=audio-player-editable-metadata-1"></script>
@@ -2927,10 +2935,10 @@
   <script src="./public/node-graph-clap-host.js?v=clap-under-construction-2"></script>
   <script src="./public/node-graph-marquee-selection.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-node-dragging.js?v=io-alt-bypass-1"></script>
-  <script src="./public/node-graph-context-menu.js?v=floating-drag-stable-1"></script>
+  <script src="./public/node-graph-context-menu.js?v=trace-display-settings-1"></script>
   <script src="./public/node-graph-module-actions.js?v=display-height-grid-units-1"></script>
   <script src="./public/node-graph-code-screen.js?v=canvas-ratio-language-2"></script>
-  <script src="./public/node-graph-module-scopes.js?v=trace-display-1"></script>
+  <script src="./public/node-graph-module-scopes.js?v=settings-text-selection-1"></script>
   <script src="./public/node-graph-shader-script.js?v=display-language-1"></script>
   <script src="./public/node-graph-canvas-script.js?v=floating-window-drag-area-1"></script>
   <script src="./public/node-graph-module-factories.js?v=shell-module-retire-1"></script>
@@ -2938,7 +2946,7 @@
   <script src="./public/node-graph-module-rendering.js?v=trace-display-1"></script>
   <script src="./public/node-graph-history.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-visual-utils.js?v=text-light-registry-1780800000000"></script>
-  <script src="./public/node-graph-patch-clone.js?v=display-height-controls-1"></script>
+  <script src="./public/node-graph-patch-clone.js?v=trace-display-settings-1"></script>
   <script src="./public/node-graph-slider-metadata.js?v=metadata-step-zero-1"></script>
   <script src="./public/node-graph-slider-values.js?v=metadata-step-any-1"></script>
   <script src="./public/node-graph-slider-dragging.js?v=working-patch-autosave-1"></script>
@@ -2949,7 +2957,7 @@
   <script src="./public/node-graph-slider-readout-controls.js?v=unbounded-speed-1"></script>
   <script src="./public/node-graph-ghost-sliders.js?v=unbounded-speed-1"></script>
   <script src="./public/node-code-settings-editor.js?v=code-settings-shell-1"></script>
-  <script src="./public/node-graph-metadata-editor.js?v=floating-drag-stable-1"></script>
+  <script src="./public/node-graph-metadata-editor.js?v=settings-text-selection-1"></script>
   <script src="./public/node-graph-render-settings.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-ear-protection.js?v=ear-protection-reset-1"></script>
   <script src="./public/node-graph-rendered-audio.js?v=ear-protection-reset-1"></script>
@@ -2965,14 +2973,14 @@
   <script src="./public/node-graph-debug-copy.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-debug-api.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-execution-debug-view.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-tooltips.js?v=display-language-1"></script>
+  <script src="./public/node-graph-tooltips.js?v=trace-display-simple-controls-1"></script>
   <script src="./public/node-graph-interaction-help.js?v=button-help-labels-1"></script>
   <script src="./public/presets/useruisettings.js?v=clear-startup-1"></script>
   <script src="./public/node-graph-ui-settings-definitions.js?v=floating-window-header-height-1"></script>
   <script src="./public/node-graph-ui-settings-utils.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-user-ui-settings-controls.js?v=clear-startup-1"></script>
   <script src="./public/node-graph-ui-settings-panels.js?v=workspace-window-state-1"></script>
-  <script src="./public/node-graph-ui-settings-persistence.js?v=clear-startup-4"></script>
+  <script src="./public/node-graph-ui-settings-persistence.js?v=shared-inspector-geometry-1"></script>
   <script src="./public/node-graph-ui-settings-sync.js?v=floating-window-header-height-1"></script>
   <script src="./public/node-graph-keyboard-shortcuts.js?v=content-height-only-1"></script>
   <script src="./public/node-graph-live-status-text.js?v=sample-rate-oversampling-1780468200000"></script>
@@ -2998,7 +3006,7 @@
   <script src="./public/node-graph-render-live-event-bindings.js?v=beta-polish-1"></script>
   <script src="./public/node-graph-header-event-bindings.js?v=clear-startup-1"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=node-graph-help-event-bindings-refactor-1780369200000"></script>
-  <script src="./public/node-graph-scene-menu-event-bindings.js?v=display-height-controls-1"></script>
+  <script src="./public/node-graph-scene-menu-event-bindings.js?v=settings-text-selection-1"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=origin-marker-uidev-1"></script>
   <script src="./public/node-graph-settings-event-bindings.js?v=metadata-popover-bind-1"></script>
   <script src="./public/node-graph-slider-event-bindings.js?v=node-graph-slider-event-bindings-refactor-1780369200000"></script>

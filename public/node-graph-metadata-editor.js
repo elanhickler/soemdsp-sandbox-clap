@@ -78,6 +78,56 @@ function nodeMetadataPopoverSizeFromElement(popover = document.getElementById("n
   });
 }
 
+function nodeMetadataPopoverVisibleRect() {
+  const popover = document.getElementById("nodeParameterMetadataPopover");
+  if (!popover || popover.hidden) {
+    return null;
+  }
+  const rect = popover.getBoundingClientRect();
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+  };
+}
+
+function hideNodeMetadataPopoverForInspectorReplacement() {
+  const popover = document.getElementById("nodeParameterMetadataPopover");
+  if (popover) {
+    popover.hidden = true;
+  }
+  setNodeMetadataClosePromptVisible(false);
+  setNodeMetadataScriptDirty(false, "");
+  if (nodeGraphMvp.metadataDragging?.handle) {
+    nodeGraphMvp.metadataDragging.handle.classList.remove("dragging");
+  }
+  nodeGraphMvp.metadataDragging = null;
+  nodeGraphMvp.metadataEditorTarget = null;
+}
+
+function prepareNodeMetadataPopoverForInspectorReplacement() {
+  const rect = nodeMetadataPopoverVisibleRect();
+  if (!rect) {
+    return null;
+  }
+  if (nodeGraphMvp.metadataScriptDirty && !confirmNodeMetadataScriptDiscard()) {
+    return false;
+  }
+  hideNodeMetadataPopoverForInspectorReplacement();
+  return rect;
+}
+
+function nodeMetadataReplacementX(sourceRect, targetPopover, fallbackX) {
+  const left = Number(sourceRect?.left);
+  const width = Number(sourceRect?.width);
+  if (!Number.isFinite(left)) {
+    return fallbackX;
+  }
+  const targetRect = targetPopover?.getBoundingClientRect?.();
+  return left + (Number.isFinite(width) ? width * 0.5 : 0) - (targetRect?.width || 0) * 0.5;
+}
+
 function saveNodeMetadataPopoverWindowState(options = {}) {
   const popover = document.getElementById("nodeParameterMetadataPopover");
   if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
@@ -1250,16 +1300,30 @@ function openNodeMetadataPopover(event, readout) {
   if (nodeGraphMvp.metadataEditorTarget !== slider.id && !confirmNodeMetadataScriptDiscard()) {
     return;
   }
+  const displayRect = typeof prepareNodeGraphTraceDisplaySettingsForInspectorReplacement === "function"
+    ? prepareNodeGraphTraceDisplaySettingsForInspectorReplacement()
+    : null;
+  if (displayRect === false) {
+    return;
+  }
 
   nodeGraphMvp.metadataEditorTarget = slider.id;
   fillNodeMetadataPopover(slider);
   const savedPosition = nodeGraphMvp.workspaceWindowStates?.metaparameters?.position ||
     nodeGraphMvp.metadataPopoverPosition;
+  const hasSavedPosition =
+    Number.isFinite(Number(savedPosition?.left)) &&
+    Number.isFinite(Number(savedPosition?.top));
   applyNodeMetadataPopoverSize(nodeGraphMvp.workspaceWindowStates?.metaparameters?.size);
+  const popover = document.getElementById("nodeParameterMetadataPopover");
   positionNodeMetadataPopover(
-    document.getElementById("nodeParameterMetadataPopover"),
-    savedPosition?.left ?? event.clientX,
-    savedPosition?.top ?? event.clientY,
+    popover,
+    hasSavedPosition
+      ? savedPosition.left
+      : nodeMetadataReplacementX(displayRect, popover, event.clientX),
+    hasSavedPosition
+      ? savedPosition.top
+      : (displayRect?.top ?? event.clientY),
   );
 }
 
@@ -1268,6 +1332,12 @@ function openBlankNodeMetadataPopover(event = {}) {
   event.stopPropagation?.();
   bindNodeGraphMetadataPopoverEvents();
   if (nodeGraphMvp.metadataEditorTarget && !confirmNodeMetadataScriptDiscard()) {
+    return;
+  }
+  const displayRect = typeof prepareNodeGraphTraceDisplaySettingsForInspectorReplacement === "function"
+    ? prepareNodeGraphTraceDisplaySettingsForInspectorReplacement()
+    : null;
+  if (displayRect === false) {
     return;
   }
   nodeGraphMvp.metadataEditorTarget = null;
@@ -1280,11 +1350,19 @@ function openBlankNodeMetadataPopover(event = {}) {
   setNodeMetadataScriptDirty(false, "no parameter selected", false, "Right-click a slider readout or choose a module with parameters.");
   const savedPosition = nodeGraphMvp.workspaceWindowStates?.metaparameters?.position ||
     nodeGraphMvp.metadataPopoverPosition;
+  const hasSavedPosition =
+    Number.isFinite(Number(savedPosition?.left)) &&
+    Number.isFinite(Number(savedPosition?.top));
   applyNodeMetadataPopoverSize(nodeGraphMvp.workspaceWindowStates?.metaparameters?.size);
+  const popover = document.getElementById("nodeParameterMetadataPopover");
   positionNodeMetadataPopover(
-    document.getElementById("nodeParameterMetadataPopover"),
-    savedPosition?.left ?? event.clientX ?? window.innerWidth * 0.5,
-    savedPosition?.top ?? event.clientY ?? window.innerHeight * 0.25,
+    popover,
+    hasSavedPosition
+      ? savedPosition.left
+      : nodeMetadataReplacementX(displayRect, popover, event.clientX ?? window.innerWidth * 0.5),
+    hasSavedPosition
+      ? savedPosition.top
+      : (displayRect?.top ?? event.clientY ?? window.innerHeight * 0.25),
   );
 }
 
@@ -1358,18 +1436,7 @@ function metadataStepperQuantum(input) {
   if (input?.id === "metadataMaxDigitsValue") {
     return 1;
   }
-  const rawValue = String(input?.value || "").trim();
-  const numericValue = Number(rawValue);
-  if (Number.isFinite(numericValue) && Number.isInteger(numericValue)) {
-    return 1;
-  }
-  const normalized = rawValue.toLowerCase();
-  if (normalized.includes("e")) {
-    const exponent = Number(normalized.split("e")[1]);
-    return Number.isFinite(exponent) && exponent < 0 ? 10 ** exponent : 1;
-  }
-  const fraction = normalized.split(".")[1]?.replace(/0+$/g, "") || "";
-  return fraction.length ? 10 ** -fraction.length : 1;
+  return 0.1;
 }
 
 function formatMetadataStepperValue(value, quantum) {
@@ -1412,8 +1479,13 @@ function bindNodeGraphMetadataPopoverEvents() {
   const popover = document.getElementById("nodeParameterMetadataPopover");
   if (popover && popover.dataset.metadataPopoverBound !== "true") {
     popover.dataset.metadataPopoverBound = "true";
+    if (typeof bindNodeGraphSettingsTextInputProtection === "function") {
+      bindNodeGraphSettingsTextInputProtection(popover);
+    }
     popover.addEventListener("input", handleNodeMetadataEditorInput);
     popover.addEventListener("click", stepNodeMetadataField);
+  } else if (popover && typeof bindNodeGraphSettingsTextInputProtection === "function") {
+    bindNodeGraphSettingsTextInputProtection(popover);
   }
   const scriptSource = document.getElementById("metadataScriptSource");
   syncNodeMetadataScriptReference();

@@ -11,6 +11,7 @@ const nodeGraphWorkspaceWindowStateKeys = Object.freeze([
   "visibilityMenu",
   "uiSettings",
   "uiDev",
+  "traceDisplaySettings",
 ]);
 
 const nodeGraphWorkspaceWindowElements = Object.freeze({
@@ -23,7 +24,13 @@ const nodeGraphWorkspaceWindowElements = Object.freeze({
   visibilityMenu: "nodeVisibilityMenu",
   uiSettings: "nodeUserUiSettingsPanel",
   uiDev: "nodeUiDevHelper",
+  traceDisplaySettings: "nodeTraceDisplaySettingsPopover",
 });
+
+const nodeGraphSharedInspectorWindowKeys = Object.freeze([
+  "metaparameters",
+  "traceDisplaySettings",
+]);
 
 function normalizeNodeGraphWorkspaceWindowPosition(position = {}) {
   const source = position && typeof position === "object" ? position : {};
@@ -51,6 +58,46 @@ function normalizeNodeGraphWorkspaceWindowPosition(position = {}) {
   };
 }
 
+function nodeGraphSharedInspectorGeometryFromStates(states = {}) {
+  let position = null;
+  let size = null;
+  for (const key of nodeGraphSharedInspectorWindowKeys) {
+    if (!position && states?.[key]?.position) {
+      position = normalizeNodeGraphWorkspaceWindowPosition(states[key].position);
+    }
+    if (!size && states?.[key]?.size) {
+      const width = Number(states[key].size.width);
+      const height = Number(states[key].size.height);
+      size = {
+        ...(Number.isFinite(width) && width > 0 ? { width: Math.round(width) } : {}),
+        ...(Number.isFinite(height) && height > 0 ? { height: Math.round(height) } : {}),
+      };
+      if (!size.width && !size.height) {
+        size = null;
+      }
+    }
+    if (position && size) {
+      break;
+    }
+  }
+  return { position, size };
+}
+
+function nodeGraphWorkspaceStatesWithSharedInspectorGeometry(states = {}) {
+  const { position, size } = nodeGraphSharedInspectorGeometryFromStates(states);
+  if (!position && !size) {
+    return states;
+  }
+  for (const key of nodeGraphSharedInspectorWindowKeys) {
+    states[key] = {
+      ...(states[key] || { open: false }),
+      ...(position ? { position } : {}),
+      ...(size ? { size: { ...(states[key]?.size || {}), ...size } } : {}),
+    };
+  }
+  return states;
+}
+
 function normalizeNodeGraphWorkspaceWindowStateEntry(entry = {}) {
   const source = entry && typeof entry === "object" ? entry : {};
   const position = normalizeNodeGraphWorkspaceWindowPosition(source.position || source);
@@ -69,12 +116,35 @@ function normalizeNodeGraphWorkspaceWindowStateEntry(entry = {}) {
 
 function normalizeNodeGraphWorkspaceWindowStates(states = {}) {
   const source = states && typeof states === "object" ? states : {};
-  return Object.fromEntries(
+  return nodeGraphWorkspaceStatesWithSharedInspectorGeometry(Object.fromEntries(
     nodeGraphWorkspaceWindowStateKeys.map((key) => [
       key,
       normalizeNodeGraphWorkspaceWindowStateEntry(source[key]),
     ]),
-  );
+  ));
+}
+
+function syncNodeGraphSharedInspectorGeometry(states, key) {
+  if (!nodeGraphSharedInspectorWindowKeys.includes(key)) {
+    return states;
+  }
+  const source = states[key] || {};
+  const position = normalizeNodeGraphWorkspaceWindowPosition(source.position);
+  const rawSize = source.size && typeof source.size === "object" ? source.size : {};
+  const size = {
+    ...(Number.isFinite(Number(rawSize.width)) ? { width: Math.round(Number(rawSize.width)) } : {}),
+    ...(Number.isFinite(Number(rawSize.height)) ? { height: Math.round(Number(rawSize.height)) } : {}),
+  };
+  for (const inspectorKey of nodeGraphSharedInspectorWindowKeys) {
+    states[inspectorKey] = {
+      ...(states[inspectorKey] || { open: false }),
+      ...(position ? { position } : {}),
+      ...(size.width || size.height
+        ? { size: { ...(states[inspectorKey]?.size || {}), ...size } }
+        : {}),
+    };
+  }
+  return states;
 }
 
 function nodeGraphWorkspaceWindowStatesAllOpen(states = {}) {
@@ -156,6 +226,7 @@ function rememberNodeGraphWorkspaceWindowState(key, element, patch = {}, options
     open: patch.open ?? (element ? !element.hidden : states[key]?.open),
     ...(position ? { position } : {}),
   });
+  syncNodeGraphSharedInspectorGeometry(states, key);
   nodeGraphMvp.workspaceWindowStates = states;
   if (options.persist !== false) {
     saveNodeGraphWorkspaceWindowStatesToUserSettings(options);
@@ -213,6 +284,9 @@ function applyNodeGraphWorkspaceWindowStateToElement(key) {
   }
   if (key === "metaparameters" && typeof applyNodeMetadataPopoverSize === "function") {
     applyNodeMetadataPopoverSize(state.size);
+  }
+  if (key === "traceDisplaySettings" && typeof applyNodeGraphTraceDisplaySettingsWindowSize === "function") {
+    applyNodeGraphTraceDisplaySettingsWindowSize(state.size);
   }
   if (state.open && state.position) {
     positionNodeGraphWorkspaceWindowFromState(key, element);

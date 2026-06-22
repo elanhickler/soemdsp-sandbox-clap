@@ -1136,6 +1136,9 @@ function openNodeScopeContextMenu(event) {
   nodeGraphMvp.sceneContextTargetNode = null;
   nodeGraphMvp.sceneContextTargetWire = null;
   nodeGraphMvp.scopeContextTargetNode = nodeId;
+  if (typeof openNodeGraphTraceDisplaySettings === "function" && openNodeGraphTraceDisplaySettings(nodeId, event)) {
+    return true;
+  }
   if (typeof openNodeGraphScopeShaderScript === "function" && openNodeGraphScopeShaderScript(nodeId)) {
     return true;
   }

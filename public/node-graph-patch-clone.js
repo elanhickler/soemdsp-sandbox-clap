@@ -234,6 +234,9 @@ function cloneNodeGraphPatch(patch) {
         ...(node.type === "screenSpaceShader"
           ? { screenSpaceShader: normalizeNodeGraphScreenSpaceShader(node.screenSpaceShader) }
           : {}),
+        ...(node.type === "traceDisplay"
+          ? { traceDisplaySettings: normalizeNodeGraphTraceDisplaySettings(node.traceDisplaySettings) }
+          : {}),
         ...(Object.hasOwn(node, "scopeShader")
           ? { scopeShader: normalizeNodeGraphScopeShader(node.scopeShader) }
           : {}),

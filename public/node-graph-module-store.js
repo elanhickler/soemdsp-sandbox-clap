@@ -1258,7 +1258,7 @@ function editNodeGraphModuleStoreDemo(entry) {
 }
 
 function createNodeGraphModuleStoreButton(entry) {
-  const card = document.createElement("div");
+  const card = document.createElement(entry.visible && entry.implemented ? "button" : "div");
   card.className = "scene-context-store-card";
   card.dataset.moduleEnabled = String(entry.visible);
   card.dataset.homeEnabled = String(entry.homeVisible);
@@ -1270,6 +1270,7 @@ function createNodeGraphModuleStoreButton(entry) {
     : `${entry.label} module unavailable`);
   if (entry.visible && entry.implemented) {
     card.dataset.contextModule = entry.type;
+    card.type = "button";
     card.role = "button";
     card.tabIndex = 0;
   } else {
@@ -1413,6 +1414,15 @@ function renderNodeGraphModuleStoreCatalog() {
   }
 
   const publicDepartmentEntries = nodeGraphModuleStorePublicEntriesByDepartment(entries);
+  const publicDepartmentNames = new Set(publicDepartmentEntries.map(([department]) => department));
+  if (selectedDepartment && !publicDepartmentNames.has(selectedDepartment)) {
+    nodeGraphMvp.moduleStoreDepartment = "";
+    renderNodeGraphModuleStoreCatalog();
+    if (typeof saveNodeGraphModuleStoreStateToUserSettings === "function") {
+      saveNodeGraphModuleStoreStateToUserSettings();
+    }
+    return;
+  }
   const matchingEntries = entries.filter((item) => nodeGraphModuleStoreEntryMatchesSearch(item, departmentSearch));
   const publicEntries = matchingEntries.filter((entry) =>
     entry.visible &&

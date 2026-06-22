@@ -304,7 +304,7 @@ function nodeGraphMissingSampleAssets(patch = nodeGraphMvp.patch) {
   return nodeGraphRequiredAssetsForPatch(patch).filter((asset) => {
     const sample = samples.get(asset.id);
     const cached = nodeGraphMvp.sampleBuffers?.get?.(asset.id);
-    return !cached && !sample?.dataUrl;
+    return !cached && !sample?.dataUrl && !sample?.sourcePath && !sample?.file?.sourcePath;
   });
 }
 
@@ -425,6 +425,48 @@ function nodeGraphSamplePhaseForNode(nodeId) {
   return Number.isFinite(phase) ? Math.max(0, Math.min(1, phase)) : 0;
 }
 
+function nodeGraphSampleNodeHasSpeakerRoute(nodeId, patch = nodeGraphMvp.patch) {
+  const sourceId = String(nodeId || "").trim();
+  if (!sourceId || !patch || !Array.isArray(patch.connections)) {
+    return false;
+  }
+  const outputPorts = new Set(typeof nodeGraphOutputInputPorts !== "undefined"
+    ? nodeGraphOutputInputPorts
+    : ["Mono", "Left", "Right"]);
+  const downstream = new Map();
+  for (const connection of patch.connections || []) {
+    const sourceNode = String(connection?.sourceNode || "").trim();
+    const destinationNode = String(connection?.destinationNode || "").trim();
+    if (!sourceNode || !destinationNode) {
+      continue;
+    }
+    const links = downstream.get(sourceNode) || [];
+    links.push({
+      nodeId: destinationNode,
+      port: String(connection?.destinationPort || "").trim(),
+    });
+    downstream.set(sourceNode, links);
+  }
+  const visited = new Set();
+  const queue = [sourceId];
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    for (const link of downstream.get(current) || []) {
+      if (link.nodeId === "output" && outputPorts.has(link.port)) {
+        return true;
+      }
+      if (!visited.has(link.nodeId)) {
+        queue.push(link.nodeId);
+      }
+    }
+  }
+  return false;
+}
+
 function nodeGraphSamplePhaseCopyTextForNode(nodeId) {
   return nodeGraphSamplePhaseForNode(nodeId).toPrecision(17);
 }
@@ -532,7 +574,10 @@ function nodeGraphSampleStatusForNode(nodeId) {
   const channels = cached?.channels || sample.channels || 0;
   if (frames && channels) {
     const runtime = nodeGraphSampleRuntimeStatusText(nodeId);
-    return `${channels}ch ${frames} frames ready${runtime ? ` / ${runtime}` : ""}`;
+    const route = nodeGraphSampleNodeHasSpeakerRoute(nodeId)
+      ? ""
+      : " / not routed to output";
+    return `${channels}ch ${frames} frames ready${runtime ? ` / ${runtime}` : ""}${route}`;
   }
   return "audio referenced; reload file if silent";
 }
@@ -632,6 +677,26 @@ async function loadNodeGraphSamplePathForNode(nodeId, path) {
   );
 }
 
+async function nodeGraphDataUrlForSampleReference(reference = {}) {
+  if (reference.dataUrl) {
+    return reference.dataUrl;
+  }
+  const sourcePath = String(reference.sourcePath || reference.file?.sourcePath || "").trim();
+  if (!sourcePath) {
+    return "";
+  }
+  const response = await fetch("/api/audio-file/data-url", {
+    body: JSON.stringify({ path: sourcePath }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok || !payload?.dataUrl) {
+    throw new Error(payload?.error || `local path load failed (${response.status})`);
+  }
+  return payload.dataUrl;
+}
+
 async function transcodeNodeGraphSampleDataUrl(name, dataUrl) {
   const response = await fetch("/api/audio-file/transcode-data-url", {
     body: JSON.stringify({ dataUrl, name }),
@@ -648,15 +713,16 @@ async function transcodeNodeGraphSampleDataUrl(name, dataUrl) {
 async function loadNodeGraphSampleDataUrlForNode(nodeId, dataUrl, name = "Sample", sourceInfo = {}) {
   const decoded = await decodeNodeGraphSampleDataUrl(dataUrl, name || "Sample");
   const id = normalizeNodeGraphSampleId(`sample-${Date.now()}-${name || "clip"}`);
+  const sourcePath = String(sourceInfo.sourcePath || "").trim();
   const sample = normalizeNodeGraphSampleReference({
     channels: decoded.channels,
-    dataUrl,
+    dataUrl: sourcePath ? "" : dataUrl,
     frames: decoded.frames,
     id,
     name: name || "Sample",
     sampleRate: decoded.sampleRate,
     sourceName: sourceInfo.sourceName || name || "Sample",
-    sourcePath: sourceInfo.sourcePath || "",
+    sourcePath,
   });
   const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
   const samples = normalizeNodeGraphPatchSamples(patch.samples);
@@ -679,6 +745,14 @@ async function loadNodeGraphSampleDataUrlForNode(nodeId, dataUrl, name = "Sample
   nodeGraphMvp.sampleLoadErrors?.delete?.(nodeId);
   nodeGraphMvp.sampleRuntimeStatus?.delete?.(nodeId);
   commitNodeGraphPatch(patch, { status: `${sample.name} loaded` });
+  const committedNode = nodeGraphPatchNode(nodeId);
+  const committedSample = nodeGraphPatchSampleById(committedNode?.sample?.id);
+  if (!committedSample?.id) {
+    const message = `${sample.name} decoded, but was not attached to the patch`;
+    nodeGraphMvp.sampleLoadErrors?.set?.(nodeId, message);
+    setNodeGraphSampleStatus(nodeId, message);
+    throw new Error(message);
+  }
   const persistence = typeof saveNodeGraphWorkingPatchToUserSettings === "function"
     ? await Promise.resolve(saveNodeGraphWorkingPatchToUserSettings({ immediateFile: true, returnFileSave: true }))
     : { local: false, file: false };
@@ -896,14 +970,27 @@ async function nodeGraphEnsureLiveSamplesForPlan(plan, patch = nodeGraphMvp.patc
     return plan.samples;
   }
   for (const reference of normalizeNodeGraphPatchSamples(patch.samples)) {
-    if (!needed.has(reference.id) || nodeGraphMvp.sampleBuffers?.has?.(reference.id) || !reference.dataUrl) {
+    if (!needed.has(reference.id) || nodeGraphMvp.sampleBuffers?.has?.(reference.id)) {
       continue;
     }
-    const decoded = await nodeGraphDecodedSampleForReference(reference);
-    if (!decoded?.samples?.length && !decoded?.channelData?.length) {
-      continue;
+    try {
+      const dataUrl = await nodeGraphDataUrlForSampleReference(reference);
+      if (!dataUrl) {
+        continue;
+      }
+      const decoded = await nodeGraphDecodedSampleForReference({ ...reference, dataUrl });
+      if (!decoded?.samples?.length && !decoded?.channelData?.length) {
+        continue;
+      }
+      nodeGraphMvp.sampleBuffers?.set?.(reference.id, decoded);
+    } catch (error) {
+      const message = String(error?.message || error || "sample reload failed");
+      for (const node of patch.nodes || []) {
+        if (normalizeNodeGraphSampleId(node?.sample?.id) === reference.id) {
+          nodeGraphMvp.sampleLoadErrors?.set?.(node.id, message);
+        }
+      }
     }
-    nodeGraphMvp.sampleBuffers?.set?.(reference.id, decoded);
   }
   plan.samples = nodeGraphLiveSamplesForPlan(plan, patch);
   return plan.samples;

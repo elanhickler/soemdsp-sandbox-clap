@@ -465,6 +465,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} clock`);
       }
     } else if (
+      !nodeGraphModuleDefinitions[type]?.visualSink &&
       type !== "audioInput" &&
       type !== "audioPlayer" &&
       type !== "bloomGlow" &&
