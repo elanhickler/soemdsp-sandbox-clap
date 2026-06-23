@@ -10,6 +10,24 @@ function cloneNodeGraphParamMeta(paramMeta = {}) {
   );
 }
 
+function normalizeNodeGraphParamMetaForNode(type, paramMeta = {}) {
+  const metadata = cloneNodeGraphParamMeta(paramMeta);
+  if (type === "output" && metadata.volume) {
+    metadata.volume = {
+      ...metadata.volume,
+      def: 0.1,
+      kind: "decimal",
+      max: 1,
+      mid: 0.1,
+      min: 0,
+      showSign: false,
+      unboundedMax: false,
+      unboundedMin: false,
+    };
+  }
+  return metadata;
+}
+
 function normalizeNodeGraphPatchPortMeta(portMeta = {}) {
   const source = portMeta && typeof portMeta === "object" ? portMeta : {};
   const normalizeGroup = (group = {}) => Object.fromEntries(
@@ -33,6 +51,9 @@ function normalizeNodeGraphPatchNodeUi(ui = {}) {
   return {
     buttonsHidden: Boolean(source.buttonsHidden),
     displayHeightOffsetGu: normalizeNodeGraphModuleDisplayHeightOffsetUnits(source.displayHeightOffsetGu),
+    ioHidden: Boolean(source.ioHidden),
+    interfaceControlsHidden: Boolean(source.interfaceControlsHidden),
+    movementLocked: Boolean(source.movementLocked),
     oscilloscopeHidden: Boolean(source.oscilloscopeHidden),
     slidersHidden: Boolean(source.slidersHidden),
     titleHidden: Boolean(source.titleHidden),
@@ -50,6 +71,10 @@ function nodeGraphEffectivePatchNodeUi(ui = {}) {
     oscilloscopeHidden: !nodeGraphPatchNodeSectionVisible(
       normalizedUi.oscilloscopeHidden,
       typeof nodeGraphMvp !== "undefined" ? nodeGraphMvp.moduleOscilloscopesVisible : true,
+    ),
+    interfaceControlsHidden: !nodeGraphPatchNodeSectionVisible(
+      normalizedUi.interfaceControlsHidden,
+      typeof nodeGraphMvp !== "undefined" ? nodeGraphMvp.moduleInterfaceControlsVisible : true,
     ),
     slidersHidden: !nodeGraphPatchNodeSectionVisible(
       normalizedUi.slidersHidden,
@@ -249,12 +274,12 @@ function cloneNodeGraphPatch(patch) {
         ...((node.type === "samplePlayer" || node.type === "sampleLooper" || node.type === "audioPlayer") && normalizeNodeGraphSampleId(node.sample?.id)
           ? { sample: { id: normalizeNodeGraphSampleId(node.sample?.id) } }
           : {}),
-        paramMeta: cloneNodeGraphParamMeta(node.paramMeta),
+        paramMeta: normalizeNodeGraphParamMetaForNode(node.type, node.paramMeta),
         ...(Object.keys(normalizeNodeGraphPatchPortMeta(node.portMeta)).length
           ? { portMeta: normalizeNodeGraphPatchPortMeta(node.portMeta) }
           : {}),
         params: { ...(node.params || {}) },
-        ...(ui.buttonsHidden || ui.titleHidden || ui.oscilloscopeHidden || ui.slidersHidden || ui.displayHeightOffsetGu ? { ui } : {}),
+        ...(ui.buttonsHidden || ui.ioHidden || ui.interfaceControlsHidden || ui.movementLocked || ui.titleHidden || ui.oscilloscopeHidden || ui.slidersHidden || ui.displayHeightOffsetGu ? { ui } : {}),
       };
     }),
     requiredAssets: typeof nodeGraphRequiredAssetsForPatch === "function"

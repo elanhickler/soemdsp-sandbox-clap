@@ -21,6 +21,7 @@ function renderNodeGraphVisibilityMenuButton() {
   const hiddenCount = [
     nodeGraphMvp.gridVisible ? 0 : 1,
     nodeGraphMvp.moduleButtonsVisible === false ? 1 : 0,
+    nodeGraphMvp.moduleInterfaceControlsVisible === false ? 1 : 0,
     nodeGraphMvp.moduleOscilloscopesVisible === false ? 1 : 0,
     nodeGraphMvp.moduleSlidersVisible === false ? 1 : 0,
     nodeGraphMvp.tooltipVisible ? 0 : 1,
@@ -87,6 +88,7 @@ function syncNodeGraphVisibleModuleGridHeights() {
     element.dataset.gridHeightGu = String(heightGu);
     element.style.setProperty("--node-grid-height-units", String(heightGu));
     element.style.setProperty("--node-module-display-height-units", String(nodeGraphPatchNodeDisplayHeightUnits(patchNode)));
+    element.style.setProperty("--node-module-interface-controls-height-units", String(nodeGraphPatchNodeInterfaceControlsHeightUnits(patchNode)));
   }
 }
 
@@ -94,12 +96,15 @@ function renderNodeGraphModuleVisibilityToggles() {
   const workspace = document.getElementById("nodeGraphWorkspace");
   const buttonsButton = document.getElementById("nodeModuleButtonsToggleButton");
   const scopesButton = document.getElementById("nodeOscilloscopeToggleButton");
+  const interfaceControlsButton = document.getElementById("nodeModuleInterfaceControlsToggleButton");
   const slidersButton = document.getElementById("nodeModuleSlidersToggleButton");
   const buttonsVisible = nodeGraphMvp.moduleButtonsVisible !== false;
   const scopesVisible = nodeGraphMvp.moduleOscilloscopesVisible !== false;
+  const interfaceControlsVisible = nodeGraphMvp.moduleInterfaceControlsVisible !== false;
   const slidersVisible = nodeGraphMvp.moduleSlidersVisible !== false;
   workspace?.classList.toggle("module-buttons-hidden", !buttonsVisible);
   workspace?.classList.toggle("module-oscilloscopes-hidden", !scopesVisible);
+  workspace?.classList.toggle("module-interface-controls-hidden", !interfaceControlsVisible);
   workspace?.classList.toggle("module-sliders-hidden", !slidersVisible);
   syncNodeGraphVisibleModuleGridHeights();
   if (buttonsButton) {
@@ -111,6 +116,11 @@ function renderNodeGraphModuleVisibilityToggles() {
     scopesButton.textContent = scopesVisible ? "Hide Displays" : "Show Displays";
     scopesButton.setAttribute("aria-pressed", scopesVisible ? "true" : "false");
     scopesButton.removeAttribute("title");
+  }
+  if (interfaceControlsButton) {
+    interfaceControlsButton.textContent = interfaceControlsVisible ? "Hide Control Surfaces" : "Show Control Surfaces";
+    interfaceControlsButton.setAttribute("aria-pressed", interfaceControlsVisible ? "true" : "false");
+    interfaceControlsButton.removeAttribute("title");
   }
   if (slidersButton) {
     slidersButton.textContent = slidersVisible ? "Hide Sliders" : "Show Sliders";
@@ -151,7 +161,7 @@ function normalizeNodeGraphModuleScopeDiscontinuitySkipSamples(value) {
 
 function normalizeNodeGraphModuleScopeFramesPerSecond(value) {
   const number = Number(value);
-  return Number.isFinite(number) ? clampNodeSliderValue(Math.round(number), 1, 240) : 60;
+  return Number.isFinite(number) ? clampNodeSliderValue(Math.round(number), 0, 240) : 60;
 }
 
 function normalizeNodeGraphModuleScopeBackgroundColor(value) {
@@ -568,6 +578,45 @@ function nodeGraphDialogDragTargetIsInteractive(event) {
   ));
 }
 
+function nodeGraphFloatingWindowViewportOffset() {
+  const innerWidth = Number(window.innerWidth) || 0;
+  const clientWidth = Number(document.documentElement?.clientWidth) || innerWidth;
+  return {
+    left: Math.max(0, Math.round(innerWidth - clientWidth)),
+    top: 0,
+  };
+}
+
+function nodeGraphFloatingWindowCssPositionFromViewport(left, top) {
+  const offset = nodeGraphFloatingWindowViewportOffset();
+  return {
+    left: Math.round((Number(left) || 0) - offset.left),
+    top: Math.round((Number(top) || 0) - offset.top),
+  };
+}
+
+function nodeGraphFloatingWindowViewportPositionFromCss(left, top) {
+  const offset = nodeGraphFloatingWindowViewportOffset();
+  return {
+    left: Math.round((Number(left) || 0) + offset.left),
+    top: Math.round((Number(top) || 0) + offset.top),
+  };
+}
+
+function setNodeGraphFloatingWindowViewportPosition(element, left, top) {
+  if (!element) {
+    return { left: 0, top: 0 };
+  }
+  const css = nodeGraphFloatingWindowCssPositionFromViewport(left, top);
+  element.style.left = `${css.left}px`;
+  element.style.top = `${css.top}px`;
+  element.style.right = "auto";
+  return {
+    left: Math.round(Number(left) || 0),
+    top: Math.round(Number(top) || 0),
+  };
+}
+
 function nodeGraphFloatingWindowPosition(element, x, y, options = {}) {
   if (!element) {
     return { left: 0, top: 0 };
@@ -586,8 +635,8 @@ function nodeGraphFloatingWindowPosition(element, x, y, options = {}) {
   const maxLeft = viewportWidth - visibleWidth;
   const minTop = visibleHeight - height;
   const maxTop = viewportHeight - visibleHeight;
-  const left = Math.max(minLeft, Math.min(maxLeft, Number(x) || 0));
-  const top = Math.max(minTop, Math.min(maxTop, Number(y) || 0));
+  const left = Math.round(Math.max(minLeft, Math.min(maxLeft, Number(x) || 0)));
+  const top = Math.round(Math.max(minTop, Math.min(maxTop, Number(y) || 0)));
   element.hidden = wasHidden;
   return { left, top };
 }
@@ -631,7 +680,16 @@ function setNodeGraphVisibilityMenuOpen(open) {
 
 function positionNodeGraphVisibilityMenuNearButton(menu = document.getElementById("nodeVisibilityMenu")) {
   const button = document.getElementById("nodeVisibilityMenuButton");
-  if (!menu || !button) {
+  if (!menu) {
+    return;
+  }
+  if (!button) {
+    const menuRect = menu.getBoundingClientRect();
+    positionNodeGraphVisibilityMenu(
+      menu,
+      (window.innerWidth - menuRect.width) * 0.5,
+      (window.innerHeight - menuRect.height) * 0.25,
+    );
     return;
   }
   const rect = button.getBoundingClientRect();
@@ -650,13 +708,11 @@ function positionNodeGraphVisibilityMenu(menu, x, y) {
     visibleWidth: rect.width,
     visibleHeight: rect.height,
   });
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
-  menu.style.right = "auto";
+  setNodeGraphFloatingWindowViewportPosition(menu, left, top);
 }
 
 function nodeGraphVisibilityMenuMinimumSize(menu = document.getElementById("nodeVisibilityMenu")) {
-  const sharedMinWidth = typeof nodeModuleActionsWindowDefaultSize !== "undefined" &&
+  const sharedWindowMinWidth = typeof nodeModuleActionsWindowDefaultSize !== "undefined" &&
     Number.isFinite(Number(nodeModuleActionsWindowDefaultSize?.minWidth))
     ? Number(nodeModuleActionsWindowDefaultSize.minWidth)
     : 24;
@@ -668,10 +724,9 @@ function nodeGraphVisibilityMenuMinimumSize(menu = document.getElementById("node
     rootStyle.getPropertyValue("--node-floating-window-button-height"),
   ) || 30;
   const buttonCount = menu?.querySelectorAll?.(".node-visibility-menu-list button").length || 7;
-  const chromeHeight = 14;
   return {
-    width: sharedMinWidth,
-    height: Math.ceil(chromeHeight + sharedHeaderHeight + (buttonCount * sharedButtonHeight)),
+    width: Math.ceil(sharedWindowMinWidth),
+    height: Math.ceil(sharedHeaderHeight + (buttonCount * sharedButtonHeight)),
   };
 }
 
@@ -701,7 +756,7 @@ function applyNodeGraphVisibilityMenuSize(size = {}) {
       maxWidth: 420,
       minHeight: minimum.height,
       maxHeight: 520,
-      width: 196,
+      width: 185,
     },
   );
   menu.style.width = `${normalized.width}px`;
@@ -718,11 +773,9 @@ function beginNodeGraphVisibilityMenuResize(event) {
     "visibilityMenuResizing",
   );
   if (drag && menu) {
-    const rect = menu.getBoundingClientRect();
-    const styleLeft = Number.parseFloat(menu.style.left);
-    const styleTop = Number.parseFloat(menu.style.top);
-    drag.startLeft = Number.isFinite(styleLeft) ? styleLeft : rect.left;
-    drag.startTop = Number.isFinite(styleTop) ? styleTop : rect.top;
+    const current = nodeGraphFloatingWindowElementPosition(menu);
+    drag.startLeft = current.left;
+    drag.startTop = current.top;
   }
 }
 
@@ -737,9 +790,7 @@ function dragNodeGraphVisibilityMenuResize(event) {
     const drag = nodeGraphMvp.visibilityMenuResizing;
     const menu = document.getElementById("nodeVisibilityMenu");
     if (drag && menu) {
-      menu.style.left = `${drag.startLeft}px`;
-      menu.style.top = `${drag.startTop}px`;
-      menu.style.right = "auto";
+      setNodeGraphFloatingWindowViewportPosition(menu, drag.startLeft, drag.startTop);
     }
   }
 }
@@ -1677,6 +1728,12 @@ function toggleNodeGraphModuleSlidersVisibility() {
   nodeGraphMvp.moduleSlidersVisible = nodeGraphMvp.moduleSlidersVisible === false;
   renderNodeGraphModuleVisibilityToggles();
   setNodeInteractionHelp(nodeGraphMvp.moduleSlidersVisible ? "Module sliders shown." : "Module sliders hidden.");
+}
+
+function toggleNodeGraphModuleInterfaceControlsVisibility() {
+  nodeGraphMvp.moduleInterfaceControlsVisible = nodeGraphMvp.moduleInterfaceControlsVisible === false;
+  renderNodeGraphModuleVisibilityToggles();
+  setNodeInteractionHelp(nodeGraphMvp.moduleInterfaceControlsVisible ? "Module control surfaces shown." : "Module control surfaces hidden.");
 }
 
 function toggleNodeGraphTooltipVisibility() {

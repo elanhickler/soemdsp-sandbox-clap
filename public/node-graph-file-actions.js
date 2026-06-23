@@ -36,7 +36,7 @@ const nodeGraphPatchPresetStorageKey = "soemdsp-sandbox.patchPresets.v1";
 const nodeGraphSavedPatchBankSlotCount = 128;
 const nodeGraphSavedPatchBankMaxProgram = nodeGraphSavedPatchBankSlotCount - 1;
 const nodeGraphSavedPatchesWindowDefaultSize = Object.freeze({
-  width: 420,
+  width: 185,
   height: 620,
   minWidth: 80,
   maxWidth: 720,
@@ -1157,9 +1157,13 @@ function positionNodeGraphSavedPatchesWindow(x, y) {
   }
   const { left, top } = nodeGraphFloatingWindowPosition(panel, x, y);
   panel.style.position = "fixed";
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-  panel.style.right = "auto";
+  if (typeof setNodeGraphFloatingWindowViewportPosition === "function") {
+    setNodeGraphFloatingWindowViewportPosition(panel, left, top);
+  } else {
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = "auto";
+  }
   if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
     rememberNodeGraphWorkspaceWindowState(
       "patchExplorer",

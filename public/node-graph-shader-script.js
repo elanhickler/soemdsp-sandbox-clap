@@ -1657,10 +1657,7 @@ function openNodeGraphScopeShaderScript(nodeId) {
   if (!node) {
     return false;
   }
-  setNodeGraphShaderScriptDialogMode("scope", node.id);
-  setNodeGraphShaderScriptDialogVisible(true);
-  nodeGraphShaderScriptStatus("ready", false);
-  return true;
+  return false;
 }
 
 function disableNodeGraphShaderScriptLiveApply() {

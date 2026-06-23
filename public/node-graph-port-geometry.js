@@ -23,11 +23,31 @@ function nodeGraphGraphInputPortSelector(node, graphInput) {
   return `.node-param-port.graph-input[data-node="${CSS.escape(node)}"][data-graph-input="${CSS.escape(graphInput)}"]`;
 }
 
-function markNodeGraphPortConnected(node, port, io) {
+function nodeGraphNodeIoHidden(node) {
+  return Boolean(nodeGraphNodeElement(node)?.classList.contains("io-hidden"));
+}
+
+function nodeGraphIoProxyPortSelector(node, io) {
+  return `.node-io-proxy-port.${io}[data-node="${CSS.escape(node)}"][data-io-proxy="${CSS.escape(io)}"]`;
+}
+
+function nodeGraphPortElementForWireEndpoint(node, port, io) {
+  const surface = nodeGraphZoomSurface();
+  if (!surface) {
+    return null;
+  }
+  if ((io === "input" || io === "output") && nodeGraphNodeIoHidden(node)) {
+    const proxyPort = surface.querySelector(nodeGraphIoProxyPortSelector(node, io));
+    if (proxyPort) {
+      return proxyPort;
+    }
+  }
   const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
-  nodeGraphZoomSurface()
-    ?.querySelector(nodeGraphPortSelector(node, canonicalPort, io))
-    ?.classList.add("connected-port");
+  return surface.querySelector(nodeGraphPortSelector(node, canonicalPort, io));
+}
+
+function markNodeGraphPortConnected(node, port, io) {
+  nodeGraphPortElementForWireEndpoint(node, port, io)?.classList.add("connected-port");
 }
 
 function markNodeGraphModulationPortConnected(node, parameter) {
@@ -43,9 +63,7 @@ function markNodeGraphGraphInputPortConnected(node, graphInput) {
 }
 
 function nodeGraphPortCenter(node, port, io) {
-  const surface = nodeGraphZoomSurface();
-  const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
-  const element = surface.querySelector(nodeGraphPortSelector(node, canonicalPort, io));
+  const element = nodeGraphPortElementForWireEndpoint(node, port, io);
   return nodeGraphElementCenter(element, io);
 }
 

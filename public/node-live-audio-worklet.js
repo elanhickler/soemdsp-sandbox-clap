@@ -9,6 +9,10 @@ const nodeLiveRaptEllipticQuarterbandSos = Object.freeze([
   Object.freeze([1, -1.3980241837651683, 1, 1, -1.5032624176850438, 0.9843747059042128]),
 ]);
 
+function nodeLiveIsPolyBlepOscillatorType(type) {
+  return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc";
+}
+
 class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -93,6 +97,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.smoothers = new Map();
     this.spiralStates = new Map();
     this.stepSequencerStates = new Map();
+    this.timing = this.normalizePatchTiming();
     this.triggerCounterStates = new Map();
     this.triggerDividerStates = new Map();
     this.triangleStates = new Map();
@@ -439,6 +444,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       ((Number(message.engineSampleRate) || this.hostSampleRate) / this.hostSampleRate);
     this.oversamplingRatio = Math.max(1, Math.min(4, Math.round(requestedRatio) || 1));
     this.engineSampleRate = this.hostSampleRate * this.oversamplingRatio;
+    this.timing = this.normalizePatchTiming(plan?.timing);
     if (this.raptEllipticDecimatorRatio !== this.oversamplingRatio) {
       this.resetRaptEllipticDecimator();
     }
@@ -485,16 +491,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.nodeOutputs.set(id, 0);
       }
       const node = this.nodes.get(id);
-      if ((node?.type === "osc" || node?.type === "fbPolyBlepOsc") && !this.phases.has(id)) {
+      if (nodeLiveIsPolyBlepOscillatorType(node?.type) && !this.phases.has(id)) {
         this.phases.set(id, 0);
       }
-      if ((node?.type === "osc" || node?.type === "fbPolyBlepOsc") && !this.oscResetStates.has(id)) {
+      if (nodeLiveIsPolyBlepOscillatorType(node?.type) && !this.oscResetStates.has(id)) {
         this.oscResetStates.set(id, this.createOscResetState());
       }
-      if ((node?.type === "osc" || node?.type === "fbPolyBlepOsc") && !this.triangleStates.has(id)) {
+      if (nodeLiveIsPolyBlepOscillatorType(node?.type) && !this.triangleStates.has(id)) {
         this.triangleStates.set(id, 0);
       }
-      if ((node?.type === "osc" || node?.type === "fbPolyBlepOsc" || node?.type === "noise") && !this.noiseSeeds.has(id)) {
+      if ((nodeLiveIsPolyBlepOscillatorType(node?.type) || node?.type === "noise") && !this.noiseSeeds.has(id)) {
         this.noiseSeeds.set(id, this.stableSeed(id));
       }
       if (node?.type === "stereoNoise") {
@@ -1562,11 +1568,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     if (!Number.isFinite(value)) {
       return 0.016;
     }
-    return this.clampValue(value, 0.004, 0.12);
+    return Math.max(0, value);
   }
 
   smoothingFrequencyFromSeconds(seconds) {
-    return 1 / this.clampAutoSmoothingSeconds(seconds);
+    const normalized = this.clampAutoSmoothingSeconds(seconds);
+    return normalized <= 0 ? 0 : 1 / normalized;
   }
 
   syncNestedAutoSmoothingSeconds(seconds = this.autoSmoothingSeconds) {
@@ -1607,10 +1614,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (smoother.lastFrame === frame) {
         return smoother.lastValue;
       }
+      const smoothingSeconds = this.clampAutoSmoothingSeconds(this.autoSmoothingSeconds);
+      if (smoothingSeconds <= 0) {
+        smoother.current = smoother.target;
+        smoother.outputBuffer = smoother.targetSignal;
+        smoother.lastFrame = frame;
+        smoother.lastValue = smoother.target;
+        return smoother.target;
+      }
       const signal = this.onePoleLowpassSample(
         smoother,
         smoother.targetSignal,
-        this.smoothingFrequencyFromSeconds(this.autoSmoothingSeconds),
+        this.smoothingFrequencyFromSeconds(smoothingSeconds),
         sampleRate,
       );
       const value = this.normalizedSignalToParameterValue(signal, smoother.metadata);
@@ -1871,9 +1886,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     let sample = 0;
     switch (Math.round(Number(waveform) || 0)) {
       case 1:
-        sample = this.polyBlepSquare(phaseCycle, renderPhaseIncrement);
+        sample = -1 + phaseCycle * 2 - this.polyBlep(phaseCycle, renderPhaseIncrement);
         break;
       case 2:
+        sample = this.polyBlepSquare(phaseCycle, renderPhaseIncrement);
+        break;
+      case 3:
         {
           const triangle = this.triangleStates.get(nodeId) || 0;
           if (phaseStopped) {
@@ -1885,10 +1903,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           sample = this.clampValue(nextTriangle, -1, 1);
           break;
         }
-      case 3:
+      case 4:
         sample = Math.sin(phase);
         break;
-      case 4:
+      case 5:
         sample = phaseStopped ? this.currentNoiseSample(nodeId) : this.nextNoiseSample(nodeId);
         break;
       case 0:
@@ -2707,12 +2725,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const id of ids) {
       const node = this.nodes.get(id);
       this.nodeOutputs.set(id, 0);
-      if (node?.type === "osc" || node?.type === "fbPolyBlepOsc") {
+      if (nodeLiveIsPolyBlepOscillatorType(node?.type)) {
         this.phases.set(id, 0);
         this.oscResetStates.set(id, this.createOscResetState());
         this.triangleStates.set(id, 0);
       }
-      if (node?.type === "osc" || node?.type === "fbPolyBlepOsc" || node?.type === "noise") {
+      if (nodeLiveIsPolyBlepOscillatorType(node?.type) || node?.type === "noise") {
         this.noiseSeeds.set(id, this.stableSeed(id));
       }
       if (node?.type === "stereoNoise") {
@@ -3355,6 +3373,39 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       "Digital Out": digital,
       Out: digital,
       Pulse: pulse,
+    };
+  }
+
+  normalizePatchTiming(timing = {}) {
+    const source = timing && typeof timing === "object" ? timing : {};
+    return {
+      tempoBpm: Math.max(1, Math.round(Number(source.tempoBpm) || 120)),
+      timeSignatureDenominator: Math.max(1, Math.round(Number(source.timeSignatureDenominator) || 4)),
+      timeSignatureNumerator: Math.max(1, Math.round(Number(source.timeSignatureNumerator) || 4)),
+    };
+  }
+
+  transportDivisionFactor(divisions) {
+    const division = Math.round(Number(divisions) || 0);
+    if (division > 0) {
+      return division + 1;
+    }
+    if (division < 0) {
+      return 1 / (Math.abs(division) + 1);
+    }
+    return 1;
+  }
+
+  transportSample(params, frame, rateHz = sampleRate) {
+    const rate = Math.max(1, Number(rateHz) || sampleRate || 44100);
+    const tempoBpm = Math.max(1, Number(this.timing?.tempoBpm) || 120);
+    const frequency = (tempoBpm / 60) * this.transportDivisionFactor(params.divisions);
+    const amplitude = this.clampValue(this.safeFilterNumber(params.amplitude, null), 0, 1);
+    const phase = frequency > 0 ? this.wrapValue((Math.max(0, Number(frame) || 0) / rate) * frequency, 0, 1) : 0;
+    const high = phase < 0.5;
+    return {
+      "-1..1": high ? amplitude : -amplitude,
+      "0..1": high ? amplitude : 0,
     };
   }
 
@@ -4474,7 +4525,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           readParam,
           safeRate,
         );
-      } else if (node?.type === "osc" || node?.type === "fbPolyBlepOsc") {
+      } else if (nodeLiveIsPolyBlepOscillatorType(node?.type)) {
         const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
         this.oscResetStates.set(nodeId, resetState);
         const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
@@ -4521,9 +4572,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = {
           Out: selected,
           Saw: sampleOscillator(`${nodeId}:saw`, 0) * level,
-          Square: sampleOscillator(`${nodeId}:square`, 1) * level,
-          Tri: sampleOscillator(`${nodeId}:tri`, 2) * level,
-          Sine: sampleOscillator(`${nodeId}:sine`, 3) * level,
+          Ramp: sampleOscillator(`${nodeId}:ramp`, 1) * level,
+          Square: sampleOscillator(`${nodeId}:square`, 2) * level,
+          Tri: sampleOscillator(`${nodeId}:tri`, 3) * level,
+          Sine: sampleOscillator(`${nodeId}:sine`, 4) * level,
           "Wave Out": selected,
           Noise: selected,
         };
@@ -4704,6 +4756,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           this.readEffectiveParameter(node, "rate", 2, frame, frames, frameValues),
           this.readEffectiveParameter(node, "duty", 0.5, frame, frames, frameValues),
           this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues),
+          safeRate,
+        );
+      } else if (node?.type === "transport") {
+        value = this.transportSample(
+          {
+            amplitude: read("amplitude", 1),
+            divisions: read("divisions", 0),
+          },
+          frame,
           safeRate,
         );
       } else if (node?.type === "randomClock") {
@@ -5024,6 +5085,30 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "bias") {
         value = mixInput(nodeId) +
           this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
+      } else if (node?.type === "rotate3dTo2d") {
+        const angleX = this.readEffectiveParameter(node, "rotateX", 0, frame, frames, frameValues) * Math.PI * 2;
+        const angleY = this.readEffectiveParameter(node, "rotateY", 0, frame, frames, frameValues) * Math.PI * 2;
+        const angleZ = this.readEffectiveParameter(node, "rotateZ", 0, frame, frames, frameValues) * Math.PI * 2;
+        let x = this.safeFilterNumber(mixInput(nodeId, "X"), null);
+        let y = this.safeFilterNumber(mixInput(nodeId, "Y"), null);
+        let z = this.safeFilterNumber(mixInput(nodeId, "Z"), null);
+        const sinX = Math.sin(angleX);
+        const cosX = Math.cos(angleX);
+        const nextY = y * cosX - z * sinX;
+        const nextZ = y * sinX + z * cosX;
+        y = nextY;
+        z = nextZ;
+        const sinY = Math.sin(angleY);
+        const cosY = Math.cos(angleY);
+        const nextX = x * cosY + z * sinY;
+        z = -x * sinY + z * cosY;
+        x = nextX;
+        const sinZ = Math.sin(angleZ);
+        const cosZ = Math.cos(angleZ);
+        value = {
+          X: this.safeFilterNumber(x * cosZ - y * sinZ, null),
+          Y: this.safeFilterNumber(x * sinZ + y * cosZ, null),
+        };
       } else if (node?.type === "valueSlider") {
         const offset = this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
         value = { Bias: offset, Out: offset, offset };

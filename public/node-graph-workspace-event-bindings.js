@@ -15,6 +15,9 @@ function bindNodeGraphWorkspaceInteractionEvents() {
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("mousedown", preventNodeGraphMiddleMouseDefault, true);
+  document.addEventListener("auxclick", preventNodeGraphMiddleMouseAuxClick, true);
+  document.addEventListener("mousedown", preventNodeGraphMiddleMouseDefault, true);
+  document.addEventListener("wheel", preventNodeGraphOuterWheelScroll, { passive: false, capture: true });
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("pointerdown", nodeGraphWireInteractions.beginPatchPointWireDrag, true);

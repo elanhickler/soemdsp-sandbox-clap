@@ -138,6 +138,50 @@ function connectNodeGraphGraphInput(sourceNode, sourcePort, destinationNode, des
   return true;
 }
 
+function nodeGraphAutoPairPortConnections(patch, sourceNode, sourcePort, destinationNode, destinationPort, wireData = {}) {
+  if (!patch || sourcePort !== destinationPort) {
+    return 0;
+  }
+  const sourcePorts = nodeGraphPatchNodeOutputPorts(sourceNode);
+  const destinationPorts = nodeGraphPatchNodeInputPorts(destinationNode);
+  const sourceIndex = sourcePorts.indexOf(sourcePort);
+  const destinationIndex = destinationPorts.indexOf(destinationPort);
+  if (sourceIndex < 0 || destinationIndex < 0) {
+    return 0;
+  }
+  let added = 0;
+  for (
+    let outputIndex = sourceIndex + 1, inputIndex = destinationIndex + 1;
+    outputIndex < sourcePorts.length && inputIndex < destinationPorts.length;
+    outputIndex += 1, inputIndex += 1
+  ) {
+    const nextSourcePort = sourcePorts[outputIndex];
+    const nextDestinationPort = destinationPorts[inputIndex];
+    if (nextSourcePort !== nextDestinationPort) {
+      break;
+    }
+    const duplicate = patch.connections.some(
+      (connection) =>
+        connection.sourceNode === sourceNode &&
+        connection.sourcePort === nextSourcePort &&
+        connection.destinationNode === destinationNode &&
+        connection.destinationPort === nextDestinationPort,
+    );
+    if (duplicate) {
+      continue;
+    }
+    patch.connections.push({
+      sourceNode,
+      sourcePort: nextSourcePort,
+      destinationNode,
+      destinationPort: nextDestinationPort,
+      ...wireData,
+    });
+    added += 1;
+  }
+  return added;
+}
+
 function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinationPort, options = {}) {
   if (
     !nodeGraphInputKey(destinationNode, destinationPort) ||
@@ -183,7 +227,17 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
     destinationPort,
     ...nextWireData,
   });
-  commitNodeGraphPatch(patch, { status: "wire connected" });
+  const autoConnected = options.autoPair === false
+    ? 0
+    : nodeGraphAutoPairPortConnections(
+      patch,
+      sourceNode,
+      sourcePort,
+      destinationNode,
+      destinationPort,
+      nextWireData,
+    );
+  commitNodeGraphPatch(patch, { status: autoConnected ? `wire connected +${autoConnected}` : "wire connected" });
   return true;
 }
 

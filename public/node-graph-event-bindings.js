@@ -14,6 +14,9 @@ async function bindNodeGraphMvpEvents() {
   await bindNodeGraphMvpEventGroup("help", bindNodeGraphHelpAndPaletteEvents);
   await bindNodeGraphMvpEventGroup("workspace", bindNodeGraphWorkspaceInteractionEvents);
   await bindNodeGraphMvpEventGroup("keyboard", () => {
+    bindNodeGraphFloatingWindowLockHandles();
+    document.addEventListener("keydown", handleNodeGraphFloatingWindowKeyboardNudge, true);
+    document.addEventListener("keyup", handleNodeGraphFloatingWindowKeyboardRelease, true);
     document.addEventListener("keydown", handleNodeGraphKeydown);
   });
   await bindNodeGraphMvpEventGroup("scene-menu", bindNodeGraphSceneMenuEvents);

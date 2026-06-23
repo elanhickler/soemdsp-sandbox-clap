@@ -452,8 +452,8 @@ button:disabled {
   --node-front-construction-hover-bg:
     repeating-linear-gradient(
       135deg,
-      rgba(243, 241, 236, 0.06) 0 6px,
-      transparent 6px 12px
+      rgba(226, 168, 109, 0.18) 0 8px,
+      transparent 8px 16px
     ),
     rgba(17, 20, 24, 0.7);
 }
@@ -726,7 +726,7 @@ audio {
 .node-sample-status {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -1234,7 +1234,7 @@ audio {
   padding: 0 7px;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .node-midi-keyboard-midi-controls select:disabled {
@@ -1899,15 +1899,16 @@ audio {
 }
 
 .node-under-construction-control {
-  border-color: rgba(127, 199, 217, 0.12);
-  background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(243, 241, 236, 0.045) 0 6px,
-      transparent 6px 12px
-    ),
-    rgba(17, 20, 24, 0.58);
-  color: rgba(160, 167, 176, 0.78);
+  border-color: rgba(226, 168, 109, 0.34);
+  background: var(--node-front-construction-hover-bg);
+  color: rgba(243, 241, 236, 0.72);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.node-under-construction-control * {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .node-under-construction-control:hover,
@@ -1929,7 +1930,7 @@ audio {
   color: var(--text);
   font: inherit;
   letter-spacing: 0;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .node-patch-header-field.name {
@@ -2008,7 +2009,7 @@ audio {
   color: rgba(243, 241, 236, 0.88);
   font: 750 0.58rem/1 var(--mono);
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -2043,7 +2044,7 @@ audio {
   color: rgba(243, 241, 236, 0.9);
   font: 750 0.72rem/1 var(--mono);
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -2079,7 +2080,7 @@ audio {
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -2491,8 +2492,29 @@ audio {
 .node-history-controls .pill {
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
+}
+
+:is(
+  #nodeSceneContextMenu,
+  #nodeModuleActionsWindow,
+  #nodeModuleShopView,
+  #nodeSavedPatchesWindow,
+  #nodeVisibilityMenu,
+  #nodeParameterMetadataPopover,
+  #nodeUiDevHelper,
+  #nodeUserUiSettingsPanel,
+  #nodeGlobalScopeMenu,
+  .node-module-shop-section,
+  .node-demo-patch-list,
+  .node-saved-patch-window-list,
+  .node-module-actions-window-body,
+  .node-trace-display-settings-grid,
+  .node-visibility-menu-list,
+  .node-user-ui-settings-controls
+) {
+  overscroll-behavior: contain;
 }
 
 .node-visibility-menu {
@@ -2507,9 +2529,10 @@ audio {
   min-width: var(--node-module-actions-min-width, 24px);
   max-width: calc(100vw - 28px);
   gap: 0;
-  padding: 7px;
-  border: 1px solid rgba(127, 199, 217, 0.22);
-  border-radius: 6px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(127, 199, 217, 0.42);
+  border-radius: 8px;
   background: rgba(9, 12, 15, 0.96);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.36);
 }
@@ -2519,62 +2542,15 @@ audio {
 }
 
 .node-visibility-menu-heading {
-  display: grid;
-  grid-template-columns:
-    var(--node-floating-window-header-height)
-    minmax(0, 1fr)
-    var(--node-floating-window-header-height);
-  align-items: center;
-  box-sizing: border-box;
-  gap: 0;
-  min-width: 0;
-  height: var(--node-floating-window-header-height);
-  min-height: var(--node-floating-window-header-height);
-  max-height: var(--node-floating-window-header-height);
-  overflow: hidden;
-  user-select: none;
-  touch-action: none;
+  margin: 0;
 }
 
-.node-visibility-menu-heading.dragging {
-  filter: brightness(1.08);
+.node-visibility-menu .scene-context-heading {
+  margin: 0;
 }
 
-.node-visibility-menu-heading > span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-align: center;
-  text-overflow: clip;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.node-visibility-menu-heading .node-visibility-menu-drag-handle,
-.node-visibility-menu-heading .panel-close-button {
-  display: grid;
-  width: var(--node-floating-window-header-height);
-  min-width: var(--node-floating-window-header-height);
-  height: var(--node-floating-window-header-height);
-  min-height: var(--node-floating-window-header-height);
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: rgba(127, 199, 217, 0.86);
-  font-size: 0.78rem;
-  line-height: 1;
-}
-
-.node-visibility-menu-heading .node-visibility-menu-drag-handle:hover,
-.node-visibility-menu-heading .panel-close-button:hover {
-  color: var(--accent);
-  background: rgba(127, 199, 217, 0.1);
+.node-visibility-menu .scene-context-title {
+  block-size: var(--node-floating-window-header-height);
 }
 
 .node-visibility-menu-list {
@@ -2593,11 +2569,26 @@ audio {
   min-width: 0;
   min-height: var(--node-floating-window-button-height);
   overflow: hidden;
-  padding: 0 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(226, 168, 109, 0.24);
+  border-radius: 0;
+  background: rgb(16, 22, 26);
   font-size: 0.72rem;
   line-height: 1;
+  text-align: center;
   text-overflow: clip;
   white-space: normal;
+}
+
+.node-visibility-menu-list button:last-child {
+  border-bottom: 0;
+}
+
+.node-visibility-menu-list button:hover,
+.node-visibility-menu-list button:focus-visible {
+  background: rgb(22, 32, 38);
 }
 
 .node-visibility-menu-resize-handle {
@@ -2605,29 +2596,8 @@ audio {
   right: 0;
   bottom: 0;
   z-index: 4;
-  width: 18px;
-  min-width: 18px;
-  height: 18px;
-  min-height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px 0 6px 0;
-  background:
-    linear-gradient(135deg, transparent 0 48%, rgba(127, 199, 217, 0.36) 50% 56%, transparent 58%),
-    linear-gradient(135deg, transparent 0 64%, rgba(127, 199, 217, 0.58) 66% 72%, transparent 74%),
-    rgba(7, 10, 13, 0.72);
-  box-shadow: none;
+  margin: 0;
   cursor: ew-resize;
-  touch-action: none;
-}
-
-.node-visibility-menu-resize-handle:hover,
-.node-visibility-menu-resize-handle.dragging,
-.node-visibility-menu-resize-handle:focus-visible {
-  background:
-    linear-gradient(135deg, transparent 0 48%, rgba(226, 168, 109, 0.56) 50% 56%, transparent 58%),
-    linear-gradient(135deg, transparent 0 64%, rgba(226, 168, 109, 0.8) 66% 72%, transparent 74%),
-    rgba(7, 10, 13, 0.88);
 }
 
 .node-view-toolbar button:not(:disabled):not(.active):hover,
@@ -2810,7 +2780,7 @@ audio {
   min-width: 0;
   overflow: hidden;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -2855,7 +2825,7 @@ audio {
 .node-user-ui-setting-control > span {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -2925,7 +2895,7 @@ audio {
   font-family: var(--mono);
   font-size: 0.72rem;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .node-user-ui-setting-control input[type="number"] {
@@ -3136,7 +3106,7 @@ audio {
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   vertical-align: baseline;
 }
 
@@ -3664,7 +3634,7 @@ audio {
   overflow: hidden;
   color: rgba(255, 219, 176, 0.96);
   font-size: 0.82rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -3706,7 +3676,7 @@ audio {
   font-size: 0.58rem;
   letter-spacing: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -3750,7 +3720,7 @@ audio {
 .node-code-screen-lookup-keys span {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -3903,7 +3873,7 @@ audio {
 .node-code-screen-lookup-result button small {
   overflow: hidden;
   max-width: 100%;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -3955,7 +3925,7 @@ audio {
 .node-code-screen-helper-card button strong {
   overflow: hidden;
   max-width: 100%;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4000,7 +3970,7 @@ audio {
 .node-code-screen-heading .pill {
   max-width: min(440px, 48%);
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4080,7 +4050,7 @@ audio {
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.68rem;
   line-height: 1.25;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4154,7 +4124,7 @@ audio {
   color: rgba(243, 241, 236, 0.94);
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.72rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4353,7 +4323,7 @@ audio {
   color: rgba(243, 241, 236, 0.95);
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.72rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4369,7 +4339,7 @@ audio {
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.72rem;
   line-height: 1.35;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4462,7 +4432,7 @@ audio {
   font-size: 0.62rem;
   line-height: 1.35;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4539,7 +4509,7 @@ audio {
   font-size: 0.62rem;
   line-height: 1.35;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4606,7 +4576,7 @@ audio {
   font-size: 0.62rem;
   line-height: 1.35;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4671,7 +4641,7 @@ audio {
   font-size: 0.62rem;
   line-height: 1.35;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4743,7 +4713,7 @@ audio {
   color: rgba(174, 180, 187, 0.72);
   font-size: 0.66rem;
   text-align: right;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4772,7 +4742,7 @@ audio {
   overflow: hidden;
   color: rgba(174, 180, 187, 0.72);
   font-size: 0.62rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4820,7 +4790,7 @@ audio {
   overflow: hidden;
   color: rgba(174, 180, 187, 0.72);
   font-size: 0.58rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -4836,7 +4806,7 @@ audio {
   color: rgba(127, 217, 170, 0.62);
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.58rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -4924,7 +4894,7 @@ audio {
 .node-code-screen-run-history code {
   overflow: hidden;
   margin: 0;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5133,7 +5103,7 @@ audio {
   overflow: hidden;
   color: rgba(226, 168, 109, 0.82);
   font-size: 0.66rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5301,7 +5271,7 @@ audio {
   color: rgba(255, 219, 176, 0.9);
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.74rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5387,7 +5357,7 @@ audio {
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.72rem;
   line-height: 1.35;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5446,7 +5416,7 @@ audio {
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.68rem;
   line-height: 1.25;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5468,7 +5438,7 @@ audio {
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.72rem;
   line-height: 1.35;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5618,7 +5588,7 @@ audio {
   font-family: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 0.68rem;
   line-height: 1.25;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5746,7 +5716,7 @@ audio {
   color: rgba(243, 241, 236, 0.86);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
   font-size: 0.86rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5812,7 +5782,7 @@ audio {
   color: rgba(198, 230, 224, 0.74);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
   font-size: 0.62rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -5873,7 +5843,7 @@ audio {
   color: rgba(127, 199, 217, 0.68);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
   font-size: 0.68rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -6209,6 +6179,25 @@ audio {
   color: var(--accent-2);
 }
 
+.metadata-popover-heading .metadata-popover-drag-handle.floating-window-locked,
+.scene-context-drag-handle.floating-window-locked,
+.node-visibility-menu-drag-handle.floating-window-locked,
+.node-saved-patches-drag-handle.floating-window-locked,
+.node-module-shop-drag-handle.floating-window-locked,
+.node-ui-dev-drag-handle.floating-window-locked,
+.node-user-ui-settings-drag-handle.floating-window-locked {
+  color: var(--warning, #f3b75f);
+}
+
+.floating-window-locked .scene-context-resize-handle,
+.floating-window-locked .metadata-popover-resize-handle,
+.floating-window-locked .node-saved-patches-resize-handle,
+.floating-window-locked .node-module-shop-resize-handle,
+.floating-window-locked .node-visibility-menu-resize-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .metadata-popover-heading .panel-close-button,
 .scene-context-heading > .panel-close-button,
 .node-user-ui-settings-heading > .panel-close-button,
@@ -6393,7 +6382,7 @@ audio {
   font-weight: 750;
   line-height: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -6432,7 +6421,7 @@ audio {
   color: rgba(127, 199, 217, 0.86);
   font: 700 0.56rem/1.3 var(--mono);
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -6553,7 +6542,7 @@ audio {
   font-weight: 750;
   line-height: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -6665,7 +6654,7 @@ audio {
   font-size: 0.84rem;
   font-weight: 900;
   line-height: 1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -6753,7 +6742,7 @@ audio {
   font-weight: 900;
   line-height: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -6761,7 +6750,7 @@ audio {
 .node-demo-patch-row small {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .node-demo-patch-row strong {
@@ -6887,7 +6876,7 @@ audio {
   font-size: 1rem;
   font-weight: 650;
   line-height: 1.1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -7044,6 +7033,12 @@ audio {
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  scrollbar-width: none;
+}
+
+.node-module-shop-section::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .node-module-shop-section-title {
@@ -7764,7 +7759,7 @@ audio {
   min-width: 0;
   overflow: hidden;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -7960,7 +7955,7 @@ audio {
   min-width: 0;
   overflow: hidden;
   line-height: 1.1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -8311,10 +8306,8 @@ audio {
   width: calc(100% / var(--node-graph-zoom));
   height: calc(100% / var(--node-graph-zoom));
   background: transparent;
-  transform:
-    translate(var(--node-visual-shake-x), var(--node-visual-shake-y))
-    scale(var(--node-graph-zoom));
-  transform-origin: 0 0;
+  zoom: var(--node-graph-zoom);
+  transform: none;
   pointer-events: none;
 }
 
@@ -8474,7 +8467,7 @@ audio {
 }
 
 .node-module-scope-canvas {
-  z-index: 5;
+  z-index: 0;
   filter:
     brightness(calc(1 + var(--node-visual-brightness, 0) * 0.65))
     drop-shadow(
@@ -8497,7 +8490,7 @@ audio {
 }
 
 .node-module-scope-light-canvas {
-  z-index: 6;
+  z-index: 0;
   mix-blend-mode: screen;
   transform: translate(var(--node-visual-shake-x), var(--node-visual-shake-y));
 }
@@ -8521,7 +8514,7 @@ audio {
 .node-modular-shader-canvas {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 0;
   display: none;
   width: 100%;
   height: 100%;
@@ -8692,7 +8685,12 @@ audio {
   left: var(--node-x);
   top: var(--node-y);
   display: grid;
-  grid-template-rows: var(--node-header-height) var(--node-module-scope-height) auto minmax(0, 1fr);
+  grid-template-rows:
+    var(--node-header-height)
+    var(--node-module-scope-height)
+    minmax(var(--node-io-section-min-height), auto)
+    auto;
+  align-content: start;
   gap: 0;
   width: calc((var(--node-grid-width) * var(--node-grid-width-units, 7)) - (var(--node-module-grid-inset) * 2));
   min-width: calc((var(--node-grid-width) * var(--node-grid-width-units, 7)) - (var(--node-module-grid-inset) * 2));
@@ -8809,7 +8807,7 @@ audio {
     var(--node-header-height)
     calc(var(--node-module-scope-height) * 1.5)
     minmax(var(--node-io-section-min-height), auto)
-    minmax(0, 1fr);
+    auto;
 }
 
 .dsp-node.slider-widget-layout {
@@ -8908,14 +8906,21 @@ audio {
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-auto-rows: minmax(var(--node-body-row-height), 1fr);
+  align-content: start;
+  align-self: start;
+  grid-auto-rows: var(--node-body-row-height);
   gap: var(--node-body-row-gap);
   padding: 0;
 }
 
 .node-graph-workspace.module-buttons-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.trace-display-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.sample-module-layout):not(.screen-space-shader-layout),
 .dsp-node.buttons-hidden:not(.text-box-layout):not(.image-node-layout):not(.visual-scope-layout):not(.trace-display-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.sample-module-layout):not(.screen-space-shader-layout) {
-  grid-template-rows: var(--node-header-height) var(--node-module-scope-height) auto auto minmax(0, 1fr);
+  grid-template-rows:
+    var(--node-header-height)
+    var(--node-module-scope-height)
+    minmax(var(--node-io-section-min-height), auto)
+    auto
+    auto;
 }
 
 .node-graph-workspace.module-buttons-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.trace-display-layout):not(.graph-node-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.sample-module-layout):not(.screen-space-shader-layout)::after,
@@ -9012,7 +9017,7 @@ audio {
 
 .node-clap-plugin-param-name {
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -9466,7 +9471,7 @@ audio {
   color: color-mix(in srgb, var(--node-mod-input-fill) 72%, var(--muted));
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
   line-height: 1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -9657,7 +9662,7 @@ audio {
   background: rgba(0, 0, 0, 0.58);
   font-size: 10px;
   line-height: 1.1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -10017,8 +10022,6 @@ audio {
 
 .node-header-speed-placeholder {
   color: rgba(226, 168, 109, 0.88);
-  background:
-    linear-gradient(135deg, rgba(226, 168, 109, 0.12), rgba(32, 37, 42, 0.42));
 }
 
 .node-header-speed-placeholder-value {
@@ -10032,9 +10035,9 @@ audio {
 
 .node-header-speed-placeholder .node-header-timing-input {
   border-color: rgba(226, 168, 109, 0.34);
-  background:
-    linear-gradient(135deg, rgba(226, 168, 109, 0.12), rgba(0, 0, 0, 0.3));
+  background: var(--node-front-construction-hover-bg);
   color: rgba(255, 229, 190, 0.92);
+  pointer-events: none;
 }
 
 .node-header-timing-input {
@@ -10098,12 +10101,15 @@ audio {
   grid-template-rows:
     var(--node-header-height)
     minmax(var(--node-io-section-min-height), auto)
-    minmax(0, 1fr);
+    auto;
 }
 
 .node-graph-workspace.module-oscilloscopes-hidden .dsp-node:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.trace-display-layout):not(.graph-node-layout):not(.filter-curve-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.sample-module-layout):not(.screen-space-shader-layout),
 .dsp-node.oscilloscope-hidden:not(.text-box-layout):not(.image-node-layout):not(.canvas-node-layout):not(.visual-scope-layout):not(.trace-display-layout):not(.graph-node-layout):not(.filter-curve-layout):not(.slider-widget-layout):not(.knob-widget-layout):not(.sample-module-layout):not(.screen-space-shader-layout) {
-  grid-template-rows: var(--node-header-height) minmax(var(--node-io-section-min-height), auto) minmax(0, 1fr);
+  grid-template-rows:
+    var(--node-header-height)
+    minmax(var(--node-io-section-min-height), auto)
+    auto;
 }
 
 .dsp-node.sample-module-layout,
@@ -10127,6 +10133,11 @@ audio {
   min-width: 0;
   overflow: hidden;
   z-index: 3;
+}
+
+.node-graph-workspace.module-interface-controls-hidden .sample-module-layout .node-sample-module-body,
+.sample-module-layout.interface-controls-hidden .node-sample-module-body {
+  display: none;
 }
 
 .sample-module-layout .dsp-node-io-section {
@@ -10216,7 +10227,7 @@ audio {
   color: var(--node-module-primary-text-color);
   letter-spacing: 0;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-transform: none;
   white-space: nowrap;
 }
@@ -10240,6 +10251,44 @@ audio {
 .dsp-node-io-section,
 .node-io-column {
   pointer-events: auto;
+}
+
+.node-io-proxy {
+  display: none;
+}
+
+.dsp-node.io-hidden .dsp-node-io-section {
+  align-items: center;
+  min-height: var(--node-io-section-min-height);
+}
+
+.dsp-node.io-hidden .dsp-node-io-section > .node-io-column,
+.dsp-node.io-hidden .dsp-node-io-section > div:not(.node-io-proxy) {
+  display: none;
+}
+
+.dsp-node.io-hidden .node-io-proxy {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns:
+    var(--node-port-column-width)
+    minmax(0, 1fr)
+    var(--node-port-column-width);
+  align-items: center;
+  min-width: 0;
+  min-height: var(--node-io-section-min-height);
+}
+
+.node-io-proxy-port {
+  pointer-events: none;
+}
+
+.node-io-proxy-port.input {
+  justify-self: start;
+}
+
+.node-io-proxy-port.output {
+  justify-self: end;
 }
 
 .node-io-column {
@@ -10291,7 +10340,7 @@ audio {
 .node-io-label {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
   pointer-events: none;
 }
@@ -10318,6 +10367,9 @@ audio {
   font-size: 0.86rem;
   font-weight: 700;
   line-height: 1;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .node-execution-order-badge:hover,
@@ -10452,6 +10504,11 @@ audio {
 .node-drag-handle.dragging,
 .node-action-button:active {
   color: var(--accent-2);
+}
+
+.dsp-node.movement-locked .node-drag-handle,
+.node-drag-handle.node-drag-handle-locked {
+  color: var(--warning, #f3b75f);
 }
 
 .node-drag-handle:hover,
@@ -10785,7 +10842,7 @@ audio {
   font-size: 0.79rem;
   line-height: 1;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -10801,7 +10858,7 @@ audio {
   color: var(--node-slider-value-color, #ffffff);
   overflow: hidden;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: pre;
 }
 
@@ -11029,6 +11086,7 @@ audio {
 }
 
 .node-parameter-metadata-popover {
+  --metadata-popover-min-width: var(--node-module-actions-min-width, 24px);
   position: fixed;
   z-index: 20;
   box-sizing: border-box;
@@ -11060,6 +11118,12 @@ audio {
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
 }
 
+.node-parameter-metadata-popover,
+.node-parameter-metadata-popover * {
+  min-width: 0;
+  min-inline-size: 0;
+}
+
 .node-parameter-metadata-popover[hidden] {
   display: none;
 }
@@ -11088,25 +11152,27 @@ audio {
   right: 0;
   bottom: 0;
   z-index: 4;
-  inline-size: 22px;
-  block-size: 22px;
+  inline-size: 18px;
+  block-size: 18px;
+  min-inline-size: 18px;
+  min-block-size: 18px;
   margin: 0;
-  border: 1px solid rgba(127, 199, 217, 0.24);
-  border-radius: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px 0 6px 0;
   background:
-    linear-gradient(135deg, transparent 0 56%, rgba(127, 199, 217, 0.28) 57% 61%, transparent 62%),
-    linear-gradient(135deg, transparent 0 70%, rgba(127, 199, 217, 0.18) 71% 75%, transparent 76%),
-    rgba(127, 199, 217, 0.08);
+    linear-gradient(135deg, transparent 0 48%, rgba(127, 199, 217, 0.36) 50% 56%, transparent 58%),
+    linear-gradient(135deg, transparent 0 64%, rgba(127, 199, 217, 0.58) 66% 72%, transparent 74%),
+    rgba(7, 10, 13, 0.72);
   touch-action: none;
   user-select: none;
 }
 
 .metadata-popover-corner-drag.dragging {
-  border-color: rgba(244, 213, 166, 0.48);
   background:
-    linear-gradient(135deg, transparent 0 56%, rgba(244, 213, 166, 0.42) 57% 61%, transparent 62%),
-    linear-gradient(135deg, transparent 0 70%, rgba(244, 213, 166, 0.26) 71% 75%, transparent 76%),
-    rgba(244, 213, 166, 0.08);
+    linear-gradient(135deg, transparent 0 48%, rgba(226, 168, 109, 0.56) 50% 56%, transparent 58%),
+    linear-gradient(135deg, transparent 0 64%, rgba(226, 168, 109, 0.8) 66% 72%, transparent 74%),
+    rgba(7, 10, 13, 0.88);
 }
 
 .metadata-popover-grid {
@@ -11124,7 +11190,6 @@ audio {
   min-width: 0;
   color: var(--muted);
   font-size: 0.62rem;
-  text-transform: uppercase;
 }
 
 .metadata-field-actions,
@@ -11154,7 +11219,6 @@ audio {
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0;
-  text-transform: uppercase;
 }
 
 .metadata-field-section {
@@ -11214,12 +11278,29 @@ audio {
 }
 
 .metadata-popover-grid .metadata-choices-label {
-  grid-template-columns: minmax(78px, 0.21fr) minmax(0, 1fr);
-  min-height: 52px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 68px;
   padding: 0;
   border: 1px solid rgba(127, 199, 217, 0.24);
   border-radius: 5px;
   background: rgba(5, 9, 11, 0.62);
+}
+
+.metadata-popover-grid .metadata-choices-label > span {
+  display: grid;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.metadata-popover-grid .metadata-choices-label textarea {
+  min-height: 48px;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
 }
 
 .metadata-popover-grid input[type="checkbox"] {
@@ -11237,7 +11318,7 @@ audio {
 
 .metadata-stepper-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px 30px;
+  grid-template-columns: minmax(0, 1fr) 15px 15px;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -11255,9 +11336,27 @@ audio {
   text-align: center;
 }
 
+.node-trace-display-settings-popover input[data-trace-display-field][readonly] {
+  cursor: ns-resize;
+  user-select: none;
+  -webkit-user-select: none;
+  caret-color: transparent;
+}
+
+.node-trace-display-settings-popover input[data-trace-display-field].trace-display-field-editing {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  caret-color: currentColor;
+}
+
+#nodeTraceDisplaySkipSamples {
+  text-align: center;
+}
+
 .metadata-stepper-control button {
   grid-row: 1;
-  width: 30px;
+  width: 15px;
   height: 28px;
   min-height: 28px;
   padding: 0;
@@ -11316,9 +11415,73 @@ audio {
 
 .node-trace-display-settings-grid {
   align-content: start;
+  grid-auto-rows: max-content;
   min-height: 0;
   overflow: auto;
   padding: 0;
+}
+
+.node-trace-display-settings-popover .metadata-popover-grid label,
+.node-trace-display-settings-popover .metadata-popover-grid .metadata-choices-label {
+  gap: 0;
+  grid-template-columns: minmax(34px, 0.24fr) minmax(0, 1fr);
+  padding: 0;
+}
+
+.node-trace-display-settings-popover .metadata-section-title {
+  display: grid;
+  grid-column: 1 / -1;
+  align-self: start;
+  box-sizing: border-box;
+  height: 24px;
+  max-height: 24px;
+  min-width: 0;
+  min-height: 24px;
+  place-items: center;
+  overflow: hidden;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.node-trace-display-settings-popover .metadata-field-section {
+  align-self: start;
+  grid-column: 1 / -1;
+  min-height: max-content;
+}
+
+.node-trace-display-settings-popover .metadata-stepper-control button {
+  width: 100%;
+}
+
+.node-trace-display-settings-popover .metadata-close-prompt {
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 1fr));
+}
+
+.node-trace-display-settings-popover .metadata-popover-grid label > span:first-child,
+.node-trace-display-settings-popover .node-trace-display-preview-shell > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.node-trace-display-settings-popover .metadata-popover-grid .metadata-icon-label {
+  display: grid;
+  gap: 0;
+  justify-items: center;
+  padding: 0;
+}
+
+.node-trace-display-settings-popover .metadata-popover-grid label:has(> .metadata-icon-label) {
+  grid-template-columns: 14px minmax(0, 1fr);
+}
+
+.node-trace-display-settings-popover .metadata-popover-grid label > .metadata-icon-label {
+  align-self: stretch;
+  min-width: 0;
+  place-items: center;
+  width: 14px;
 }
 
 .node-trace-display-settings-popover :is(input, textarea, select) {
@@ -11342,7 +11505,7 @@ audio {
 
 .node-trace-display-preview-shell {
   display: grid;
-  grid-template-columns: minmax(72px, 0.24fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 0.24fr) minmax(0, 1fr);
   align-items: center;
   min-height: 44px;
   padding: 0;
@@ -11365,6 +11528,11 @@ audio {
   border: 1px solid rgba(127, 199, 217, 0.24);
   border-radius: 5px;
   color: rgba(127, 199, 217, 0.88);
+}
+
+#nodeParameterMetadataPopover .metadata-advanced-toggle,
+#nodeParameterMetadataPopover .metadata-script-panel {
+  display: none !important;
 }
 
 .node-parameter-metadata-popover button:focus {
@@ -11458,7 +11626,6 @@ audio {
 .metadata-script-reference span {
   color: rgba(127, 199, 217, 0.68);
   font-size: 0.58rem;
-  text-transform: uppercase;
 }
 
 .metadata-script-reference code {
@@ -11666,7 +11833,6 @@ audio {
 
 .metadata-script-preview span {
   color: rgba(127, 199, 217, 0.72);
-  text-transform: uppercase;
 }
 
 .metadata-script-preview em {
@@ -11679,14 +11845,14 @@ audio {
   overflow: hidden;
   color: rgba(220, 232, 234, 0.86);
   font-weight: 500;
-  text-overflow: ellipsis;
+  text-overflow: clip;
 }
 
 .metadata-script-preview code {
   min-width: 0;
   overflow: hidden;
   color: rgba(244, 213, 166, 0.86);
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -11731,7 +11897,6 @@ audio {
 .metadata-script-effective dt {
   color: rgba(127, 199, 217, 0.68);
   font-size: 0.58rem;
-  text-transform: uppercase;
 }
 
 .metadata-script-effective dd {
@@ -11741,7 +11906,7 @@ audio {
   color: rgba(205, 214, 216, 0.82);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
   font-size: 0.68rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -11923,6 +12088,21 @@ button.saved-default,
   box-sizing: border-box;
 }
 
+.node-parameter-metadata-popover,
+.node-module-actions-window-body,
+.node-trace-display-settings-grid {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.node-parameter-metadata-popover::-webkit-scrollbar,
+.node-module-actions-window-body::-webkit-scrollbar,
+.node-trace-display-settings-grid::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .node-module-actions-window-body > * {
   flex: 0 0 auto;
   margin-block: 0;
@@ -11975,7 +12155,7 @@ button.saved-default,
   font-size: 0.62rem;
   justify-content: center;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -12057,7 +12237,7 @@ button.saved-default,
   font-size: 0.62rem;
   overflow: hidden;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: normal;
 }
 
@@ -12068,11 +12248,8 @@ button.saved-default,
   margin: 0;
 }
 
-.scene-context-heading {
-  margin: -8px -8px 2px;
-}
-
-.node-scene-context-menu .scene-context-resize-handle {
+.node-scene-context-menu .scene-context-resize-handle,
+.node-visibility-menu .scene-context-resize-handle {
   position: sticky;
   right: 0;
   bottom: 0;
@@ -12102,7 +12279,9 @@ button.saved-default,
 }
 
 .node-scene-context-menu .scene-context-resize-handle:hover,
-.node-scene-context-menu .scene-context-resize-handle.dragging {
+.node-scene-context-menu .scene-context-resize-handle.dragging,
+.node-visibility-menu .scene-context-resize-handle:hover,
+.node-visibility-menu .scene-context-resize-handle.dragging {
   background:
     linear-gradient(135deg, transparent 0 48%, rgba(226, 168, 109, 0.56) 50% 56%, transparent 58%),
     linear-gradient(135deg, transparent 0 64%, rgba(226, 168, 109, 0.8) 66% 72%, transparent 74%),
@@ -12141,7 +12320,7 @@ button.saved-default,
   font-size: 0.72rem;
   font-weight: 500;
   line-height: 1.1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -12175,7 +12354,7 @@ button.saved-default,
 .scene-context-store-department-heading strong,
 .scene-context-store-department-heading span {
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -12215,7 +12394,7 @@ button.saved-default,
   font-size: 0.94em;
   font-weight: 650;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -12306,7 +12485,7 @@ button.saved-default,
   font-size: 0.82rem;
   font-weight: 400;
   line-height: 1.15;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -12375,7 +12554,7 @@ button.saved-default,
   min-width: 0;
   overflow: hidden;
   line-height: 1.1;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -12600,6 +12779,92 @@ button.saved-default,
   font-weight: 700;
 }
 
+.scene-context-global-smoothing-control {
+  display: grid;
+  grid-template-columns: 18% 58% 24%;
+  align-items: stretch;
+  min-height: var(--node-floating-window-button-height);
+  border: 1px solid rgba(226, 168, 109, 0.24);
+  border-bottom-width: 0;
+  background: rgba(16, 22, 26, 0.94);
+  color: rgba(243, 241, 236, 0.9);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.scene-context-global-smoothing-label,
+.scene-context-global-smoothing-unit {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+  min-height: 0;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+}
+
+.scene-context-global-smoothing-label {
+  padding-inline: 0;
+  color: rgba(243, 241, 236, 0.9);
+  font-size: 0.86rem;
+}
+
+.scene-context-global-smoothing-unit {
+  padding-inline: 0;
+  color: rgba(127, 199, 217, 0.78);
+  font-size: 0.62rem;
+}
+
+.scene-context-global-smoothing-input {
+  appearance: textfield;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(69, 100, 110, 0.55);
+  border-right: 1px solid rgba(69, 100, 110, 0.55);
+  border-radius: 0;
+  background: rgba(4, 8, 10, 0.95);
+  color: #b7f2ff;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.scene-context-global-smoothing-input::-webkit-outer-spin-button,
+.scene-context-global-smoothing-input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.scene-context-timing-controls {
+  display: block;
+  min-width: 0;
+  min-height: var(--node-floating-window-button-height);
+  border: 1px solid rgba(226, 168, 109, 0.24);
+  border-bottom-width: 0;
+  overflow: hidden;
+}
+
+.scene-context-timing-controls .node-command-center-timing-widgets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  height: var(--node-floating-window-button-height);
+}
+
+.scene-context-timing-controls .node-header-timing-field {
+  min-width: 0;
+  height: var(--node-floating-window-button-height);
+  border-radius: 0;
+}
+
 .scene-context-window-button-icon,
 .scene-context-window-button-label {
   display: grid;
@@ -12686,7 +12951,7 @@ button.saved-default,
   font-size: 0.48rem;
   line-height: 1;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -12763,7 +13028,7 @@ button.saved-default,
   font-size: 0.48rem;
   line-height: 1;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -12861,7 +13126,7 @@ button.saved-default,
   font-size: 0.48rem;
   line-height: 1;
   text-align: center;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -14245,7 +14510,7 @@ body.node-slider-dragging .node-param-port {
   justify-content: center;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -14500,7 +14765,7 @@ body.node-slider-dragging .node-param-port {
   color: var(--text);
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.72rem;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 

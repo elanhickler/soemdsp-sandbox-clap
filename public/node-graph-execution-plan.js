@@ -476,7 +476,8 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type !== "clockDivider" &&
       type !== "codeblock" &&
       type !== "delayedTrigger" &&
-      type !== "fbPolyBlepOsc" &&
+      type !== "transport" &&
+      !nodeGraphModuleIsRealtimeOscillatorType(type) &&
       type !== "fractalBrownianNoise" &&
       type !== "flowerChildEnvelopeFollower" &&
       type !== "groupInput" &&
@@ -495,7 +496,6 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type !== "bipolarKnob" &&
       type !== "additiveOsc" &&
       type !== "gpuAdditiveOsc" &&
-      type !== "osc" &&
       type !== "pluckEnvelope" &&
       type !== "randomWalk" &&
       type !== "rgbaHsla" &&
@@ -523,7 +523,8 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     return type === "audioInput" ||
       type === "audioPlayer" ||
       type === "clock" ||
-      type === "fbPolyBlepOsc" ||
+      type === "transport" ||
+      nodeGraphModuleIsRealtimeOscillatorType(type) ||
       type === "fractalBrownianNoise" ||
       type === "keyboardController" ||
       type === "lorenzAttractor" ||
@@ -535,7 +536,6 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type === "bipolarKnob" ||
       type === "additiveOsc" ||
       type === "gpuAdditiveOsc" ||
-      type === "osc" ||
       type === "randomWalk" ||
       type === "spiral" ||
       type === "stereoNoise" ||
@@ -569,6 +569,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     reachableNodes: [...reachableNodes],
     speakerOutputActive: hasOutputNode && hasOutputSpeakerInput,
     sourceNodes,
+    timing: normalizeNodeGraphPatchTiming(patch.timing),
     valid: uniqueIssues.length === 0,
     visualSinks,
   };

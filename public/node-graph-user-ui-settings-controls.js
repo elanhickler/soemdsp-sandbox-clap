@@ -225,6 +225,18 @@ function createNodeUserUiSettingsModuleOscilloscopeControl() {
   });
 }
 
+function createNodeUserUiSettingsModuleInterfaceControlsControl() {
+  return createNodeUserUiSettingsViewCheckbox({
+    key: "moduleInterfaceControlsVisible",
+    label: "Show control surfaces",
+    getValue: () => nodeGraphMvp.moduleInterfaceControlsVisible !== false,
+    setValue: (visible) => {
+      nodeGraphMvp.moduleInterfaceControlsVisible = visible;
+      renderNodeGraphModuleVisibilityToggles();
+    },
+  });
+}
+
 function createNodeUserUiSettingsModuleScopeBrightnessControl() {
   const row = document.createElement("label");
   row.className = "node-user-ui-setting-control number";
@@ -312,14 +324,14 @@ function createNodeUserUiSettingsModuleScopeFramesPerSecondControl() {
   title.textContent = "Master display FPS";
   const input = document.createElement("input");
   input.type = "range";
-  input.min = "1";
+  input.min = "0";
   input.max = "240";
   input.step = "1";
   input.dataset.nodeUiViewSetting = "moduleScopeFramesPerSecond";
   input.value = String(normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60));
   const output = document.createElement("input");
   output.type = "number";
-  output.min = "1";
+  output.min = "0";
   output.max = "240";
   output.step = "1";
   output.dataset.nodeUiViewSettingValue = "moduleScopeFramesPerSecond";
@@ -420,6 +432,7 @@ function renderNodeUserUiSettingsControls() {
     if (section.title === "modules and nodes") {
       controls.push(createNodeUserUiSettingsModuleButtonsControl());
       controls.push(createNodeUserUiSettingsModuleOscilloscopeControl());
+      controls.push(createNodeUserUiSettingsModuleInterfaceControlsControl());
       controls.push(createNodeUserUiSettingsModuleScopeBrightnessControl());
       controls.push(createNodeUserUiSettingsModuleScopeLineThicknessControl());
       controls.push(createNodeUserUiSettingsModuleScopeFramesPerSecondControl());
@@ -483,6 +496,12 @@ function syncNodeUserUiSettingsViewControls() {
       continue;
     }
     input.checked = nodeGraphMvp.moduleOscilloscopesVisible !== false;
+  }
+  for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleInterfaceControlsVisible']")) {
+    if (document.activeElement === input) {
+      continue;
+    }
+    input.checked = nodeGraphMvp.moduleInterfaceControlsVisible !== false;
   }
   for (const input of document.querySelectorAll("[data-node-ui-view-setting='moduleSlidersVisible']")) {
     if (document.activeElement === input) {

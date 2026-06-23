@@ -122,20 +122,23 @@
     "--node-param-output-stroke": "#66e0a3"
   },
   "view": {
-    "gridVisible": true,
+    "gridVisible": false,
     "moduleButtonsVisible": true,
+    "moduleInterfaceControlsVisible": true,
     "moduleOscilloscopesVisible": true,
     "moduleSlidersVisible": true,
     "moduleScopeBackgroundColor": "#000000",
     "moduleScopeBurn": 0,
     "moduleScopeDecay": 0,
+    "globalSmoothingSamples": 44100,
+    "globalSmoothingManual": true,
     "moduleScopeDotCore1Enabled": true,
-    "moduleScopeDotCore1Size": 1.94,
-    "moduleScopeDotCore1Brightness": 33.5,
+    "moduleScopeDotCore1Size": 0.01,
+    "moduleScopeDotCore1Brightness": 0.1,
     "moduleScopeDotCore1Color": "#ffffff",
     "moduleScopeDotCore2Enabled": true,
-    "moduleScopeDotCore2Size": 4.79,
-    "moduleScopeDotCore2Brightness": 1.23,
+    "moduleScopeDotCore2Size": 4.29,
+    "moduleScopeDotCore2Brightness": 0.1,
     "moduleScopeDotCore2Color": "#5c0000",
     "moduleScopeFramesPerSecond": 60,
     "moduleScopeLineThickness": 1,
@@ -198,6 +201,10 @@
         "home": false
       },
       "clock": {
+        "developer": true,
+        "home": false
+      },
+      "transport": {
         "developer": true,
         "home": false
       },
@@ -318,6 +325,10 @@
         "home": false
       },
       "bias": {
+        "developer": true,
+        "home": false
+      },
+      "rotate3dTo2d": {
         "developer": true,
         "home": false
       },
@@ -551,102 +562,82 @@
       }
     },
     "sceneContextWindowSize": {
-      "width": 141
+      "width": 144
     },
     "moduleActionWindowSize": {
-      "width": 145,
-      "height": 416
+      "width": 163,
+      "height": 355
     },
     "workspaceWindowStatesVersion": 1,
     "workspaceWindowStates": {
       "commandCenter": {
         "open": true,
         "position": {
-          "left": 13,
-          "top": 111
+          "left": 14,
+          "top": 126
+        },
+        "size": {
+          "width": 144
         }
       },
       "moduleActions": {
-        "open": false,
-        "position": {
-          "left": 790,
-          "top": 300
-        },
-        "size": {
-          "width": 145,
-          "height": 416
-        }
+        "open": true
       },
       "metaparameters": {
-        "open": true,
-        "position": {
-          "left": 738,
-          "top": 171
-        },
-        "size": {
-          "width": 200,
-          "height": 587
-        }
+        "open": false,
+        "locked": true
       },
       "oscilloscopeSettings": {
-        "open": false,
-        "position": {
-          "left": -1,
-          "top": 228
-        }
-      },
-      "patchExplorer": {
         "open": false
       },
-      "moduleBrowser": {
+      "patchExplorer": {
         "open": false,
         "position": {
-          "left": 685,
-          "top": 99
+          "left": 179,
+          "top": 143
+        }
+      },
+      "moduleBrowser": {
+        "open": true,
+        "position": {
+          "left": 696,
+          "top": 120
         },
         "size": {
-          "width": 96,
-          "height": 686
+          "width": 168,
+          "height": 625
         }
       },
       "visibilityMenu": {
-        "open": true,
-        "position": {
-          "left": 788,
-          "top": -1
-        },
-        "size": {
-          "width": 100
-        }
+        "open": false
       },
       "uiSettings": {
-        "open": false,
-        "position": {
-          "left": 0,
-          "top": 0
-        }
+        "open": false
       },
       "uiDev": {
         "open": false
       },
       "traceDisplaySettings": {
-        "open": true,
-        "position": {
-          "left": 738,
-          "top": 171
-        },
-        "size": {
-          "width": 200,
-          "height": 587
-        }
+        "open": false
+      }
+    },
+    "sharedInspectorActive": "moduleActions",
+    "sharedInspectorWindowState": {
+      "position": {
+        "left": 12,
+        "top": 417
+      },
+      "size": {
+        "width": 163,
+        "height": 355
       }
     },
     "workspaceView": {
       "pan": {
-        "x": 71.52525287695903,
-        "y": 215.43250716638977
+        "x": 36.26206488321313,
+        "y": 40.88591846696869
       },
-      "zoom": 1.1014463437397712
+      "zoom": 0.8612761690424068
     },
     "moduleStoreDepartment": "",
     "savedPatchBankIndex": 0,
@@ -683,22 +674,7 @@
         "slots": [],
         "ui": []
       },
-      "connections": [
-        {
-          "destinationNode": "traceDisplay-1",
-          "destinationPort": "In",
-          "sourceNode": "fbPolyBlepOsc-1",
-          "sourcePort": "Wave Out",
-          "tracePoints": []
-        },
-        {
-          "destinationNode": "output",
-          "destinationPort": "Mono",
-          "sourceNode": "fbPolyBlepOsc-1",
-          "sourcePort": "Wave Out",
-          "tracePoints": []
-        }
-      ],
+      "connections": [],
       "format": {
         "kind": "soemdsp-sandbox-node-patch",
         "version": 1
@@ -722,7 +698,129 @@
       "monitors": [],
       "nodes": [
         {
-          "gx": 7,
+          "gx": 1,
+          "gy": 1,
+          "id": "audioPlayer-1",
+          "paramMeta": {
+            "level": {
+              "alias": "",
+              "choices": [],
+              "def": 1,
+              "displayChoices": false,
+              "divideChoicesVisibly": false,
+              "kind": "decimal",
+              "linearSmoothing": true,
+              "max": 1,
+              "maxDigits": 3,
+              "mid": 0.5,
+              "min": 0,
+              "nonlinearSlider": false,
+              "showSign": false,
+              "step": 0,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "",
+              "wraparound": false
+            },
+            "speed": {
+              "alias": "",
+              "choices": [],
+              "def": 1,
+              "displayChoices": false,
+              "divideChoicesVisibly": false,
+              "kind": "decimal",
+              "linearSmoothing": false,
+              "max": 10000,
+              "maxDigits": 5,
+              "mid": 1,
+              "min": -10000,
+              "nonlinearSlider": true,
+              "showSign": false,
+              "step": 0,
+              "unboundedMax": true,
+              "unboundedMin": true,
+              "unit": "x",
+              "wraparound": false
+            },
+            "start": {
+              "alias": "",
+              "choices": [],
+              "def": 0,
+              "displayChoices": false,
+              "divideChoicesVisibly": false,
+              "kind": "decimal",
+              "linearSmoothing": false,
+              "max": 1,
+              "maxDigits": 3,
+              "mid": 0.5,
+              "min": 0,
+              "nonlinearSlider": false,
+              "showSign": false,
+              "step": 0,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "",
+              "wraparound": false
+            },
+            "end": {
+              "alias": "",
+              "choices": [],
+              "def": 1,
+              "displayChoices": false,
+              "divideChoicesVisibly": false,
+              "kind": "decimal",
+              "linearSmoothing": false,
+              "max": 1,
+              "maxDigits": 3,
+              "mid": 0.5,
+              "min": 0,
+              "nonlinearSlider": false,
+              "showSign": false,
+              "step": 0,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "",
+              "wraparound": false
+            },
+            "transport": {
+              "alias": "",
+              "choices": [
+                "Off (reset)",
+                "Stop",
+                "Pause",
+                "Play",
+                "Loop"
+              ],
+              "def": 4,
+              "displayChoices": true,
+              "divideChoicesVisibly": true,
+              "kind": "decimal",
+              "linearSmoothing": false,
+              "max": 4,
+              "maxDigits": 3,
+              "mid": 2,
+              "min": 0,
+              "nonlinearSlider": false,
+              "showSign": false,
+              "step": 1,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "",
+              "wraparound": false
+            }
+          },
+          "params": {
+            "level": 1,
+            "speed": 1,
+            "start": 0,
+            "end": 1,
+            "transport": 4
+          },
+          "type": "audioPlayer",
+          "widthGu": 8
+        },
+        {
+          "gx": 12,
           "gy": 6,
           "id": "output",
           "paramMeta": {
@@ -732,14 +830,14 @@
               "def": 0.1,
               "displayChoices": false,
               "divideChoicesVisibly": false,
-              "kind": "decimal_bipolar",
+              "kind": "decimal",
               "linearSmoothing": true,
-              "max": 1.0001,
-              "maxDigits": 2,
-              "mid": 0,
-              "min": -1,
+              "max": 1,
+              "maxDigits": 3,
+              "mid": 0.1,
+              "min": 0,
               "nonlinearSlider": false,
-              "showSign": true,
+              "showSign": false,
               "step": 0,
               "unboundedMax": false,
               "unboundedMin": false,
@@ -748,41 +846,37 @@
             }
           },
           "params": {
-            "volume": 0
+            "volume": 0.8
           },
           "type": "output",
-          "scopeShader": {
-            "cycles": 2,
-            "blendMode": "laser",
-            "enabled": true,
-            "kind": "scopeShader",
-            "language": "scope-js",
-            "length": 1,
-            "mode": "x_y",
-            "padding": 0.04,
-            "source": "video.input     = ~;\nscope.mode      = x_y;\nscope.sync      = inherit;\nscope.cycles    = 2.0;\nscope.zoom      = 1.0;\nscope.length    = 1.0;\nscope.padding   = 0.04;\nscope.syncSpeed = 1.0;\ndot1.color      = dot1.global.color;\ndot1.size       = 1.0 * dot1.global.size;\ndot1.blur       = 1.0 * dot1.global.blur;\ndot1.brightness = 1.0 * dot1.global.brightness;\ndot2.color      = dot2.global.color;\ndot2.size       = 1.0 * dot2.global.size;\ndot2.blur       = 1.0 * dot2.global.blur;\ndot2.brightness = 1.0 * dot2.global.brightness;\nblend.mode      = laser;",
-            "sync": "inherit",
-            "syncSpeed": 1,
-            "videoInput": "~",
-            "zoom": 1
+          "widthGu": 6,
+          "ui": {
+            "buttonsHidden": true,
+            "displayHeightOffsetGu": 0,
+            "ioHidden": false,
+            "interfaceControlsHidden": false,
+            "movementLocked": false,
+            "oscilloscopeHidden": true,
+            "slidersHidden": true,
+            "titleHidden": true
           }
         },
         {
-          "gx": 6,
-          "gy": -6,
+          "gx": 15,
+          "gy": 13,
           "id": "traceDisplay-1",
           "paramMeta": {
             "gain": {
               "alias": "",
               "choices": [],
-              "def": 0,
+              "def": 1,
               "displayChoices": false,
               "divideChoicesVisibly": false,
               "kind": "decimal",
               "linearSmoothing": true,
               "max": 8,
               "maxDigits": 3,
-              "mid": 0,
+              "mid": 1,
               "min": 0,
               "nonlinearSlider": true,
               "showSign": false,
@@ -821,157 +915,20 @@
           "traceDisplaySettings": {
             "brightness": 0.92,
             "color": "#75ebff",
+            "dot2Brightness": 0.18,
+            "dot2Color": "#184fff",
+            "dot2LineThickness": 4,
             "cycles": 2,
             "lineThickness": 1.4,
+            "padding": 0,
+            "skipSamples": 1,
             "sourceSync": true,
-            "windowMs": 50
-          }
-        },
-        {
-          "gx": -1,
-          "gy": -5,
-          "id": "fbPolyBlepOsc-1",
-          "paramMeta": {
-            "waveform": {
-              "alias": "",
-              "choices": [
-                "Saw",
-                "Square",
-                "Triangle",
-                "Sine",
-                "Noise"
-              ],
-              "def": 0,
-              "displayChoices": true,
-              "divideChoicesVisibly": true,
-              "kind": "waveform",
-              "linearSmoothing": false,
-              "max": 4,
-              "maxDigits": 3,
-              "mid": 2,
-              "min": 0,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 1,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "frequency": {
-              "alias": "",
-              "choices": [],
-              "def": 440,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "frequency",
-              "linearSmoothing": true,
-              "max": 20000,
-              "maxDigits": 5,
-              "mid": 440,
-              "min": 0,
-              "nonlinearSlider": true,
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "Hz",
-              "wraparound": false
-            },
-            "phase": {
-              "alias": "",
-              "choices": [],
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "phase",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.5,
-              "min": 0,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "cycle",
-              "wraparound": true
-            },
-            "level": {
-              "alias": "",
-              "choices": [],
-              "def": 1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.5,
-              "min": 0,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            }
-          },
-          "params": {
-            "waveform": 0,
-            "frequency": 0.689054169219458,
-            "phase": 0.1499999999999999,
-            "level": 1
-          },
-          "type": "fbPolyBlepOsc",
-          "scopeShader": {
-            "cycles": 2,
-            "blendMode": "laser",
-            "enabled": true,
-            "kind": "scopeShader",
-            "language": "scope-js",
-            "length": 1,
-            "mode": "1d_full",
-            "padding": 0.04,
-            "source": "video.input     = output3;\nscope.mode      = 1d_full;\nscope.sync      = inherit;\nscope.cycles    = 2.0;\nscope.zoom      = 1.0;\nscope.length    = 1.0;\nscope.padding   = 0.04;\nscope.syncSpeed = 1.0;\ndot1.color      = dot1.global.color;\ndot1.size       = 1.0 * dot1.global.size;\ndot1.blur       = 1.0 * dot1.global.blur;\ndot1.brightness = 1.0 * dot1.global.brightness;\ndot2.color      = dot2.global.color;\ndot2.size       = 1.0 * dot2.global.size;\ndot2.blur       = 1.0 * dot2.global.blur;\ndot2.brightness = 1.0 * dot2.global.brightness;\nblend.mode      = laser;",
-            "sync": "inherit",
-            "syncSpeed": 1,
-            "videoInput": "output3",
-            "zoom": 1
-          },
-          "ui": {
-            "buttonsHidden": false,
-            "displayHeightOffsetGu": 0,
-            "oscilloscopeHidden": false,
-            "slidersHidden": false,
-            "titleHidden": true
+            "zoomSeconds": 0.05
           }
         }
       ],
       "requiredAssets": [],
-      "samples": [
-        {
-          "acceptedTypes": [
-            "audio/*"
-          ],
-          "channels": 2,
-          "frames": 5760000,
-          "id": "sample-1782116433523-Argitoth---Bells.wav",
-          "kind": "audio",
-          "file": {
-            "extension": "wav",
-            "name": "Argitoth - Bells.wav",
-            "sourcePath": "C:\\Users\\argit\\Google Drive\\Argitoth Music Library\\Argitoth - Bells.mp3"
-          },
-          "metadata": {},
-          "name": "Argitoth - Bells.wav",
-          "sampleRate": 48000,
-          "sourceName": "Argitoth - Bells.wav",
-          "sourcePath": "C:\\Users\\argit\\Google Drive\\Argitoth Music Library\\Argitoth - Bells.mp3"
-        }
-      ],
+      "samples": [],
       "timing": {
         "tempoBpm": 120,
         "timeSignatureDenominator": 4,
@@ -981,7 +938,7 @@
       "view": {
         "heightGu": 22,
         "widthGu": 20,
-        "zoom": 1.1014463437397712
+        "zoom": 0.8612761690424068
       },
       "visual": {
         "background": {

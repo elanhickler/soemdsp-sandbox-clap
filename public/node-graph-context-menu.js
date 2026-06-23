@@ -29,7 +29,7 @@ function clearNodeSceneContextMenuDragState() {
 }
 
 const nodeSceneContextWindowDefaultSize = Object.freeze({
-  width: 215,
+  width: 185,
   minWidth: 24,
   maxWidth: 430,
 });
@@ -96,6 +96,44 @@ function saveNodeModuleActionsWindowStateToUserSettings() {
   saveNodeSceneContextWindowSizeToUserSettings();
 }
 
+function nodeModuleActionsWindowVisibleRect() {
+  const menu = document.getElementById("nodeModuleActionsWindow");
+  if (!menu || menu.hidden) {
+    return null;
+  }
+  const rect = menu.getBoundingClientRect();
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+  };
+}
+
+function hideNodeModuleActionsWindowForInspectorReplacement() {
+  const menu = document.getElementById("nodeModuleActionsWindow");
+  if (menu) {
+    menu.hidden = true;
+  }
+  if (nodeGraphMvp.moduleActionDragging?.handle) {
+    nodeGraphMvp.moduleActionDragging.handle.classList.remove("dragging");
+  }
+  if (nodeGraphMvp.moduleActionResizing?.handle) {
+    nodeGraphMvp.moduleActionResizing.handle.classList.remove("dragging");
+  }
+  nodeGraphMvp.moduleActionDragging = null;
+  nodeGraphMvp.moduleActionResizing = null;
+}
+
+function prepareNodeModuleActionsWindowForInspectorReplacement() {
+  const rect = nodeModuleActionsWindowVisibleRect();
+  if (!rect) {
+    return null;
+  }
+  hideNodeModuleActionsWindowForInspectorReplacement();
+  return rect;
+}
+
 function closeNodeModuleActionsWindow() {
   const menu = document.getElementById("nodeModuleActionsWindow");
   if (menu) {
@@ -160,9 +198,8 @@ function positionNodeSceneContextMenu(menu, x, y, remember = false) {
     applyNodeModuleActionsWindowSize();
   }
   const { left, top } = nodeGraphFloatingWindowPosition(menu, x, y);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
-  if (menu?.id === "nodeSceneContextMenu") {
+  setNodeSceneContextMenuViewportPosition(menu, left, top);
+  if (menu?.id === "nodeSceneContextMenu" && remember) {
     if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
       rememberNodeGraphWorkspaceWindowState("commandCenter", menu, { open: !menu.hidden, position: { left, top } }, { persist: false });
     }
@@ -175,10 +212,19 @@ function positionNodeSceneContextMenu(menu, x, y, remember = false) {
       rememberNodeGraphWorkspaceWindowState("oscilloscopeSettings", menu, { open: !menu.hidden, position: { left, top } }, { persist: false });
     }
   }
-  if (remember) {
-    nodeGraphMvp.moduleActionWindowPosition = { left, top };
-    syncNodeGraphPatchWindowPosition("moduleActions", { left, top });
+}
+
+function setNodeSceneContextMenuViewportPosition(menu, left, top) {
+  if (!menu) {
+    return;
   }
+  if (typeof setNodeGraphFloatingWindowViewportPosition === "function") {
+    setNodeGraphFloatingWindowViewportPosition(menu, left, top);
+    return;
+  }
+  menu.style.left = `${Math.round(Number(left) || 0)}px`;
+  menu.style.top = `${Math.round(Number(top) || 0)}px`;
+  menu.style.right = "auto";
 }
 
 function positionNodeSceneContextMenuHeaderAtPoint(menu, x, y, remember = false) {
@@ -203,7 +249,9 @@ function nodeSceneContextMenuCurrentPosition(menu) {
   const left = Number.parseFloat(menu.style.left);
   const top = Number.parseFloat(menu.style.top);
   if (Number.isFinite(left) && Number.isFinite(top)) {
-    return { left, top };
+    return typeof nodeGraphFloatingWindowViewportPositionFromCss === "function"
+      ? nodeGraphFloatingWindowViewportPositionFromCss(left, top)
+      : { left, top };
   }
   if (menu.hidden) {
     return null;
@@ -213,6 +261,26 @@ function nodeSceneContextMenuCurrentPosition(menu) {
     return { left: rect.left, top: rect.top };
   }
   return null;
+}
+
+function nodeSceneContextMenuStyleOrRectPosition(menu) {
+  if (!menu) {
+    return { left: 0, top: 0 };
+  }
+  const rect = menu.getBoundingClientRect();
+  const styleLeft = Number.parseFloat(menu.style.left);
+  const styleTop = Number.parseFloat(menu.style.top);
+  if (
+    Number.isFinite(styleLeft) &&
+    Number.isFinite(styleTop) &&
+    typeof nodeGraphFloatingWindowViewportPositionFromCss === "function"
+  ) {
+    return nodeGraphFloatingWindowViewportPositionFromCss(styleLeft, styleTop);
+  }
+  return {
+    left: Number.isFinite(styleLeft) ? styleLeft : rect.left,
+    top: Number.isFinite(styleTop) ? styleTop : rect.top,
+  };
 }
 
 function positionNodeSceneContextMenuAtCurrentSavedOrInitial(menu, x, y) {
@@ -229,14 +297,13 @@ function positionNodeSceneContextMenuAtCurrentSavedOrInitial(menu, x, y) {
     Number.isFinite(Number(chosenPosition?.top));
   if (hasChosenPosition) {
     menu.hidden = false;
-    menu.style.left = `${chosenPosition.left}px`;
-    menu.style.top = `${chosenPosition.top}px`;
+    setNodeSceneContextMenuViewportPosition(menu, chosenPosition.left, chosenPosition.top);
     if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
       rememberNodeGraphWorkspaceWindowState(
         "commandCenter",
-        menu,
-        { open: true, position: { left: chosenPosition.left, top: chosenPosition.top } },
-        { persist: false },
+        null,
+        { open: true },
+        { capturePosition: false, persist: false },
       );
     }
     return;
@@ -259,11 +326,14 @@ function positionNodeSceneContextMenuAtSavedOr(menu, x, y) {
 }
 
 function positionNodeModuleActionsWindowAtSavedOr(menu, x, y) {
-  const workspaceState = nodeGraphMvp.workspaceWindowStates?.moduleActions;
-  const savedPosition = workspaceState?.position || nodeGraphMvp.moduleActionWindowPosition;
+  const sharedInspectorState = typeof normalizeNodeGraphSharedInspectorWindowState === "function"
+    ? normalizeNodeGraphSharedInspectorWindowState(nodeGraphMvp.sharedInspectorWindowState, nodeGraphMvp.workspaceWindowStates)
+    : (nodeGraphMvp.sharedInspectorWindowState || {});
+  const savedPosition = sharedInspectorState.position || nodeGraphMvp.moduleActionWindowPosition;
   const hasSavedPosition =
     Number.isFinite(Number(savedPosition?.left)) &&
     Number.isFinite(Number(savedPosition?.top));
+  applyNodeModuleActionsWindowSize(sharedInspectorState.size);
   positionNodeSceneContextMenu(
     menu,
     hasSavedPosition ? savedPosition.left : x,
@@ -284,10 +354,7 @@ function positionNodeScopeContextMenuAtSavedOr(menu, x, y) {
     false,
   );
   if (!hasSavedPosition) {
-    nodeGraphMvp.scopeContextWindowPosition = {
-      left: Number.parseFloat(menu.style.left) || menu.getBoundingClientRect().left,
-      top: Number.parseFloat(menu.style.top) || menu.getBoundingClientRect().top,
-    };
+    nodeGraphMvp.scopeContextWindowPosition = nodeSceneContextMenuStyleOrRectPosition(menu);
   }
 }
 
@@ -304,39 +371,25 @@ function positionNodeGlobalScopeMenuAtSavedOr(menu, x, y) {
     false,
   );
   if (!hasSavedPosition) {
-    nodeGraphMvp.globalScopeWindowPosition = {
-      left: Number.parseFloat(menu.style.left) || menu.getBoundingClientRect().left,
-      top: Number.parseFloat(menu.style.top) || menu.getBoundingClientRect().top,
-    };
+    nodeGraphMvp.globalScopeWindowPosition = nodeSceneContextMenuStyleOrRectPosition(menu);
   }
 }
 
 function openNodeGlobalScopeMenu() {
   const menu = document.getElementById("nodeGlobalScopeMenu");
   if (!menu) {
-    return;
+    return false;
   }
-  nodeGraphMvp.scopeContextTargetNode = null;
-  const anchor = document.getElementById("nodeSceneOpenOscilloscopeSettings");
-  const rect = anchor?.getBoundingClientRect?.() || {
-    left: nodeGraphMvp.sceneContextPoint?.x ?? window.innerWidth * 0.5,
-    bottom: nodeGraphMvp.sceneContextPoint?.y ?? window.innerHeight * 0.25,
-  };
-  positionNodeGlobalScopeMenuAtSavedOr(menu, rect.left, rect.bottom + 8);
-  renderNodeGraphSceneScopeControls();
-  renderNodeGraphModuleScopeBrightnessControl();
+  menu.hidden = true;
   if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
-    rememberNodeGraphWorkspaceWindowState("oscilloscopeSettings", menu, { open: true }, { status: false });
+    rememberNodeGraphWorkspaceWindowState("oscilloscopeSettings", menu, { open: false }, { status: false });
   }
+  return false;
 }
 
 function toggleNodeGlobalScopeMenu() {
-  const menu = document.getElementById("nodeGlobalScopeMenu");
-  if (!menu || menu.hidden) {
-    openNodeGlobalScopeMenu();
-  } else {
-    closeNodeGlobalScopeMenu();
-  }
+  closeNodeGlobalScopeMenu();
+  return false;
 }
 
 function beginNodeSceneContextMenuDrag(event) {
@@ -369,10 +422,14 @@ function dragNodeSceneContextMenu(event) {
 }
 
 function endNodeSceneContextMenuDrag(event) {
+  const drag = nodeGraphMvp.sceneContextDragging;
   endNodeGraphFloatingWindowDrag(event, "sceneContextDragging", () => {
     clearNodeSceneContextMenuDragState();
     if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
-      rememberNodeGraphWorkspaceWindowState("commandCenter", document.getElementById("nodeSceneContextMenu"), { open: true }, { status: false });
+      const position = Number.isFinite(Number(drag?.currentLeft)) && Number.isFinite(Number(drag?.currentTop))
+        ? { left: drag.currentLeft, top: drag.currentTop }
+        : undefined;
+      rememberNodeGraphWorkspaceWindowState("commandCenter", null, { open: true, ...(position ? { position } : {}) }, { capturePosition: false, status: false });
     }
   });
 }
@@ -391,8 +448,6 @@ function dragNodeModuleActionsWindow(event) {
     "moduleActionDragging",
     document.getElementById("nodeModuleActionsWindow"),
     (next) => {
-      nodeGraphMvp.moduleActionWindowPosition = next;
-      syncNodeGraphPatchWindowPosition("moduleActions", next);
       if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
         rememberNodeGraphWorkspaceWindowState("moduleActions", document.getElementById("nodeModuleActionsWindow"), { open: true, position: next }, { persist: false });
       }
@@ -502,10 +557,12 @@ const nodeGraphModuleActionControlIds = [
   "nodeSceneTextBoxTextControls",
   "nodeSceneCodeblockControls",
   "nodeSceneGraphControls",
-  "nodeSceneToggleButtons",
   "nodeSceneToggleTitle",
+  "nodeSceneToggleButtons",
   "nodeSceneToggleOscilloscope",
+  "nodeSceneToggleInterfaceControls",
   "nodeSceneDisplayHeightControls",
+  "nodeSceneToggleIo",
   "nodeSceneToggleSliders",
   "nodeSceneImageControls",
   "nodeSceneCanvasControls",
@@ -538,22 +595,57 @@ function setNodeGraphModuleActionControlsHidden(hidden = true) {
   }
 }
 
+function showNodeModuleActionsWindow(anchorRect = null) {
+  const menu = document.getElementById("nodeModuleActionsWindow");
+  if (!menu) {
+    return;
+  }
+  const metadataRect = typeof prepareNodeMetadataPopoverForInspectorReplacement === "function"
+    ? prepareNodeMetadataPopoverForInspectorReplacement()
+    : null;
+  if (metadataRect === false) {
+    return;
+  }
+  const displayRect = typeof prepareNodeGraphTraceDisplaySettingsForInspectorReplacement === "function"
+    ? prepareNodeGraphTraceDisplaySettingsForInspectorReplacement()
+    : null;
+  if (displayRect === false) {
+    return;
+  }
+  const replacementRect = metadataRect || displayRect;
+  const rect = anchorRect || {
+    right: window.innerWidth * 0.5,
+    top: window.innerHeight * 0.25,
+    bottom: window.innerHeight * 0.25,
+  };
+  nodeGraphMvp.sharedInspectorActive = "moduleActions";
+  positionNodeModuleActionsWindowAtSavedOr(
+    menu,
+    Number.isFinite(Number(replacementRect?.left))
+      ? replacementRect.left
+      : Number.isFinite(Number(rect.right))
+      ? rect.right + 8
+      : window.innerWidth * 0.5,
+    Number.isFinite(Number(replacementRect?.top))
+      ? replacementRect.top
+      : Number.isFinite(Number(rect.top))
+      ? rect.top
+      : Number(rect.bottom) || window.innerHeight * 0.25,
+  );
+  menu.hidden = false;
+  if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
+    rememberNodeGraphWorkspaceWindowState("moduleActions", menu, { open: true }, { status: false });
+  }
+}
+
 function openNodeGraphModuleActionsFromContextWindow() {
   ensureNodeGraphModuleActionsWindowBody();
   const targetNodeId = nodeGraphModuleActionTargetNodeId();
   nodeGraphMvp.sceneContextTargetNode = targetNodeId || null;
   nodeGraphMvp.sceneContextTargetWire = null;
   configureNodeSceneContextMenu("module");
-  const menu = document.getElementById("nodeModuleActionsWindow");
   const anchor = document.getElementById("nodeSceneOpenModuleActions");
-  const rect = anchor?.getBoundingClientRect?.() || {
-    right: window.innerWidth * 0.5,
-    top: window.innerHeight * 0.25,
-  };
-  positionNodeModuleActionsWindowAtSavedOr(menu, rect.right + 8, rect.top);
-  if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
-    rememberNodeGraphWorkspaceWindowState("moduleActions", menu, { open: true }, { status: false });
-  }
+  showNodeModuleActionsWindow(anchor?.getBoundingClientRect?.());
 }
 
 function openNodeGraphMetaparametersFromContextWindow() {
@@ -668,7 +760,9 @@ function configureNodeSceneContextMenu(mode) {
   const graphRemoveNode = document.getElementById("nodeSceneGraphRemoveNode");
   const toggleButtonsButton = document.getElementById("nodeSceneToggleButtons");
   const toggleOscilloscopeButton = document.getElementById("nodeSceneToggleOscilloscope");
+  const toggleInterfaceControlsButton = document.getElementById("nodeSceneToggleInterfaceControls");
   const toggleSlidersButton = document.getElementById("nodeSceneToggleSliders");
+  const toggleIoButton = document.getElementById("nodeSceneToggleIo");
   const toggleTitleButton = document.getElementById("nodeSceneToggleTitle");
   const imageControls = document.getElementById("nodeSceneImageControls");
   const imageSave = document.getElementById("nodeSceneImageSave");
@@ -731,10 +825,12 @@ function configureNodeSceneContextMenu(mode) {
   const effectiveTargetNodeUi = nodeGraphEffectivePatchNodeUi(targetNode?.ui);
   const buttonsHidden = effectiveTargetNodeUi.buttonsHidden;
   const oscilloscopeHidden = effectiveTargetNodeUi.oscilloscopeHidden;
+  const interfaceControlsHidden = effectiveTargetNodeUi.interfaceControlsHidden;
   const displayHeightGu = targetNode ? nodeGraphModuleConfiguredDisplayHeightUnits(targetNode.type, targetNode.ui) : 0;
   const targetNodeLayout = nodeGraphPatchNodeLayout(targetNode);
   const visualFaceLabel = "display";
   const slidersHidden = effectiveTargetNodeUi.slidersHidden;
+  const ioHidden = targetNodeUi.ioHidden;
   const titleHidden = targetNodeUi.titleHidden;
   const textBoxLayout = normalizeNodeGraphTextBoxLayout(targetNode?.layout);
   const textBoxMode = textBoxLayout.textMode;
@@ -798,8 +894,10 @@ function configureNodeSceneContextMenu(mode) {
   graphControls.hidden = !(moduleMode && !multiModuleMode && targetIsGraphType);
   toggleButtonsButton.hidden = !moduleMode || multiModuleMode;
   toggleOscilloscopeButton.hidden = !(moduleMode && !multiModuleMode && nodeGraphPatchNodeHasHideableOscilloscope(targetNode));
+  toggleInterfaceControlsButton.hidden = !(moduleMode && !multiModuleMode && nodeGraphModuleTypeHasInterfaceControls(targetNode?.type));
   displayHeightControls.hidden = !(moduleMode && !multiModuleMode && nodeGraphPatchNodeHasHideableOscilloscope(targetNode));
   toggleSlidersButton.hidden = !(moduleMode && !multiModuleMode && nodeGraphModuleTypeHasHideableSliders(targetNode?.type));
+  toggleIoButton.hidden = !moduleMode || multiModuleMode;
   toggleTitleButton.hidden = !moduleMode || multiModuleMode;
   imageControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "image");
   canvasControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "canvas");
@@ -887,12 +985,26 @@ function configureNodeSceneContextMenu(mode) {
     toggleOscilloscopeButton.title = oscilloscopeHidden
       ? `Show this module's built-in ${visualFaceLabel}.`
       : `Hide this module's built-in ${visualFaceLabel}.`;
+    toggleInterfaceControlsButton.disabled = !targetNode || !nodeGraphModuleTypeHasInterfaceControls(targetNode.type);
+    toggleInterfaceControlsButton.querySelector("span").textContent = interfaceControlsHidden
+      ? "Show control surface"
+      : "Hide control surface";
+    toggleInterfaceControlsButton.setAttribute("aria-pressed", interfaceControlsHidden ? "true" : "false");
+    toggleInterfaceControlsButton.title = interfaceControlsHidden
+      ? "Show this module's control surface."
+      : "Hide this module's control surface.";
     toggleSlidersButton.disabled = !targetNode || !nodeGraphModuleTypeHasHideableSliders(targetNode.type);
     toggleSlidersButton.querySelector("span").textContent = slidersHidden ? "Show sliders" : "Hide sliders";
     toggleSlidersButton.setAttribute("aria-pressed", slidersHidden ? "true" : "false");
     toggleSlidersButton.title = slidersHidden
       ? "Show this module's parameter sliders."
       : "Hide this module's parameter sliders.";
+    toggleIoButton.disabled = !targetNode;
+    toggleIoButton.querySelector("span").textContent = ioHidden ? "Show in/out" : "Hide in/out";
+    toggleIoButton.setAttribute("aria-pressed", ioHidden ? "true" : "false");
+    toggleIoButton.title = ioHidden
+      ? "Show this module's input and output ports."
+      : "Hide this module's input and output ports.";
     toggleTitleButton.disabled = !targetNode;
     toggleTitleButton.querySelector("span").textContent = titleHidden ? "Show title" : "Hide title";
     toggleTitleButton.setAttribute("aria-pressed", titleHidden ? "true" : "false");
@@ -1112,12 +1224,7 @@ function openNodeModuleActionMenu(event) {
   nodeGraphMvp.lastModuleActionTargetNode = node.dataset.node;
   nodeGraphMvp.sceneContextTargetWire = null;
   configureNodeSceneContextMenu("module");
-  const rect = button.getBoundingClientRect();
-  positionNodeModuleActionsWindowAtSavedOr(
-    document.getElementById("nodeModuleActionsWindow"),
-    rect.right,
-    rect.bottom,
-  );
+  showNodeModuleActionsWindow(button.getBoundingClientRect());
   event.preventDefault();
   event.stopPropagation();
 }
@@ -1141,21 +1248,6 @@ function openNodeScopeContextMenu(event) {
   }
   if (typeof openNodeGraphScopeShaderScript === "function" && openNodeGraphScopeShaderScript(nodeId)) {
     return true;
-  }
-  renderNodeGraphSceneScopeControls(nodeId);
-  positionNodeGlobalScopeMenuAtSavedOr(
-    document.getElementById("nodeGlobalScopeMenu"),
-    event.clientX,
-    event.clientY,
-  );
-  renderNodeGraphModuleScopeBrightnessControl();
-  if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
-    rememberNodeGraphWorkspaceWindowState(
-      "oscilloscopeSettings",
-      document.getElementById("nodeGlobalScopeMenu"),
-      { open: true },
-      { status: false },
-    );
   }
   return true;
 }
@@ -1250,9 +1342,9 @@ function openNodeSceneContextMenu(event) {
   if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
     rememberNodeGraphWorkspaceWindowState(
       "commandCenter",
-      document.getElementById("nodeSceneContextMenu"),
+      null,
       { open: true },
-      { status: false },
+      { capturePosition: false, status: false },
     );
   }
 }

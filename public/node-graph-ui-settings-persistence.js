@@ -28,9 +28,14 @@ const nodeGraphWorkspaceWindowElements = Object.freeze({
 });
 
 const nodeGraphSharedInspectorWindowKeys = Object.freeze([
+  "moduleActions",
   "metaparameters",
   "traceDisplaySettings",
 ]);
+
+function normalizeNodeGraphSharedInspectorActive(value = "") {
+  return nodeGraphSharedInspectorWindowKeys.includes(value) ? value : "";
+}
 
 function normalizeNodeGraphWorkspaceWindowPosition(position = {}) {
   const source = position && typeof position === "object" ? position : {};
@@ -83,24 +88,46 @@ function nodeGraphSharedInspectorGeometryFromStates(states = {}) {
   return { position, size };
 }
 
+function normalizeNodeGraphSharedInspectorWindowState(state = {}, fallbackStates = {}) {
+  const source = state && typeof state === "object" ? state : {};
+  const fallback = nodeGraphSharedInspectorGeometryFromStates(fallbackStates);
+  const position = normalizeNodeGraphWorkspaceWindowPosition(source.position) || fallback.position;
+  const rawSize = source.size && typeof source.size === "object" ? source.size : fallback.size;
+  const size = rawSize && typeof rawSize === "object"
+    ? {
+      ...(Number.isFinite(Number(rawSize.width)) ? { width: Math.round(Number(rawSize.width)) } : {}),
+      ...(Number.isFinite(Number(rawSize.height)) ? { height: Math.round(Number(rawSize.height)) } : {}),
+    }
+    : null;
+  return {
+    ...(position ? { position } : {}),
+    ...(size && (size.width || size.height) ? { size } : {}),
+    ...(source.locked ? { locked: true } : {}),
+  };
+}
+
 function nodeGraphWorkspaceStatesWithSharedInspectorGeometry(states = {}) {
-  const { position, size } = nodeGraphSharedInspectorGeometryFromStates(states);
+  const { position, size } = normalizeNodeGraphSharedInspectorWindowState(
+    nodeGraphMvp?.sharedInspectorWindowState,
+    states,
+  );
   if (!position && !size) {
     return states;
   }
-  for (const key of nodeGraphSharedInspectorWindowKeys) {
-    states[key] = {
-      ...(states[key] || { open: false }),
-      ...(position ? { position } : {}),
-      ...(size ? { size: { ...(states[key]?.size || {}), ...size } } : {}),
-    };
-  }
+  nodeGraphMvp.sharedInspectorWindowState = {
+    ...(position ? { position } : {}),
+    ...(size ? { size } : {}),
+    ...(nodeGraphMvp?.sharedInspectorWindowState?.locked ? { locked: true } : {}),
+  };
   return states;
 }
 
-function normalizeNodeGraphWorkspaceWindowStateEntry(entry = {}) {
+function normalizeNodeGraphWorkspaceWindowStateEntry(entry = {}, key = "") {
   const source = entry && typeof entry === "object" ? entry : {};
-  const position = normalizeNodeGraphWorkspaceWindowPosition(source.position || source);
+  const isSharedInspector = nodeGraphSharedInspectorWindowKeys.includes(key);
+  const position = isSharedInspector
+    ? null
+    : normalizeNodeGraphWorkspaceWindowPosition(source.position || source);
   const size = source.size && typeof source.size === "object"
     ? {
       ...(Number.isFinite(Number(source.size.width)) ? { width: Math.round(Number(source.size.width)) } : {}),
@@ -110,39 +137,25 @@ function normalizeNodeGraphWorkspaceWindowStateEntry(entry = {}) {
   return {
     open: Boolean(source.open),
     ...(position ? { position } : {}),
-    ...(size && (size.width || size.height) ? { size } : {}),
+    ...(!isSharedInspector && size && (size.width || size.height) ? { size } : {}),
+    ...(source.locked ? { locked: true } : {}),
+    ...(source.targetNode ? { targetNode: String(source.targetNode) } : {}),
   };
 }
 
 function normalizeNodeGraphWorkspaceWindowStates(states = {}) {
   const source = states && typeof states === "object" ? states : {};
-  return nodeGraphWorkspaceStatesWithSharedInspectorGeometry(Object.fromEntries(
+  return Object.fromEntries(
     nodeGraphWorkspaceWindowStateKeys.map((key) => [
       key,
-      normalizeNodeGraphWorkspaceWindowStateEntry(source[key]),
+      normalizeNodeGraphWorkspaceWindowStateEntry(source[key], key),
     ]),
-  ));
+  );
 }
 
 function syncNodeGraphSharedInspectorGeometry(states, key) {
   if (!nodeGraphSharedInspectorWindowKeys.includes(key)) {
     return states;
-  }
-  const source = states[key] || {};
-  const position = normalizeNodeGraphWorkspaceWindowPosition(source.position);
-  const rawSize = source.size && typeof source.size === "object" ? source.size : {};
-  const size = {
-    ...(Number.isFinite(Number(rawSize.width)) ? { width: Math.round(Number(rawSize.width)) } : {}),
-    ...(Number.isFinite(Number(rawSize.height)) ? { height: Math.round(Number(rawSize.height)) } : {}),
-  };
-  for (const inspectorKey of nodeGraphSharedInspectorWindowKeys) {
-    states[inspectorKey] = {
-      ...(states[inspectorKey] || { open: false }),
-      ...(position ? { position } : {}),
-      ...(size.width || size.height
-        ? { size: { ...(states[inspectorKey]?.size || {}), ...size } }
-        : {}),
-    };
   }
   return states;
 }
@@ -163,6 +176,20 @@ function closeNodeGraphWorkspaceWindowStates(states = {}) {
       },
     ]),
   );
+}
+
+function nodeGraphWorkspaceWindowStatesWithActiveSharedInspector(states = {}, active = "") {
+  const normalized = normalizeNodeGraphSharedInspectorActive(active);
+  if (!normalized) {
+    return states;
+  }
+  for (const key of nodeGraphSharedInspectorWindowKeys) {
+    states[key] = {
+      ...(states[key] || { open: false }),
+      open: key === normalized ? Boolean(states[key]?.open) : false,
+    };
+  }
+  return states;
 }
 
 function normalizeNodeGraphWorkspaceViewState(view = {}) {
@@ -208,9 +235,20 @@ function nodeGraphWorkspaceWindowPositionFromElement(element) {
     return null;
   }
   const rect = element.getBoundingClientRect?.();
+  const styleLeft = Number.parseFloat(element.style.left);
+  const styleTop = Number.parseFloat(element.style.top);
+  if (
+    Number.isFinite(styleLeft) &&
+    Number.isFinite(styleTop) &&
+    typeof nodeGraphFloatingWindowViewportPositionFromCss === "function"
+  ) {
+    return normalizeNodeGraphWorkspaceWindowPosition(
+      nodeGraphFloatingWindowViewportPositionFromCss(styleLeft, styleTop),
+    );
+  }
   return normalizeNodeGraphWorkspaceWindowPosition({
-    left: Number.parseFloat(element.style.left) || rect?.left,
-    top: Number.parseFloat(element.style.top) || rect?.top,
+    left: Number.isFinite(styleLeft) ? styleLeft : rect?.left,
+    top: Number.isFinite(styleTop) ? styleTop : rect?.top,
   });
 }
 
@@ -219,14 +257,30 @@ function rememberNodeGraphWorkspaceWindowState(key, element, patch = {}, options
     return null;
   }
   const states = normalizeNodeGraphWorkspaceWindowStates(nodeGraphMvp.workspaceWindowStates);
-  const position = patch.position || nodeGraphWorkspaceWindowPositionFromElement(element);
+  const shouldCapturePosition = options.capturePosition !== false;
+  const position = patch.position || (shouldCapturePosition ? nodeGraphWorkspaceWindowPositionFromElement(element) : null);
+  if (nodeGraphSharedInspectorWindowKeys.includes(key)) {
+    nodeGraphMvp.sharedInspectorWindowState = normalizeNodeGraphSharedInspectorWindowState(
+      {
+        ...nodeGraphMvp.sharedInspectorWindowState,
+        ...(position ? { position } : {}),
+        ...(patch.size ? { size: patch.size } : {}),
+        ...(patch.locked !== undefined ? { locked: Boolean(patch.locked) } : {}),
+      },
+      states,
+    );
+  }
   states[key] = normalizeNodeGraphWorkspaceWindowStateEntry({
     ...states[key],
     ...patch,
     open: patch.open ?? (element ? !element.hidden : states[key]?.open),
-    ...(position ? { position } : {}),
-  });
+    ...(nodeGraphSharedInspectorWindowKeys.includes(key) ? {} : (position ? { position } : {})),
+  }, key);
   syncNodeGraphSharedInspectorGeometry(states, key);
+  if (nodeGraphSharedInspectorWindowKeys.includes(key) && states[key]?.open) {
+    nodeGraphMvp.sharedInspectorActive = key;
+    nodeGraphWorkspaceWindowStatesWithActiveSharedInspector(states, key);
+  }
   nodeGraphMvp.workspaceWindowStates = states;
   if (options.persist !== false) {
     saveNodeGraphWorkspaceWindowStatesToUserSettings(options);
@@ -249,29 +303,52 @@ function saveNodeGraphWorkspaceWindowStatesToUserSettings(options = {}) {
 
 function positionNodeGraphWorkspaceWindowFromState(key, element) {
   const state = normalizeNodeGraphWorkspaceWindowStates(nodeGraphMvp.workspaceWindowStates)[key];
-  const position = state?.position;
+  const sharedInspectorState = normalizeNodeGraphSharedInspectorWindowState(
+    nodeGraphMvp.sharedInspectorWindowState,
+    nodeGraphMvp.workspaceWindowStates,
+  );
+  const position = nodeGraphSharedInspectorWindowKeys.includes(key)
+    ? sharedInspectorState.position
+    : state?.position;
   if (!element || !position) {
     return false;
   }
   const wasHidden = element.hidden;
-  const clamped = nodeGraphFloatingWindowPosition(element, position.left, position.top);
+  const left = Math.round(Number(position.left));
+  const top = Math.round(Number(position.top));
   element.style.position = "fixed";
-  element.style.left = `${clamped.left}px`;
-  element.style.top = `${clamped.top}px`;
-  element.style.right = "auto";
+  if (typeof setNodeGraphFloatingWindowViewportPosition === "function") {
+    setNodeGraphFloatingWindowViewportPosition(element, left, top);
+  } else {
+    element.style.left = `${left}px`;
+    element.style.top = `${top}px`;
+    element.style.right = "auto";
+  }
   element.hidden = wasHidden;
   return true;
 }
 
 function applyNodeGraphWorkspaceWindowStateToElement(key) {
+  const state = normalizeNodeGraphWorkspaceWindowStates(nodeGraphMvp.workspaceWindowStates)[key];
+  if (
+    key === "traceDisplaySettings" &&
+    state.open &&
+    !document.getElementById(nodeGraphWorkspaceWindowElements[key]) &&
+    typeof nodeGraphTraceDisplaySettingsElement === "function"
+  ) {
+    nodeGraphTraceDisplaySettingsElement();
+  }
   const element = document.getElementById(nodeGraphWorkspaceWindowElements[key]);
   if (!element) {
     return;
   }
-  const state = normalizeNodeGraphWorkspaceWindowStates(nodeGraphMvp.workspaceWindowStates)[key];
+  if (key === "oscilloscopeSettings") {
+    element.hidden = true;
+    return;
+  }
   element.hidden = !state.open;
   if (key === "moduleActions" && typeof applyNodeModuleActionsWindowSize === "function") {
-    applyNodeModuleActionsWindowSize(state.size);
+    applyNodeModuleActionsWindowSize(nodeGraphMvp.sharedInspectorWindowState?.size);
   }
   if (key === "patchExplorer" && typeof applyNodeGraphSavedPatchesWindowSize === "function") {
     applyNodeGraphSavedPatchesWindowSize(state.size);
@@ -283,13 +360,29 @@ function applyNodeGraphWorkspaceWindowStateToElement(key) {
     applyNodeGraphVisibilityMenuSize(state.size);
   }
   if (key === "metaparameters" && typeof applyNodeMetadataPopoverSize === "function") {
-    applyNodeMetadataPopoverSize(state.size);
+    applyNodeMetadataPopoverSize(nodeGraphMvp.sharedInspectorWindowState?.size);
   }
   if (key === "traceDisplaySettings" && typeof applyNodeGraphTraceDisplaySettingsWindowSize === "function") {
-    applyNodeGraphTraceDisplaySettingsWindowSize(state.size);
+    applyNodeGraphTraceDisplaySettingsWindowSize(nodeGraphMvp.sharedInspectorWindowState?.size);
   }
-  if (state.open && state.position) {
+  if (typeof applyNodeGraphFloatingWindowLockedState === "function") {
+    const locked = nodeGraphSharedInspectorWindowKeys.includes(key)
+      ? Boolean(nodeGraphMvp.sharedInspectorWindowState?.locked)
+      : Boolean(state.locked);
+    applyNodeGraphFloatingWindowLockedState(element, locked);
+  }
+  const hasPosition = nodeGraphSharedInspectorWindowKeys.includes(key)
+    ? nodeGraphMvp.sharedInspectorWindowState?.position
+    : state.position;
+  if (state.open && hasPosition) {
     positionNodeGraphWorkspaceWindowFromState(key, element);
+  }
+  if (
+    key === "traceDisplaySettings" &&
+    state.open &&
+    typeof restoreNodeGraphTraceDisplaySettingsWindowFromState === "function"
+  ) {
+    restoreNodeGraphTraceDisplaySettingsWindowFromState(state);
   }
   if (key === "moduleActions" && state.open && typeof configureNodeSceneContextMenu === "function") {
     const mode = nodeGraphMvp.selected?.type === "wire" ? "wire" : "module";
@@ -300,6 +393,10 @@ function applyNodeGraphWorkspaceWindowStateToElement(key) {
 function applyNodeGraphWorkspaceWindowStates() {
   nodeGraphMvp.workspaceWindowStates = normalizeNodeGraphWorkspaceWindowStates(
     nodeGraphMvp.workspaceWindowStates,
+  );
+  nodeGraphWorkspaceWindowStatesWithActiveSharedInspector(
+    nodeGraphMvp.workspaceWindowStates,
+    nodeGraphMvp.sharedInspectorActive,
   );
   for (const key of nodeGraphWorkspaceWindowStateKeys) {
     applyNodeGraphWorkspaceWindowStateToElement(key);
@@ -365,6 +462,7 @@ function normalizeNodeUiDevSettings(settings = {}) {
   }
   const gridVisible = view.gridVisible ?? controls.gridVisible ?? controls.showGrid ?? nodeGraphMvp.gridVisible;
   const moduleButtonsVisible = Boolean(view.moduleButtonsVisible ?? nodeGraphMvp.moduleButtonsVisible);
+  const moduleInterfaceControlsVisible = Boolean(view.moduleInterfaceControlsVisible ?? nodeGraphMvp.moduleInterfaceControlsVisible);
   const moduleOscilloscopesVisible = Boolean(view.moduleOscilloscopesVisible ?? nodeGraphMvp.moduleOscilloscopesVisible);
   const moduleSlidersVisible = Boolean(view.moduleSlidersVisible ?? nodeGraphMvp.moduleSlidersVisible);
   const moduleScopeBackgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(
@@ -375,6 +473,14 @@ function normalizeNodeUiDevSettings(settings = {}) {
   );
   const moduleScopeDecay = normalizeNodeGraphModuleScopeDecay(
     view.moduleScopeDecay ?? nodeGraphMvp.moduleScopeDecay ?? 0,
+  );
+  const globalSmoothingSamples = nodeGraphSmoothingSamplesFromSeconds(
+    view.globalSmoothingSamples !== undefined
+      ? nodeGraphSmoothingSecondsFromSamples(view.globalSmoothingSamples)
+      : nodeGraphMvp?.live?.autoSmoothingSeconds ?? nodeGraphAutoSmoothingDefaultSeconds,
+  );
+  const globalSmoothingManual = Boolean(
+    view.globalSmoothingManual ?? nodeGraphMvp?.live?.autoSmoothingManual ?? false,
   );
   const moduleScopeDotCore1Enabled = normalizeNodeGraphModuleScopeDotCoreEnabled(
     view.moduleScopeDotCore1Enabled ?? nodeGraphMvp.moduleScopeDotCore1Enabled ?? false,
@@ -447,6 +553,14 @@ function normalizeNodeUiDevSettings(settings = {}) {
   const workspaceWindowStates = invalidAllOpenWorkspaceState
     ? closeNodeGraphWorkspaceWindowStates(rawWorkspaceWindowStates)
     : normalizeNodeGraphWorkspaceWindowStates(loadedWorkspaceWindowStates);
+  const sharedInspectorWindowState = normalizeNodeGraphSharedInspectorWindowState(
+    view.sharedInspectorWindowState,
+    loadedWorkspaceWindowStates,
+  );
+  const sharedInspectorActive = normalizeNodeGraphSharedInspectorActive(
+    view.sharedInspectorActive ?? nodeGraphMvp.sharedInspectorActive,
+  );
+  nodeGraphWorkspaceWindowStatesWithActiveSharedInspector(workspaceWindowStates, sharedInspectorActive);
   const workspaceView = normalizeNodeGraphWorkspaceViewState(
     view.workspaceView ?? {
       pan: view.workspacePan ?? nodeGraphMvp.pan,
@@ -502,11 +616,14 @@ function normalizeNodeUiDevSettings(settings = {}) {
     view: {
       gridVisible: Boolean(gridVisible),
       moduleButtonsVisible,
+      moduleInterfaceControlsVisible,
       moduleOscilloscopesVisible,
       moduleSlidersVisible,
       moduleScopeBackgroundColor,
       moduleScopeBurn,
       moduleScopeDecay,
+      globalSmoothingSamples,
+      globalSmoothingManual,
       moduleScopeDotCore1Enabled,
       moduleScopeDotCore1Size,
       moduleScopeDotCore1Brightness,
@@ -527,6 +644,8 @@ function normalizeNodeUiDevSettings(settings = {}) {
       moduleActionWindowSize,
       workspaceWindowStatesVersion: 1,
       workspaceWindowStates,
+      sharedInspectorActive,
+      sharedInspectorWindowState,
       workspaceView,
       moduleStoreDepartment,
       savedPatchBankIndex,
@@ -571,11 +690,16 @@ function readNodeUiDevSettingsFromControls() {
     view: {
       gridVisible: Boolean(nodeGraphMvp.gridVisible),
       moduleButtonsVisible: Boolean(nodeGraphMvp.moduleButtonsVisible),
+      moduleInterfaceControlsVisible: Boolean(nodeGraphMvp.moduleInterfaceControlsVisible),
       moduleOscilloscopesVisible: Boolean(nodeGraphMvp.moduleOscilloscopesVisible),
       moduleSlidersVisible: Boolean(nodeGraphMvp.moduleSlidersVisible),
       moduleScopeBackgroundColor: normalizeNodeGraphModuleScopeBackgroundColor(nodeGraphMvp.moduleScopeBackgroundColor ?? "#000000"),
       moduleScopeBurn: normalizeNodeGraphModuleScopeBurn(nodeGraphMvp.moduleScopeBurn ?? 0),
       moduleScopeDecay: normalizeNodeGraphModuleScopeDecay(nodeGraphMvp.moduleScopeDecay ?? 0),
+      globalSmoothingSamples: nodeGraphSmoothingSamplesFromSeconds(
+        nodeGraphMvp?.live?.autoSmoothingSeconds ?? nodeGraphAutoSmoothingDefaultSeconds,
+      ),
+      globalSmoothingManual: Boolean(nodeGraphMvp?.live?.autoSmoothingManual),
       moduleScopeDotCore1Enabled: normalizeNodeGraphModuleScopeDotCoreEnabled(nodeGraphMvp.moduleScopeDotCore1Enabled ?? false),
       moduleScopeDotCore1Size: normalizeNodeGraphModuleScopeDotCoreSize(nodeGraphMvp.moduleScopeDotCore1Size ?? 2, 2),
       moduleScopeDotCore1Brightness: normalizeNodeGraphModuleScopeDotCoreBrightness(nodeGraphMvp.moduleScopeDotCore1Brightness ?? 0.23, 0.23),
@@ -601,6 +725,8 @@ function readNodeUiDevSettingsFromControls() {
         ? normalizeNodeModuleActionsWindowSize(nodeGraphMvp.moduleActionWindowSize)
         : nodeGraphMvp.moduleActionWindowSize,
       workspaceWindowStates: normalizeNodeGraphWorkspaceWindowStates(nodeGraphMvp.workspaceWindowStates),
+      sharedInspectorActive: normalizeNodeGraphSharedInspectorActive(nodeGraphMvp.sharedInspectorActive),
+      sharedInspectorWindowState: normalizeNodeGraphSharedInspectorWindowState(nodeGraphMvp.sharedInspectorWindowState),
       workspaceView: normalizeNodeGraphWorkspaceViewState({
         pan: nodeGraphMvp.pan,
         zoom: typeof nodeGraphZoom === "function" ? nodeGraphZoom() : nodeGraphMvp.zoom,
@@ -666,11 +792,17 @@ function applyNodeUiDevSettings(settings) {
   }
   nodeGraphMvp.gridVisible = Boolean(normalized.view.gridVisible);
   nodeGraphMvp.moduleButtonsVisible = Boolean(normalized.view.moduleButtonsVisible);
+  nodeGraphMvp.moduleInterfaceControlsVisible = Boolean(normalized.view.moduleInterfaceControlsVisible);
   nodeGraphMvp.moduleOscilloscopesVisible = Boolean(normalized.view.moduleOscilloscopesVisible);
   nodeGraphMvp.moduleSlidersVisible = Boolean(normalized.view.moduleSlidersVisible);
   nodeGraphMvp.moduleScopeBackgroundColor = normalizeNodeGraphModuleScopeBackgroundColor(normalized.view.moduleScopeBackgroundColor);
   nodeGraphMvp.moduleScopeBurn = normalizeNodeGraphModuleScopeBurn(normalized.view.moduleScopeBurn);
   nodeGraphMvp.moduleScopeDecay = normalizeNodeGraphModuleScopeDecay(normalized.view.moduleScopeDecay);
+  nodeGraphMvp.live.autoSmoothingSeconds = nodeGraphSmoothingSecondsFromSamples(normalized.view.globalSmoothingSamples);
+  nodeGraphMvp.live.autoSmoothingManual = Boolean(normalized.view.globalSmoothingManual);
+  if (typeof syncNodeGraphGlobalSmoothingControl === "function") {
+    syncNodeGraphGlobalSmoothingControl({ force: true });
+  }
   nodeGraphMvp.moduleScopeDotCore1Enabled = normalizeNodeGraphModuleScopeDotCoreEnabled(normalized.view.moduleScopeDotCore1Enabled);
   nodeGraphMvp.moduleScopeDotCore1Size = normalizeNodeGraphModuleScopeDotCoreSize(normalized.view.moduleScopeDotCore1Size, 2);
   nodeGraphMvp.moduleScopeDotCore1Brightness = normalizeNodeGraphModuleScopeDotCoreBrightness(normalized.view.moduleScopeDotCore1Brightness, 0.23);
@@ -698,6 +830,15 @@ function applyNodeUiDevSettings(settings) {
   }
   nodeGraphMvp.workspaceWindowStates = normalizeNodeGraphWorkspaceWindowStates(
     normalized.view.workspaceWindowStates,
+  );
+  nodeGraphMvp.sharedInspectorActive = normalizeNodeGraphSharedInspectorActive(normalized.view.sharedInspectorActive);
+  nodeGraphMvp.sharedInspectorWindowState = normalizeNodeGraphSharedInspectorWindowState(
+    normalized.view.sharedInspectorWindowState,
+    normalized.view.workspaceWindowStates,
+  );
+  nodeGraphWorkspaceWindowStatesWithActiveSharedInspector(
+    nodeGraphMvp.workspaceWindowStates,
+    nodeGraphMvp.sharedInspectorActive,
   );
   const workspaceView = normalizeNodeGraphWorkspaceViewState(normalized.view.workspaceView);
   nodeGraphMvp.pan = { ...workspaceView.pan };

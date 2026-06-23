@@ -77,7 +77,12 @@ function syncNodeGraphPatchParameterFromSlider(slider, options = {}) {
   ) {
     patchNode.graph = nodeGraphGraphWithLockedEndpointY(patchNode.graph);
   }
-  if (typeof setNodeGraphPatchDirtyState === "function") {
+  if (options.deferAutosave) {
+    nodeGraphMvp.patchDirtyState = "edited";
+    if (typeof syncNodeGraphCurrentSavedPatchHeader === "function") {
+      syncNodeGraphCurrentSavedPatchHeader();
+    }
+  } else if (typeof setNodeGraphPatchDirtyState === "function") {
     setNodeGraphPatchDirtyState("edited");
   } else if (typeof saveNodeGraphWorkingPatchToUserSettings === "function") {
     nodeGraphMvp.patchDirtyState = "edited";
@@ -136,7 +141,43 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
   scheduleNodeGraphLiveParameterSync();
 }
 
-function setNodeSliderValue(slider, value) {
+let nodeSliderDragAutosaveTimer = 0;
+
+function clearNodeSliderDragAutosaveTimer() {
+  if (nodeSliderDragAutosaveTimer) {
+    window.clearTimeout(nodeSliderDragAutosaveTimer);
+    nodeSliderDragAutosaveTimer = 0;
+  }
+}
+
+function scheduleNodeSliderDragAutosave() {
+  if (nodeSliderDragAutosaveTimer) {
+    return;
+  }
+  nodeSliderDragAutosaveTimer = window.setTimeout(() => {
+    nodeSliderDragAutosaveTimer = 0;
+    if (nodeGraphMvp.sliderDragging && typeof saveNodeGraphWorkingPatchToUserSettings === "function") {
+      saveNodeGraphWorkingPatchToUserSettings();
+      scheduleNodeSliderDragAutosave();
+    }
+  }, 400);
+}
+
+function commitNodeSliderDragValue(slider, status = "parameter changed") {
+  clearNodeSliderDragAutosaveTimer();
+  syncNodeGraphPatchParameterFromSlider(slider, {
+    record: true,
+    status,
+  });
+  markNodeGraphRenderPending();
+  scheduleNodeGraphLiveParameterSync();
+  if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
+    scheduleNodeGraphModuleScopeDraw();
+  }
+}
+
+function setNodeSliderValue(slider, value, options = {}) {
+  const isDrag = options.interaction === "drag";
   const number = Number(value);
   const min = Number(slider.min);
   const max = Number(slider.max);
@@ -155,10 +196,17 @@ function setNodeSliderValue(slider, value) {
     normalizeNodeSliderValue(slider, value),
   );
   syncNodeSliderReadout(slider);
-  syncNodeGraphPatchParameterFromSlider(slider, { deferUi: true });
-  syncNodeGraphFilterCurveDisplays();
-  syncNodeGraphGhostSliders();
-  markNodeGraphRenderPending();
+  syncNodeGraphPatchParameterFromSlider(slider, {
+    deferAutosave: isDrag,
+    deferUi: true,
+  });
+  if (isDrag) {
+    scheduleNodeSliderDragAutosave();
+  } else {
+    syncNodeGraphFilterCurveDisplays();
+    syncNodeGraphGhostSliders();
+    markNodeGraphRenderPending();
+  }
   scheduleNodeGraphLiveParameterSync();
   if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
     scheduleNodeGraphModuleScopeDraw();
@@ -178,12 +226,12 @@ function nodeSliderSegmentValueFromPointer(slider, surface, clientX) {
   return Number(slider.min) + index;
 }
 
-function setNodeChoiceSliderFromPointer(slider, surface, clientX) {
+function setNodeChoiceSliderFromPointer(slider, surface, clientX, options = {}) {
   const value = nodeSliderSegmentValueFromPointer(slider, surface, clientX);
   if (!Number.isFinite(value)) {
     return false;
   }
-  setNodeSliderValue(slider, value);
+  setNodeSliderValue(slider, value, options);
   return true;
 }
 
@@ -296,6 +344,9 @@ function beginNodeSliderDrag(event) {
   if (nodeGraphMvp.sliderDragging || event.button > 0 || event.detail > 1) {
     return;
   }
+  if (typeof nodeGraphSettingsTextControlFromTarget === "function" && nodeGraphSettingsTextControlFromTarget(event.target)) {
+    return;
+  }
 
   const surface = event.currentTarget?.classList?.contains("node-slider-readout")
     ? event.currentTarget
@@ -316,10 +367,11 @@ function beginNodeSliderDrag(event) {
     setNodeSliderValue(
       slider,
       quantizeNodeSliderDragValue(slider, nodeSliderValueFromPointer(slider, surface, event.clientX)),
+      { interaction: "drag" },
     );
     startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
   } else if (!resetToDefaultOnClick && nodeSliderShouldDisplayChoices(slider) && nodeSliderShouldDivideChoicesVisibly(slider)) {
-    setNodeChoiceSliderFromPointer(slider, surface, event.clientX);
+    setNodeChoiceSliderFromPointer(slider, surface, event.clientX, { interaction: "drag" });
     startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
   }
   nodeGraphMvp.sliderDragging = {
@@ -364,6 +416,7 @@ function dragNodeSlider(event) {
         drag.slider,
         nodeSliderValueFromPointer(drag.slider, drag.surface, event.clientX),
       ),
+      { interaction: "drag" },
     );
   } else {
     const horizontalDelta = event.clientX - drag.startX;
@@ -380,6 +433,7 @@ function dragNodeSlider(event) {
         drag.slider,
         nodeSliderValueFromRelativeTravel(drag.slider, nextTravel),
       ),
+      { interaction: "drag" },
     );
     if (nextTravel <= 0 || nextTravel >= 1) {
       reanchorNodeSliderDragAtPointer(drag, event);
@@ -404,11 +458,11 @@ function endNodeSliderDrag(event) {
     drag.surface.releasePointerCapture(event.pointerId);
   }
   if (drag.resetToDefaultOnClick && !drag.moved) {
-    setNodeSliderValue(drag.slider, Number(drag.slider.dataset.default));
+    setNodeSliderValue(drag.slider, Number(drag.slider.dataset.default), { interaction: "drag" });
   }
-  syncNodeGraphPatchParameterFromSlider(drag.slider, {
-    record: true,
-    status: drag.resetToDefaultOnClick && !drag.moved ? "parameter reset to default" : "parameter changed",
-  });
+  commitNodeSliderDragValue(
+    drag.slider,
+    drag.resetToDefaultOnClick && !drag.moved ? "parameter reset to default" : "parameter changed",
+  );
   nodeGraphMvp.sliderDragging = null;
 }

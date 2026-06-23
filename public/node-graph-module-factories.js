@@ -58,6 +58,39 @@ function createNodeGraphIoColumn(node, type, ports, io) {
   return column;
 }
 
+function createNodeGraphIoProxyPort(node, io) {
+  const port = document.createElement("span");
+  port.className = `node-port ${io} node-io-proxy-port`;
+  port.dataset.node = node;
+  port.dataset.io = io;
+  port.dataset.ioProxy = io;
+  port.setAttribute("aria-hidden", "true");
+  return port;
+}
+
+function createNodeGraphIoProxySection(node, inputPorts = [], outputPorts = []) {
+  if (!inputPorts.length && !outputPorts.length) {
+    return null;
+  }
+  const proxy = document.createElement("div");
+  proxy.className = "node-io-proxy";
+  proxy.dataset.node = node;
+  if (inputPorts.length) {
+    proxy.append(createNodeGraphIoProxyPort(node, "input"));
+  } else {
+    proxy.append(document.createElement("span"));
+  }
+  const spacer = document.createElement("span");
+  spacer.className = "node-io-proxy-spacer";
+  proxy.append(spacer);
+  if (outputPorts.length) {
+    proxy.append(createNodeGraphIoProxyPort(node, "output"));
+  } else {
+    proxy.append(document.createElement("span"));
+  }
+  return proxy;
+}
+
 function createNodeParameterModulationPort(node, type, parameter) {
   const button = document.createElement("button");
   button.className = "node-param-port modulation-input";

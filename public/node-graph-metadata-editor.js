@@ -8,8 +8,12 @@ function positionNodeMetadataPopover(popover, x, y, remember = false) {
     visibleHeight: 48,
     visibleWidth: Math.max(80, (rect?.width || 360) * 0.5),
   });
-  popover.style.left = `${left}px`;
-  popover.style.top = `${top}px`;
+  if (typeof setNodeGraphFloatingWindowViewportPosition === "function") {
+    setNodeGraphFloatingWindowViewportPosition(popover, left, top);
+  } else {
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+  }
   if (remember) {
     nodeGraphMvp.metadataPopoverPosition = { left, top };
     syncNodeGraphPatchWindowPosition("metadata", { left, top });
@@ -25,9 +29,9 @@ function positionNodeMetadataPopover(popover, x, y, remember = false) {
 }
 
 const nodeMetadataPopoverDefaultSize = Object.freeze({
-  width: 680,
+  width: 185,
   height: 620,
-  minWidth: 140,
+  minWidth: 24,
   maxWidth: 900,
   minHeight: 120,
   maxHeight: 820,
@@ -230,11 +234,14 @@ function endNodeMetadataPopoverDrag(event) {
   endNodeGraphFloatingWindowDrag(event, "metadataDragging", () => {
     drag?.heading?.classList.remove("dragging");
     if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
+      const position = Number.isFinite(Number(drag?.currentLeft)) && Number.isFinite(Number(drag?.currentTop))
+        ? { left: drag.currentLeft, top: drag.currentTop }
+        : undefined;
       rememberNodeGraphWorkspaceWindowState(
         "metaparameters",
-        document.getElementById("nodeParameterMetadataPopover"),
-        { open: true, size: nodeMetadataPopoverSizeFromElement() },
-        { status: false },
+        null,
+        { open: true, size: nodeMetadataPopoverSizeFromElement(), ...(position ? { position } : {}) },
+        { capturePosition: false, status: false },
       );
     }
   });
@@ -1121,7 +1128,7 @@ this line is intentionally invalid
     nodeMetadataScriptDiagnosticMessage("param.frequency.unknown = 1;").message.includes("ignored lines"),
     nodeMetadataScriptEffectiveRows({ kind: "decimal", min: 0, mid: 0.5, max: 1, def: 0.25, step: 0, unit: "", maxDigits: 2, choices: [], displayChoices: false, divideChoicesVisibly: false, linearSmoothing: true, nonlinearSlider: false, showSign: false, wraparound: false })
       .some(([key, value]) => key === "step" && value === "0"),
-    nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.choices = [Saw, Square, Triangle, Sine, Noise];"),
+    nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.choices = [Saw, Ramp, Square, Triangle, Sine, Noise];"),
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.displayChoices = true;"),
     nodeMetadataScriptAssignmentInsertion("param.a.min = 0;", "param.a.max = 1;", 16) === "\nparam.a.max = 1;",
     nodeMetadataScriptAssignmentInsertion("param.a.min = 0;\n", "param.a.max = 1;", 17) === "param.a.max = 1;",
@@ -1306,25 +1313,34 @@ function openNodeMetadataPopover(event, readout) {
   if (displayRect === false) {
     return;
   }
+  const moduleActionsRect = typeof prepareNodeModuleActionsWindowForInspectorReplacement === "function"
+    ? prepareNodeModuleActionsWindowForInspectorReplacement()
+    : null;
 
   nodeGraphMvp.metadataEditorTarget = slider.id;
+  nodeGraphMvp.sharedInspectorActive = "metaparameters";
   fillNodeMetadataPopover(slider);
-  const savedPosition = nodeGraphMvp.workspaceWindowStates?.metaparameters?.position ||
-    nodeGraphMvp.metadataPopoverPosition;
+  const sharedInspectorState = typeof normalizeNodeGraphSharedInspectorWindowState === "function"
+    ? normalizeNodeGraphSharedInspectorWindowState(nodeGraphMvp.sharedInspectorWindowState, nodeGraphMvp.workspaceWindowStates)
+    : (nodeGraphMvp.sharedInspectorWindowState || {});
+  const savedPosition = sharedInspectorState.position || nodeGraphMvp.metadataPopoverPosition;
   const hasSavedPosition =
     Number.isFinite(Number(savedPosition?.left)) &&
     Number.isFinite(Number(savedPosition?.top));
-  applyNodeMetadataPopoverSize(nodeGraphMvp.workspaceWindowStates?.metaparameters?.size);
+  applyNodeMetadataPopoverSize(sharedInspectorState.size);
   const popover = document.getElementById("nodeParameterMetadataPopover");
   positionNodeMetadataPopover(
     popover,
     hasSavedPosition
       ? savedPosition.left
-      : nodeMetadataReplacementX(displayRect, popover, event.clientX),
+      : nodeMetadataReplacementX(displayRect || moduleActionsRect, popover, event.clientX),
     hasSavedPosition
       ? savedPosition.top
-      : (displayRect?.top ?? event.clientY),
+      : (displayRect?.top ?? moduleActionsRect?.top ?? event.clientY),
   );
+  if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
+    rememberNodeGraphWorkspaceWindowState("metaparameters", popover, { open: true }, { status: false });
+  }
 }
 
 function openBlankNodeMetadataPopover(event = {}) {
@@ -1340,7 +1356,11 @@ function openBlankNodeMetadataPopover(event = {}) {
   if (displayRect === false) {
     return;
   }
+  const moduleActionsRect = typeof prepareNodeModuleActionsWindowForInspectorReplacement === "function"
+    ? prepareNodeModuleActionsWindowForInspectorReplacement()
+    : null;
   nodeGraphMvp.metadataEditorTarget = null;
+  nodeGraphMvp.sharedInspectorActive = "metaparameters";
   document.getElementById("metadataPopoverTitle").textContent = "Metaparameters";
   document.getElementById("metadataPopoverSubtitle").textContent = "script settings";
   document.getElementById("metadataScriptTarget").textContent = "No parameter selected";
@@ -1348,22 +1368,27 @@ function openBlankNodeMetadataPopover(event = {}) {
   updateNodeMetadataScriptPreview("");
   updateNodeMetadataScriptEffective("");
   setNodeMetadataScriptDirty(false, "no parameter selected", false, "Right-click a slider readout or choose a module with parameters.");
-  const savedPosition = nodeGraphMvp.workspaceWindowStates?.metaparameters?.position ||
-    nodeGraphMvp.metadataPopoverPosition;
+  const sharedInspectorState = typeof normalizeNodeGraphSharedInspectorWindowState === "function"
+    ? normalizeNodeGraphSharedInspectorWindowState(nodeGraphMvp.sharedInspectorWindowState, nodeGraphMvp.workspaceWindowStates)
+    : (nodeGraphMvp.sharedInspectorWindowState || {});
+  const savedPosition = sharedInspectorState.position || nodeGraphMvp.metadataPopoverPosition;
   const hasSavedPosition =
     Number.isFinite(Number(savedPosition?.left)) &&
     Number.isFinite(Number(savedPosition?.top));
-  applyNodeMetadataPopoverSize(nodeGraphMvp.workspaceWindowStates?.metaparameters?.size);
+  applyNodeMetadataPopoverSize(sharedInspectorState.size);
   const popover = document.getElementById("nodeParameterMetadataPopover");
   positionNodeMetadataPopover(
     popover,
     hasSavedPosition
       ? savedPosition.left
-      : nodeMetadataReplacementX(displayRect, popover, event.clientX ?? window.innerWidth * 0.5),
+      : nodeMetadataReplacementX(displayRect || moduleActionsRect, popover, event.clientX ?? window.innerWidth * 0.5),
     hasSavedPosition
       ? savedPosition.top
-      : (displayRect?.top ?? event.clientY ?? window.innerHeight * 0.25),
+      : (displayRect?.top ?? moduleActionsRect?.top ?? event.clientY ?? window.innerHeight * 0.25),
   );
+  if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
+    rememberNodeGraphWorkspaceWindowState("metaparameters", popover, { open: true }, { status: false });
+  }
 }
 
 function finishCloseNodeMetadataPopover() {
@@ -1451,6 +1476,11 @@ function formatMetadataStepperValue(value, quantum) {
 }
 
 function stepNodeMetadataField(event) {
+  if (typeof nodeGraphSettingsTextGestureShouldIgnoreClick === "function" && nodeGraphSettingsTextGestureShouldIgnoreClick(event)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const button = event.target.closest("[data-metadata-step-target]");
   if (!button) {
     return;

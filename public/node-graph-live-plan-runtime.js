@@ -61,6 +61,7 @@ function nodeGraphBuildLivePlanForPatch(patch) {
     patchFingerprint: nodeGraphPatchFingerprint(normalizedPatch),
     speakerOutputActive: Boolean(compiled.speakerOutputActive),
     sourceNodes: [...compiled.sourceNodes],
+    timing: normalizeNodeGraphPatchTiming(compiled.timing),
     visualSinks: [],
   };
   plan.samples = typeof nodeGraphLiveSamplesForPlan === "function"
@@ -382,7 +383,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
   }
   const runtime = {
-    autoSmoothingSeconds: nodeGraphAutoSmoothingDefaultSeconds,
+    autoSmoothingSeconds: clampNodeGraphAutoSmoothingSeconds(
+      nodeGraphMvp?.live?.autoSmoothingSeconds ?? nodeGraphAutoSmoothingDefaultSeconds,
+    ),
     inputConnections,
     badNumberCount: 0,
     bandpassStates,
@@ -439,6 +442,7 @@ function createNodeGraphLiveRuntime(plan) {
     smoothers,
     spiralStates,
     stepSequencerStates,
+    timing: normalizeNodeGraphPatchTiming(plan.timing),
     triggerCounterStates,
     triggerDividerStates,
     triangleStates,
@@ -465,6 +469,7 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   runtime.modulationConnections = nodeGraphLiveModulationConnectionMap(plan);
   runtime.order = [...(plan.order || [])];
   runtime.outputNode = plan.outputNode || "output";
+  runtime.timing = normalizeNodeGraphPatchTiming(plan.timing);
   runtime.visualSinks = (plan.visualSinks || []).map((sink) => ({
     ...sink,
     bufferedInputs: [...(sink.bufferedInputs || [])],

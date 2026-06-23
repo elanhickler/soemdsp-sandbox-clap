@@ -13,6 +13,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "kickDrum",
   "snareDrum",
   "clock",
+  "transport",
   "clockDivider",
   "delayedTrigger",
   "buttonEvents",
@@ -43,6 +44,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "graph2",
   "gain",
   "bias",
+  "rotate3dTo2d",
   "output",
   "macroKnob",
   "bipolarKnob",
@@ -102,21 +104,26 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "textBox",
 ]);
 
+const nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([
+  "groupInput",
+  "groupOutput",
+]));
+
 const nodeGraphModuleGroupStorageKey = "soemdsp-sandbox.moduleGroups.v1";
 const nodeGraphModuleCatalogVisibilityStorageKey = "soemdsp-sandbox.moduleCatalogVisibility.v2";
 
 const nodeGraphModuleStoreDepartments = Object.freeze([
   "Oscillator",
-  "Noise",
   "Chaos",
+  "OMS",
+  "Noise",
   "Filter",
   "Envelope",
   "Modulators",
-  "Time",
   "Delay",
   "Drum",
   "Dynamics",
-  "Sequencer",
+  "Sequence",
   "Audio",
   "Visual",
   "Controllers",
@@ -129,11 +136,11 @@ const nodeGraphModuleStoreDepartments = Object.freeze([
 const nodeGraphModuleStoreVisualGroups = Object.freeze([
   {
     label: "Generate",
-    departments: Object.freeze(["Oscillator", "Additive", "Noise", "Chaos", "Drum", "Sequencer"]),
+    departments: Object.freeze(["Oscillator", "Chaos", "OMS", "Noise", "Additive", "Drum", "Sequence"]),
   },
   {
     label: "Process",
-    departments: Object.freeze(["Filter", "Envelope", "Modulators", "Time", "Delay", "Dynamics"]),
+    departments: Object.freeze(["Filter", "Envelope", "Modulators", "Delay", "Dynamics"]),
   },
   {
     label: "Interact",
@@ -175,9 +182,9 @@ const nodeGraphModuleStoreDepartmentAds = Object.freeze({
     title: "Delay",
     pitch: "Delay, reverb, distortion, and performance processors for shaping finished sound.",
   },
-  "Sequencer": {
+  Sequence: {
     symbol: "♪",
-    title: "Sequencer",
+    title: "Sequence",
     pitch: "Pitch lanes and melodic pattern tools for generating lines, hooks, and motion.",
   },
   "Chord Sequencer": {
@@ -189,11 +196,6 @@ const nodeGraphModuleStoreDepartmentAds = Object.freeze({
     symbol: "↟",
     title: "Arpeggiator",
     pitch: "Pattern engines for broken chords, rhythmic note motion, and performance arps.",
-  },
-  Time: {
-    symbol: "◷",
-    title: "Time",
-    pitch: "Instructions, timing surfaces, labels, and the slow machinery that makes a patch readable in motion.",
   },
   Audio: {
     symbol: "OUT",
@@ -250,6 +252,11 @@ const nodeGraphModuleStoreDepartmentAds = Object.freeze({
     title: "Chaos",
     pitch: "All the various attractors and strange motion systems. The wild shelf where math starts looking back.",
   },
+  OMS: {
+    symbol: "OMS",
+    title: "OMS",
+    pitch: "Orbit and motion systems. Spiral Generator lives here while this style gets its own lane.",
+  },
   Visual: {
     symbol: "V",
     title: "Visual",
@@ -296,9 +303,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   polyBlep: {
     category: "Oscillator",
-    description: "Placeholder for an anti-aliased PolyBLEP oscillator for clean digital waveform edges.",
+    description: "Anti-aliased PolyBLEP oscillator for clean saw, ramp, square, triangle, sine, and noise waveform outputs.",
     label: "PolyBLEP",
-    notes: ["placeholder", "anti-aliasing", "future oscillator"],
+    notes: ["anti-aliasing", "polyblep", "realtime oscillator"],
   },
   fbPolyBlepOsc: {
     category: "Oscillator",
@@ -337,61 +344,68 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     notes: ["placeholder", "drum voice", "noise snap"],
   },
   clock: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Timer pulse source. Emits a steady gate for triggering samplers, sequencers, and motion events.",
     notes: ["rate and phase control", "duty cycle", "reset input"],
   },
+  transport: {
+    category: "Sequence",
+    description: "Project-synced beat clock source. Emits in-phase square waves derived from patch BPM.",
+    label: "Transport",
+    notes: ["project BPM", "beat divisions", "engine-start phase"],
+  },
   clockDivider: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Clock-aware divider. Count incoming clock edges and emit a slower gate for rhythmic subdivision.",
     notes: ["clock input", "division control", "reset input"],
   },
   delayedTrigger: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "One-shot timer. Catch a trigger, wait a precise delay, then emit a pulse for downstream events.",
     notes: ["delayed pulse", "reset input", "one-shot timing"],
   },
   randomClock: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Seeded random interval clock. Emits a short trigger and a duty-controlled gate between minimum and maximum seconds.",
     notes: ["random timing", "trigger and gate outputs", "reset input"],
   },
   triggerCounter: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Pulse counter. Count incoming triggers, emit a wrap pulse, and expose the count as modulation.",
     notes: ["count pulses", "wrap output", "reset input"],
   },
   triggerDivider: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Divides incoming trigger pulses into slower clocks for envelopes, sequencers, and rhythmic patches.",
     notes: ["trigger division", "reset input", "pulse width"],
   },
   stepSequencer: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Eight-step trigger sequencer. Advance it with Clock and route stepped control values anywhere.",
     notes: ["trigger input", "reset input", "stepped modulation"],
   },
   melodySequencer: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Placeholder for a pitch-aware sequencer for hooks, lines, and scale-constrained motion.",
     label: "MelodySequencer",
     notes: ["placeholder", "pitch lane", "scale control"],
   },
   chordSequencer: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Placeholder for arranging chord progressions and voicing changes inside the graph.",
     label: "ChordSequencer",
     notes: ["placeholder", "progressions", "voicing"],
   },
   arpeggiator: {
-    category: "Sequencer",
+    category: "Sequence",
     description: "Placeholder for rhythmic note-pattern generation from held chords or chord sources.",
     label: "Arpeggiator",
     notes: ["placeholder", "note pattern", "arp engine"],
   },
   spiral: {
-    category: "Chaos",
+    category: "OMS",
     description: "Jerobeam spiral engine. Emits X/Y/Z motion-signal for alien curves and audiovisual flight paths.",
+    label: "Spiral Generator",
     notes: ["attractor motion", "rotation", "density and morph controls"],
   },
   lorenzAttractor: {
@@ -487,6 +501,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Dynamics",
     description: "Offsets a signal away from center. Useful for steering modulation and shifting control lanes.",
     notes: ["addition", "offset", "control lane shift"],
+  },
+  rotate3dTo2d: {
+    category: "Dynamics",
+    description: "Rotates an X/Y/Z signal point in 3D and projects the result back to X/Y.",
+    label: "Rotation 3D to 2D",
+    notes: ["3D rotation", "2D projection", "signal transform"],
   },
   output: {
     category: "Audio",
@@ -920,7 +940,9 @@ function saveNodeGraphModuleCatalogVisibilityLocal(value = nodeGraphModuleCatalo
 function nodeGraphModuleStoreEntries() {
   return nodeGraphModuleStoreTypes
     .map((type) => {
-      const implemented = Object.hasOwn(nodeGraphModuleDefinitions, type);
+      const implemented =
+        Object.hasOwn(nodeGraphModuleDefinitions, type) &&
+        !nodeGraphModuleStoreUnderConstructionTypes.has(type);
       const developerVisible = nodeGraphModuleIsStoreVisible(type, "developer");
       const developerOnly = nodeGraphModuleStoreCatalog[type]?.developerOnly === true;
       const publicVisible = !developerOnly;
@@ -957,8 +979,16 @@ function setNodeGraphModuleCatalogVisibility(type, visible, shelf = "shop") {
   renderNodeGraphModuleStoreCatalog();
 }
 
+function normalizeNodeGraphModuleStoreDepartment(department = "") {
+  const value = String(department || "");
+  if (value === "Sequencer") {
+    return "Sequence";
+  }
+  return value;
+}
+
 function setNodeGraphModuleStoreDepartment(department = "") {
-  nodeGraphMvp.moduleStoreDepartment = String(department || "");
+  nodeGraphMvp.moduleStoreDepartment = normalizeNodeGraphModuleStoreDepartment(department);
   renderNodeGraphModuleStoreCatalog();
   if (typeof saveNodeGraphModuleStoreStateToUserSettings === "function") {
     saveNodeGraphModuleStoreStateToUserSettings();
@@ -1053,7 +1083,7 @@ function nodeGraphModuleStorePublicEntriesByDepartment(entries = []) {
 }
 
 const nodeGraphModuleShopWindowDefaultSize = Object.freeze({
-  width: 520,
+  width: 180,
   height: 620,
   minWidth: 96,
   maxWidth: 980,
@@ -1259,14 +1289,17 @@ function editNodeGraphModuleStoreDemo(entry) {
 
 function createNodeGraphModuleStoreButton(entry) {
   const card = document.createElement(entry.visible && entry.implemented ? "button" : "div");
+  const spawnLabel = `Drag into scene to spawn ${entry.label} module`;
   card.className = "scene-context-store-card";
   card.dataset.moduleEnabled = String(entry.visible);
   card.dataset.homeEnabled = String(entry.homeVisible);
   card.dataset.developerEnabled = String(entry.developerVisible);
   card.dataset.moduleImplemented = String(entry.implemented);
-  card.title = `${entry.label}: ${entry.description || "Module reference entry."}`;
+  card.title = entry.visible && entry.implemented
+    ? `${spawnLabel}. ${entry.description || "Module reference entry."}`
+    : `${entry.label}: ${entry.description || "Module reference entry."}`;
   card.setAttribute("aria-label", entry.visible && entry.implemented
-    ? `Add ${entry.label} module`
+    ? spawnLabel
     : `${entry.label} module unavailable`);
   if (entry.visible && entry.implemented) {
     card.dataset.contextModule = entry.type;
@@ -1311,7 +1344,8 @@ function createNodeGraphModuleDepartmentButton(department, entries) {
 
   const count = document.createElement("span");
   count.className = "scene-context-store-department-count";
-  count.textContent = String(entries.length);
+  const workingCount = entries.filter((entry) => entry.visible && entry.implemented).length;
+  count.textContent = String(workingCount);
 
   button.append(title, count);
   return button;
@@ -1404,7 +1438,10 @@ function renderNodeGraphModuleStoreCatalog() {
   available.innerHTML = "";
   homeShelf.innerHTML = "";
   const entries = nodeGraphModuleStoreEntries();
-  const selectedDepartment = nodeGraphMvp.moduleStoreDepartment || "";
+  const selectedDepartment = normalizeNodeGraphModuleStoreDepartment(nodeGraphMvp.moduleStoreDepartment || "");
+  if (nodeGraphMvp.moduleStoreDepartment !== selectedDepartment) {
+    nodeGraphMvp.moduleStoreDepartment = selectedDepartment;
+  }
   const departmentSearch = nodeGraphMvp.moduleStoreDepartmentSearch || "";
   const searchingAllModules = !selectedDepartment &&
     Boolean(nodeGraphNormalizeModuleDepartmentSearch(departmentSearch));
@@ -1496,9 +1533,13 @@ function positionNodeGraphModuleShopView(x, y) {
   panel.style.position = "fixed";
   panel.style.margin = "0";
   const { left, top } = nodeGraphFloatingWindowPosition(panel, x, y);
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-  panel.style.right = "auto";
+  if (typeof setNodeGraphFloatingWindowViewportPosition === "function") {
+    setNodeGraphFloatingWindowViewportPosition(panel, left, top);
+  } else {
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = "auto";
+  }
   if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
     rememberNodeGraphWorkspaceWindowState(
       "moduleBrowser",

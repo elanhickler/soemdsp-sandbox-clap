@@ -107,15 +107,14 @@ function nodeGraphWireEndpointsAreRenderable(wire) {
     nodeGraphMvp.activeNodes.has(wire.destinationNode) &&
     nodeGraphPatchNodeIsVisible(wire.sourceNode) &&
     nodeGraphPatchNodeIsVisible(wire.destinationNode) &&
-    portElementIsRenderable(surface.querySelector(nodeGraphPortSelector(wire.sourceNode, wire.sourcePort, "output"))),
+    portElementIsRenderable(nodeGraphPortElementForWireEndpoint(wire.sourceNode, wire.sourcePort, "output")),
   );
 }
 
 function nodeGraphSignalWireDestinationIsRenderable(wire) {
-  const surface = nodeGraphZoomSurface();
   return Boolean(
     nodeGraphWireEndpointsAreRenderable(wire) &&
-    surface?.querySelector(nodeGraphPortSelector(wire.destinationNode, wire.destinationPort, "input")),
+    nodeGraphPortElementForWireEndpoint(wire.destinationNode, wire.destinationPort, "input"),
   );
 }
 

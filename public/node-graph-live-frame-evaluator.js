@@ -62,6 +62,10 @@ function createNodeGraphOscResetState() {
   };
 }
 
+function nodeGraphIsPolyBlepOscillatorType(type) {
+  return nodeGraphModuleIsRealtimeOscillatorType(type);
+}
+
 function createNodeGraphGraphLfoState() {
   return {
     lastReset: 0,
@@ -796,6 +800,37 @@ function nodeGraphClockSample(state, reset, phaseOffset, rate, duty, level, samp
     "Digital Out": digital,
     Out: digital,
     Pulse: pulse,
+  };
+}
+
+function nodeGraphTransportDivisionFactor(divisions) {
+  const division = Math.round(Number(divisions) || 0);
+  if (division > 0) {
+    return division + 1;
+  }
+  if (division < 0) {
+    return 1 / (Math.abs(division) + 1);
+  }
+  return 1;
+}
+
+function nodeGraphTransportSample(params, absoluteFrame, sampleRate, runtime = null, nodeId = "") {
+  const timing = normalizeNodeGraphPatchTiming(runtime?.timing);
+  const rate = Math.max(1, sampleRate || nodeGraphMvp.sampleRate || 44100);
+  const baseHz = Math.max(0, Number(timing.tempoBpm) || 120) / 60;
+  const divisionFactor = nodeGraphTransportDivisionFactor(params.divisions);
+  const frequency = baseHz * divisionFactor;
+  const amplitude = clampNodeSliderValue(
+    nodeGraphSafeFilterNumber(params.amplitude, runtime, nodeId, null, "transport amplitude"),
+    0,
+    1,
+  );
+  const frame = Math.max(0, Number(absoluteFrame) || 0);
+  const phase = frequency > 0 ? wrapNodeSliderValue((frame / rate) * frequency, 0, 1) : 0;
+  const high = phase < 0.5;
+  return {
+    "-1..1": high ? amplitude : -amplitude,
+    "0..1": high ? amplitude : 0,
   };
 }
 
@@ -1888,7 +1923,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         readParam,
         sampleRate,
       );
-    } else if (node?.type === "osc" || node?.type === "fbPolyBlepOsc") {
+    } else if (nodeGraphIsPolyBlepOscillatorType(node?.type)) {
       const resetState = runtime.oscResetStates.get(nodeId) || createNodeGraphOscResetState();
       runtime.oscResetStates.set(nodeId, resetState);
       const resetValue = nodeGraphSafeFilterNumber(
@@ -1971,9 +2006,10 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       value = {
         Out: selected,
         Saw: sampleOscillator(runtime, `${nodeId}:saw`, phase + phaseOffset, phaseIncrement, 0) * level,
-        Square: sampleOscillator(runtime, `${nodeId}:square`, phase + phaseOffset, phaseIncrement, 1) * level,
-        Tri: sampleOscillator(runtime, `${nodeId}:tri`, phase + phaseOffset, phaseIncrement, 2) * level,
-        Sine: sampleOscillator(runtime, `${nodeId}:sine`, phase + phaseOffset, phaseIncrement, 3) * level,
+        Ramp: sampleOscillator(runtime, `${nodeId}:ramp`, phase + phaseOffset, phaseIncrement, 1) * level,
+        Square: sampleOscillator(runtime, `${nodeId}:square`, phase + phaseOffset, phaseIncrement, 2) * level,
+        Tri: sampleOscillator(runtime, `${nodeId}:tri`, phase + phaseOffset, phaseIncrement, 3) * level,
+        Sine: sampleOscillator(runtime, `${nodeId}:sine`, phase + phaseOffset, phaseIncrement, 4) * level,
         "Wave Out": selected,
         Noise: selected,
       };
@@ -2226,6 +2262,18 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         readNodeGraphLiveEffectiveParam(runtime, node, "rate", 2, frame, frames, frameValues),
         readNodeGraphLiveEffectiveParam(runtime, node, "duty", 0.5, frame, frames, frameValues),
         readNodeGraphLiveEffectiveParam(runtime, node, "level", 1, frame, frames, frameValues),
+        sampleRate,
+        runtime,
+        nodeId,
+      );
+    } else if (node?.type === "transport") {
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphTransportSample(
+        {
+          amplitude: read("amplitude", 1),
+          divisions: read("divisions", 0),
+        },
+        Number.isFinite(runtime.absoluteFrame) ? runtime.absoluteFrame : frame,
         sampleRate,
         runtime,
         nodeId,
@@ -2578,6 +2626,30 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
+    } else if (node?.type === "rotate3dTo2d") {
+      const angleX = readNodeGraphLiveEffectiveParam(runtime, node, "rotateX", 0, frame, frames, frameValues) * Math.PI * 2;
+      const angleY = readNodeGraphLiveEffectiveParam(runtime, node, "rotateY", 0, frame, frames, frameValues) * Math.PI * 2;
+      const angleZ = readNodeGraphLiveEffectiveParam(runtime, node, "rotateZ", 0, frame, frames, frameValues) * Math.PI * 2;
+      let x = nodeGraphSafeFilterNumber(mixInput(nodeId, "X"), runtime, nodeId, null, "rotation 3d x input");
+      let y = nodeGraphSafeFilterNumber(mixInput(nodeId, "Y"), runtime, nodeId, null, "rotation 3d y input");
+      let z = nodeGraphSafeFilterNumber(mixInput(nodeId, "Z"), runtime, nodeId, null, "rotation 3d z input");
+      const sinX = Math.sin(angleX);
+      const cosX = Math.cos(angleX);
+      const nextY = y * cosX - z * sinX;
+      const nextZ = y * sinX + z * cosX;
+      y = nextY;
+      z = nextZ;
+      const sinY = Math.sin(angleY);
+      const cosY = Math.cos(angleY);
+      const nextX = x * cosY + z * sinY;
+      z = -x * sinY + z * cosY;
+      x = nextX;
+      const sinZ = Math.sin(angleZ);
+      const cosZ = Math.cos(angleZ);
+      value = {
+        X: nodeGraphSafeFilterNumber(x * cosZ - y * sinZ, runtime, nodeId, null, "rotation 3d x output"),
+        Y: nodeGraphSafeFilterNumber(x * sinZ + y * cosZ, runtime, nodeId, null, "rotation 3d y output"),
+      };
     } else if (node?.type === "valueSlider") {
       const offset = readNodeGraphLiveEffectiveParam(
         runtime,

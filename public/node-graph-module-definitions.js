@@ -9,11 +9,13 @@ const nodeGraphNodeLabels = Object.freeze({
   nextPatch: "Next Patch",
   previousPatch: "Previous Patch",
   osc: "Osc",
+  polyBlep: "PolyBLEP",
   fbPolyBlepOsc: "F/B PolyBLEP Osc",
   additiveOsc: "Additive Osc",
   gpuAdditiveOsc: "GPU Additive",
   ellipsoid: "Ellipsoid",
   clock: "Clock",
+  transport: "Transport",
   clockDivider: "Clock Divider",
   delayedTrigger: "Delayed Trigger",
   buttonEvents: "Button Events",
@@ -31,6 +33,7 @@ const nodeGraphNodeLabels = Object.freeze({
   clapPlugin: "CLAP Plugin",
   gain: "Gain",
   bias: "Bias",
+  rotate3dTo2d: "Rotation 3D to 2D",
   macroKnob: "Macro Knob",
   bipolarKnob: "Bipolar Knob",
   valueSlider: "Value Slider",
@@ -151,10 +154,10 @@ const nodeGraphModuleDefinitions = Object.freeze({
       Out: "Wave Out",
       Noise: "Wave Out",
     },
-    outputs: ["Saw", "Square", "Tri", "Sine", "Wave Out"],
+    outputs: ["Saw", "Ramp", "Square", "Tri", "Sine", "Wave Out"],
     parameters: [
       {
-        choices: ["Saw", "Square", "Triangle", "Sine", "Noise"],
+        choices: ["Saw", "Ramp", "Square", "Triangle", "Sine", "Noise"],
         defaultValue: "0",
         displayChoices: true,
         divideChoicesVisibly: true,
@@ -162,7 +165,64 @@ const nodeGraphModuleDefinitions = Object.freeze({
         kind: "waveform",
         label: "Waveform",
         linearSmoothing: false,
-        max: "4",
+        max: "5",
+        mid: "2",
+        min: "0",
+        step: "1",
+      },
+      {
+        defaultValue: "440",
+        key: "frequency",
+        kind: "frequency",
+        label: "Frequency",
+        max: "20000",
+        mid: "440",
+        min: "0",
+        step: "any",
+        unit: "Hz",
+      },
+      {
+        defaultValue: "0",
+        key: "phase",
+        kind: "phase",
+        label: "Phase",
+        max: "1",
+        mid: "0.5",
+        min: "0",
+        step: "0.01",
+        unit: "cycle",
+        wraparound: true,
+      },
+      {
+        defaultValue: "1",
+        key: "level",
+        label: "Amplitude",
+        max: "1",
+        mid: "0.5",
+        min: "0",
+        nonlinearSlider: false,
+        step: "any",
+      },
+    ],
+  },
+  polyBlep: {
+    inputs: ["Reset", "0.1V/Oct", "Increment"],
+    outputAliases: {
+      Out: "Wave Out",
+      Noise: "Wave Out",
+    },
+    outputs: ["Saw", "Ramp", "Square", "Tri", "Sine", "Wave Out"],
+    parameters: [
+      {
+        choices: ["Saw", "Ramp", "Square", "Triangle", "Sine", "Noise"],
+        defaultValue: "0",
+        displayChoices: true,
+        divideChoicesVisibly: true,
+        key: "waveform",
+        kind: "waveform",
+        label: "Waveform",
+        linearSmoothing: false,
+        max: "5",
         mid: "2",
         min: "0",
         step: "1",
@@ -208,10 +268,10 @@ const nodeGraphModuleDefinitions = Object.freeze({
       Out: "Wave Out",
       Noise: "Wave Out",
     },
-    outputs: ["Saw", "Square", "Tri", "Sine", "Wave Out"],
+    outputs: ["Saw", "Ramp", "Square", "Tri", "Sine", "Wave Out"],
     parameters: [
       {
-        choices: ["Saw", "Square", "Triangle", "Sine", "Noise"],
+        choices: ["Saw", "Ramp", "Square", "Triangle", "Sine", "Noise"],
         defaultValue: "0",
         displayChoices: true,
         divideChoicesVisibly: true,
@@ -219,7 +279,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         kind: "waveform",
         label: "Waveform",
         linearSmoothing: false,
-        max: "4",
+        max: "5",
         mid: "2",
         min: "0",
         step: "1",
@@ -708,6 +768,38 @@ const nodeGraphModuleDefinitions = Object.freeze({
       },
     ],
   },
+  transport: {
+    inputs: [],
+    outputLabels: {
+      "-1..1": "-1..1",
+      "0..1": "0..1",
+    },
+    outputs: ["0..1", "-1..1"],
+    parameters: [
+      {
+        defaultValue: "1",
+        key: "amplitude",
+        label: "Amplitude",
+        max: "1",
+        maxDigits: 4,
+        mid: "0.5",
+        min: "0",
+        nonlinearSlider: false,
+        step: "any",
+      },
+      {
+        defaultValue: "0",
+        key: "divisions",
+        label: "Divisions",
+        max: "31",
+        maxDigits: 3,
+        mid: "0",
+        min: "-31",
+        nonlinearSlider: false,
+        step: "1",
+      },
+    ],
+  },
   randomClock: {
     inputs: ["Reset"],
     outputs: ["Trigger", "Gate"],
@@ -862,6 +954,15 @@ const nodeGraphModuleDefinitions = Object.freeze({
         nonlinearSlider: false,
         step: "any",
       },
+    ],
+  },
+  rotate3dTo2d: {
+    inputs: ["X", "Y", "Z"],
+    outputs: ["X", "Y"],
+    parameters: [
+      { defaultValue: "0", key: "rotateX", kind: "phase", label: "Rotate X", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "0.01", unit: "cycle", wraparound: true },
+      { defaultValue: "0", key: "rotateY", kind: "phase", label: "Rotate Y", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "0.01", unit: "cycle", wraparound: true },
+      { defaultValue: "0", key: "rotateZ", kind: "phase", label: "Rotate Z", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "0.01", unit: "cycle", wraparound: true },
     ],
   },
   macroKnob: {
@@ -1701,6 +1802,10 @@ function nodeGraphModuleGraphInputs(type) {
 
 function nodeGraphModuleIsGraphType(type) {
   return nodeGraphModuleDefinitions[type]?.layout === "graph";
+}
+
+function nodeGraphModuleIsRealtimeOscillatorType(type) {
+  return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc";
 }
 
 function nodeGraphCanonicalInputPort(type, port) {

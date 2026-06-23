@@ -1140,11 +1140,16 @@ function sendNodeGraphLiveParameterUpdate() {
     const previous = Number(nodeGraphMvp.live.lastParameterUpdateTime) || 0;
     const measuredSeconds = previous > 0 ? (now - previous) / 1000 : nodeGraphMvp.live.autoSmoothingSeconds;
     nodeGraphMvp.live.lastParameterUpdateTime = now;
-    nodeGraphMvp.live.autoSmoothingSeconds = clampNodeGraphAutoSmoothingSeconds(
-      (Number(nodeGraphMvp.live.autoSmoothingSeconds) || nodeGraphAutoSmoothingDefaultSeconds) * 0.82 +
-      clampNodeGraphAutoSmoothingSeconds(measuredSeconds) * 0.18,
-    );
+    if (!nodeGraphMvp.live.autoSmoothingManual) {
+      nodeGraphMvp.live.autoSmoothingSeconds = clampNodeGraphAutoSmoothingSeconds(
+        (Number(nodeGraphMvp.live.autoSmoothingSeconds) || nodeGraphAutoSmoothingDefaultSeconds) * 0.82 +
+        clampNodeGraphAutoSmoothingSeconds(measuredSeconds) * 0.18,
+      );
+    } else {
+      nodeGraphMvp.live.autoSmoothingSeconds = clampNodeGraphAutoSmoothingSeconds(nodeGraphMvp.live.autoSmoothingSeconds);
+    }
     const autoSmoothingSeconds = nodeGraphMvp.live.autoSmoothingSeconds;
+    syncNodeGraphGlobalSmoothingControl();
     updateNodeGraphLiveModuleScopeFingerprint(patchFingerprint);
     nodeGraphMvp.live.planSerial += 1;
     if (nodeGraphMvp.live.usesWorklet) {
@@ -1247,6 +1252,51 @@ function sendNodeGraphLivePitchModWheelSignal(signal = nodeGraphPitchModWheelPay
   }
 }
 
+function nodeGraphGlobalSmoothingSamples() {
+  return nodeGraphSmoothingSamplesFromSeconds(
+    nodeGraphMvp?.live?.autoSmoothingSeconds ?? nodeGraphAutoSmoothingDefaultSeconds,
+  );
+}
+
+function syncNodeGraphGlobalSmoothingControl(options = {}) {
+  const input = document.getElementById("nodeSceneGlobalSmoothingSamples");
+  if (!input) {
+    return;
+  }
+  if (!options.force && document.activeElement === input) {
+    return;
+  }
+  input.value = String(nodeGraphGlobalSmoothingSamples());
+}
+
+function setNodeGraphGlobalSmoothingSamples(samples, options = {}) {
+  const seconds = nodeGraphSmoothingSecondsFromSamples(samples);
+  nodeGraphMvp.live.autoSmoothingSeconds = seconds;
+  nodeGraphMvp.live.autoSmoothingManual = options.manual !== false;
+  syncNodeGraphGlobalSmoothingControl({ force: true });
+  scheduleNodeGraphLiveParameterSync();
+  if (typeof saveNodeGraphWorkspaceViewToUserSettings === "function") {
+    saveNodeGraphWorkspaceViewToUserSettings({ status: false });
+  }
+}
+
+function handleNodeGraphGlobalSmoothingSamplesChange() {
+  const input = document.getElementById("nodeSceneGlobalSmoothingSamples");
+  if (!input) {
+    return;
+  }
+  setNodeGraphGlobalSmoothingSamples(input.value);
+}
+
+function handleNodeGraphGlobalSmoothingSamplesKeydown(event) {
+  if (event.key !== "Enter") {
+    return;
+  }
+  event.preventDefault();
+  handleNodeGraphGlobalSmoothingSamplesChange();
+  event.currentTarget?.blur?.();
+}
+
 function scheduleNodeGraphLiveSync(mode = "plan") {
   if (!nodeGraphMvp.live.node || nodeGraphMvp.live.syncFrame || nodeGraphMvp.live.syncTimer) {
     if (mode === "plan") {
@@ -1305,7 +1355,7 @@ async function stopNodeGraphLiveAudio() {
   nodeGraphMvp.live.lastParameterUpdateTime = 0;
   nodeGraphMvp.live.planEvidence = null;
   nodeGraphMvp.live.planSerial = 0;
-  nodeGraphMvp.live.autoSmoothingSeconds = nodeGraphAutoSmoothingDefaultSeconds;
+  nodeGraphMvp.live.autoSmoothingSeconds = clampNodeGraphAutoSmoothingSeconds(nodeGraphMvp.live.autoSmoothingSeconds);
   nodeGraphMvp.live.runtime = null;
   nodeGraphMvp.live.scriptNode = null;
   nodeGraphMvp.live.sessionId += 1;
@@ -1346,7 +1396,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=audio-player-playback-1"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=transport-sequence-1"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

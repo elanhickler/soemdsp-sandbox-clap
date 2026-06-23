@@ -681,14 +681,94 @@ function endNodeGraphWorkspacePan(event) {
 }
 
 function preventNodeGraphMiddleMouseAuxClick(event) {
-  if (event.button === 1 && event.target.closest("#nodeGraphWorkspace")) {
+  if (event.button === 1 && !nodeGraphScrollableInnerTarget(event.target)) {
     event.preventDefault();
     event.stopPropagation();
   }
 }
 
+const nodeGraphFloatingWindowSelector = [
+  "#nodeSceneContextMenu",
+  "#nodeModuleActionsWindow",
+  "#nodeModuleShopView",
+  "#nodeSavedPatchesWindow",
+  "#nodeVisibilityMenu",
+  "#nodeParameterMetadataPopover",
+  "#nodeUiDevHelper",
+  "#nodeUserUiSettingsPanel",
+  "#nodeGlobalScopeMenu",
+].join(",");
+
+function nodeGraphFloatingWindowFromTarget(target) {
+  const element = target instanceof Element ? target : target?.parentElement;
+  return element?.closest?.(nodeGraphFloatingWindowSelector) || null;
+}
+
+function nodeGraphScrollableInnerTarget(target) {
+  const element = target instanceof Element ? target : target?.parentElement;
+  if (!element) {
+    return null;
+  }
+  for (let current = element; current && current !== document.body; current = current.parentElement) {
+    if (current.id === "nodeGraphWorkspace") {
+      return null;
+    }
+    const style = window.getComputedStyle(current);
+    const overflow = `${style.overflow} ${style.overflowX} ${style.overflowY}`;
+    const scrollableStyle = /\b(auto|scroll|overlay)\b/.test(overflow);
+    const hasScrollRoom =
+      current.scrollHeight > current.clientHeight + 1 ||
+      current.scrollWidth > current.clientWidth + 1;
+    if (scrollableStyle && hasScrollRoom) {
+      return current;
+    }
+  }
+  return null;
+}
+
+function nodeGraphScrollTargetCanConsumeWheel(scrollTarget, event) {
+  if (!scrollTarget) {
+    return false;
+  }
+  const deltaY = Number(event.deltaY) || 0;
+  const deltaX = Number(event.deltaX) || 0;
+  const canScrollUp = scrollTarget.scrollTop > 0;
+  const canScrollDown =
+    scrollTarget.scrollTop + scrollTarget.clientHeight < scrollTarget.scrollHeight - 1;
+  const canScrollLeft = scrollTarget.scrollLeft > 0;
+  const canScrollRight =
+    scrollTarget.scrollLeft + scrollTarget.clientWidth < scrollTarget.scrollWidth - 1;
+  const canConsumeY =
+    (deltaY < 0 && canScrollUp) ||
+    (deltaY > 0 && canScrollDown);
+  const canConsumeX =
+    (deltaX < 0 && canScrollLeft) ||
+    (deltaX > 0 && canScrollRight);
+  return canConsumeY || canConsumeX;
+}
+
 function preventNodeGraphMiddleMouseDefault(event) {
-  if (event.button === 1 && event.target.closest("#nodeGraphWorkspace")) {
+  if (event.button === 1 && !nodeGraphScrollableInnerTarget(event.target)) {
     event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
+function preventNodeGraphOuterWheelScroll(event) {
+  const floatingWindow = nodeGraphFloatingWindowFromTarget(event.target);
+  if (floatingWindow) {
+    const scrollTarget = nodeGraphScrollableInnerTarget(event.target);
+    if (!nodeGraphScrollTargetCanConsumeWheel(scrollTarget, event)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    return;
+  }
+  if (event.target?.closest?.("#nodeGraphWorkspace")) {
+    return;
+  }
+  if (!nodeGraphScrollableInnerTarget(event.target)) {
+    event.preventDefault();
+    event.stopPropagation();
   }
 }

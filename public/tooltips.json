@@ -47,6 +47,8 @@
     "help": "Mouse: click to step patch history."
   },
   "timing": {
+    "burnUnderConstruction": "Burn control is under construction. It is shown here for the future display persistence system, but it is not active yet.",
+    "decayUnderConstruction": "Decay control is under construction. It is shown here for the future display persistence system, but it is not active yet.",
     "speedUnderConstruction": "Speed control is under construction. It is shown here as a future global timing multiplier, but it is not active yet."
   },
   "script": {
@@ -120,12 +122,17 @@
     "defaults": "Reset the Trace Display drawing settings to factory defaults.",
     "closeSave": "Save changes and close Trace Display settings.",
     "closeDiscard": "Discard changes and close Trace Display settings.",
-    "cycles": "Cycles of source waveform to draw when source sync is enabled.",
-    "windowMs": "Time window in milliseconds when source sync is off.",
+    "cycles": "Legacy Trace Display cycle setting.",
+    "zoomSeconds": "Trace Display zoom window in seconds.",
+    "skipSamples": "Samples skipped after a vertical discontinuity. Use 0, 1, or 2.",
+    "padding": "Trace Display vertical padding per side. 0 uses the full display height.",
     "lineThickness": "Thickness of the Trace Display waveform line.",
     "brightness": "Brightness of the Trace Display waveform.",
     "color": "Color of the Trace Display waveform.",
-    "sourceSync": "Sync Trace Display length to the detected source frequency."
+    "dot2LineThickness": "Thickness of Trace Display Dot 2.",
+    "dot2Brightness": "Brightness of Trace Display Dot 2.",
+    "dot2Color": "Color of Trace Display Dot 2.",
+    "sourceSync": "Align Trace Display start to the detected source cycle. Zoom (s) still controls length."
   },
   "wire": {
     "selected": "Mouse: click to select this wire. Delete removes selected wire.",

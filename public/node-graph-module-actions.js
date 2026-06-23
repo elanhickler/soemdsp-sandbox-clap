@@ -1559,6 +1559,8 @@ function applyNodeGraphPatchNodeUi(targetNode, ui) {
   const normalizedUi = normalizeNodeGraphPatchNodeUi(ui);
   if (
     normalizedUi.buttonsHidden ||
+    normalizedUi.ioHidden ||
+    normalizedUi.interfaceControlsHidden ||
     normalizedUi.titleHidden ||
     normalizedUi.oscilloscopeHidden ||
     normalizedUi.slidersHidden ||
@@ -1568,6 +1570,46 @@ function applyNodeGraphPatchNodeUi(targetNode, ui) {
   } else {
     delete targetNode.ui;
   }
+}
+
+function toggleNodeGraphModuleInterfaceControlsFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || !nodeGraphModuleTypeHasInterfaceControls(sourceNode.type)) {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode || !nodeGraphModuleTypeHasInterfaceControls(targetNode.type)) {
+    return;
+  }
+  const ui = normalizeNodeGraphPatchNodeUi(targetNode.ui);
+  ui.interfaceControlsHidden = !ui.interfaceControlsHidden;
+  applyNodeGraphPatchNodeUi(targetNode, ui);
+  commitNodeGraphPatch(patch, {
+    status: ui.interfaceControlsHidden ? "module control surface hidden" : "module control surface shown",
+  });
+  configureNodeSceneContextMenu("module");
+}
+
+function toggleNodeGraphModuleIoFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode) {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const ui = normalizeNodeGraphPatchNodeUi(targetNode.ui);
+  ui.ioHidden = !ui.ioHidden;
+  applyNodeGraphPatchNodeUi(targetNode, ui);
+  commitNodeGraphPatch(patch, {
+    status: ui.ioHidden ? "module in/out hidden" : "module in/out shown",
+  });
+  configureNodeSceneContextMenu("module");
 }
 
 function toggleNodeGraphModuleSlidersFromContext() {

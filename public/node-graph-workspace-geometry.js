@@ -54,11 +54,9 @@ function nodeGraphZoomSurface() {
 function nodeGraphGraphRect() {
   const surface = nodeGraphZoomSurface();
   const graphElement = surface || document.getElementById("nodeGraphWorkspace");
-  const workspaceRect = graphElement.getBoundingClientRect();
-  const zoom = nodeGraphZoom();
   return {
-    height: workspaceRect.height / zoom,
-    width: workspaceRect.width / zoom,
+    height: graphElement?.offsetHeight || graphElement?.getBoundingClientRect?.().height || 0,
+    width: graphElement?.offsetWidth || graphElement?.getBoundingClientRect?.().width || 0,
   };
 }
 

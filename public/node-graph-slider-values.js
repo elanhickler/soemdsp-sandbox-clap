@@ -4,19 +4,33 @@ const nodeSliderHandleRightWallClearancePx = 3;
 const nodeSliderMinSkewExponent = 0.25;
 const nodeSliderMaxSkewExponent = 4;
 const nodeGraphAutoSmoothingDefaultSeconds = 0.016;
-const nodeGraphAutoSmoothingMinSeconds = 0.004;
-const nodeGraphAutoSmoothingMaxSeconds = 0.12;
 
 function clampNodeGraphAutoSmoothingSeconds(seconds) {
   const value = Number(seconds);
   if (!Number.isFinite(value)) {
     return nodeGraphAutoSmoothingDefaultSeconds;
   }
-  return Math.max(nodeGraphAutoSmoothingMinSeconds, Math.min(nodeGraphAutoSmoothingMaxSeconds, value));
+  return Math.max(0, value);
 }
 
 function nodeGraphSmoothingFrequencyFromSeconds(seconds) {
-  return 1 / clampNodeGraphAutoSmoothingSeconds(seconds);
+  const normalized = clampNodeGraphAutoSmoothingSeconds(seconds);
+  return normalized <= 0 ? 0 : 1 / normalized;
+}
+
+function nodeGraphSmoothingSampleRate() {
+  const rate = Number(nodeGraphMvp?.sampleRate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 44100;
+}
+
+function nodeGraphSmoothingSamplesFromSeconds(seconds) {
+  return Math.max(0, Math.round(clampNodeGraphAutoSmoothingSeconds(seconds) * nodeGraphSmoothingSampleRate()));
+}
+
+function nodeGraphSmoothingSecondsFromSamples(samples) {
+  const value = Number(samples);
+  const safeSamples = Number.isFinite(value) ? Math.max(0, value) : nodeGraphSmoothingSamplesFromSeconds(nodeGraphAutoSmoothingDefaultSeconds);
+  return clampNodeGraphAutoSmoothingSeconds(safeSamples / nodeGraphSmoothingSampleRate());
 }
 
 function clampNodeSliderValue(value, min, max) {
@@ -124,10 +138,18 @@ function readNodeGraphSmoothedParameter(smoother, frame, frames) {
     if (smoother.lastFrame === frame) {
       return smoother.lastValue;
     }
+    const smoothingSeconds = clampNodeGraphAutoSmoothingSeconds(nodeGraphMvp?.live?.autoSmoothingSeconds);
+    if (smoothingSeconds <= 0) {
+      smoother.current = smoother.target;
+      smoother.outputBuffer = smoother.targetSignal;
+      smoother.lastFrame = frame;
+      smoother.lastValue = smoother.target;
+      return smoother.target;
+    }
     const signal = nodeGraphOnePoleParameterLowpassSample(
       smoother,
       smoother.targetSignal,
-      nodeGraphSmoothingFrequencyFromSeconds(nodeGraphMvp?.live?.autoSmoothingSeconds),
+      nodeGraphSmoothingFrequencyFromSeconds(smoothingSeconds),
       nodeGraphMvp?.sampleRate || 44100,
     );
     const value = denormalizeNodeGraphSmootherSignal(signal, smoother.metadata);
@@ -196,6 +218,16 @@ function nodeSliderSkewExponent(slider) {
   return clampNodeSliderValue(exponent, nodeSliderMinSkewExponent, nodeSliderMaxSkewExponent);
 }
 
+function normalizeNodeSliderTravel(slider, travel) {
+  const number = Number(travel);
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+  return nodeSliderShouldWraparound(slider)
+    ? wrapNodeSliderValue(number, 0, 1)
+    : clampNodeSliderValue(number, 0, 1);
+}
+
 function nodeSliderValueFromTravel(slider, travel) {
   const min = Number(slider.min);
   const max = Number(slider.max);
@@ -205,9 +237,7 @@ function nodeSliderValueFromTravel(slider, travel) {
   }
 
   const exponent = nodeSliderSkewExponent(slider);
-  const normalizedTravel = nodeSliderShouldWraparound(slider)
-    ? wrapNodeSliderValue(travel, 0, 1)
-    : clampNodeSliderValue(travel, 0, 1);
+  const normalizedTravel = normalizeNodeSliderTravel(slider, travel);
   return min + range * normalizedTravel ** exponent;
 }
 
@@ -220,7 +250,7 @@ function nodeSliderValueFromPointerTravel(slider, travel) {
   }
 
   const exponent = nodeSliderSkewExponent(slider);
-  const normalizedTravel = clampNodeSliderValue(Number(travel) || 0, 0, 1);
+  const normalizedTravel = normalizeNodeSliderTravel(slider, travel);
   return min + range * normalizedTravel ** exponent;
 }
 
@@ -307,7 +337,7 @@ function nodeSliderVisualLane(surface, slider) {
 
 function nodeSliderVisualCenterFromTravel(slider, surface, travel) {
   const lane = nodeSliderVisualLane(surface, slider);
-  const normalizedTravel = clampNodeSliderValue(Number(travel) || 0, 0, 1);
+  const normalizedTravel = normalizeNodeSliderTravel(slider, travel);
   return lane.inset + normalizedTravel * lane.travelWidth;
 }
 
@@ -328,7 +358,7 @@ function nodeSliderTravelFromPointer(slider, surface, clientX) {
   const lane = nodeSliderVisualLane(surface, slider);
   const scale = nodeSliderElementVisualScale(surface);
   const x = (clientX - rect.left) / scale;
-  return clampNodeSliderValue((x - lane.inset) / lane.travelWidth, 0, 1);
+  return normalizeNodeSliderTravel(slider, (x - lane.inset) / lane.travelWidth);
 }
 
 function setNodeSliderMetadata(slider, metadata) {

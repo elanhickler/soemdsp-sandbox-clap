@@ -189,7 +189,7 @@ function validateNodeGraphPatch(patch) {
     const ui = nodeGraphModuleDefinitions[type].layout === "textBox" && !Object.hasOwn(node, "ui")
       ? { buttonsHidden: true }
       : normalizeNodeGraphPatchNodeUi(node.ui);
-    if (ui.buttonsHidden || ui.titleHidden || ui.oscilloscopeHidden || ui.slidersHidden || ui.displayHeightOffsetGu) {
+    if (ui.buttonsHidden || ui.ioHidden || ui.interfaceControlsHidden || ui.movementLocked || ui.titleHidden || ui.oscilloscopeHidden || ui.slidersHidden || ui.displayHeightOffsetGu) {
       normalizedNode.ui = ui;
     }
     return normalizedNode;
@@ -465,6 +465,7 @@ function applyNodeGraphPatchToDom() {
     element.style.setProperty("--node-grid-width-units", String(nodeGraphPatchNodeGridWidthUnits(patchNode)));
     element.style.setProperty("--node-grid-height-units", String(nodeGraphPatchNodeGridHeightUnits(patchNode)));
     element.style.setProperty("--node-module-display-height-units", String(nodeGraphPatchNodeDisplayHeightUnits(patchNode)));
+    element.style.setProperty("--node-module-interface-controls-height-units", String(nodeGraphPatchNodeInterfaceControlsHeightUnits(patchNode)));
     const point = nodeGraphGridToPixel(patchNode);
     positionNodeGraphNode(element, point, { clamp: false, snap: false });
     element.hidden = !nodeGraphModuleShouldBeVisible(patchNode);
@@ -476,9 +477,23 @@ function applyNodeGraphPatchToDom() {
       titleText.textContent = nodeGraphPatchNodeTitle(patchNode);
     }
     element.classList.toggle("buttons-hidden", patchNodeUi.buttonsHidden);
+    element.classList.toggle("io-hidden", patchNodeUi.ioHidden);
+    element.classList.toggle("interface-controls-hidden", patchNodeUi.interfaceControlsHidden);
+    element.classList.toggle("movement-locked", patchNodeUi.movementLocked);
     element.classList.toggle("oscilloscope-hidden", patchNodeUi.oscilloscopeHidden);
     element.classList.toggle("sliders-hidden", patchNodeUi.slidersHidden);
     element.classList.toggle("title-hidden", patchNodeUi.titleHidden);
+    const dragHandle = element.querySelector(".node-drag-handle");
+    if (dragHandle) {
+      dragHandle.textContent = patchNodeUi.movementLocked ? "\uD83D\uDD12" : "\u2725";
+      dragHandle.setAttribute(
+        "aria-label",
+        patchNodeUi.movementLocked
+          ? `Unlock ${nodeGraphNodeDisplayName(patchNode.id)} module movement`
+          : `Move ${nodeGraphNodeDisplayName(patchNode.id)} module`,
+      );
+      dragHandle.classList.toggle("node-drag-handle-locked", patchNodeUi.movementLocked);
+    }
     const bypassed = nodeGraphNodeDisplaysBypassed(patchNode.id);
     element.classList.toggle("bypassed", bypassed);
     const bypassButton = element.querySelector(".node-bypass-button");

@@ -7,7 +7,6 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodeDeleteButton").addEventListener("click", deleteSelectedNodeGraphItem);
   document.getElementById("nodeUndoButton").addEventListener("click", undoNodeGraphPatch);
   document.getElementById("nodeRedoButton").addEventListener("click", redoNodeGraphPatch);
-  document.getElementById("nodeVisibilityMenuButton").addEventListener("click", toggleNodeGraphVisibilityMenu);
   document.getElementById("nodeVisibilityMenuClose").addEventListener("click", () => setNodeGraphVisibilityMenuOpen(false));
   document
     .querySelector("#nodeVisibilityMenu .node-visibility-menu-heading")
@@ -26,6 +25,7 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodeMappingViewButton")?.addEventListener("click", () => setNodeGraphViewMode("mapping"));
   document.getElementById("nodeModuleButtonsToggleButton").addEventListener("click", toggleNodeGraphModuleButtonsVisibility);
   document.getElementById("nodeOscilloscopeToggleButton").addEventListener("click", toggleNodeGraphOscilloscopeVisibility);
+  document.getElementById("nodeModuleInterfaceControlsToggleButton").addEventListener("click", toggleNodeGraphModuleInterfaceControlsVisibility);
   document.getElementById("nodeGlobalScopeCloseMenu").addEventListener("click", closeNodeGlobalScopeMenu);
   document.getElementById("nodeGlobalScopeDragHandle").addEventListener("pointerdown", beginNodeGlobalScopeMenuDrag);
   document
@@ -139,7 +139,6 @@ function bindNodeGraphHeaderControlEvents() {
     .addEventListener("change", handleNodeGraphSceneScopeOptionInput);
   document.getElementById("nodeModuleSlidersToggleButton").addEventListener("click", toggleNodeGraphModuleSlidersVisibility);
   document.getElementById("nodeTooltipToggleButton").addEventListener("click", toggleNodeGraphTooltipVisibility);
-  document.getElementById("nodeUserUiSettingsButton").addEventListener("click", toggleNodeUserUiSettings);
   document.getElementById("nodeCurrentSavedPatchButton").addEventListener("click", () => setNodeGraphSavedPatchesWindowVisible(true));
   document.getElementById("nodePreviousSavedPatchButton").addEventListener("click", () => loadAdjacentNodeGraphSavedPatch(-1));
   document.getElementById("nodeNextSavedPatchButton").addEventListener("click", () => loadAdjacentNodeGraphSavedPatch(1));

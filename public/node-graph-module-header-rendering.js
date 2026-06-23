@@ -155,10 +155,17 @@ function createNodeGraphHeaderSpeedPlaceholder() {
 function createNodeGraphHeaderScopeInput(id, label, value, options = {}) {
   const field = document.createElement("label");
   field.className = "node-header-timing-field node-header-scope-field";
+  if (options.underConstruction) {
+    field.classList.add("node-under-construction-control");
+    field.dataset.tooltipKey = options.tooltipKey || "timing.underConstruction";
+    field.title = options.title || `${label} is under construction.`;
+  }
   if (options.row) {
     field.dataset.timingRow = options.row;
   }
-  field.dataset.headerNumberDrag = "true";
+  if (!options.underConstruction) {
+    field.dataset.headerNumberDrag = "true";
+  }
   field.setAttribute("aria-label", options.ariaLabel || label);
 
   const caption = document.createElement("span");
@@ -169,14 +176,22 @@ function createNodeGraphHeaderScopeInput(id, label, value, options = {}) {
   const input = document.createElement("input");
   input.id = id;
   input.className = "node-header-timing-input";
-  input.dataset.globalScopeInput = options.scopeInput || "";
-  input.dataset.globalScopeNumberDrag = "true";
+  if (!options.underConstruction) {
+    input.dataset.globalScopeInput = options.scopeInput || "";
+    input.dataset.globalScopeNumberDrag = "true";
+  }
   input.inputMode = options.inputMode || "decimal";
   input.min = String(options.min ?? 0);
   input.max = String(options.max ?? 1);
   input.step = String(options.step ?? 0.01);
+  input.readOnly = Boolean(options.underConstruction);
   input.type = "number";
   input.value = String(value);
+  if (options.underConstruction) {
+    input.tabIndex = -1;
+    input.setAttribute("aria-label", `${label} placeholder, under construction`);
+    input.dataset.tooltipKey = options.tooltipKey || "timing.underConstruction";
+  }
   input.addEventListener("keydown", (event) => event.stopPropagation());
   input.addEventListener("pointerdown", (event) => event.stopPropagation());
   field.append(input);
@@ -227,30 +242,6 @@ function createNodeGraphHeaderTimingWidgets() {
     createNodeGraphHeaderTimingInput("timeSignatureNumerator", "Beats"),
     createNodeGraphHeaderTimingInput("timeSignatureDenominator", "Unit"),
     createNodeGraphHeaderScopeInput(
-      "nodeMasterScopeBurn",
-      "Burn",
-      normalizeNodeGraphModuleScopeBurn(nodeGraphMvp.moduleScopeBurn ?? 0).toFixed(2),
-      {
-        ariaLabel: "Display screen burn",
-        max: 1,
-        min: 0,
-        scopeInput: "burn",
-        step: 0.01,
-      },
-    ),
-    createNodeGraphHeaderScopeInput(
-      "nodeMasterScopeDecay",
-      "Decay",
-      normalizeNodeGraphModuleScopeDecay(nodeGraphMvp.moduleScopeDecay ?? 0).toFixed(2),
-      {
-        ariaLabel: "Display initial phosphor decay",
-        max: 1,
-        min: 0,
-        scopeInput: "decay",
-        step: 0.01,
-      },
-    ),
-    createNodeGraphHeaderScopeInput(
       "nodeMasterScopeFps",
       "FPS",
       normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp.moduleScopeFramesPerSecond ?? 60),
@@ -258,9 +249,39 @@ function createNodeGraphHeaderTimingWidgets() {
         ariaLabel: "Display frames per second",
         inputMode: "numeric",
         max: 240,
-        min: 1,
+        min: 0,
         scopeInput: "framesPerSecond",
         step: 1,
+      },
+    ),
+    createNodeGraphHeaderScopeInput(
+      "nodeMasterScopeBurn",
+      "Burn",
+      normalizeNodeGraphModuleScopeBurn(nodeGraphMvp.moduleScopeBurn ?? 0).toFixed(2),
+      {
+        ariaLabel: "Display screen burn under construction",
+        max: 1,
+        min: 0,
+        scopeInput: "burn",
+        step: 0.01,
+        title: "Burn is under construction.",
+        tooltipKey: "timing.burnUnderConstruction",
+        underConstruction: true,
+      },
+    ),
+    createNodeGraphHeaderScopeInput(
+      "nodeMasterScopeDecay",
+      "Decay",
+      normalizeNodeGraphModuleScopeDecay(nodeGraphMvp.moduleScopeDecay ?? 0).toFixed(2),
+      {
+        ariaLabel: "Display initial phosphor decay under construction",
+        max: 1,
+        min: 0,
+        scopeInput: "decay",
+        step: 0.01,
+        title: "Decay is under construction.",
+        tooltipKey: "timing.decayUnderConstruction",
+        underConstruction: true,
       },
     ),
     createNodeGraphHeaderSpeedPlaceholder(),
@@ -268,9 +289,34 @@ function createNodeGraphHeaderTimingWidgets() {
   return group;
 }
 
+function createNodeGraphCommandCenterTimingWidgets() {
+  const group = document.createElement("div");
+  group.className = "node-header-timing-widgets node-command-center-timing-widgets";
+  group.setAttribute("aria-label", "Command Center patch timing");
+  group.append(
+    createNodeGraphHeaderTimingInput("tempoBpm", "BPM", { max: 320 }),
+    createNodeGraphHeaderTimingInput("timeSignatureNumerator", "Beats"),
+    createNodeGraphHeaderTimingInput("timeSignatureDenominator", "Unit"),
+  );
+  return group;
+}
+
+function renderNodeGraphCommandCenterTimingControls() {
+  const host = document.getElementById("nodeSceneTimingControls");
+  if (!host) {
+    return;
+  }
+  if (!host.querySelector(".node-command-center-timing-widgets")) {
+    host.replaceChildren(createNodeGraphCommandCenterTimingWidgets());
+  }
+  bindNodeGraphHeaderTimingWidgets(host);
+}
+
 function renderNodeGraphPatchTimingControls() {
+  renderNodeGraphCommandCenterTimingControls();
   const host = document.getElementById("nodePatchTimingControls");
   if (!host) {
+    syncNodeGraphHeaderTimingWidgets();
     return;
   }
   if (!host.querySelector(".node-header-timing-widgets")) {

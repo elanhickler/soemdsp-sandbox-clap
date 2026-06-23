@@ -56,7 +56,7 @@ function bindNodeGraphSceneMenuEvents() {
     setNodeGraphSavedPatchesWindowVisible(true);
   });
   bindNodeGraphSceneElementEvent("nodeSceneOpenOscilloscopeSettings", "click", () => {
-    openNodeGlobalScopeMenu();
+    closeNodeGlobalScopeMenu();
   });
   bindNodeGraphSceneElementEvent("nodeSceneOpenUiSettings", "click", () => {
     setNodeUserUiSettingsVisible(true);
@@ -64,6 +64,14 @@ function bindNodeGraphSceneMenuEvents() {
   bindNodeGraphSceneElementEvent("nodeSceneOpenPostProcessing", "click", () => {
     openNodeGraphGlobalShaderScript();
   });
+  bindNodeGraphSceneElementEvent("nodeSceneOpenVisibility", "click", () => {
+    setNodeGraphVisibilityMenuOpen(true);
+  });
+  bindNodeGraphSceneElementEvent("nodeSceneGlobalSmoothingSamples", "change", handleNodeGraphGlobalSmoothingSamplesChange);
+  bindNodeGraphSceneElementEvent("nodeSceneGlobalSmoothingSamples", "keydown", handleNodeGraphGlobalSmoothingSamplesKeydown);
+  if (typeof syncNodeGraphGlobalSmoothingControl === "function") {
+    syncNodeGraphGlobalSmoothingControl({ force: true });
+  }
   bindNodeGraphSceneElementEvent("nodeSceneAddToGroup", "click", saveNodeGraphSelectionAsModuleGroup);
   bindNodeGraphSceneElementEvent("nodeSceneAddToUi", "click", addNodeGraphModuleToUiFromContext);
   bindNodeGraphSceneElementEvent("nodeSceneWidthDecrease", "click", () => adjustNodeGraphModuleWidthFromContext(-1));
@@ -104,7 +112,9 @@ function bindNodeGraphSceneMenuEvents() {
   bindNodeGraphSceneElementEvent("nodeSceneAliasInput", "change", () => setNodeGraphModuleAliasFromContext({ record: true }));
   bindNodeGraphSceneElementEvent("nodeSceneToggleButtons", "click", toggleNodeGraphModuleButtonsFromContext);
   bindNodeGraphSceneElementEvent("nodeSceneToggleOscilloscope", "click", toggleNodeGraphModuleOscilloscopeFromContext);
+  bindNodeGraphSceneElementEvent("nodeSceneToggleInterfaceControls", "click", toggleNodeGraphModuleInterfaceControlsFromContext);
   bindNodeGraphSceneElementEvent("nodeSceneToggleSliders", "click", toggleNodeGraphModuleSlidersFromContext);
+  bindNodeGraphSceneElementEvent("nodeSceneToggleIo", "click", toggleNodeGraphModuleIoFromContext);
   bindNodeGraphSceneElementEvent("nodeSceneToggleTitle", "click", toggleNodeGraphModuleTitleFromContext);
   bindNodeGraphSceneElementEvent("nodeSceneImageSave", "click", saveNodeGraphImageFromContext);
   bindNodeGraphSceneElementEvent("nodeSceneImageRefresh", "click", refreshNodeGraphImageFromContext);

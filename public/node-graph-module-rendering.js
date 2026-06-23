@@ -182,6 +182,8 @@ function endNodeGraphKnobWidgetDrag(event) {
 function attachNodeGraphNodeEvents(node) {
   ensureNodeGraphDragHandle(node);
   node.querySelector(".node-drag-handle")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
+  node.querySelector(".node-drag-handle")?.addEventListener("dblclick", toggleNodeGraphNodeMovementLock);
+  node.querySelector(".node-execution-order-badge")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-header-title-row")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-led-face")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-knob-widget-body")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
@@ -376,6 +378,14 @@ function nodeGraphModuleLayoutClassNames(type, definition, layout) {
   return classes.join(" ");
 }
 
+function appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts) {
+  const proxy = createNodeGraphIoProxySection(node, inputPorts, outputPorts);
+  if (proxy) {
+    ioSection.append(proxy);
+  }
+  article.append(ioSection);
+}
+
 function createNodeGraphModuleElement(type, node) {
   const definition = nodeGraphModuleDefinitions[type];
   const patchNode = nodeGraphPatchNode(node) || { id: node, type };
@@ -403,6 +413,8 @@ function createNodeGraphModuleElement(type, node) {
   }
   const patchNodeUi = nodeGraphEffectivePatchNodeUi(patchNode.ui);
   article.classList.toggle("buttons-hidden", patchNodeUi.buttonsHidden);
+  article.classList.toggle("io-hidden", patchNodeUi.ioHidden);
+  article.classList.toggle("interface-controls-hidden", patchNodeUi.interfaceControlsHidden);
   article.classList.toggle("oscilloscope-hidden", patchNodeUi.oscilloscopeHidden);
   article.classList.toggle("sliders-hidden", patchNodeUi.slidersHidden);
   article.classList.toggle("title-hidden", patchNodeUi.titleHidden);
@@ -432,7 +444,7 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.append(document.createElement("div"));
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (layout === "screenSpaceShader") {
     article.append(createNodeGraphScreenSpaceShaderBody(node));
     const ioSection = document.createElement("div");
@@ -440,7 +452,7 @@ function createNodeGraphModuleElement(type, node) {
     const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "canvas") {
     const canvasBody = createNodeGraphCanvasBody(node);
     if (layout === "visualScope") {
@@ -453,7 +465,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (layout === "visualScope") {
     const scopeSection = createNodeGraphModuleScopeSection(node, type);
     scopeSection.classList.add("node-module-square-scope-window");
@@ -466,7 +478,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (layout === "traceDisplay") {
     const scopeSection = createNodeGraphModuleScopeSection(node, type);
     scopeSection.classList.add("node-module-trace-display-window");
@@ -478,7 +490,7 @@ function createNodeGraphModuleElement(type, node) {
     const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "graph") {
     const graphSection = document.createElement("div");
     graphSection.className = "node-module-graph-display";
@@ -496,7 +508,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "sliderWidget") {
     article.append(createNodeGraphSliderWidgetBody(node, type));
 
@@ -505,7 +517,7 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.append(document.createElement("div"));
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "keyboardController" || definition.layout === "macroControls" || definition.layout === "pitchModWheel") {
     if (definition.layout === "keyboardController") {
       article.append(createNodeGraphKeyboardControllerBody(node));
@@ -520,7 +532,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "patchCommand") {
     article.append(createNodeGraphPatchCommandBody(node));
     const ioSection = document.createElement("div");
@@ -528,7 +540,7 @@ function createNodeGraphModuleElement(type, node) {
     const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (layout === "speakerProtection") {
     article.append(createNodeGraphSpeakerProtectionBody(node));
     const ioSection = document.createElement("div");
@@ -537,7 +549,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "clapPlugin") {
     if (typeof createNodeGraphClapPluginBody === "function") {
       article.append(createNodeGraphClapPluginBody(node));
@@ -549,7 +561,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else if (definition.layout === "filterCurve") {
     if (!patchNodeUi.oscilloscopeHidden) {
       article.append(createNodeGraphFilterCurveDisplay(node, type));
@@ -561,7 +573,7 @@ function createNodeGraphModuleElement(type, node) {
     const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else {
     let scopeSection = null;
     if (!patchNodeUi.oscilloscopeHidden) {
@@ -589,7 +601,7 @@ function createNodeGraphModuleElement(type, node) {
     } else {
       ioSection.append(document.createElement("div"));
     }
-    article.append(ioSection);
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   }
 
   if (type === "audioInput") {
