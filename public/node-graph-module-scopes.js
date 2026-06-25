@@ -4930,7 +4930,7 @@ function nodeGraphModuleScopeCapturedScope2dBuffer(slot) {
     Math.max(0, Math.floor(Number(yBuffer.nodeGraphScopeRecentSampleCount) || 0)),
   );
   const validLength = recentSamples > 0 ? Math.min(recentSamples, length) : length;
-  const frames = Math.min(nodeGraphTraceDisplayRenderPointBudget(), samplesPerDisplayFrame, validLength);
+  const frames = Math.min(samplesPerDisplayFrame, validLength);
   const start = Math.max(0, length - frames);
   const x = new Float32Array(frames);
   const y = new Float32Array(frames);
@@ -8849,11 +8849,20 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   const sampleStreamContinuous = hasFrameMetadata &&
     Number.isFinite(expectedStartFrame) &&
     startFrame === expectedStartFrame;
-  let previousPoint = previousState?.width === canvas.width &&
+  const canContinueFromPreviousPoint = previousState?.width === canvas.width &&
     previousState?.height === canvas.height &&
-    sampleStreamContinuous
-    ? previousState.point
-    : null;
+    sampleStreamContinuous;
+  let previousPoint = canContinueFromPreviousPoint ? previousState.point : null;
+  let firstIndex = 0;
+  if (!canContinueFromPreviousPoint) {
+    while (
+      firstIndex < count - 1 &&
+      Math.abs(Number(buffer.x[firstIndex]) || 0) <= 0.000001 &&
+      Math.abs(Number(buffer.y[firstIndex]) || 0) <= 0.000001
+    ) {
+      firstIndex += 1;
+    }
+  }
   const appendPointAt = (index) => {
     const point = nodeGraphScope2dPointToCanvas(
       item,
@@ -8865,7 +8874,7 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
     }
     previousPoint = appendNodeGraphScope2dSegment(pathPoints, previousPoint, point, 0.5);
   };
-  for (let index = 0; index < count; index += 1) {
+  for (let index = firstIndex; index < count; index += 1) {
     appendPointAt(index);
   }
   if (previousPoint) {
