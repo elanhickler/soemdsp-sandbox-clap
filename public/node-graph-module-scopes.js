@@ -8904,6 +8904,9 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   const settingsSignature = nodeGraphScope2dCanvasSettingsSignature(settings);
   if (canvas.dataset.scope2dSettingsSignature && canvas.dataset.scope2dSettingsSignature !== settingsSignature) {
     scrubNodeGraphScope2dCanvasCenter(context, canvas);
+    canvas.dataset.scope2dSettingsSignature = settingsSignature;
+    scheduleNodeGraphModuleScopeDraw();
+    return;
   }
   canvas.dataset.scope2dSettingsSignature = settingsSignature;
   const burn = clampNodeSliderValue(Number(settings?.burn) || 0, 0, 1);
