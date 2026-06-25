@@ -8784,6 +8784,9 @@ function appendNodeGraphScope2dInterpolatedPoint(points, point, spacingPx = 0.5)
   const dy = point.y - previous.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
   const safeSpacing = Math.max(0.25, Number(spacingPx) || 0.5);
+  if (distance < safeSpacing) {
+    return;
+  }
   const steps = Math.max(1, Math.ceil(distance / safeSpacing));
   for (let step = 1; step <= steps; step += 1) {
     const t = step / steps;
@@ -8804,6 +8807,9 @@ function appendNodeGraphScope2dSegment(points, previousPoint, point, spacingPx =
   }
   const segmentPoints = [previousPoint];
   appendNodeGraphScope2dInterpolatedPoint(segmentPoints, point, spacingPx);
+  if (segmentPoints.length <= 1) {
+    return previousPoint;
+  }
   points.push(...segmentPoints.slice(1));
   return point;
 }

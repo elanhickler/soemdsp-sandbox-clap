@@ -12780,6 +12780,8 @@ def require_node_graph_mvp_contract() -> None:
         and "nodeGraphScopeVisualPointLimit" not in scope2d_buffer_source
         and "function nodeGraphScope2dInterpolationSpacingPx()" in scope2d_helper_source
         and "return 0.5;" in scope2d_helper_source
+        and "if (distance < safeSpacing)" in scope2d_helper_source
+        and "return previousPoint;" in scope2d_helper_source
         and "function nodeGraphScope2dPointBudget()" in scope2d_helper_source
         and "return 262144;" in scope2d_helper_source
         and "function nodeGraphScope2dApplyPointBudget(points, pointBudget = nodeGraphScope2dPointBudget())" in scope2d_helper_source
