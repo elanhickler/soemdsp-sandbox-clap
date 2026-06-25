@@ -8807,6 +8807,33 @@ function nodeGraphScope2dInterpolationSpacingPx() {
   return 0.5;
 }
 
+function nodeGraphScope2dPointBudget() {
+  return typeof normalizeNodeGraphModuleScopePointBudget === "function"
+    ? normalizeNodeGraphModuleScopePointBudget(nodeGraphMvp?.moduleScopePointBudget ?? 4096)
+    : 4096;
+}
+
+function nodeGraphScope2dApplyPointBudget(points, pointBudget = nodeGraphScope2dPointBudget()) {
+  if (!Array.isArray(points) || points.length <= 2) {
+    return points;
+  }
+  const safeBudget = Math.max(2, Math.floor(Number(pointBudget) || 0));
+  if (points.length <= safeBudget) {
+    return points;
+  }
+  const capped = [];
+  const lastIndex = points.length - 1;
+  const outputCount = Math.min(safeBudget, points.length);
+  for (let index = 0; index < outputCount; index += 1) {
+    const sourceIndex = Math.round((index / Math.max(1, outputCount - 1)) * lastIndex);
+    const point = points[sourceIndex];
+    if (point) {
+      capped.push(point);
+    }
+  }
+  return capped;
+}
+
 function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, settings) {
   const canvas = nodeGraphModuleScopeLocalFallbackCanvas(item?.slot);
   const screenElement = item?.screenElement || item?.slot?.scopeElement;
@@ -8883,15 +8910,17 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
       width: canvas.width,
     });
   }
-  const pointCount = pathPoints.length;
+  const budgetedPathPoints = nodeGraphScope2dApplyPointBudget(pathPoints);
+  const pointCount = budgetedPathPoints.length;
   if (pointCount < 2) {
     return;
   }
+  recordNodeGraphModuleScopeRenderMetrics(pointCount, pointCount);
   const intensity = 0.012 + burn * 0.09;
   if (settings.dot2Enabled !== false) {
     drawNodeGraphScopeCanvasBurnPath(
       context,
-      pathPoints,
+      budgetedPathPoints,
       dotSpace * clampNodeSliderValue(settings.dot2Size, 0, 1) * 0.5,
       nodeGraphScopeHexColorToRgb(settings.dot2Color),
       settings.dot2Brightness * intensity,
@@ -8901,7 +8930,7 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   if (settings.dot1Enabled !== false) {
     drawNodeGraphScopeCanvasBurnPath(
       context,
-      pathPoints,
+      budgetedPathPoints,
       dotSpace * clampNodeSliderValue(settings.dot1Size, 0, 1) * 0.5,
       nodeGraphScopeHexColorToRgb(settings.dot1Color),
       settings.dot1Brightness * intensity,
