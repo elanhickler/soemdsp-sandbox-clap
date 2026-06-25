@@ -8988,7 +8988,6 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   if (!hasSignal) {
     return;
   }
-  nodeGraphOneDimensionalBurnFadeTrail(context, canvas, settings);
   const dotSpace = Math.min(canvas.width, canvas.height);
   const pathPoints = [];
   const interpolationSpacingPx = nodeGraphScope2dInterpolationSpacingPx();
@@ -9038,6 +9037,7 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   if (pointCount < 2) {
     return;
   }
+  nodeGraphOneDimensionalBurnFadeTrail(context, canvas, settings);
   recordNodeGraphModuleScopeRenderMetrics(pointCount, pointCount);
   const intensity = 0.012 + burn * 0.09;
   if (settings.dot2Enabled !== false) {

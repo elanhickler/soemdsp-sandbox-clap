@@ -12813,6 +12813,8 @@ def require_node_graph_mvp_contract() -> None:
         and "remainingBudget," in scope2d_helper_source
         and "if (subpathBudget < minimumSegmentBudget)" in scope2d_helper_source
         and "const budgetedPathPoints = nodeGraphScope2dApplyPointBudget(pathPoints)" in scope2d_helper_source
+        and "const pointCount = budgetedPathPoints.filter(Boolean).length" in scope2d_helper_source
+        and "if (pointCount < 2) {\n    return;\n  }\n  nodeGraphOneDimensionalBurnFadeTrail(context, canvas, settings);" in scope2d_helper_source
         and "drawNodeGraphScopeCanvasBurnPath(\n      context,\n      budgetedPathPoints," in scope2d_helper_source
         and "function nodeGraphScope2dSampleHasVisibleOffset(square, x, y, minimumPixels = 0.5)" in scope2d_helper_source
         and "function nodeGraphScope2dCenterRunMask(square, buffer, count, minimumRunLength = 4)" in scope2d_helper_source
