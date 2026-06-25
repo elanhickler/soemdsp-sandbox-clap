@@ -1462,6 +1462,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       buffer: new Float32Array(safeCapacity),
       capacity: safeCapacity,
       length: 0,
+      postedFrame: 0,
       writeIndex: 0,
     };
   }
@@ -1488,6 +1489,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       next.length = copyCount;
       next.writeIndex = copyCount % safeCapacity;
       next.absoluteFrame = Math.max(Number(state.absoluteFrame) || 0, copyCount);
+      next.postedFrame = Math.min(Math.max(Number(state.postedFrame) || 0, 0), next.absoluteFrame);
       return next;
     }
     return state;
@@ -1577,6 +1579,31 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else {
         values.push([nodeId, samples]);
       }
+    }
+    for (const [key, state] of this.visualInputBuffers || []) {
+      const length = Math.min(Number(state?.length) || 0, state?.capacity || state?.buffer?.length || 0);
+      if (!state?.buffer?.length || length <= 0) {
+        continue;
+      }
+      const absoluteFrame = Math.max(0, Math.floor(Number(state.absoluteFrame) || 0));
+      const postedFrame = Math.max(0, Math.floor(Number(state.postedFrame) || 0));
+      const freshCount = postedFrame > 0
+        ? Math.max(0, absoluteFrame - postedFrame)
+        : Math.min(length, Math.ceil((Number(this.engineSampleRate) || sampleRate || 44100) / 30));
+      const count = Math.min(length, freshCount);
+      if (count <= 0) {
+        continue;
+      }
+      const ordered = new Float32Array(count);
+      const start = ((Number(state.writeIndex) || 0) - count + state.capacity) % state.capacity;
+      for (let index = 0; index < count; index += 1) {
+        ordered[index] = state.buffer[(start + index) % state.capacity] || 0;
+      }
+      values.push([key, ordered, {
+        absoluteFrame,
+        startFrame: absoluteFrame - count,
+      }]);
+      state.postedFrame = absoluteFrame;
     }
     if (!values.length) {
       return;

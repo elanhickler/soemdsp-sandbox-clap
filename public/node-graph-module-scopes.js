@@ -54,6 +54,7 @@ const nodeGraphModuleScopeState = {
   },
   scanPhasors: new Map(),
   scanHistories: new Map(),
+  scope2dLastPoints: new Map(),
   scopeTracesOffActive: false,
   renderer: null,
   sampleRate: 0,
@@ -4837,8 +4838,16 @@ function nodeGraphModuleScopeCapturedOutputPairXyBuffer(slot, xPort = "X", yPort
   }
   return {
     length: frames,
+    nodeGraphScopeAbsoluteFrame: Math.min(
+      Number(xBuffer.nodeGraphScopeAbsoluteFrame) || 0,
+      Number(yBuffer.nodeGraphScopeAbsoluteFrame) || 0,
+    ),
     nodeGraphScopeCapturedOutput: true,
     nodeGraphScopeDrawProgress: 1,
+    nodeGraphScopeStartFrame: Math.min(
+      Number(xBuffer.nodeGraphScopeStartFrame) || 0,
+      Number(yBuffer.nodeGraphScopeStartFrame) || 0,
+    ),
     nodeGraphScopeUseFullWindow: true,
     nodeGraphScopeVisualPointLimit: frames,
     nodeGraphScopeXy: true,
@@ -4881,8 +4890,16 @@ function nodeGraphModuleScopeCapturedVisualOscilloscopeXyBuffer(slot, capturedBu
   }
   return {
     length: frames,
+    nodeGraphScopeAbsoluteFrame: Math.min(
+      Number(xBuffer.nodeGraphScopeAbsoluteFrame) || 0,
+      Number(yBuffer.nodeGraphScopeAbsoluteFrame) || 0,
+    ),
     nodeGraphScopeCapturedOutput: true,
     nodeGraphScopeDrawProgress: 1,
+    nodeGraphScopeStartFrame: Math.min(
+      Number(xBuffer.nodeGraphScopeStartFrame) || 0,
+      Number(yBuffer.nodeGraphScopeStartFrame) || 0,
+    ),
     nodeGraphScopeUseFullWindow: true,
     nodeGraphScopeVisualPointLimit: frames,
     nodeGraphScopeXy: true,
@@ -4908,7 +4925,12 @@ function nodeGraphModuleScopeCapturedScope2dBuffer(slot) {
     ? normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp?.moduleScopeFramesPerSecond ?? 60)
     : 60;
   const samplesPerDisplayFrame = Math.max(1, Math.ceil(sampleRate / Math.max(1, fps || 60)));
-  const frames = Math.min(nodeGraphTraceDisplayRenderPointBudget(), samplesPerDisplayFrame, length);
+  const recentSamples = Math.min(
+    Math.max(0, Math.floor(Number(xBuffer.nodeGraphScopeRecentSampleCount) || 0)),
+    Math.max(0, Math.floor(Number(yBuffer.nodeGraphScopeRecentSampleCount) || 0)),
+  );
+  const validLength = recentSamples > 0 ? Math.min(recentSamples, length) : length;
+  const frames = Math.min(nodeGraphTraceDisplayRenderPointBudget(), samplesPerDisplayFrame, validLength);
   const start = Math.max(0, length - frames);
   const x = new Float32Array(frames);
   const y = new Float32Array(frames);
@@ -4918,8 +4940,16 @@ function nodeGraphModuleScopeCapturedScope2dBuffer(slot) {
   }
   return {
     length: frames,
+    nodeGraphScopeAbsoluteFrame: Math.min(
+      Number(xBuffer.nodeGraphScopeAbsoluteFrame) || 0,
+      Number(yBuffer.nodeGraphScopeAbsoluteFrame) || 0,
+    ),
     nodeGraphScopeCapturedOutput: true,
     nodeGraphScopeDrawProgress: 1,
+    nodeGraphScopeStartFrame: Math.min(
+      Number(xBuffer.nodeGraphScopeStartFrame) || 0,
+      Number(yBuffer.nodeGraphScopeStartFrame) || 0,
+    ),
     nodeGraphScopeUseFullWindow: true,
     nodeGraphScopeVisualPointLimit: frames,
     nodeGraphScopeXy: true,
@@ -4999,7 +5029,7 @@ function resizeNodeGraphLiveModuleScopeBuffer(buffer, frameCapacity) {
   return next;
 }
 
-function pushNodeGraphLiveModuleScopeSamples(nodeId, values) {
+function pushNodeGraphLiveModuleScopeSamples(nodeId, values, metadata = null) {
   const id = String(nodeId || "");
   if (!id) {
     return;
@@ -5026,6 +5056,19 @@ function pushNodeGraphLiveModuleScopeSamples(nodeId, values) {
     buffer[buffer.length - count + index] = samples[start + index] || 0;
   }
   buffer.nodeGraphScopeRecentSampleCount = count;
+  if (metadata && typeof metadata === "object") {
+    const absoluteFrame = Number(metadata.absoluteFrame);
+    const startFrame = Number(metadata.startFrame);
+    if (Number.isFinite(absoluteFrame)) {
+      buffer.nodeGraphScopeAbsoluteFrame = absoluteFrame;
+    }
+    if (Number.isFinite(startFrame)) {
+      buffer.nodeGraphScopeStartFrame = startFrame;
+    }
+  } else {
+    delete buffer.nodeGraphScopeAbsoluteFrame;
+    delete buffer.nodeGraphScopeStartFrame;
+  }
   nodeGraphModuleScopeState.versionSerial = (Number(nodeGraphModuleScopeState.versionSerial) || 0) + 1;
   buffer.nodeGraphScopeVersion = nodeGraphModuleScopeState.versionSerial;
 }
@@ -5053,7 +5096,7 @@ function pushNodeGraphLiveModuleScopeSnapshot(values, options = {}) {
     if (!entry) {
       continue;
     }
-    pushNodeGraphLiveModuleScopeSamples(entry[0], entry[1]);
+    pushNodeGraphLiveModuleScopeSamples(entry[0], entry[1], entry[2]);
   }
   scheduleNodeGraphModuleScopeDraw();
 }
@@ -8752,6 +8795,20 @@ function appendNodeGraphScope2dInterpolatedPoint(points, point, spacingPx = 0.5)
   }
 }
 
+function appendNodeGraphScope2dSegment(points, previousPoint, point, spacingPx = 0.5) {
+  if (!point) {
+    return point || previousPoint;
+  }
+  if (!previousPoint) {
+    points.push(point);
+    return point;
+  }
+  const segmentPoints = [previousPoint];
+  appendNodeGraphScope2dInterpolatedPoint(segmentPoints, point, spacingPx);
+  points.push(...segmentPoints.slice(1));
+  return point;
+}
+
 function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, settings) {
   const canvas = nodeGraphModuleScopeLocalFallbackCanvas(item?.slot);
   const screenElement = item?.screenElement || item?.slot?.scopeElement;
@@ -8784,6 +8841,19 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   nodeGraphOneDimensionalBurnFadeTrail(context, canvas, settings);
   const dotSpace = Math.min(canvas.width, canvas.height);
   const pathPoints = [];
+  const previousState = nodeGraphModuleScopeState.scope2dLastPoints.get(item.slot.nodeId);
+  const startFrame = Number(buffer.nodeGraphScopeStartFrame);
+  const absoluteFrame = Number(buffer.nodeGraphScopeAbsoluteFrame);
+  const expectedStartFrame = Number(previousState?.absoluteFrame);
+  const hasFrameMetadata = Number.isFinite(startFrame) && Number.isFinite(absoluteFrame) && absoluteFrame > startFrame;
+  const sampleStreamContinuous = hasFrameMetadata &&
+    Number.isFinite(expectedStartFrame) &&
+    startFrame === expectedStartFrame;
+  let previousPoint = previousState?.width === canvas.width &&
+    previousState?.height === canvas.height &&
+    sampleStreamContinuous
+    ? previousState.point
+    : null;
   const appendPointAt = (index) => {
     const point = nodeGraphScope2dPointToCanvas(
       item,
@@ -8793,10 +8863,18 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
     if (!point) {
       return;
     }
-    appendNodeGraphScope2dInterpolatedPoint(pathPoints, point, 0.5);
+    previousPoint = appendNodeGraphScope2dSegment(pathPoints, previousPoint, point, 0.5);
   };
   for (let index = 0; index < count; index += 1) {
     appendPointAt(index);
+  }
+  if (previousPoint) {
+    nodeGraphModuleScopeState.scope2dLastPoints.set(item.slot.nodeId, {
+      absoluteFrame: hasFrameMetadata ? absoluteFrame : NaN,
+      height: canvas.height,
+      point: previousPoint,
+      width: canvas.width,
+    });
   }
   const pointCount = pathPoints.length;
   if (pointCount < 2) {
