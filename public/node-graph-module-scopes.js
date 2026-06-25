@@ -8866,16 +8866,13 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
   nodeGraphOneDimensionalBurnFadeTrail(context, canvas, settings);
   const dotSpace = Math.min(canvas.width, canvas.height);
   const pathPoints = [];
-  let firstIndex = 0;
-  while (
-    firstIndex < count - 1 &&
-    !nodeGraphScope2dSampleHasVisibleOffset(square, buffer.x[firstIndex], buffer.y[firstIndex])
-  ) {
-    firstIndex += 1;
-  }
   const interpolationSpacingPx = nodeGraphScope2dInterpolationSpacingPx();
   let previousPoint = null;
   const appendPointAt = (index) => {
+    if (!nodeGraphScope2dSampleHasVisibleOffset(square, buffer.x[index], buffer.y[index])) {
+      previousPoint = null;
+      return;
+    }
     const point = nodeGraphScope2dPointToCanvas(
       item,
       pixelRatio,
@@ -8886,7 +8883,7 @@ function drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, setti
     }
     previousPoint = appendNodeGraphScope2dSegment(pathPoints, previousPoint, point, interpolationSpacingPx);
   };
-  for (let index = firstIndex; index < count; index += 1) {
+  for (let index = 0; index < count; index += 1) {
     appendPointAt(index);
   }
   const budgetedPathPoints = nodeGraphScope2dApplyPointBudget(pathPoints);
