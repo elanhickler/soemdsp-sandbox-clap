@@ -12778,6 +12778,11 @@ def require_node_graph_mvp_contract() -> None:
         and "nodeGraphScope2dSourceFrameCount(sampleRate, fps, validLength)" in scope2d_buffer_source
         and "nodeGraphTraceDisplayRenderPointBudget()" not in scope2d_buffer_source
         and "nodeGraphScopeVisualPointLimit" not in scope2d_buffer_source
+        and "function nodeGraphScopeBufferRecentSampleCount(buffer)" in node_graph_source
+        and "const xRecentSamples = nodeGraphScopeBufferRecentSampleCount(xBuffer)" in scope2d_buffer_source
+        and "const yRecentSamples = nodeGraphScopeBufferRecentSampleCount(yBuffer)" in scope2d_buffer_source
+        and "if (hasRecentSampleMetadata && !(xRecentSamples > 0 && yRecentSamples > 0))" in scope2d_buffer_source
+        and "return null;" in scope2d_buffer_source
         and "function nodeGraphScope2dInterpolationSpacingPx()" in scope2d_helper_source
         and "return 0.5;" in scope2d_helper_source
         and "function nodeGraphScope2dMaxBridgeDistancePx(square, pixelRatio)" in scope2d_helper_source

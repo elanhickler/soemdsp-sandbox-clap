@@ -4914,6 +4914,13 @@ function nodeGraphScope2dSourceFrameCount(sampleRate, fps, validLength) {
   return Math.min(safeValidLength, Math.max(1, Math.ceil(safeSampleRate / safeFps)));
 }
 
+function nodeGraphScopeBufferRecentSampleCount(buffer) {
+  if (!buffer || !Object.prototype.hasOwnProperty.call(buffer, "nodeGraphScopeRecentSampleCount")) {
+    return null;
+  }
+  return Math.max(0, Math.floor(Number(buffer.nodeGraphScopeRecentSampleCount) || 0));
+}
+
 function nodeGraphModuleScopeCapturedScope2dBuffer(slot) {
   if (nodeGraphModuleDisplayTypeForSlot(slot) !== "scope2d") {
     return null;
@@ -4930,11 +4937,15 @@ function nodeGraphModuleScopeCapturedScope2dBuffer(slot) {
   const fps = typeof normalizeNodeGraphModuleScopeFramesPerSecond === "function"
     ? normalizeNodeGraphModuleScopeFramesPerSecond(nodeGraphMvp?.moduleScopeFramesPerSecond ?? 60)
     : 60;
-  const recentSamples = Math.min(
-    Math.max(0, Math.floor(Number(xBuffer.nodeGraphScopeRecentSampleCount) || 0)),
-    Math.max(0, Math.floor(Number(yBuffer.nodeGraphScopeRecentSampleCount) || 0)),
-  );
-  const validLength = recentSamples > 0 ? Math.min(recentSamples, length) : length;
+  const xRecentSamples = nodeGraphScopeBufferRecentSampleCount(xBuffer);
+  const yRecentSamples = nodeGraphScopeBufferRecentSampleCount(yBuffer);
+  const hasRecentSampleMetadata = xRecentSamples !== null || yRecentSamples !== null;
+  if (hasRecentSampleMetadata && !(xRecentSamples > 0 && yRecentSamples > 0)) {
+    return null;
+  }
+  const validLength = hasRecentSampleMetadata
+    ? Math.min(xRecentSamples, yRecentSamples, length)
+    : length;
   const frames = nodeGraphScope2dSourceFrameCount(sampleRate, fps, validLength);
   const start = Math.max(0, length - frames);
   const x = new Float32Array(frames);
