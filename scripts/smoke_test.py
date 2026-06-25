@@ -4202,7 +4202,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "worklet cache",
             delay_contract_sources["live runtime"],
-            ['node-live-audio-worklet.js?v=soft-clipper-1'],
+            ['node-live-audio-worklet.js?v=scope-visual-buffer-post-1'],
         ),
     ]:
         for snippet in snippets:
@@ -7218,7 +7218,7 @@ def require_node_graph_mvp_contract() -> None:
                 "audioPlayer: counts.audioPlayer || 0",
                 "sampleBuffers: new Map()",
                 "await nodeGraphEnsureLiveSamplesForPlan(plan, nodeGraphMvp.patch)",
-                'node-live-audio-worklet.js?v=soft-clipper-1',
+                'node-live-audio-worklet.js?v=scope-visual-buffer-post-1',
                 "phase: Number(message.audioPlayerPhase) || 0",
             ],
         ),
@@ -12780,13 +12780,13 @@ def require_node_graph_mvp_contract() -> None:
         and "nodeGraphScopeVisualPointLimit" not in scope2d_buffer_source
         and "function nodeGraphScope2dInterpolationSpacingPx()" in scope2d_helper_source
         and "return 0.5;" in scope2d_helper_source
-        and "appendNodeGraphScope2dSegment(pathPoints, previousPoint, point, interpolationSpacingPx)" in scope2d_source
-        and "canContinueFromPreviousPoint" in scope2d_source
-        and "firstIndex < count - 1" in scope2d_source
+        and "appendNodeGraphScope2dSegment(pathPoints, previousPoint, point, interpolationSpacingPx)" in scope2d_helper_source
+        and "canContinueFromPreviousPoint" in scope2d_helper_source
+        and "firstIndex < count - 1" in scope2d_helper_source
         and "nodeGraphScope2dSettingsForNode" in scope2d_source
         and "drawNodeGraphScope2dCanvasTrail(item, pixelRatio, square, buffer, settings)" in scope2d_source
-        and "settings.dot1Enabled" in scope2d_source
-        and "settings.dot2Enabled" in scope2d_source
+        and "settings.dot1Enabled" in scope2d_helper_source
+        and "settings.dot2Enabled" in scope2d_helper_source
         and "settings?.burn" in node_graph_source
         and "settings?.decay" in node_graph_source
         and "function drawNodeGraphScope2dDotPass" not in node_graph_source
@@ -12811,9 +12811,16 @@ def require_node_graph_mvp_contract() -> None:
     display_buffer_start = node_graph_source.index("function nodeGraphModuleScopeDisplayBuffer")
     display_buffer_end = node_graph_source.index("const nodeGraphTraceDisplaySettingsWindowSize", display_buffer_start)
     display_buffer_source = node_graph_source[display_buffer_start:display_buffer_end]
+    captured_buffer_start = node_graph_source.index("function nodeGraphModuleScopeCapturedBufferForSlot")
+    captured_buffer_end = node_graph_source.index("const nodeGraphTraceDisplaySettingsDefaults", captured_buffer_start)
+    captured_buffer_source = node_graph_source[captured_buffer_start:captured_buffer_end]
+    screen_items_start = node_graph_source.index("function nodeGraphModuleScopeScreenItems")
+    screen_items_end = node_graph_source.index("function nodeGraphModuleScopeTraceDisplayFrameUnchanged", screen_items_start)
+    screen_items_source = node_graph_source[screen_items_start:screen_items_end]
     require(
         "function nodeGraphModuleScopeCapturedScope2dBuffer(slot)" in node_graph_source
-        and "nodeGraphModuleScopeCapturedScope2dBuffer(slot);" in display_buffer_source
+        and "return nodeGraphModuleScopeCapturedScope2dBuffer(slot);" in captured_buffer_source
+        and "nodeGraphModuleScopeCapturedBufferForSlot(slot)" in screen_items_source
         and "function nodeGraphModuleScopeConnectedSourceBuffer(nodeId, port = \"In\")" in node_graph_source
         and 'nodeGraphModuleScopeConnectedSourceBuffer(nodeId, "In")' in node_graph_source
         and 'nodeGraphModuleScopeConnectedSourceBuffer(slot.nodeId, "X")' in node_graph_source
@@ -15601,14 +15608,18 @@ def require_node_graph_mvp_contract() -> None:
         "connectionSum + this.readRuntimePortOutput(",
         "const inputPort = String(input.port || \"\").trim()",
         "const portId = `${nodeId}:${inputPort}`",
-        "portSamples.push(this.scopeScalarValue(inputValue))",
+        "this.writeVisualInputBufferSample(nodeId, inputPort, inputValue, sink.bufferSampleLimit)",
+        "writeVisualInputBufferSample(nodeId, port, value, capacity = 262144)",
+        "buffer.buffer[buffer.writeIndex] = this.scopeScalarValue(value)",
+        "values.push([key, ordered, {",
+        "startFrame: absoluteFrame - count",
         "postModuleScopeSnapshot()",
         "this.scopeBuffers = new Map()",
         "captureModuleScopeOutput(nodeId, output)",
         "this.captureModuleScopeOutput(nodeId, this.nodeOutputs.get(nodeId))",
         "for (const [port, value] of Object.entries(output))",
         "const portId = `${id}:${port}`",
-        "portSamples.push(this.scopeScalarValue(value))",
+        "this.appendScopeBufferSample(portId, value)",
         "values.push([nodeId, samples])",
         "sampleRate: this.engineSampleRate",
         "const requestedRatio = Number(message.oversamplingRatio)",
@@ -15627,8 +15638,10 @@ def require_node_graph_mvp_contract() -> None:
         "buildModulationConnectionMap(modulations, ids)",
         "const nodeLiveAdditiveHardMaxHarmonics = 1024",
         "ellipsoidSample(phase, offset = 0, shape = 0, scale = 1)",
-        "ellipsoidVectorSample(phase, params = {})",
-        "Out: x",
+        "ellipsoidVectorSample(",
+        "target,",
+        "levelValue = 1",
+        "output.Out = x",
         "this.ellipsoidSample(phase - Math.PI * 0.5",
         "additiveWaveformHarmonic(waveform, harmonic, modA = 0.5)",
         "additiveDampingCurveValue(value = 0)",
@@ -15670,9 +15683,11 @@ def require_node_graph_mvp_contract() -> None:
         'phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0)',
         "value = { Out: additiveSample }",
         'node?.type === "ellipsoid"',
-        "value = this.ellipsoidVectorSample(phase + phaseOffset",
-        'offsetX: read("offsetX", 0)',
-        'shapeY: read("shapeY", 0)',
+        "value = this.ellipsoidVectorSample(",
+        "ellipsoidFrame,",
+        "phase + phaseOffset",
+        'this.readEffectiveParameter(node, "offsetX", 0, frame, frames, frameValues)',
+        'this.readEffectiveParameter(node, "shapeY", 0, frame, frames, frameValues)',
         "Out: selected",
         '"Wave Out": selected',
         "Noise: selected",
