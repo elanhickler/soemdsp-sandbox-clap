@@ -13019,14 +13019,16 @@ def require_node_graph_mvp_contract() -> None:
         and "function nodeGraphScope2dApplyPointBudget" not in scope2d_helper_source
         and "const budgetedPathPoints = nodeGraphScope2dApplyPointBudget(pathPoints)" not in scope2d_helper_source
         and "function drawNodeGraphScope2dRetainedBurn(item, pixelRatio, square, buffer, settings)" in scope2d_burn_source
-        and "const canvasSquare = nodeGraphScope2dTraceCanvasSquare(item, pixelRatio, square);" in scope2d_burn_source
+        and "const cssWidth = Number(screenElement.clientWidth) || Number(screenElement.offsetWidth) || rect.width;" in node_graph_source
+        and "function nodeGraphScope2dBurnCanvasSquare(canvas)" in scope2d_helper_source
+        and "const canvasSquare = nodeGraphScope2dBurnCanvasSquare(canvas);" in scope2d_burn_source
         and "buildNodeGraphScope2dPathPoints(canvasSquare, buffer, drawStartIndex, { interpolate: true, settings })" in scope2d_burn_source
+        and "pathPoints = bridgeNodeGraphScope2dAdjacentFramePath(" in scope2d_burn_source
         and "drawNodeGraphRetainedBurnPath(item, pixelRatio, pathPoints, settings" in scope2d_burn_source
         and "function drawNodeGraphRetainedBurnPath(item, pixelRatio, pathPoints, settings, options = {})" in scope2d_burn_source
         and "buildNodeGraphScope2dBurnVertices(points)" in scope2d_burn_source
         and "gl.blendFunc(gl.ONE, gl.ONE)" in scope2d_burn_source
-        and "function nodeGraphScope2dSampleHasVisibleOffset(square, x, y, minimumPixels = 0.5)" in scope2d_helper_source
-        and "if (sampleX === null || sampleY === null) {\n    return false;\n  }" in scope2d_helper_source
+        and "function nodeGraphScope2dSampleHasVisibleOffset" not in scope2d_helper_source
         and "function nodeGraphScope2dSampleIsFinite(x, y)" in scope2d_helper_source
         and "if (!nodeGraphScope2dSampleIsFinite(buffer.x[index], buffer.y[index]))" in scope2d_helper_source
         and "function buildNodeGraphScope2dPathPoints(square, buffer, startIndex = 0, options = {})" in scope2d_helper_source
@@ -13035,8 +13037,7 @@ def require_node_graph_mvp_contract() -> None:
         and "function breakNodeGraphScope2dPath(points)" in scope2d_helper_source
         and "breakNodeGraphScope2dPath(pathPoints);" in scope2d_helper_source
         and "points.push(null);" in scope2d_helper_source
-        and "function nodeGraphScope2dPathStartOffsetPx()" in scope2d_helper_source
-        and "return nodeGraphScope2dInterpolationSpacingPx() * 4;" in scope2d_helper_source
+        and "function nodeGraphScope2dPathStartOffsetPx()" not in scope2d_helper_source
         and "bridgeNodeGraphScope2dPathFromCanvas" not in scope2d_helper_source
         and "_nodeGraphScope2dBridgePoint" not in scope2d_helper_source
         and "function nodeGraphScope2dBurnLayers(settings, dotSpace)" in scope2d_burn_source
@@ -13044,7 +13045,7 @@ def require_node_graph_mvp_contract() -> None:
         and "if (!nodeGraphScope2dSampleIsFinite(buffer.x[index], buffer.y[index])) {" in scope2d_helper_source
         and "previousPoint = null;" in scope2d_helper_source
         and "appendNodeGraphScope2dSegment(pathPoints, previousPoint, point, interpolationSpacingPx)" in scope2d_helper_source
-        and "const pathPoints = drawStartIndex < count" in scope2d_burn_source
+        and "let pathPoints = drawStartIndex < count" in scope2d_burn_source
         and "let previousPoint = null" in scope2d_helper_source
         and "scope2dLastPoints" not in node_graph_source
         and "canContinueFromPreviousPoint" not in scope2d_helper_source

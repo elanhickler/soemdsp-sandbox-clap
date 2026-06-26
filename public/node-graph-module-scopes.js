@@ -8618,7 +8618,7 @@ function nodeGraphScope2dStrokeSpace(canvas) {
   return Math.min(canvas?.width || 0, canvas?.height || 0);
 }
 
-const nodeGraphScope2dBurnRendererVersion = "webgl-retained-burn-erf-1";
+const nodeGraphScope2dBurnRendererVersion = "webgl-retained-burn-screen-space-1";
 
 function nodeGraphScope2dBurnCanvasForSlot(slot) {
   const screenElement = slot?.scopeElement;
@@ -8645,8 +8645,10 @@ function syncNodeGraphScope2dBurnCanvas(canvas, screenElement, pixelRatio) {
     return { resized: false, synced: false };
   }
   const rect = screenElement.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width * pixelRatio));
-  const height = Math.max(1, Math.round(rect.height * pixelRatio));
+  const cssWidth = Number(screenElement.clientWidth) || Number(screenElement.offsetWidth) || rect.width;
+  const cssHeight = Number(screenElement.clientHeight) || Number(screenElement.offsetHeight) || rect.height;
+  const width = Math.max(1, Math.round(cssWidth * pixelRatio));
+  const height = Math.max(1, Math.round(cssHeight * pixelRatio));
   const resized = canvas.width !== width || canvas.height !== height;
   if (resized) {
     canvas.width = width;
@@ -9111,7 +9113,7 @@ function drawNodeGraphScope2dRetainedBurn(item, pixelRatio, square, buffer, sett
     return;
   }
   resizeNodeGraphScope2dBurnRenderer(renderer, canvas.width, canvas.height);
-  const canvasSquare = nodeGraphScope2dTraceCanvasSquare(item, pixelRatio, square);
+  const canvasSquare = nodeGraphScope2dBurnCanvasSquare(canvas);
   if (!canvasSquare) {
     return;
   }
@@ -9121,9 +9123,15 @@ function drawNodeGraphScope2dRetainedBurn(item, pixelRatio, square, buffer, sett
   }
   const count = Math.min(buffer?.x?.length || 0, buffer?.y?.length || 0);
   const drawStartIndex = nodeGraphScope2dDrawStartIndex(renderer, buffer, count);
-  const pathPoints = drawStartIndex < count
+  let pathPoints = drawStartIndex < count
     ? buildNodeGraphScope2dPathPoints(canvasSquare, buffer, drawStartIndex, { interpolate: true, settings })
     : [];
+  pathPoints = bridgeNodeGraphScope2dAdjacentFramePath(
+    canvas,
+    pathPoints,
+    nodeGraphScope2dTraceMaxSegmentPixels(canvasSquare),
+    nodeGraphScope2dInterpolationSpacingPx(),
+  );
   drawNodeGraphRetainedBurnPath(item, pixelRatio, pathPoints, settings, {
     endFrame: Number(buffer.nodeGraphScopeAbsoluteFrame),
   });
@@ -9175,6 +9183,10 @@ function drawNodeGraphRetainedBurnPath(item, pixelRatio, pathPoints, settings, o
       drawNodeGraphScope2dBurnBeamLayer(renderer, vertices, layer, burn);
     }
     gl.disable(gl.BLEND);
+  }
+  const lastPoint = lastNodeGraphScope2dPathPoint(points);
+  if (lastPoint) {
+    canvas._nodeGraphScope2dLastDrawnPoint = lastPoint;
   }
   compositeNodeGraphScope2dBurn(renderer, settings);
 }
@@ -9245,17 +9257,6 @@ function nodeGraphScope2dTracePointFromSamples(square, x, y, settings) {
   };
 }
 
-function nodeGraphScope2dSampleHasVisibleOffset(square, x, y, minimumPixels = 0.5) {
-  const sampleX = nodeGraphScope2dFiniteSample(x);
-  const sampleY = nodeGraphScope2dFiniteSample(y);
-  if (sampleX === null || sampleY === null) {
-    return false;
-  }
-  const radiusX = Math.max(1, Number(square?.width) || 1) * 0.44;
-  const radiusY = Math.max(1, Number(square?.height) || 1) * 0.44;
-  return Math.sqrt((sampleX * radiusX) ** 2 + (sampleY * radiusY) ** 2) > Math.max(0, Number(minimumPixels) || 0);
-}
-
 function nodeGraphScope2dSampleIsFinite(x, y) {
   return nodeGraphScope2dFiniteSample(x) !== null && nodeGraphScope2dFiniteSample(y) !== null;
 }
@@ -9270,6 +9271,18 @@ function nodeGraphScope2dTraceCanvasSquare(item, pixelRatio, square) {
     top: (square.top - screenRect.top) * pixelRatio,
     width: square.width * pixelRatio,
     height: square.height * pixelRatio,
+  };
+}
+
+function nodeGraphScope2dBurnCanvasSquare(canvas) {
+  const width = Math.max(1, Number(canvas?.width) || 1);
+  const height = Math.max(1, Number(canvas?.height) || 1);
+  const size = Math.max(1, Math.min(width, height));
+  return {
+    height: size,
+    left: (width - size) * 0.5,
+    top: (height - size) * 0.5,
+    width: size,
   };
 }
 
@@ -9296,20 +9309,14 @@ function buildNodeGraphScope2dTraceCanvasPoints(item, pixelRatio, square, buffer
   }
   const points = [];
   const maxSegmentPixels = nodeGraphScope2dTraceMaxSegmentPixels(canvasSquare);
-  const pathStartOffsetPx = nodeGraphScope2dPathStartOffsetPx();
   let previousPoint = null;
-  let hasVisibleStart = false;
   for (let index = 0; index < count; index += 1) {
-    if (!hasVisibleStart && !nodeGraphScope2dSampleHasVisibleOffset(canvasSquare, buffer.x[index], buffer.y[index], pathStartOffsetPx)) {
-      continue;
-    }
     const point = nodeGraphScope2dTracePointFromSamples(canvasSquare, buffer.x[index], buffer.y[index], settings);
     if (!point) {
       breakNodeGraphScope2dPath(points);
       previousPoint = null;
       continue;
     }
-    hasVisibleStart = true;
     if (!nodeGraphScope2dTraceSegmentIsContinuous(previousPoint, point, maxSegmentPixels)) {
       breakNodeGraphScope2dPath(points);
     }
@@ -9526,10 +9533,6 @@ function nodeGraphScope2dInterpolationSpacingPx() {
   return 0.5;
 }
 
-function nodeGraphScope2dPathStartOffsetPx() {
-  return nodeGraphScope2dInterpolationSpacingPx() * 4;
-}
-
 function breakNodeGraphScope2dPath(points) {
   if (Array.isArray(points) && points.length && points[points.length - 1] !== null) {
     points.push(null);
@@ -9620,16 +9623,12 @@ function buildNodeGraphScope2dPathPoints(square, buffer, startIndex = 0, options
   }
   const pathPoints = [];
   const interpolationSpacingPx = nodeGraphScope2dInterpolationSpacingPx();
-  const pathStartOffsetPx = nodeGraphScope2dPathStartOffsetPx();
   const interpolate = options.interpolate !== false;
   let previousPoint = null;
   for (let index = Math.max(0, Math.floor(Number(startIndex) || 0)); index < count; index += 1) {
     if (!nodeGraphScope2dSampleIsFinite(buffer.x[index], buffer.y[index])) {
       breakNodeGraphScope2dPath(pathPoints);
       previousPoint = null;
-      continue;
-    }
-    if (!previousPoint && !nodeGraphScope2dSampleHasVisibleOffset(square, buffer.x[index], buffer.y[index], pathStartOffsetPx)) {
       continue;
     }
     const point = nodeGraphScope2dPointFromSamples(square, buffer.x[index], buffer.y[index], options.settings);
