@@ -11361,10 +11361,10 @@ def require_node_graph_mvp_contract() -> None:
         "${nodeGraphShaderScriptBlendModePatternSource}|${nodeGraphShaderScriptScopeModePatternSource}|${nodeGraphShaderScriptScopeSyncPatternSource}|none|output\\\\d+",
         "const nodeGraphShaderScriptDefaultSyntaxColors",
         "const nodeGraphShaderScriptLegacySyntaxColors",
-        "function nodeGraphShaderScriptBrightnessContrastDefaultFragment()",
+        "function nodeGraphShaderScriptDarkRoomBloomDefaultFragment()",
         "const nodeGraphShaderScriptDefaultFragmentSource",
         "function nodeGraphShaderScriptIsLegacyDefaultFragmentSource(source = \"\")",
-        "color = (color - 0.5) * contrast + 0.5 + brightness",
+        "softLight(screenBloom)",
         "shouldUseStoredFragment",
         "const nodeGraphShaderScriptState = {\n  animationFrame: 0,\n  dialogMode: \"global\"",
         "scopeTargetNodeId: \"\"",
@@ -11658,12 +11658,11 @@ def require_node_graph_mvp_contract() -> None:
         "function setNodeGraphShaderScriptEnabled(enabled, options = {})",
         "function clearNodeGraphShaderScriptCanvas()",
         "uniform vec4 uScopeRects[32]",
-        "vec3 adjustBrightnessContrast(vec3 color, float brightness, float contrast)",
-        "Settings: realtime safe. Tweak these two values first.",
-        "float brightness = 0.06",
-        "float contrast = 1.18",
-        "Brightness and contrast only.",
-        "color = adjustBrightnessContrast(color, brightness, contrast)",
+        "function nodeGraphShaderScriptDarkRoomBloomDefaultFragment()",
+        "float roomFalloff = smoothstep(0.08, 0.82, length(roomUv));",
+        "float screenBloom = 0.0;",
+        "softLight(screenBloom)",
+        "vec3 cyanGlow = vec3(0.12, 0.62, 0.68) * softLight(screenBloom);",
         "function createNodeGraphShaderProgram(gl, fragmentSource)",
         "function nodeGraphShaderScriptRects(canvas)",
         'workspace.querySelectorAll(".node-module-scope-window, .node-led-face")',
@@ -12827,20 +12826,20 @@ def require_node_graph_mvp_contract() -> None:
         and "function nodeGraphScope2dSettingsForNode(node)" in node_graph_source
         and "scope2d: Object.freeze({" in node_graph_source
         and '"burn",\n      "decay",' in node_graph_source
-        and 'colors: Object.freeze(["dot1Color"])' in node_graph_source,
+        and 'colors: Object.freeze(["dot1Color", "dot2Color"])' in node_graph_source,
         "2D Burn should have local settings defaults, normalization, and active controls",
     )
     scope2d_active_controls_start = node_graph_source.index("scope2d: Object.freeze({")
-    scope2d_active_controls_end = node_graph_source.index("colors: Object.freeze([\"dot1Color\"])", scope2d_active_controls_start)
+    scope2d_active_controls_end = node_graph_source.index("colors: Object.freeze([\"dot1Color\", \"dot2Color\"])", scope2d_active_controls_start)
     scope2d_active_controls_source = node_graph_source[scope2d_active_controls_start:scope2d_active_controls_end]
     require(
         '"dot1Size"' in scope2d_active_controls_source
         and '"dot1Brightness"' in scope2d_active_controls_source
-        and '"dot2Size"' not in scope2d_active_controls_source
-        and '"dot2Brightness"' not in scope2d_active_controls_source
+        and '"dot2Size"' in scope2d_active_controls_source
+        and '"dot2Brightness"' in scope2d_active_controls_source
         and '"lineThickness"' not in scope2d_active_controls_source
-        and '"dot2LineThickness"' not in scope2d_active_controls_source,
-        "2D Burn settings should expose Dot 1 size and light controls without Dot 2 or Blur controls",
+        and '"dot2LineThickness"' in scope2d_active_controls_source,
+        "2D Burn settings should expose Dot 1 and Dot 2 controls without Dot 1 Blur controls",
     )
     scope2d_stroke_space_start = node_graph_source.index("function nodeGraphScope2dStrokeSpace(canvas)")
     scope2d_stroke_space_end = node_graph_source.index("function drawNodeGraphOneDimensionalBurnTrail", scope2d_stroke_space_start)
@@ -12971,7 +12970,7 @@ def require_node_graph_mvp_contract() -> None:
         and "nodeGraphScope2dSettingsForNode" in scope2d_source
         and "drawNodeGraphScope2dRetainedBurn(item, pixelRatio, square, buffer, settings)" in scope2d_source
         and "settings?.dot1Enabled !== false" in scope2d_burn_source
-        and "settings.dot2Enabled" not in scope2d_burn_source
+        and "settings?.dot2Enabled !== false" in scope2d_burn_source
         and "settings?.burn" in node_graph_source
         and "settings?.decay" in node_graph_source
         and "function drawNodeGraphScope2dDotPass" not in node_graph_source
@@ -13178,7 +13177,20 @@ def require_node_graph_mvp_contract() -> None:
         "float saturation = 1.08",
         "float posterizeAmount = 0.0",
     ]:
-        require(snippet not in node_graph_source, f"default shader should stay brightness/contrast only: {snippet}")
+        require(snippet not in node_graph_source, f"default shader should stay focused on dark-room bloom, not old preset effects: {snippet}")
+
+    require(
+        "function nodeGraphShaderScriptDarkRoomBloomDefaultFragment()" in shader_script_source
+        and "const nodeGraphShaderScriptDefaultFragmentSource = nodeGraphShaderScriptDarkRoomBloomDefaultFragment();" in shader_script_source
+        and "softLight(screenBloom)" in shader_script_source
+        and ".node-graph-workspace.shader-enabled .node-wire-path:not(.inactive-wire)" in style_source
+        and ".node-graph-workspace.shader-enabled .node-module-scope-window" in style_source
+        and "--node-text-light-level: 0.46;" in style_source
+        and ".node-graph-workspace.shader-enabled .dsp-node" in style_source
+        and ".node-slider-readout-value," in style_source
+        and "node-graph-shader-script.js?v=dark-room-bloom-1" in index_source,
+        "world shader should default to the dark-room bloom glow pass with wire and screen illumination hooks",
+    )
 
     removed_module_source = "\n".join([node_graph_source, style_source, index_source, default_preset_source])
     for snippet in [

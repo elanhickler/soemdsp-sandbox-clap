@@ -3231,9 +3231,12 @@ const nodeGraphTraceDisplayActiveControlsByType = Object.freeze({
       "decay",
       "dot1Size",
       "dot1Brightness",
+      "dot2Size",
+      "dot2LineThickness",
+      "dot2Brightness",
     ]),
-    colors: Object.freeze(["dot1Color"]),
-    toggles: Object.freeze(["dot1Enabled"]),
+    colors: Object.freeze(["dot1Color", "dot2Color"]),
+    toggles: Object.freeze(["dot1Enabled", "dot2Enabled"]),
     choices: Object.freeze([]),
   }),
   scope2dTrace: Object.freeze({
@@ -9000,6 +9003,14 @@ function decayNodeGraphScope2dBurn(renderer, settings) {
 
 function nodeGraphScope2dBurnLayers(settings, dotSpace) {
   const layers = [];
+  if (settings?.dot2Enabled !== false) {
+    layers.push({
+      blur: clampNodeSliderValue(settings.dot2LineThickness, 0, 1),
+      brightness: Math.max(0, Number(settings.dot2Brightness) || 0),
+      color: nodeGraphScopeHexColorToRgb(settings.dot2Color),
+      radius: dotSpace * clampNodeSliderValue(settings.dot2Size, 0, 1) * 0.5,
+    });
+  }
   if (settings?.dot1Enabled !== false) {
     layers.push({
       blur: clampNodeSliderValue(settings.lineThickness, 0, 1),

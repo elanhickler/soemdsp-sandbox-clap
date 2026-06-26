@@ -9,7 +9,7 @@
   "controls": {
     "mouseLightEnabled": true,
     "showOriginMarker": false,
-    "modularShaderEnabled": false,
+    "modularShaderEnabled": true,
     "scopeBloomEnabled": false,
     "settingsHeaderTextSize": 100,
     "uiDevButtonTextSize": 50,
@@ -131,7 +131,7 @@
     "moduleOscilloscopesVisible": true,
     "moduleSlidersVisible": true,
     "moduleScopeBackgroundColor": "#000000",
-    "globalSmoothingSeconds": 0.05408842546175556,
+    "globalSmoothingSeconds": 0.11457046264600795,
     "globalSmoothingManual": false,
     "moduleScopeDotCore1Enabled": true,
     "moduleScopeDotCore1Size": 1.94,
@@ -634,13 +634,17 @@
         "position": {
           "left": 233,
           "top": 216
+        },
+        "size": {
+          "width": 240,
+          "height": 617
         }
       },
       "moduleBrowser": {
         "open": false,
         "position": {
-          "left": 1411,
-          "top": 143
+          "left": 1639,
+          "top": 74
         },
         "size": {
           "width": 179,
@@ -670,23 +674,23 @@
       "traceDisplaySettings": {
         "open": false,
         "locked": true,
-        "targetNode": "ellipsoid-1"
+        "targetNode": "lorenzAttractor-1"
       }
     },
     "sharedInspectorActive": "",
     "sharedInspectorWindowState": {},
     "workspaceView": {
       "pan": {
-        "x": 256.8799999999999,
-        "y": -126.17250000000001
+        "x": 3123.92,
+        "y": -4550.932500000001
       },
-      "zoom": 1.3304338281216725
+      "zoom": 14.394321102420808
     },
-    "moduleStoreDepartment": "Oscillator",
+    "moduleStoreDepartment": "",
     "savedPatchBankIndex": 0,
-    "savedPatchBankName": "basic",
+    "savedPatchBankName": "chaos",
     "savedPatchGridColumns": 3,
-    "savedPatchExplorerView": "patches",
+    "savedPatchExplorerView": "banks",
     "currentSavedPatchFilename": "",
     "patchDirtyState": "untouched"
   }

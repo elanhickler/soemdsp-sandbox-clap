@@ -121,7 +121,7 @@ void main() {
 }
 `;
 
-function nodeGraphShaderScriptBrightnessContrastDefaultFragment() {
+function nodeGraphShaderScriptDarkRoomBloomDefaultFragment() {
   return `
 precision mediump float;
 
@@ -133,7 +133,7 @@ uniform vec4 uScopeRects[32];
 
 varying vec2 vUv;
 
-float rectDistance(vec2 p, vec4 rect) {
+float rectSdf(vec2 p, vec4 rect) {
   vec2 center = rect.xy + rect.zw * 0.5;
   vec2 q = abs(p - center) - rect.zw * 0.5;
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
@@ -143,60 +143,57 @@ float grain(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
-vec3 adjustBrightnessContrast(vec3 color, float brightness, float contrast) {
-  return (color - 0.5) * contrast + 0.5 + brightness;
+float softLight(float x) {
+  return x * x * (3.0 - 2.0 * x);
 }
 
 void main() {
   vec2 uv = vUv;
-  float vignette = smoothstep(0.14, 0.92, length((uv - 0.5) * vec2(1.28, 1.0)));
-  float glow = 0.0;
-  float core = 0.0;
+  vec2 roomUv = (uv - 0.5) * vec2(1.22, 1.0);
+  float roomFalloff = smoothstep(0.08, 0.82, length(roomUv));
+  float screenBloom = 0.0;
+  float screenCore = 0.0;
+  float screenEdge = 0.0;
 
   for (int i = 0; i < 32; i++) {
     if (i < uScopeCount) {
       vec4 rect = uScopeRects[i];
-      float d = rectDistance(uv, rect);
-      float halo = exp(-max(d, 0.0) * (42.0 + uZoom * 2.0));
-      float nearPane = smoothstep(0.020, -0.003, d);
-      float scan = 0.82 + 0.18 * sin((uv.y * uResolution.y * 1.2) + uTime * 2.2);
-      glow += halo * 0.26 + nearPane * scan * 0.085;
-      core += nearPane;
+      float d = rectSdf(uv, rect);
+      float outer = exp(-max(d, 0.0) * 26.0);
+      float mid = exp(-max(d, 0.0) * 78.0);
+      float pane = smoothstep(0.014, -0.003, d);
+      float edge = smoothstep(0.018, 0.000, abs(d));
+      float scan = 0.88 + 0.12 * sin((uv.y * uResolution.y * 1.35) + uTime * 2.0);
+      screenBloom += outer * 0.30 + mid * 0.20 + pane * scan * 0.12;
+      screenCore += pane;
+      screenEdge += edge;
     }
   }
 
-  glow = clamp(glow, 0.0, 1.0);
-  core = clamp(core, 0.0, 1.0);
-  float dust = (grain(gl_FragCoord.xy + uTime * 14.0) - 0.5) * 0.012;
-  vec3 trace = vec3(0.16, 0.62, 0.54) * glow + vec3(0.78, 0.96, 0.86) * core * 0.075;
-  vec3 room = vec3(0.002, 0.008, 0.010);
-  vec3 color = room + trace;
+  screenBloom = clamp(screenBloom, 0.0, 1.0);
+  screenCore = clamp(screenCore, 0.0, 1.0);
+  screenEdge = clamp(screenEdge, 0.0, 1.0);
 
-  // Settings: realtime safe. Tweak these two values first.
-  float brightness = 0.06;
-  float contrast = 1.18;
+  float dust = (grain(gl_FragCoord.xy + uTime * 9.0) - 0.5) * 0.010;
+  float cornerDark = 0.32 + roomFalloff * 0.34;
+  vec3 darkRoom = vec3(0.001, 0.004, 0.006) * (1.0 - roomFalloff * 0.35);
+  vec3 cyanGlow = vec3(0.12, 0.62, 0.68) * softLight(screenBloom);
+  vec3 warmGlass = vec3(0.70, 0.48, 0.22) * screenEdge * 0.035;
+  vec3 screenLight = vec3(0.75, 0.95, 0.88) * screenCore * 0.045;
+  vec3 color = darkRoom + cyanGlow + warmGlass + screenLight;
 
-  float alphaBase = 0.20;
-  float vignetteAmount = 0.16;
-  float glowAlphaCut = 0.08;
-  float alphaMin = 0.06;
-  float alphaMax = 0.42;
-
-  // Brightness and contrast only.
-  color = adjustBrightnessContrast(color, brightness, contrast);
-
-  float darkness = alphaBase + vignette * vignetteAmount;
-  float alpha = clamp(darkness - glow * glowAlphaCut + dust, alphaMin, alphaMax);
+  float alpha = clamp(cornerDark - screenBloom * 0.16 - screenCore * 0.045 + dust, 0.10, 0.62);
   gl_FragColor = vec4(color, alpha);
 }
 `.trim();
 }
 
-const nodeGraphShaderScriptDefaultFragmentSource = nodeGraphShaderScriptBrightnessContrastDefaultFragment();
+const nodeGraphShaderScriptDefaultFragmentSource = nodeGraphShaderScriptDarkRoomBloomDefaultFragment();
 
 function nodeGraphShaderScriptIsLegacyDefaultFragmentSource(source = "") {
   const text = String(source || "");
   return text.includes("function nodeGraphShaderScriptCameraPhosphorFragment")
+    || text.includes("function nodeGraphShaderScriptBrightnessContrastDefaultFragment")
     || text.includes("color = (color - 0.5) * contrast + 0.5 + brightness")
     || text.includes("float darkness = 0.20 + vignette * 0.16")
     || text.includes("color = adjustSaturation(color, saturation)")
