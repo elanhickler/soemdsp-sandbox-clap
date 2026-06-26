@@ -1,4 +1,4 @@
-﻿(function (settings) {
+(function (settings) {
   window.nodeUiDevBundledDefaultSettings = settings;
   document.documentElement.dataset.nodeUiDevBundledDefaultSettings = JSON.stringify(settings);
 })({
@@ -131,8 +131,8 @@
     "moduleOscilloscopesVisible": true,
     "moduleSlidersVisible": true,
     "moduleScopeBackgroundColor": "#000000",
-    "globalSmoothingSeconds": 0.1,
-    "globalSmoothingManual": true,
+    "globalSmoothingSeconds": 0.8784946239507296,
+    "globalSmoothingManual": false,
     "moduleScopeDotCore1Enabled": true,
     "moduleScopeDotCore1Size": 1.94,
     "moduleScopeDotCore1Brightness": 33.5,
@@ -142,25 +142,25 @@
     "moduleScopeDotCore2Brightness": 1.23,
     "moduleScopeDotCore2Color": "#5c0000",
     "moduleScopeFramesPerSecond": 60,
-    "moduleScopePointBudget": 16384,
+    "moduleScopePointBudget": 4096,
     "moduleScopeLineThickness": 1,
     "moduleScopeDiscontinuitySkipSamples": 1,
     "traceSettings": {
       "brightness": 0.92,
       "color": "#75ebff",
       "dot1Enabled": true,
-      "dot1Size": 0.08,
-      "dot2Brightness": 0.18,
+      "dot1Size": 0.0175,
+      "dot2Brightness": 0.93,
       "dot2Color": "#184fff",
       "dot2Enabled": true,
-      "dot2Size": 0.24,
-      "dot2LineThickness": 0.48,
+      "dot2Size": 0.1,
+      "dot2LineThickness": 0,
       "cycles": 2,
       "lineThickness": 0.2,
       "padding": 0,
       "skipSamples": 1,
-      "sourceSync": true,
-      "zoomSeconds": 0.05
+      "sourceSync": false,
+      "zoomSeconds": 0.2
     },
     "sliderLayout": "text-inside",
     "sliderAmountVisible": false,
@@ -575,6 +575,10 @@
         "developer": true,
         "home": false
       },
+      "scope2dTrace": {
+        "developer": true,
+        "home": false
+      },
       "parabol": {
         "developer": true,
         "home": false
@@ -604,16 +608,16 @@
       "width": 136
     },
     "moduleActionWindowSize": {
-      "width": 186,
-      "height": 523
+      "width": 208,
+      "height": 616
     },
     "workspaceWindowStatesVersion": 1,
     "workspaceWindowStates": {
       "commandCenter": {
-        "open": true,
+        "open": false,
         "position": {
-          "left": 582,
-          "top": 147
+          "left": 62,
+          "top": 123
         }
       },
       "moduleActions": {
@@ -628,418 +632,63 @@
       "patchExplorer": {
         "open": false,
         "position": {
-          "left": 90,
-          "top": 375
+          "left": 553,
+          "top": 266
         }
       },
       "moduleBrowser": {
         "open": false,
         "position": {
-          "left": 229,
-          "top": 132
-        }
+          "left": 1577,
+          "top": 140
+        },
+        "size": {
+          "width": 179,
+          "height": 716
+        },
+        "locked": true
       },
       "visibilityMenu": {
         "open": false,
         "position": {
-          "left": 597,
-          "top": 114
+          "left": 1553,
+          "top": 116
+        },
+        "size": {
+          "width": 136
         }
       },
       "uiSettings": {
-        "open": false
+        "open": false,
+        "position": {
+          "left": 477,
+          "top": 96
+        }
       },
       "uiDev": {
         "open": false
       },
       "traceDisplaySettings": {
-        "open": true,
-        "targetNode": "ellipsoid-1"
+        "open": false,
+        "locked": true,
+        "targetNode": "dotOscilloscope-1"
       }
     },
-    "sharedInspectorActive": "traceDisplaySettings",
-    "sharedInspectorWindowState": {
-      "position": {
-        "left": 514,
-        "top": 272
-      },
-      "size": {
-        "width": 186,
-        "height": 523
-      }
-    },
+    "sharedInspectorActive": "",
+    "sharedInspectorWindowState": {},
     "workspaceView": {
       "pan": {
-        "x": 57.1363525390625,
-        "y": -239.2280622209821
+        "x": -23.39285714285714,
+        "y": -268.5267857142857
       },
-      "zoom": 1.2100308800730333
+      "zoom": 0.6018206982084958
     },
     "moduleStoreDepartment": "",
     "savedPatchBankIndex": 0,
     "savedPatchBankName": "basic",
     "savedPatchGridColumns": 3,
-    "savedPatchExplorerView": "patches",
-    "workingPatch": {
-      "activeCameraId": "camera-1",
-      "audio": {
-        "targetSampleRate": 44100
-      },
-      "bypassedNodes": [],
-      "cameras": [
-        {
-          "color": "#ff3333",
-          "enabled": true,
-          "height": 488,
-          "id": "camera-1",
-          "midiTrigger": null,
-          "name": "Camera 1",
-          "resolutionHeight": 1080,
-          "resolutionWidth": 1920,
-          "width": 868,
-          "x": 0,
-          "y": 0
-        }
-      ],
-      "codeScreen": {
-        "helpers": [],
-        "patchTools": [],
-        "samples": [],
-        "script": "",
-        "scriptLanguage": "javascript",
-        "slots": [],
-        "ui": []
-      },
-      "connections": [
-        {
-          "destinationNode": "output",
-          "destinationPort": "Left",
-          "sourceNode": "ellipsoid-1",
-          "sourcePort": "X",
-          "tracePoints": []
-        },
-        {
-          "destinationNode": "output",
-          "destinationPort": "Right",
-          "sourceNode": "ellipsoid-1",
-          "sourcePort": "Y",
-          "tracePoints": []
-        }
-      ],
-      "format": {
-        "kind": "soemdsp-sandbox-node-patch",
-        "version": 1
-      },
-      "grid": {
-        "heightPx": 28,
-        "sizePx": 28,
-        "widthPx": 28
-      },
-      "graphConnections": [],
-      "info": {
-        "author": "",
-        "bank": 0,
-        "bankName": "basic",
-        "description": "",
-        "name": "ellipsoid",
-        "program": 0,
-        "tags": "circle"
-      },
-      "modulations": [],
-      "monitors": [],
-      "nodes": [
-        {
-          "gx": -3,
-          "gy": 0,
-          "id": "output",
-          "paramMeta": {
-            "volume": {
-              "alias": "",
-              "choices": [],
-              "def": 0.1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.1,
-              "min": 0,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            }
-          },
-          "params": {
-            "volume": 0.640154150863261
-          },
-          "type": "output"
-        },
-        {
-          "gx": -11,
-          "gy": -5,
-          "id": "ellipsoid-1",
-          "paramMeta": {
-            "frequency": {
-              "alias": "",
-              "choices": [],
-              "def": 220,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "frequency",
-              "linearSmoothing": true,
-              "max": 20000,
-              "maxDigits": 5,
-              "mid": 220,
-              "min": 0,
-              "nonlinearSlider": true,
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "Hz",
-              "wraparound": false
-            },
-            "phase": {
-              "alias": "",
-              "choices": [],
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "phase",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.5,
-              "min": 0,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "cycle",
-              "wraparound": true
-            },
-            "offsetX": {
-              "alias": "",
-              "choices": [],
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0,
-              "min": -1,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "offsetY": {
-              "alias": "",
-              "choices": [],
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0,
-              "min": -1,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "shapeX": {
-              "alias": "",
-              "choices": [],
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0,
-              "min": -1,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "shapeY": {
-              "alias": "",
-              "choices": [],
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0,
-              "min": -1,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "scaleX": {
-              "alias": "",
-              "choices": [],
-              "def": 1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 10,
-              "maxDigits": 3,
-              "mid": 1,
-              "min": 0,
-              "nonlinearSlider": true,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "scaleY": {
-              "alias": "",
-              "choices": [],
-              "def": 1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 10,
-              "maxDigits": 3,
-              "mid": 1,
-              "min": 0,
-              "nonlinearSlider": true,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "level": {
-              "alias": "",
-              "choices": [],
-              "def": 1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": true,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.5,
-              "min": 0,
-              "nonlinearSlider": false,
-              "showSign": false,
-              "step": 0.01,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            }
-          },
-          "params": {
-            "frequency": 470.59791070973,
-            "phase": 0.3900000000000001,
-            "offsetX": -0.95,
-            "offsetY": -0.6,
-            "shapeX": 0.43,
-            "shapeY": 0,
-            "scaleX": 0.58,
-            "scaleY": 0.09,
-            "level": 0.41
-          },
-          "type": "ellipsoid",
-          "traceDisplaySettings": {
-            "burn": 0,
-            "decay": 0,
-            "dot1Brightness": 0.2156,
-            "dot1Color": "#75ebff",
-            "dot1Enabled": true,
-            "dot1Size": 0.2841,
-            "dot2Brightness": 0.2595,
-            "dot2Color": "#b9becf",
-            "dot2Enabled": true,
-            "dot2Size": 0.8195,
-            "dot2LineThickness": 0.48,
-            "lineThickness": 0.2
-          },
-          "ui": {
-            "buttonsHidden": false,
-            "displayHeightOffsetGu": 4,
-            "ioHidden": false,
-            "interfaceControlsHidden": false,
-            "movementLocked": false,
-            "oscilloscopeHidden": false,
-            "slidersHidden": false,
-            "titleHidden": false
-          }
-        }
-      ],
-      "requiredAssets": [],
-      "samples": [],
-      "timing": {
-        "tempoBpm": 120,
-        "timeSignatureDenominator": 4,
-        "timeSignatureNumerator": 4
-      },
-      "uiItems": [],
-      "view": {
-        "heightGu": 24,
-        "widthGu": 24,
-        "zoom": 1.2100308800730333
-      },
-      "visual": {
-        "background": {
-          "h": 210,
-          "l": 5,
-          "s": 0
-        },
-        "mode": "auto",
-        "scale": 1,
-        "style": "glow",
-        "theme": "cyan-violet",
-        "trail": 0.35
-      },
-      "windows": {
-        "metadata": {
-          "left": null,
-          "top": null
-        },
-        "moduleActions": {
-          "left": null,
-          "top": null
-        }
-      }
-    },
-    "currentSavedPatchFilename": "bank000-program000-ellipsoid-circle.json",
-    "patchDirtyState": "edited"
+    "savedPatchExplorerView": "banks",
+    "currentSavedPatchFilename": "",
+    "patchDirtyState": "untouched"
   }
 });

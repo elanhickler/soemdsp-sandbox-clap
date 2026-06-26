@@ -185,6 +185,7 @@ function attachNodeGraphNodeEvents(node) {
   node.querySelector(".node-drag-handle")?.addEventListener("dblclick", toggleNodeGraphNodeMovementLock);
   node.querySelector(".node-execution-order-badge")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-header-title-row")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
+  node.querySelector(".node-header-title-row")?.addEventListener("contextmenu", openNodeModuleActionMenu);
   node.querySelector(".node-led-face")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-knob-widget-body")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelectorAll(".dsp-node-io-section")

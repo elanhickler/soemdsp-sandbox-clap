@@ -1516,7 +1516,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=0023"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=0026"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

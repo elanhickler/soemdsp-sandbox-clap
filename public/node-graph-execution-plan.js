@@ -346,6 +346,31 @@ function nodeGraphActiveVisualSinkExists(visualSinks = []) {
   );
 }
 
+function nodeGraphVisualSinkDisplayVisible(node, options = {}) {
+  if (!nodeGraphModuleDefinitions[node?.type]?.visualSink) {
+    return false;
+  }
+  const bypassedNodes = options.bypassedNodes instanceof Set
+    ? options.bypassedNodes
+    : new Set(options.bypassedNodes || []);
+  if (node?.id && bypassedNodes.has(node.id)) {
+    return false;
+  }
+  if (nodeGraphMvp?.moduleOscilloscopesVisible === false) {
+    return false;
+  }
+  if (
+    typeof nodeGraphModuleDisplayVisibleForUi === "function" &&
+    !nodeGraphModuleDisplayVisibleForUi(node.type, node.ui)
+  ) {
+    return false;
+  }
+  const normalizedUi = node?.ui && typeof nodeGraphEffectivePatchNodeUi === "function"
+    ? nodeGraphEffectivePatchNodeUi(node.ui)
+    : (node?.ui || {});
+  return normalizedUi?.oscilloscopeHidden !== true;
+}
+
 function nodeGraphValidateRuntimeRoute(issues, options = {}) {
   const hasOutputNode = Boolean(options.hasOutputNode);
   const hasOutputSpeakerInput = Boolean(options.hasOutputSpeakerInput);
@@ -363,6 +388,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const issues = [...graph.issues];
   const outputNode = "output";
   const reachableNodes = new Set();
+  const bypassedNodes = new Set(graph.bypassedNodes || []);
   const passthroughTypes = new Set(["badvalMonitor", "bandpass", "bias", "cookbookFilter", "gain", "highpass", "ladderFilter", "lowpass", "sampleHold", "slewLimiter", "softClipper", "speakerProtection"]);
 
   function markReachable(nodeId) {
@@ -384,7 +410,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     markReachable(node.id);
   }
   for (const node of graph.nodes) {
-    if (nodeGraphModuleDefinitions[node.type]?.visualSink) {
+    if (nodeGraphVisualSinkDisplayVisible(node, { bypassedNodes })) {
       markReachable(node.id);
     }
     if (
@@ -578,10 +604,12 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
 }
 
 function nodeGraphCompiledVisualSinks(graph, reachableNodes) {
+  const bypassedNodes = new Set(graph.bypassedNodes || []);
   return graph.nodes
     .filter((node) =>
       reachableNodes.has(node.id) &&
-      nodeGraphModuleDefinitions[node.type]?.visualSink
+      !bypassedNodes.has(node.id) &&
+      nodeGraphVisualSinkDisplayVisible(node, { bypassedNodes })
     )
     .map((node) => {
       const bufferedInputs = nodeGraphPatchNodeBufferedInputs(node);

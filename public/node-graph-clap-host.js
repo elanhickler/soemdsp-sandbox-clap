@@ -807,6 +807,8 @@ function createNodeGraphClapParameterRow(nodeId, binding, parameter) {
   input.dataset.displayChoices = definition.displayChoices ? "true" : "false";
   input.dataset.divideChoicesVisibly = definition.divideChoicesVisibly ? "true" : "false";
   input.dataset.linearSmoothing = definition.linearSmoothing === false ? "false" : "true";
+  input.dataset.sliderCurve = normalizeNodeSliderCurve(definition.sliderCurve, definition.nonlinearSlider);
+  input.dataset.curveAmount = String(normalizeNodeSliderCurveAmount(definition.curveAmount));
   input.dataset.nonlinearSlider = definition.nonlinearSlider ? "true" : "false";
   input.dataset.showSign = definition.showSign ? "true" : "false";
   input.dataset.wraparound = definition.wraparound ? "true" : "false";

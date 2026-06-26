@@ -1,3 +1,20 @@
+function normalizeNodeSliderCurve(value, nonlinearSlider = false) {
+  const curve = String(value || "").trim().toLowerCase();
+  if (curve === "edges" || curve === "edge" || curve === "s") {
+    return "edges";
+  }
+  if (curve === "skew" || curve === "nonlinear" || curve === "exponential") {
+    return "skew";
+  }
+  return nonlinearSlider ? "skew" : "linear";
+}
+
+function normalizeNodeSliderCurveAmount(value, fallback = 0) {
+  const number = Number(value);
+  const safe = Number.isFinite(number) ? number : Number(fallback);
+  return clampNodeSliderValue(Number.isFinite(safe) ? safe : 0, -1, 1);
+}
+
 function nodeGraphDefaultParamsForType(type) {
   const params = {};
   for (const parameter of nodeGraphModuleDefinitions[type]?.parameters || []) {
@@ -375,6 +392,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
   const midInsideRange = safeMid > safeMin && safeMid < safeMax;
   return {
     choices: normalizeNodeGraphMetadataChoices(parameter.choices || []),
+    curveAmount: normalizeNodeSliderCurveAmount(parameter.curveAmount),
     def: clampNodeSliderValue(Number.isFinite(def) ? def : safeMin, safeMin, safeMax),
     displayChoices: Boolean(parameter.displayChoices),
     divideChoicesVisibly: Object.hasOwn(parameter, "divideChoicesVisibly")
@@ -389,6 +407,9 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
     nonlinearSlider: Object.hasOwn(parameter, "nonlinearSlider")
       ? Boolean(parameter.nonlinearSlider)
       : midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON,
+    sliderCurve: normalizeNodeSliderCurve(parameter.sliderCurve, Object.hasOwn(parameter, "nonlinearSlider")
+      ? Boolean(parameter.nonlinearSlider)
+      : midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON),
     showSign: Boolean(parameter.showSign),
     step: Number.isFinite(step) && step > 0 ? step : 0,
     unboundedMax: Boolean(parameter.unboundedMax),
@@ -410,11 +431,13 @@ function normalizeNodeMetadataKindTemplate(template = {}, kind = "decimal") {
   return {
     ...template,
     choices,
+    curveAmount: normalizeNodeSliderCurveAmount(template.curveAmount),
     divideChoicesVisibly: Object.hasOwn(template, "divideChoicesVisibly")
       ? Boolean(template.divideChoicesVisibly)
       : Boolean(choices.length),
     maxDigits: normalizeNodeGraphMetadataMaxDigits(template.maxDigits, kind),
     nonlinearSlider,
+    sliderCurve: normalizeNodeSliderCurve(template.sliderCurve, nonlinearSlider),
   };
 }
 
@@ -435,6 +458,7 @@ function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
   const def = Number.isFinite(Number(source.def)) ? Number(source.def) : min;
   return {
     choices: Array.isArray(source.choices) ? source.choices : [],
+    curveAmount: normalizeNodeSliderCurveAmount(source.curveAmount),
     def,
     displayChoices: Boolean(source.displayChoices),
     divideChoicesVisibly: Boolean(source.divideChoicesVisibly),
@@ -445,6 +469,7 @@ function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
     mid: Number.isFinite(Number(source.mid)) ? Number(source.mid) : (min + max) / 2,
     min,
     nonlinearSlider: Boolean(source.nonlinearSlider),
+    sliderCurve: normalizeNodeSliderCurve(source.sliderCurve, source.nonlinearSlider),
     showSign: Boolean(source.showSign),
     step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 0,
     unboundedMax: Boolean(source.unboundedMax),
@@ -499,6 +524,10 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
       Object.hasOwn(metadata || {}, "alias") ? metadata.alias : fallback.alias,
     ),
     choices,
+    curveAmount: normalizeNodeSliderCurveAmount(
+      Object.hasOwn(source, "curveAmount") ? source.curveAmount : fallback.curveAmount,
+      fallback.curveAmount,
+    ),
     def: clampNodeSliderValue(Number.isFinite(def) ? def : fallback.def, min, max),
     displayChoices: Object.hasOwn(source, "displayChoices")
       ? Boolean(source.displayChoices)
@@ -520,6 +549,10 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
     nonlinearSlider: Object.hasOwn(source, "nonlinearSlider")
       ? Boolean(source.nonlinearSlider)
       : fallback.nonlinearSlider,
+    sliderCurve: normalizeNodeSliderCurve(
+      Object.hasOwn(source, "sliderCurve") ? source.sliderCurve : fallback.sliderCurve,
+      Object.hasOwn(source, "nonlinearSlider") ? Boolean(source.nonlinearSlider) : fallback.nonlinearSlider,
+    ),
     showSign: Object.hasOwn(source, "showSign") ? Boolean(source.showSign) : fallback.showSign,
     step: Number.isFinite(step) && step > 0 ? step : 0,
     unboundedMax: Object.hasOwn(source, "unboundedMax")

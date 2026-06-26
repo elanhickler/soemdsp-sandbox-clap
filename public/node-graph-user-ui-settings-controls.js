@@ -221,6 +221,9 @@ function createNodeUserUiSettingsModuleOscilloscopeControl() {
     setValue: (visible) => {
       nodeGraphMvp.moduleOscilloscopesVisible = visible;
       renderNodeGraphModuleVisibilityToggles();
+      if (typeof scheduleNodeGraphLivePlanSync === "function") {
+        scheduleNodeGraphLivePlanSync();
+      }
     },
   });
 }

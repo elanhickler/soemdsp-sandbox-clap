@@ -1389,7 +1389,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return 0;
   }
 
-  captureModuleScopeFrame() {
+  captureModuleScopeFrame(frameValues = null, frame = 0, frames = 1) {
     this.scopeSampleStride = Math.max(1, Math.floor((Number(this.engineSampleRate) || sampleRate || 44100) / 12000));
     const captureDebugScope = (this.scopeCounter % this.scopeSampleStride) === 0;
     if (captureDebugScope) {
@@ -1412,11 +1412,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         }
         const inputValue = (input.connections || []).reduce(
           (connectionSum, connection) => connectionSum + this.readRuntimePortOutput(
-            null,
+            frameValues,
             connection.sourceNode,
             connection.sourcePort,
-            0,
-            1,
+            frame,
+            frames,
           ),
           0,
         );
@@ -1425,7 +1425,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         if (input?.buffered && inputPort) {
           this.writeVisualInputBufferSample(nodeId, inputPort, inputValue, sink.bufferSampleLimit);
         }
-        if (captureDebugScope && inputPort) {
+        if (captureDebugScope && inputPort && !input?.buffered) {
           const portId = `${nodeId}:${inputPort}`;
           this.appendScopeBufferSample(portId, inputValue);
         }
@@ -1561,6 +1561,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
   postModuleScopeSnapshot() {
     const values = [];
+    const engineSampleRate = Math.max(1, Number(this.engineSampleRate) || sampleRate || 44100);
+    const scopeSampleStride = Math.max(1, Number(this.scopeSampleStride) || 1);
+    const decimatedScopeSampleRate = engineSampleRate / scopeSampleStride;
     for (const [nodeId, samples] of this.scopeBuffers) {
       const length = samples instanceof Float32Array
         ? Math.min(samples.length, Number(samples.nodeGraphScopeLength) || 0)
@@ -1575,9 +1578,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         for (let index = 0; index < length; index += 1) {
           ordered[index] = samples[(start + index) % samples.length] || 0;
         }
-        values.push([nodeId, ordered]);
+        values.push([nodeId, ordered, {
+          sampleRate: decimatedScopeSampleRate,
+          sampleStride: scopeSampleStride,
+          sourceSampleRate: engineSampleRate,
+        }]);
       } else {
-        values.push([nodeId, samples]);
+        values.push([nodeId, samples, {
+          sampleRate: decimatedScopeSampleRate,
+          sampleStride: scopeSampleStride,
+          sourceSampleRate: engineSampleRate,
+        }]);
       }
     }
     for (const [key, state] of this.visualInputBuffers || []) {
@@ -1601,6 +1612,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       values.push([key, ordered, {
         absoluteFrame,
+        sampleRate: engineSampleRate,
+        sampleStride: 1,
+        sourceSampleRate: engineSampleRate,
         startFrame: absoluteFrame - count,
       }]);
       state.postedFrame = absoluteFrame;
@@ -1610,7 +1624,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     this.port.postMessage({
       patchFingerprint: this.patchFingerprint,
-      sampleRate: this.engineSampleRate,
+      sampleRate: engineSampleRate,
       sessionId: this.sessionId,
       type: "scope",
       values,
@@ -5624,6 +5638,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       : 1;
 
     const outputMono = mixInput(this.outputNode || "output", "Mono");
+    this.currentFrameValues = frameValues;
     return {
       left: (outputMono + mixInput(this.outputNode || "output", "Left")) * outputVolume,
       right: (outputMono + mixInput(this.outputNode || "output", "Right")) * outputVolume,
@@ -5672,7 +5687,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           leftSum += subframeOutput.left;
           rightSum += subframeOutput.right;
         }
-        this.captureModuleScopeFrame();
+        this.captureModuleScopeFrame(this.currentFrameValues, engineFrame, engineFrames);
         this.scopeCounter += 1;
         if (this.scopeCounter >= Math.max(1, Math.floor(engineSampleRate / 30))) {
           this.scopeCounter = 0;

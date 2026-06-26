@@ -1702,6 +1702,9 @@ function toggleNodeGraphModuleButtonsVisibility() {
 function toggleNodeGraphOscilloscopeVisibility() {
   nodeGraphMvp.moduleOscilloscopesVisible = nodeGraphMvp.moduleOscilloscopesVisible === false;
   renderNodeGraphModuleVisibilityToggles();
+  if (typeof scheduleNodeGraphLivePlanSync === "function") {
+    scheduleNodeGraphLivePlanSync();
+  }
   if (nodeGraphMvp.moduleOscilloscopesVisible) {
     scheduleNodeGraphModuleScopeDraw();
   } else {

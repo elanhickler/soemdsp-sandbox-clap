@@ -269,6 +269,7 @@ const nodeMetadataScriptHighlightTokenPattern =
 const nodeMetadataScriptSupportedKeys = new Set([
   "alias",
   "choices",
+  "curveAmount",
   "def",
   "displayChoices",
   "divideChoicesVisibly",
@@ -279,6 +280,7 @@ const nodeMetadataScriptSupportedKeys = new Set([
   "mid",
   "min",
   "nonlinearSlider",
+  "sliderCurve",
   "showSign",
   "step",
   "unit",
@@ -675,6 +677,8 @@ function formatNodeMetadataScript(slider, metadata = nodeSliderMetadata(slider))
     `// ${title} : ${label}`,
     `param.${key}.alias = ${nodeMetadataScriptValue(metadata.alias, "alias")};`,
     `param.${key}.kind = ${nodeMetadataScriptValue(metadata.kind, "kind")};`,
+    `param.${key}.sliderCurve = ${nodeMetadataScriptValue(metadata.sliderCurve, "sliderCurve")};`,
+    `param.${key}.curveAmount = ${nodeMetadataScriptValue(metadata.curveAmount, "curveAmount")};`,
     `param.${key}.min = ${nodeMetadataScriptValue(metadata.min, "min")};`,
     `param.${key}.mid = ${nodeMetadataScriptValue(metadata.mid, "mid")};`,
     `param.${key}.max = ${nodeMetadataScriptValue(metadata.max, "max")};`,
@@ -698,6 +702,7 @@ function nodeMetadataScriptTemplateForKind(slider, kind) {
   const template = nodeMetadataKindTemplates[normalizedKind] || nodeMetadataKindTemplates.decimal;
   const templateMetadata = {
     choices: template.choices || [],
+    curveAmount: normalizeNodeSliderCurveAmount(template.curveAmount),
     def: Number.isFinite(Number(template.def)) ? Number(template.def) : 0,
     displayChoices: Boolean(template.displayChoices),
     divideChoicesVisibly: Boolean(template.divideChoicesVisibly),
@@ -708,6 +713,7 @@ function nodeMetadataScriptTemplateForKind(slider, kind) {
     mid: Number.isFinite(Number(template.mid)) ? Number(template.mid) : 0,
     min: Number.isFinite(Number(template.min)) ? Number(template.min) : 0,
     nonlinearSlider: Boolean(template.nonlinearSlider),
+    sliderCurve: normalizeNodeSliderCurve(template.sliderCurve, template.nonlinearSlider),
     showSign: Boolean(template.showPlusMinus),
     step: Number.isFinite(Number(template.step)) ? Number(template.step) : 0,
     unit: template.unit || "",
@@ -1172,8 +1178,14 @@ function parseNodeMetadataScriptValue(rawValue, key, current) {
   if (key === "kind") {
     return normalizeNodeMetadataKind(value);
   }
+  if (key === "sliderCurve") {
+    return normalizeNodeSliderCurve(value.replace(/^["']|["']$/g, ""), current.nonlinearSlider);
+  }
   if (key === "unit") {
     return value.replace(/^["']|["']$/g, "");
+  }
+  if (key === "curveAmount") {
+    return normalizeNodeSliderCurveAmount(value, current.curveAmount);
   }
   if (key === "maxDigits") {
     return normalizeNodeGraphMetadataMaxDigits(value, current.kind);
@@ -1275,6 +1287,8 @@ function writeNodeMetadataEditorValues(metadata) {
   document.getElementById("metadataDivideChoicesValue").checked = metadata.divideChoicesVisibly;
   document.getElementById("metadataLinearSmoothingValue").checked = metadata.linearSmoothing;
   document.getElementById("metadataNonlinearSliderValue").checked = metadata.nonlinearSlider;
+  document.getElementById("metadataSliderCurveValue").value = normalizeNodeSliderCurve(metadata.sliderCurve, metadata.nonlinearSlider);
+  document.getElementById("metadataCurveSensitivityValue").value = formatNodeSliderCompactNumber(metadata.curveAmount);
   document.getElementById("metadataShowSignValue").checked = metadata.showSign;
   document.getElementById("metadataWraparoundValue").checked = metadata.wraparound;
   syncNodeMetadataMidVisibility();
@@ -1284,8 +1298,8 @@ function fillNodeMetadataPopover(slider) {
   populateNodeMetadataKindChoices();
   const metadata = nodeSliderMetadata(slider);
   const sliderLabel = nodeSliderLabelText(slider);
-  document.getElementById("metadataPopoverTitle").textContent = nodeSliderDebugPath(slider);
-  document.getElementById("metadataPopoverSubtitle").textContent = "module controls";
+  document.getElementById("metadataPopoverTitle").textContent = "PARAMETER";
+  document.getElementById("metadataPopoverSubtitle").textContent = "Settings";
   document.getElementById("metadataScriptTarget").textContent = sliderLabel;
   document.getElementById("metadataAliasValue").placeholder = sliderLabel;
   writeNodeMetadataEditorValues(metadata);
@@ -1343,6 +1357,34 @@ function openNodeMetadataPopover(event, readout) {
   }
 }
 
+function syncOpenNodeMetadataPopoverToModule(nodeId) {
+  const popover = document.getElementById("nodeParameterMetadataPopover");
+  if (!popover || popover.hidden || nodeGraphMvp.sharedInspectorActive !== "metaparameters") {
+    return false;
+  }
+  const readout = typeof nodeGraphContextTargetSliderReadout === "function"
+    ? nodeGraphContextTargetSliderReadout(nodeId)
+    : null;
+  const slider = readout?.dataset?.sliderTarget
+    ? document.getElementById(readout.dataset.sliderTarget)
+    : null;
+  if (!slider) {
+    return false;
+  }
+  if (nodeGraphMvp.metadataEditorTarget === slider.id) {
+    return true;
+  }
+  if (nodeGraphMvp.metadataEditorTarget && !confirmNodeMetadataScriptDiscard()) {
+    return false;
+  }
+  nodeGraphMvp.metadataEditorTarget = slider.id;
+  fillNodeMetadataPopover(slider);
+  if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
+    rememberNodeGraphWorkspaceWindowState("metaparameters", popover, { open: true }, { status: false });
+  }
+  return true;
+}
+
 function openBlankNodeMetadataPopover(event = {}) {
   event.preventDefault?.();
   event.stopPropagation?.();
@@ -1361,8 +1403,8 @@ function openBlankNodeMetadataPopover(event = {}) {
     : null;
   nodeGraphMvp.metadataEditorTarget = null;
   nodeGraphMvp.sharedInspectorActive = "metaparameters";
-  document.getElementById("metadataPopoverTitle").textContent = "Metaparameters";
-  document.getElementById("metadataPopoverSubtitle").textContent = "script settings";
+  document.getElementById("metadataPopoverTitle").textContent = "PARAMETER";
+  document.getElementById("metadataPopoverSubtitle").textContent = "Settings";
   document.getElementById("metadataScriptTarget").textContent = "No parameter selected";
   setMetadataScriptSourceText("");
   updateNodeMetadataScriptPreview("");
@@ -1513,6 +1555,7 @@ function bindNodeGraphMetadataPopoverEvents() {
       bindNodeGraphSettingsTextInputProtection(popover);
     }
     popover.addEventListener("input", handleNodeMetadataEditorInput);
+    popover.addEventListener("change", handleNodeMetadataEditorInput);
     popover.addEventListener("click", stepNodeMetadataField);
   } else if (popover && typeof bindNodeGraphSettingsTextInputProtection === "function") {
     bindNodeGraphSettingsTextInputProtection(popover);
@@ -1776,6 +1819,10 @@ function readNodeMetadataEditorValues(slider) {
   const kind = normalizeNodeMetadataKind(document.getElementById("metadataKindValue").value);
   return {
     alias: normalizeNodeGraphPatchMetadataAlias(document.getElementById("metadataAliasValue").value),
+    curveAmount: normalizeNodeSliderCurveAmount(
+      sanitizeMetadataNumberInput("metadataCurveSensitivityValue"),
+      current.curveAmount,
+    ),
     def: parseNodeMetadataNumber(sanitizeMetadataNumberInput("metadataDefaultValue"), current.def),
     kind,
     max,
@@ -1789,7 +1836,8 @@ function readNodeMetadataEditorValues(slider) {
     displayChoices: document.getElementById("metadataDisplayChoicesValue").checked,
     divideChoicesVisibly: document.getElementById("metadataDivideChoicesValue").checked,
     linearSmoothing: document.getElementById("metadataLinearSmoothingValue").checked,
-    nonlinearSlider: document.getElementById("metadataNonlinearSliderValue").checked,
+    nonlinearSlider: document.getElementById("metadataSliderCurveValue").value !== "linear",
+    sliderCurve: normalizeNodeSliderCurve(document.getElementById("metadataSliderCurveValue").value),
     step: Math.max(0, parseNodeMetadataNumber(stepInput, current.step)),
     showSign: document.getElementById("metadataShowSignValue").checked,
     wraparound: document.getElementById("metadataWraparoundValue").checked,
@@ -1932,6 +1980,9 @@ function setNodeMetadataDefaultsFromKind() {
   document.getElementById("metadataDivideChoicesValue").checked = Boolean(template.divideChoicesVisibly);
   document.getElementById("metadataLinearSmoothingValue").checked = template.linearSmoothing !== false;
   document.getElementById("metadataNonlinearSliderValue").checked = Boolean(template.nonlinearSlider);
+  document.getElementById("metadataSliderCurveValue").value = normalizeNodeSliderCurve(template.sliderCurve, template.nonlinearSlider);
+  document.getElementById("metadataCurveSensitivityValue").value =
+    formatNodeSliderCompactNumber(normalizeNodeSliderCurveAmount(template.curveAmount));
   document.getElementById("metadataShowSignValue").checked = Boolean(template.showPlusMinus);
   document.getElementById("metadataWraparoundValue").checked = Boolean(template.wraparound);
   syncNodeMetadataMidVisibility();

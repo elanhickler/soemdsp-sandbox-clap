@@ -777,6 +777,10 @@ function setNodeModuleActionsWindowHeader(label, detail = "") {
   detailElement.textContent = detail;
 }
 
+function setNodeModuleSettingsWindowHeader(detail = "") {
+  setNodeModuleActionsWindowHeader("MODULE", detail || "Settings");
+}
+
 function configureNodeSceneContextMenu(mode) {
   ensureNodeGraphModuleActionsWindowBody();
   const actionMode = mode === "module" || mode === "wire";
@@ -908,13 +912,11 @@ function configureNodeSceneContextMenu(mode) {
   const textBoxLayout = normalizeNodeGraphTextBoxLayout(targetNode?.layout);
   const textBoxMode = textBoxLayout.textMode;
   if (actionMode) {
-    setNodeModuleActionsWindowHeader(moduleMode ? "MODULE SETTINGS" : "WIRE ACTIONS", multiModuleMode
-      ? `${selectedNodeIds.size} modules`
-      : targetNode
-        ? nodeGraphNodeDisplayName(targetNode.id)
-        : wireMode
-          ? "selected wire"
-          : "no module selected");
+    if (moduleMode) {
+      setNodeModuleSettingsWindowHeader("Settings");
+    } else {
+      setNodeModuleActionsWindowHeader("WIRE ACTIONS", wireMode ? "selected wire" : "no wire selected");
+    }
     menu.setAttribute("aria-label", moduleMode ? "Module settings" : "Wire actions");
   } else {
     setNodeSceneContextHeader("Command", "Center");
@@ -931,7 +933,7 @@ function configureNodeSceneContextMenu(mode) {
     metaparametersWindowButton.disabled = false;
     metaparametersWindowButton.title = nodeGraphContextTargetSliderReadout(targetNode?.id)
       ? "Open the metaparameter editor for the first parameter on this module."
-      : "Open blank metaparameter script settings.";
+      : "Open blank parameter settings.";
   }
   if (actionMode && !hasActionSelection) {
     setNodeGraphModuleActionControlsHidden(true);
@@ -982,11 +984,12 @@ function configureNodeSceneContextMenu(mode) {
   textBoxVerticalAlignControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
   closeButton.hidden = false;
   if (moduleMode) {
-    selectedModule.querySelector("span").textContent = multiModuleMode ? "selected modules" : "selected module";
+    selectedModule.hidden = false;
+    selectedModule.querySelector("span").textContent = "module";
     selectedModule.querySelector("strong").textContent = multiModuleMode
       ? `${selectedNodeIds.size} modules`
       : targetNode
-        ? `${nodeGraphNodeDisplayName(targetNode.id)} (${targetNode.id})`
+        ? nodeGraphNodeDisplayName(targetNode.id)
         : "none";
     aliasControl.hidden = multiModuleMode;
     aliasInput.disabled = !targetNode || multiModuleMode;

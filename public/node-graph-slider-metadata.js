@@ -219,6 +219,25 @@ function nodeSliderShouldUseNonlinearSlider(slider) {
   return slider.dataset.nonlinearSlider === "true";
 }
 
+function normalizeNodeSliderCurve(value, nonlinearSlider = false) {
+  const curve = String(value || "").trim().toLowerCase();
+  if (curve === "edges" || curve === "edge" || curve === "s") {
+    return "edges";
+  }
+  if (curve === "skew" || curve === "nonlinear" || curve === "exponential") {
+    return "skew";
+  }
+  return nonlinearSlider ? "skew" : "linear";
+}
+
+function nodeSliderCurve(slider) {
+  return normalizeNodeSliderCurve(slider.dataset.sliderCurve, nodeSliderShouldUseNonlinearSlider(slider));
+}
+
+function nodeSliderCurveAmount(slider) {
+  return normalizeNodeSliderCurveAmount(slider.dataset.curveAmount);
+}
+
 function formatNodeSliderCompactNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? Number(number.toFixed(6)).toString() : "";
@@ -340,12 +359,14 @@ function nodeSliderMetadata(slider) {
   return {
     alias: slider.dataset.alias ?? "",
     choices: parseNodeMetadataChoices(slider.dataset.choices || ""),
+    curveAmount: nodeSliderCurveAmount(slider),
     cur,
     def,
     displayChoices: nodeSliderShouldDisplayChoices(slider),
     divideChoicesVisibly: nodeSliderShouldDivideChoicesVisibly(slider),
     linearSmoothing: nodeSliderShouldUseLinearSmoothing(slider),
     nonlinearSlider: nodeSliderShouldUseNonlinearSlider(slider),
+    sliderCurve: nodeSliderCurve(slider),
     showSign: nodeSliderShouldShowSign(slider),
     wraparound: nodeSliderShouldWraparound(slider),
     unit: slider.dataset.unit ?? "",
@@ -373,10 +394,11 @@ function formatNodeSliderMetadataTooltip(slider) {
     `max digits ${metadata.maxDigits}`,
     `unit ${metadata.unit}`,
     `choices ${metadata.choices.length ? formatNodeMetadataChoices(metadata.choices) : "none"}`,
+    `curve ${metadata.sliderCurve}`,
+    `sensitivity ${formatNodeSliderCompactNumber(metadata.curveAmount)}`,
     `display choices ${metadata.displayChoices}`,
     `divide choices visibly ${metadata.divideChoicesVisibly}`,
     `linear smoothing ${metadata.linearSmoothing}`,
-    `nonlinear slider ${metadata.nonlinearSlider}`,
     `show sign ${metadata.showSign}`,
     `wraparound ${metadata.wraparound}`,
   ];

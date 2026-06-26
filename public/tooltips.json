@@ -138,10 +138,10 @@
     "dot2LineThickness": "Blur of the 1D Trace Dot 2 beam.",
     "dot2Brightness": "Dot 2 brightness. Values above 1 are allowed.",
     "dot2Color": "Dot 2 color.",
-    "capEnabled": "Show or hide the 1D Value line end caps.",
-    "lineLength": "1D Value line length. 1 reaches the display edge; lower values pull both ends inward.",
-    "capSize": "1D Value cap thickness as a 0..1 fraction of the display square.",
-    "capLength": "1D Value cap length as a 0..1 fraction of the display height.",
+    "capEnabled": "Show or hide the 0D Value line end caps.",
+    "lineLength": "0D Value line length. 1 reaches the display edge; lower values pull both ends inward.",
+    "capSize": "0D Value cap thickness as a 0..1 fraction of the display square.",
+    "capLength": "0D Value cap length as a 0..1 fraction of the display height.",
     "sourceSync": "Align Trace Display start to the detected source cycle. Zoom (s) still controls length."
   },
   "wire": {

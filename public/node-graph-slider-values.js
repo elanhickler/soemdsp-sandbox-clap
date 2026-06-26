@@ -235,11 +235,58 @@ function normalizedNodeSliderMid(slider) {
 }
 
 function nodeSliderSkewExponent(slider) {
-  if (!nodeSliderShouldUseNonlinearSlider(slider)) {
+  if (nodeSliderCurve(slider) !== "skew") {
     return 1;
   }
   const exponent = Math.log(normalizedNodeSliderMid(slider)) / Math.log(0.5);
   return clampNodeSliderValue(exponent, nodeSliderMinSkewExponent, nodeSliderMaxSkewExponent);
+}
+
+function nodeSliderEdgeCurvePower(slider) {
+  if (nodeSliderCurve(slider) !== "edges") {
+    return 1;
+  }
+  return 1 + Math.abs(nodeSliderCurveAmount(slider)) * 7;
+}
+
+function nodeSliderCurveValueFromTravel(slider, travel) {
+  const normalizedTravel = normalizeNodeSliderTravel(slider, travel);
+  const curve = nodeSliderCurve(slider);
+  if (curve === "edges") {
+    const amount = nodeSliderCurveAmount(slider);
+    const power = nodeSliderEdgeCurvePower(slider);
+    if (amount >= 0) {
+      if (normalizedTravel <= 0.5) {
+        return 0.5 * (normalizedTravel * 2) ** power;
+      }
+      return 1 - 0.5 * (2 - normalizedTravel * 2) ** power;
+    }
+    if (normalizedTravel <= 0.5) {
+      return 0.5 * (1 - (1 - normalizedTravel * 2) ** power);
+    }
+    return 0.5 + 0.5 * ((normalizedTravel - 0.5) * 2) ** power;
+  }
+  return normalizedTravel ** nodeSliderSkewExponent(slider);
+}
+
+function nodeSliderCurveTravelFromValue(slider, normalizedValue) {
+  const value = clampNodeSliderValue(normalizedValue, 0, 1);
+  const curve = nodeSliderCurve(slider);
+  if (curve === "edges") {
+    const amount = nodeSliderCurveAmount(slider);
+    const power = nodeSliderEdgeCurvePower(slider);
+    if (amount >= 0) {
+      if (value <= 0.5) {
+        return 0.5 * (value * 2) ** (1 / power);
+      }
+      return 1 - 0.5 * (2 - value * 2) ** (1 / power);
+    }
+    if (value <= 0.5) {
+      return 0.5 * (1 - (1 - value * 2) ** (1 / power));
+    }
+    return 0.5 + 0.5 * ((value - 0.5) * 2) ** (1 / power);
+  }
+  return value ** (1 / nodeSliderSkewExponent(slider));
 }
 
 function normalizeNodeSliderTravel(slider, travel) {
@@ -260,9 +307,7 @@ function nodeSliderValueFromTravel(slider, travel) {
     return min;
   }
 
-  const exponent = nodeSliderSkewExponent(slider);
-  const normalizedTravel = normalizeNodeSliderTravel(slider, travel);
-  return min + range * normalizedTravel ** exponent;
+  return min + range * nodeSliderCurveValueFromTravel(slider, travel);
 }
 
 function nodeSliderValueFromPointerTravel(slider, travel) {
@@ -273,9 +318,7 @@ function nodeSliderValueFromPointerTravel(slider, travel) {
     return min;
   }
 
-  const exponent = nodeSliderSkewExponent(slider);
-  const normalizedTravel = normalizeNodeSliderTravel(slider, travel);
-  return min + range * normalizedTravel ** exponent;
+  return min + range * nodeSliderCurveValueFromTravel(slider, travel);
 }
 
 function nodeSliderValueFromRelativeTravel(slider, travel) {
@@ -303,9 +346,8 @@ function nodeSliderTravelFromValue(slider, value) {
     return 0;
   }
 
-  const exponent = nodeSliderSkewExponent(slider);
   const normalizedValue = clampNodeSliderValue((value - min) / range, 0, 1);
-  return normalizedValue ** (1 / exponent);
+  return nodeSliderCurveTravelFromValue(slider, normalizedValue);
 }
 
 function nodeSliderElementLayoutWidth(element) {
@@ -410,7 +452,9 @@ function setNodeSliderMetadata(slider, metadata) {
   slider.dataset.displayChoices = metadata.displayChoices ? "true" : "false";
   slider.dataset.divideChoicesVisibly = metadata.divideChoicesVisibly ? "true" : "false";
   slider.dataset.linearSmoothing = metadata.linearSmoothing ? "true" : "false";
-  slider.dataset.nonlinearSlider = metadata.nonlinearSlider ? "true" : "false";
+  slider.dataset.sliderCurve = normalizeNodeSliderCurve(metadata.sliderCurve, metadata.nonlinearSlider);
+  slider.dataset.curveAmount = String(normalizeNodeSliderCurveAmount(metadata.curveAmount));
+  slider.dataset.nonlinearSlider = slider.dataset.sliderCurve === "linear" ? "false" : "true";
   slider.dataset.showSign = metadata.showSign ? "true" : "false";
   slider.dataset.unboundedMax = metadata.unboundedMax ? "true" : "false";
   slider.dataset.unboundedMin = metadata.unboundedMin ? "true" : "false";

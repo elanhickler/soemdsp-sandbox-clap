@@ -232,6 +232,8 @@ NODE_METADATA_KIND_TEMPLATES = {
 
 for kind, template in NODE_METADATA_KIND_TEMPLATES.items():
     template.setdefault("maxDigits", 5 if kind == "frequency" else 3)
+    template.setdefault("sliderCurve", "skew" if template.get("nonlinearSlider") else "linear")
+    template.setdefault("curveAmount", 0)
 
 
 def ui_settings_script_text(payload: dict) -> str:

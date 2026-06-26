@@ -6250,13 +6250,6 @@ audio {
   text-transform: none;
 }
 
-.node-trace-display-settings-popover .scene-context-title > small + small {
-  color: rgba(226, 168, 109, 0.88);
-  font-family: var(--mono);
-  font-size: calc(var(--node-floating-window-subtitle-size, 0.68rem) * 0.9);
-  font-weight: 650;
-}
-
 .metadata-popover-heading .metadata-popover-drag-handle,
 .scene-context-drag-handle,
 .node-saved-patches-drag-handle,
@@ -8592,7 +8585,7 @@ audio {
 }
 
 .node-module-scope-canvas {
-  z-index: 2;
+  z-index: 4;
   filter:
     brightness(calc(1 + var(--node-visual-brightness, 0) * 0.65))
     drop-shadow(
@@ -8615,7 +8608,7 @@ audio {
 }
 
 .node-module-scope-light-canvas {
-  z-index: 2;
+  z-index: 4;
   mix-blend-mode: screen;
   transform: translate(var(--node-visual-shake-x), var(--node-visual-shake-y));
 }
@@ -11399,6 +11392,11 @@ audio {
   border-right: 0;
 }
 
+.metadata-field-section .metadata-curve-label,
+.metadata-field-section .metadata-curve-sensitivity-label {
+  border-right: 0;
+}
+
 .metadata-field-section label:last-child,
 .metadata-toggle-section label:nth-last-child(-n + 2) {
   border-bottom: 0;
@@ -11409,6 +11407,13 @@ audio {
   color: rgba(205, 214, 216, 0.82);
   font-size: 0.64rem;
   text-transform: none;
+}
+
+.metadata-popover-grid .node-trace-display-sync-row {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 4px;
 }
 
 .metadata-popover-grid input,
@@ -11587,7 +11592,7 @@ input[data-global-scope-number-drag="true"]:not([readonly]):focus,
 .node-trace-display-settings-popover .metadata-popover-grid label,
 .node-trace-display-settings-popover .metadata-popover-grid .metadata-choices-label {
   gap: 0;
-  grid-template-columns: minmax(34px, 0.24fr) minmax(0, 1fr);
+  grid-template-columns: minmax(52px, 0.34fr) minmax(0, 1fr);
   padding: 0;
 }
 
@@ -11596,19 +11601,41 @@ input[data-global-scope-number-drag="true"]:not([readonly]):focus,
   grid-column: 1 / -1;
   align-self: start;
   box-sizing: border-box;
-  height: 24px;
-  max-height: 24px;
+  height: 28px;
+  max-height: 28px;
   min-width: 0;
-  min-height: 24px;
+  min-height: 28px;
   place-items: center;
   overflow: hidden;
-  padding: 0 4px;
+  padding: 0;
+  font-size: 0.78rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.node-trace-display-settings-target {
+  display: grid;
+  grid-column: 1 / -1;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 28px;
+  overflow: hidden;
+  padding: 0;
+  border-block-end: var(--node-hairline, 1px) solid rgba(127, 199, 217, 0.25);
+  color: rgba(226, 168, 109, 0.9);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
 .node-trace-display-settings-popover .node-trace-display-dot1-title,
 .node-trace-display-settings-popover .node-trace-display-dot2-title {
-  grid-template-columns: minmax(0, 1fr) 24px;
+  grid-template-columns: minmax(0, 1fr) 28px;
   place-items: center stretch;
 }
 
@@ -12360,11 +12387,16 @@ button.saved-default,
 }
 
 .node-module-actions-window .scene-context-selected-module {
+  display: grid;
+  grid-template-columns: 0 minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
   min-height: 28px;
   min-width: 0;
-  padding: 0 2px;
+  padding: 0;
   overflow: hidden;
   border-radius: 0;
+  border-inline: 0;
 }
 
 .node-module-actions-window .scene-context-selected-module span,
@@ -12375,8 +12407,17 @@ button.saved-default,
 }
 
 .node-module-actions-window .scene-context-selected-module strong {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: #cfdde5;
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
   font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
   text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .node-module-actions-window :is(
@@ -12395,9 +12436,21 @@ button.saved-default,
 .node-module-actions-window .scene-context-text-box-controls {
   gap: 0;
   min-width: 0;
-  padding: 0 2px;
+  padding: 0;
   overflow: hidden;
   border-radius: 0;
+}
+
+.node-module-actions-window .scene-context-alias-control {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: minmax(var(--node-floating-window-button-height), auto);
+  align-items: stretch;
+}
+
+.node-module-actions-window .scene-context-alias-control > span {
+  display: grid;
+  place-items: center;
+  min-height: var(--node-floating-window-button-height);
 }
 
 .node-module-actions-window .scene-context-alias-control input {
@@ -12487,6 +12540,51 @@ button.saved-default,
 .node-scene-context-menu .scene-context-resize-handle.dragging,
 .node-visibility-menu .scene-context-resize-handle:hover,
 .node-visibility-menu .scene-context-resize-handle.dragging {
+  background:
+    linear-gradient(135deg, transparent 0 48%, rgba(226, 168, 109, 0.56) 50% 56%, transparent 58%),
+    linear-gradient(135deg, transparent 0 64%, rgba(226, 168, 109, 0.8) 66% 72%, transparent 74%),
+    rgba(7, 10, 13, 0.88);
+}
+
+.node-scene-context-menu .scene-context-resize-handle,
+.node-visibility-menu .scene-context-resize-handle,
+.node-saved-patches-resize-handle,
+.node-module-shop-resize-handle,
+.metadata-popover-corner-drag {
+  box-sizing: border-box;
+  inline-size: 18px;
+  block-size: 18px;
+  min-inline-size: 18px;
+  min-block-size: 18px;
+  max-inline-size: 18px;
+  max-block-size: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px 0 6px 0;
+  background:
+    linear-gradient(135deg, transparent 0 48%, rgba(127, 199, 217, 0.36) 50% 56%, transparent 58%),
+    linear-gradient(135deg, transparent 0 64%, rgba(127, 199, 217, 0.58) 66% 72%, transparent 74%),
+    rgba(7, 10, 13, 0.72);
+  touch-action: none;
+}
+
+.node-saved-patches-resize-handle::before,
+.node-saved-patches-resize-handle::after {
+  display: none;
+}
+
+.node-scene-context-menu .scene-context-resize-handle:hover,
+.node-scene-context-menu .scene-context-resize-handle.dragging,
+.node-visibility-menu .scene-context-resize-handle:hover,
+.node-visibility-menu .scene-context-resize-handle.dragging,
+.node-saved-patches-resize-handle:hover,
+.node-saved-patches-resize-handle.dragging,
+.node-module-shop-resize-handle:hover,
+.node-module-shop-resize-handle.dragging,
+.node-module-shop-resize-handle:focus-visible,
+.metadata-popover-corner-drag:hover,
+.metadata-popover-corner-drag.dragging,
+.metadata-popover-corner-drag:focus-visible {
   background:
     linear-gradient(135deg, transparent 0 48%, rgba(226, 168, 109, 0.56) 50% 56%, transparent 58%),
     linear-gradient(135deg, transparent 0 64%, rgba(226, 168, 109, 0.8) 66% 72%, transparent 74%),

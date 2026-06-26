@@ -311,6 +311,8 @@ function createNodeGraphKnobWidgetBody(node, type) {
   input.dataset.kind = parameter?.kind ?? "";
   input.dataset.unit = parameter?.unit ?? "";
   input.dataset.linearSmoothing = parameter?.linearSmoothing === false ? "false" : "true";
+  input.dataset.sliderCurve = normalizeNodeSliderCurve(parameter?.sliderCurve, parameter?.nonlinearSlider);
+  input.dataset.curveAmount = String(normalizeNodeSliderCurveAmount(parameter?.curveAmount));
   input.dataset.nonlinearSlider = parameter?.nonlinearSlider ? "true" : "false";
   input.dataset.unboundedMax = parameter?.unboundedMax ? "true" : "false";
   input.dataset.unboundedMin = parameter?.unboundedMin ? "true" : "false";
@@ -667,6 +669,8 @@ function createNodeGraphParameter(node, type, parameter) {
   input.dataset.displayChoices = parameter.displayChoices ? "true" : "false";
   input.dataset.divideChoicesVisibly = parameter.divideChoicesVisibly ? "true" : "false";
   input.dataset.linearSmoothing = parameter.linearSmoothing === false ? "false" : "true";
+  input.dataset.sliderCurve = normalizeNodeSliderCurve(metadata?.sliderCurve, metadata?.nonlinearSlider);
+  input.dataset.curveAmount = String(normalizeNodeSliderCurveAmount(metadata?.curveAmount));
   input.dataset.nonlinearSlider = metadata?.nonlinearSlider ? "true" : "false";
   input.dataset.showSign = parameter.showSign ? "true" : "false";
   input.dataset.unboundedMax = metadata?.unboundedMax ? "true" : "false";

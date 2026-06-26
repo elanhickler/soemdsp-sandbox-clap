@@ -689,28 +689,6 @@ function readNodeUiDevSettingsFromControls(options = {}) {
       zoom: typeof nodeGraphZoom === "function" ? nodeGraphZoom() : nodeGraphMvp.zoom,
     };
   }
-  if (
-    workingPatchForSettings &&
-    nodeGraphMvp.sharedInspectorActive === "traceDisplaySettings" &&
-    typeof readNodeGraphTraceDisplaySettingsForm === "function" &&
-    typeof assignNodeGraphTypedDisplaySettingsToNode === "function" &&
-    typeof nodeGraphModuleDisplayTypeForType === "function"
-  ) {
-    const popover = document.getElementById("nodeTraceDisplaySettingsPopover");
-    const targetNodeId = String(
-      nodeGraphMvp.traceDisplaySettingsTargetNode ||
-      popover?.dataset.displaySettingsTargetNode ||
-      "",
-    );
-    const workingNode = workingPatchForSettings.nodes?.find((node) => node.id === targetNodeId);
-    if (workingNode) {
-      assignNodeGraphTypedDisplaySettingsToNode(
-        workingNode,
-        nodeGraphModuleDisplayTypeForType(workingNode.type),
-        readNodeGraphTraceDisplaySettingsForm(),
-      );
-    }
-  }
   const controls = {};
   for (const definition of nodeUiDevSettingControls) {
     const input = document.getElementById(definition.id);

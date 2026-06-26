@@ -124,6 +124,26 @@ function syncNodeGraphModuleActionTargetFromSelection() {
   }
 }
 
+function syncNodeGraphSharedInspectorTargetFromSelection() {
+  const selectedNode = nodeGraphSingleSelectedNodeId();
+  if (!selectedNode || !nodeGraphPatchNode(selectedNode)) {
+    return;
+  }
+  if (
+    nodeGraphMvp.sharedInspectorActive === "traceDisplaySettings" &&
+    typeof syncOpenNodeGraphTraceDisplaySettingsToNode === "function"
+  ) {
+    syncOpenNodeGraphTraceDisplaySettingsToNode(selectedNode);
+    return;
+  }
+  if (
+    nodeGraphMvp.sharedInspectorActive === "metaparameters" &&
+    typeof syncOpenNodeMetadataPopoverToModule === "function"
+  ) {
+    syncOpenNodeMetadataPopoverToModule(selectedNode);
+  }
+}
+
 function setNodeGraphNodeSelection(ids) {
   const uniqueIds = [...new Set(ids)].filter((id) => nodeGraphMvp.activeNodes.has(id));
   if (!uniqueIds.length) {
@@ -335,6 +355,7 @@ function renderNodeGraphSelection() {
   button.title = nodeGraphDeleteTitle();
 
   syncNodeGraphModuleActionTargetFromSelection();
+  syncNodeGraphSharedInspectorTargetFromSelection();
   setNodeInteractionHelp(nodeInteractionHelpText(document.activeElement));
 }
 

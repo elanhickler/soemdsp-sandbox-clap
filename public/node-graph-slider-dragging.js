@@ -143,6 +143,16 @@ function updateNodeSliderCurrentValue(slider, rawValue) {
 
 let nodeSliderDragAutosaveTimer = 0;
 
+function scheduleNodeGraphModuleScopeDrawIfNeeded() {
+  if (
+    typeof scheduleNodeGraphModuleScopeDraw === "function" &&
+    (typeof nodeGraphModuleScopeHasDrawableSlots !== "function" || nodeGraphModuleScopeHasDrawableSlots()) &&
+    (typeof nodeGraphModuleScopeTracesOff !== "function" || !nodeGraphModuleScopeTracesOff())
+  ) {
+    scheduleNodeGraphModuleScopeDraw();
+  }
+}
+
 function clearNodeSliderDragAutosaveTimer() {
   if (nodeSliderDragAutosaveTimer) {
     window.clearTimeout(nodeSliderDragAutosaveTimer);
@@ -171,9 +181,7 @@ function commitNodeSliderDragValue(slider, status = "parameter changed") {
   });
   markNodeGraphRenderPending();
   scheduleNodeGraphLiveParameterSync();
-  if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
-    scheduleNodeGraphModuleScopeDraw();
-  }
+  scheduleNodeGraphModuleScopeDrawIfNeeded();
 }
 
 function setNodeSliderValue(slider, value, options = {}) {
@@ -208,9 +216,7 @@ function setNodeSliderValue(slider, value, options = {}) {
     markNodeGraphRenderPending();
   }
   scheduleNodeGraphLiveParameterSync();
-  if (typeof scheduleNodeGraphModuleScopeDraw === "function") {
-    scheduleNodeGraphModuleScopeDraw();
-  }
+  scheduleNodeGraphModuleScopeDrawIfNeeded();
 }
 
 function nodeSliderSegmentValueFromPointer(slider, surface, clientX) {

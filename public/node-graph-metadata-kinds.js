@@ -69,8 +69,18 @@ async function loadNodeMetadataKindTemplates() {
 
 function syncNodeMetadataMidVisibility() {
   const label = document.getElementById("metadataMidLabel");
+  const sensitivity = document.getElementById("metadataCurveSensitivityLabel");
+  const curve = document.getElementById("metadataSliderCurveValue");
   const checkbox = document.getElementById("metadataNonlinearSliderValue");
-  if (label && checkbox) {
-    label.hidden = !checkbox.checked;
+  const curveValue = curve ? curve.value : (checkbox?.checked ? "skew" : "linear");
+  const nonlinear = curveValue !== "linear";
+  if (label) {
+    label.hidden = !nonlinear;
+  }
+  if (sensitivity) {
+    sensitivity.hidden = curveValue !== "edges";
+  }
+  if (checkbox) {
+    checkbox.checked = Boolean(nonlinear);
   }
 }

@@ -101,6 +101,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "valueOscilloscope",
   "lineBurnOscilloscope",
   "scope2d",
+  "scope2dTrace",
   "parabol",
   "vibratoGenerator",
   "wowAndFlutter",
@@ -841,7 +842,7 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   valueOscilloscope: {
     category: "Oscilloscope",
     description: "Single-value oscilloscope that draws the latest input as one horizontal line across the display.",
-    label: "1D Value",
+    label: "0D Value",
     notes: ["value display", "horizontal line", "latest value"],
   },
   lineBurnOscilloscope: {
@@ -855,6 +856,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "First-pass 2D scope display for inspecting the latest X/Y signal point.",
     label: "2D Burn",
     notes: ["xy display", "2D scope", "latest point"],
+  },
+  scope2dTrace: {
+    category: "Oscilloscope",
+    description: "Sample-history X/Y oscilloscope for inspecting deterministic 2D traces without pixel burn decay.",
+    label: "2D Trace",
+    notes: ["xy trace", "sample history", "2D oscilloscope"],
   },
   parabol: {
     category: "Modulators",
