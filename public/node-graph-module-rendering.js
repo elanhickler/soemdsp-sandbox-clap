@@ -185,6 +185,7 @@ function attachNodeGraphNodeEvents(node) {
   node.querySelector(".node-drag-handle")?.addEventListener("dblclick", toggleNodeGraphNodeMovementLock);
   node.querySelector(".node-execution-order-badge")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-header-title-row")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
+  node.querySelector(".node-header-title-row")?.addEventListener("dblclick", openNodeModuleActionMenu);
   node.querySelector(".node-header-title-row")?.addEventListener("contextmenu", openNodeModuleActionMenu);
   node.querySelector(".node-led-face")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
   node.querySelector(".node-knob-widget-body")?.addEventListener("pointerdown", beginNodeGraphNodeDrag);
@@ -283,7 +284,7 @@ function openNodeModuleDisplaySettings(event) {
     setNodeInteractionHelp(
       typeof nodeGraphTooltipText === "function"
         ? nodeGraphTooltipText("module.displaySettings")
-        : "Click to open this module's display settings. Alt+click shows or hides the display.",
+        : "Display button: click opens this module's display settings. Alt+click shows or hides the display.",
     );
   }
 }

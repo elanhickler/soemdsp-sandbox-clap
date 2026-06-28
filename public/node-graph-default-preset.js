@@ -1,5 +1,5 @@
 const nodeGraphDefaultPresetUrl = "./public/presets/default.json";
-const nodeGraphDefaultPresetStorageKey = "soemdsp-sandbox.defaultPatch.live.v2";
+const nodeGraphDefaultPresetStorageKey = "soemdsp-sandbox.defaultPatch.live.v3";
 
 async function loadNodeGraphDefaultPresetPatch() {
   const storedPatch = loadNodeGraphLocalDefaultPresetPatch();

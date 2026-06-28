@@ -417,6 +417,7 @@ function createNodeGraphLiveRuntime(plan) {
     wireConnectEvent: { pulseSamples: 0 },
     wireDisconnectEvent: { pulseSamples: 0 },
     windowReopenEvent: { pulseSamples: 0, gateSamples: 0, totalSamples: 0 },
+    shootingStarExplosionEvent: { pulseSamples: 0 },
     moduleGroupRuntimes,
     pitchModWheelSignal: {
       mod: Math.max(0, Math.min(1, Number(nodeGraphMvp?.modWheelSignal) || 0)),

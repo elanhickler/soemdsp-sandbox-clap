@@ -627,6 +627,9 @@ function handleNodeGraphWindowResize() {
 }
 
 function beginNodeGraphWorkspacePan(event) {
+  if (nodeGraphMvp.workspacePinchZooming) {
+    return;
+  }
   if (!nodeGraphWorkspacePanPointerAllowed(event)) {
     return;
   }
@@ -644,6 +647,116 @@ function beginNodeGraphWorkspacePan(event) {
   workspace.setPointerCapture(event.pointerId);
   event.preventDefault();
   event.stopPropagation();
+}
+
+function nodeGraphWorkspacePinchTouchPoints() {
+  if (!(nodeGraphMvp.workspacePinchTouchPointers instanceof Map)) {
+    nodeGraphMvp.workspacePinchTouchPointers = new Map();
+  }
+  return nodeGraphMvp.workspacePinchTouchPointers;
+}
+
+function nodeGraphWorkspacePinchPoint(event) {
+  return {
+    clientX: Number(event.clientX) || 0,
+    clientY: Number(event.clientY) || 0,
+    pointerId: event.pointerId,
+  };
+}
+
+function nodeGraphWorkspacePinchDistance(points) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return 0;
+  }
+  const dx = points[1].clientX - points[0].clientX;
+  const dy = points[1].clientY - points[0].clientY;
+  return Math.hypot(dx, dy);
+}
+
+function nodeGraphWorkspacePinchMidpoint(points) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return null;
+  }
+  return {
+    x: (points[0].clientX + points[1].clientX) / 2,
+    y: (points[0].clientY + points[1].clientY) / 2,
+  };
+}
+
+function cancelNodeGraphWorkspacePanForPinch() {
+  const drag = nodeGraphMvp.workspacePanning;
+  if (drag?.pointerId !== undefined) {
+    const workspace = document.getElementById("nodeGraphWorkspace");
+    if (workspace?.hasPointerCapture?.(drag.pointerId)) {
+      workspace.releasePointerCapture(drag.pointerId);
+    }
+    workspace?.classList.remove("panning");
+  }
+  nodeGraphMvp.workspacePanning = null;
+}
+
+function beginNodeGraphWorkspacePinchZoom(event) {
+  if (event.pointerType !== "touch" || !nodeGraphWorkspaceTouchPanTargetAllowed(event.target)) {
+    return;
+  }
+  const touchPoints = nodeGraphWorkspacePinchTouchPoints();
+  touchPoints.set(event.pointerId, nodeGraphWorkspacePinchPoint(event));
+  if (touchPoints.size < 2) {
+    return;
+  }
+  const points = [...touchPoints.values()].slice(-2);
+  const distance = nodeGraphWorkspacePinchDistance(points);
+  const anchor = nodeGraphWorkspacePinchMidpoint(points);
+  if (distance <= 0 || !anchor) {
+    return;
+  }
+  cancelNodeGraphWorkspacePanForPinch();
+  nodeGraphMvp.workspacePinchZooming = {
+    anchor,
+    pointerIds: points.map((point) => point.pointerId),
+    startDistance: distance,
+    startZoom: nodeGraphZoom(),
+  };
+  document.getElementById("nodeGraphWorkspace")?.classList.add("panning");
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function dragNodeGraphWorkspacePinchZoom(event) {
+  const touchPoints = nodeGraphWorkspacePinchTouchPoints();
+  if (event.pointerType === "touch" && touchPoints.has(event.pointerId)) {
+    touchPoints.set(event.pointerId, nodeGraphWorkspacePinchPoint(event));
+  }
+  const pinch = nodeGraphMvp.workspacePinchZooming;
+  if (!pinch) {
+    return;
+  }
+  const points = pinch.pointerIds
+    .map((pointerId) => touchPoints.get(pointerId))
+    .filter(Boolean);
+  if (points.length < 2) {
+    nodeGraphMvp.workspacePinchZooming = null;
+    return;
+  }
+  const distance = nodeGraphWorkspacePinchDistance(points);
+  const anchor = nodeGraphWorkspacePinchMidpoint(points);
+  if (distance <= 0 || !anchor || pinch.startDistance <= 0) {
+    return;
+  }
+  setNodeGraphZoom(pinch.startZoom * (distance / pinch.startDistance), anchor);
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function endNodeGraphWorkspacePinchZoom(event) {
+  const touchPoints = nodeGraphWorkspacePinchTouchPoints();
+  touchPoints.delete(event.pointerId);
+  if (nodeGraphMvp.workspacePinchZooming?.pointerIds?.includes(event.pointerId)) {
+    nodeGraphMvp.workspacePinchZooming = null;
+    document.getElementById("nodeGraphWorkspace")?.classList.remove("panning");
+    event.preventDefault();
+    event.stopPropagation();
+  }
 }
 
 function nodeGraphWorkspacePanPointerAllowed(event) {

@@ -112,6 +112,10 @@ function bindNodeGraphSceneMenuEvents() {
     adjustNodeGraphTextBoxTextSizeFromContext(-nodeGraphTextBoxTextSizeLimits.stepPercent));
   bindNodeGraphSceneElementEvent("nodeSceneTextBoxTextSizeIncrease", "click", () =>
     adjustNodeGraphTextBoxTextSizeFromContext(nodeGraphTextBoxTextSizeLimits.stepPercent));
+  bindNodeGraphSceneElementEvent("nodeSceneTextBoxHeightDecrease", "click", () =>
+    adjustNodeGraphTextBoxHeightFromContext(-1));
+  bindNodeGraphSceneElementEvent("nodeSceneTextBoxHeightIncrease", "click", () =>
+    adjustNodeGraphTextBoxHeightFromContext(1));
   bindNodeGraphSceneElementEvent("nodeSceneAliasInput", "input", () => setNodeGraphModuleAliasFromContext({ record: false }));
   bindNodeGraphSceneElementEvent("nodeSceneAliasInput", "change", () => setNodeGraphModuleAliasFromContext({ record: true }));
   bindNodeGraphSceneElementEvent("nodeSceneToggleButtons", "click", toggleNodeGraphModuleButtonsFromContext);

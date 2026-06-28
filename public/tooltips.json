@@ -82,7 +82,7 @@
     "titleMove": "Mouse: drag to move modules. Click to select; Ctrl/Shift+click adds or removes from selection. Alt+click an empty I/O section to toggle bypass. When module buttons are hidden, Alt+click the title also toggles bypass.",
     "actions": "Mouse: click to open module settings.",
     "actionsTitle": "Module settings",
-    "displaySettings": "Click to open this module's display settings. Alt+click shows or hides the display.",
+    "displaySettings": "Display button: click opens this module's display settings. Alt+click shows or hides the display.",
     "metaparameters": "Click to open this module's metaparameters. Alt+click shows or hides this module's sliders.",
     "textBoxEdit": "Display-only text. Edit content from this module's actions menu. Text clips to the box height and scales down to fit width. Mouse wheel zooms the modular view.",
     "bypass": "Mouse: click to bypass this module. Bypassed modules are removed from the compiled engine.",
@@ -95,7 +95,7 @@
     "executionInactive": "Compiled order: inactive\nThis module is not reachable from Output or a visual sink.",
     "executionTitleInactive": "Not in compiled execution order",
     "executionListItem": "Compiled order {order}: {nodeName}\nSelection only happens from move handles or marquee.",
-    "scopeWindow": "Display: drag up/down to zoom in or out by changing cycles. Drag left/right to pan the waveform. Right-click to edit this module's display shader."
+    "scopeWindow": "Module display: right click to open display settings."
   },
   "displaySettings": {
     "globalLineThickness": "Global display line thickness for scope traces.",
@@ -125,7 +125,7 @@
     "closeSave": "Save changes and close Trace Display settings.",
     "closeDiscard": "Discard changes and close Trace Display settings.",
     "cycles": "Legacy Trace Display cycle setting.",
-    "zoomSeconds": "Trace Display zoom window in seconds.",
+    "zoomSeconds": "Trace zoom window in seconds. Current stable range is 0 to 2 seconds.",
     "burn": "Display trail amount. 0 clears the trail; 1 keeps the longest trail.",
     "decay": "Display trail fade speed. 0 fades slowly; 1 fades quickly.",
     "skipSamples": "Samples skipped after a vertical discontinuity. Use 0, 1, or 2.",

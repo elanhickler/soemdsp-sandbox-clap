@@ -237,6 +237,10 @@ function setNodeChoiceSliderFromPointer(slider, surface, clientX, options = {}) 
   if (!Number.isFinite(value)) {
     return false;
   }
+  const current = Number(slider.dataset.unboundedValue ?? slider.value);
+  if (Number.isFinite(current) && Math.round(current) === Math.round(value)) {
+    return false;
+  }
   setNodeSliderValue(slider, value, options);
   return true;
 }

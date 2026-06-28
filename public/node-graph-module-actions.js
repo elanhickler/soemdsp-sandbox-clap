@@ -723,6 +723,33 @@ function adjustNodeGraphTextBoxTextSizeFromContext(delta) {
   configureNodeSceneContextMenu("module");
 }
 
+function adjustNodeGraphTextBoxHeightFromContext(delta) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || nodeGraphModuleSizingCapabilities(sourceNode.type).moduleHeight !== "textBox") {
+    return;
+  }
+
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode || nodeGraphModuleSizingCapabilities(targetNode.type).moduleHeight !== "textBox") {
+    return;
+  }
+  const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(targetNode);
+  const nextHeightGu = normalizeNodeGraphTextBoxHeightUnits(currentHeightGu + delta);
+  if (nextHeightGu === currentHeightGu) {
+    configureNodeSceneContextMenu("module");
+    return;
+  }
+  const defaultHeightGu = nodeGraphModuleGridHeightUnitsForUi("textBox", targetNode.ui);
+  if (nextHeightGu === defaultHeightGu) {
+    delete targetNode.heightGu;
+  } else {
+    targetNode.heightGu = nextHeightGu;
+  }
+  commitNodeGraphPatch(patch, { status: "text box height changed" });
+  configureNodeSceneContextMenu("module");
+}
+
 function setNodeGraphModuleAliasFromContext({ record = true } = {}) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
   if (!sourceNode) {

@@ -29,6 +29,9 @@ function bindNodeGraphWorkspaceInteractionEvents() {
     .addEventListener("pointerdown", nodeGraphWireInteractions.beginPatchPointWireDrag, true);
   document
     .getElementById("nodeGraphWorkspace")
+    .addEventListener("pointerdown", beginNodeGraphWorkspacePinchZoom, true);
+  document
+    .getElementById("nodeGraphWorkspace")
     .addEventListener("pointerdown", beginNodeGraphWorkspacePan, true);
   document
     .getElementById("nodeGraphWorkspace")
@@ -82,6 +85,9 @@ function bindNodeGraphWorkspaceInteractionEvents() {
   document.addEventListener("pointermove", dragNodeGraphWorkspaceResize);
   document.addEventListener("pointerup", endNodeGraphWorkspaceResize);
   document.addEventListener("pointercancel", endNodeGraphWorkspaceResize);
+  document.addEventListener("pointermove", dragNodeGraphWorkspacePinchZoom);
+  document.addEventListener("pointerup", endNodeGraphWorkspacePinchZoom);
+  document.addEventListener("pointercancel", endNodeGraphWorkspacePinchZoom);
   document.addEventListener("pointermove", dragNodeGraphWorkspacePan);
   document.addEventListener("pointerup", endNodeGraphWorkspacePan);
   document.addEventListener("pointercancel", endNodeGraphWorkspacePan);

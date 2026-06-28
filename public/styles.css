@@ -12569,8 +12569,9 @@ button.saved-default,
 .node-module-actions-window .scene-context-width-controls {
   --node-module-actions-grid-control-height: var(--node-floating-window-button-height);
   grid-template-columns:
-    var(--node-module-actions-grid-control-height)
     minmax(0, 1fr)
+    var(--node-module-actions-grid-control-height)
+    minmax(3.4em, 0.95fr)
     var(--node-module-actions-grid-control-height);
   align-items: stretch;
 }
@@ -13058,7 +13059,7 @@ button.saved-default,
 
 .scene-context-width-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(3.5em, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(24px, 0.32fr) minmax(3.5em, 0.9fr) minmax(24px, 0.32fr);
   align-items: center;
   gap: 0;
 }
@@ -13699,12 +13700,12 @@ button.saved-default,
   text-align: center;
 }
 
-.scene-context-width-controls button:first-child {
+.scene-context-width-controls button:first-of-type {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-.scene-context-width-controls button:last-child {
+.scene-context-width-controls button:last-of-type {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
@@ -13722,6 +13723,13 @@ button.saved-default,
   font-size: 0.74rem;
   line-height: 1;
   text-align: center;
+}
+
+.scene-context-width-controls .scene-context-gu-label {
+  justify-content: flex-start;
+  padding: 0 4px;
+  color: rgba(217, 229, 232, 0.9);
+  font-size: 0.68rem;
 }
 
 .node-shader-script-dialog {

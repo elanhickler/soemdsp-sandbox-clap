@@ -6362,17 +6362,19 @@ def require_node_graph_mvp_contract() -> None:
         "nodeSceneCopyModule",
         "nodeSceneAddToGroup",
         "Add to group",
-        'id="nodeSceneAddToGroup" class="node-under-construction-control" type="button" role="menuitem" disabled aria-disabled="true" title="Add to group is under construction."',
+        'id="nodeSceneAddToGroup" class="node-under-construction-control" type="button" role="menuitem" disabled aria-disabled="true" title="Module grouping is under construction."',
         "Copy",
         "Ctrl+C",
         "nodeSceneAliasControl",
         "nodeSceneAliasInput",
         "module title alias",
         "nodeSceneWidthControls",
+        "nodeSceneWidthLabel",
         "nodeSceneWidthDecrease",
         "nodeSceneWidthValue",
         "nodeSceneWidthIncrease",
         "nodeSceneDisplayHeightControls",
+        "nodeSceneDisplayHeightLabel",
         "nodeSceneDisplayHeightDecrease",
         "nodeSceneDisplayHeightValue",
         "nodeSceneDisplayHeightIncrease",
@@ -7058,6 +7060,33 @@ def require_node_graph_mvp_contract() -> None:
         resource_manifest.get("version") == 1 and isinstance(resource_manifest.get("resources"), list),
         "resource manifest should exist as a simple versioned resources list",
     )
+    startup_music_resource = next(
+        (
+            resource
+            for resource in resource_manifest.get("resources", [])
+            if resource.get("id") == "chaosarp-lorenz-startup"
+        ),
+        None,
+    )
+    require(
+        startup_music_resource
+        and startup_music_resource.get("kind") == "audio"
+        and startup_music_resource.get("path") == "audio/Elan Hickler - ChaosArp Lorenz.mp3"
+        and (PUBLIC / "resources" / "audio" / "Elan Hickler - ChaosArp Lorenz.mp3").is_file(),
+        "official startup music should be bundled as an audio resource",
+    )
+    startup_patch = json.loads((PUBLIC / "presets" / "default.json").read_text(encoding="utf-8"))
+    startup_player = next(
+        (node for node in startup_patch.get("nodes", []) if node.get("id") == "audioPlayer-1"),
+        {},
+    )
+    require(
+        startup_player.get("sample", {}).get("id") == "chaosarp-lorenz-startup"
+        and startup_player.get("params", {}).get("transport") == 3
+        and any(sample.get("id") == "chaosarp-lorenz-startup" for sample in startup_patch.get("samples", []))
+        and any(asset.get("id") == "chaosarp-lorenz-startup" for asset in startup_patch.get("requiredAssets", [])),
+        "default preset should start Music Player with the official startup music in Play mode",
+    )
     require(
         '<script src="./public/node-graph-resources.js?v=file-grid-resources-1"></script>' in index_source
         and "await loadNodeGraphResourceManifest();" in script_sources["./public/node-graph-bootstrap.js"]
@@ -7075,6 +7104,7 @@ def require_node_graph_mvp_contract() -> None:
                 'outputs: ["Mono", "Left", "Right", "Phase", "Trigger"]',
                 'key: "transport"',
                 'choices: ["Off (reset)", "Stop", "Pause", "Play", "Loop"]',
+                'defaultValue: "3"',
                 'label: "Play Mode"',
                 'key: "speed", label: "Speed", linearSmoothing: false',
                 'max: "8"',
@@ -7624,6 +7654,8 @@ def require_node_graph_mvp_contract() -> None:
         "canvas: \"Canvas\"",
         "visualOscilloscope: \"Display\"",
         "sandboxVisuals: {",
+        'bufferedInputs: ["Shake", "X", "Y", "Dim", "Red", "Green", "Blue", "Scope Off", "Pause"]',
+        'displayType: "trace"',
         'inputs: ["Shake", "X", "Y", "Dim", "Red", "Green", "Blue", "Scope Off", "Pause", "Trace Image"]',
         "inputAliases: {",
         '"Screen Shake": "Shake"',
@@ -7659,6 +7691,7 @@ def require_node_graph_mvp_contract() -> None:
         'port: "Trace Image"',
         "visualSink: true",
         "bloomGlow: {",
+        'displayType: "dot"',
         'key: "screenDim"',
         'label: "Dim"',
         'key: "visualBrightness"',
@@ -7668,12 +7701,15 @@ def require_node_graph_mvp_contract() -> None:
         'key: "visualGlow"',
         'label: "Glow"',
         "rgbaHsla: {",
+        'bufferedInputs: ["Red", "Green", "Blue", "Hue", "Saturation", "Lightness", "HSL Mix", "Alpha"]',
+        'displayType: "trace"',
         'inputs: ["Red", "Green", "Blue", "Hue", "Saturation", "Lightness", "HSL Mix", "Alpha"]',
         '"Screen Alpha": "Alpha"',
         'key: "hslMix"',
         'label: "HSL Mix"',
         'port: "HSL Mix"',
         "chromaColor: {",
+        'displayType: "dot"',
         'key: "chromaHue"',
         'label: "Hue"',
         "wraparound: true",
@@ -8254,6 +8290,11 @@ def require_node_graph_mvp_contract() -> None:
         "handle.style.removeProperty(\"--node-graph-resize-handle-left\")",
         "handle.style.removeProperty(\"--node-graph-resize-handle-top\")",
         "function beginNodeGraphWorkspacePan(event)",
+        "function beginNodeGraphWorkspacePinchZoom(event)",
+        "function dragNodeGraphWorkspacePinchZoom(event)",
+        "function endNodeGraphWorkspacePinchZoom(event)",
+        "nodeGraphMvp.workspacePinchTouchPointers = new Map()",
+        "setNodeGraphZoom(pinch.startZoom * (distance / pinch.startDistance), anchor)",
         "if (!nodeGraphWorkspacePanPointerAllowed(event))",
         "function nodeGraphWorkspacePanPointerAllowed(event)",
         "event.pointerType === \"touch\"",
@@ -8637,6 +8678,7 @@ def require_node_graph_mvp_contract() -> None:
         "function syncNodeGraphTextBoxContentAlignment(field",
         "function nodeGraphTextBoxWidthFitScale(field",
         "function syncNodeGraphTextBoxVisualFit(field",
+        'if (layout.textMode === "singleLine") {\n    return 1;\n  }',
         "lineCount * lineHeight",
         "const nodeGraphTextBoxFitLayouts = new WeakMap()",
         "function scheduleNodeGraphTextBoxVisualFit(field, layout = normalizeNodeGraphTextBoxLayout())",
@@ -8650,6 +8692,7 @@ def require_node_graph_mvp_contract() -> None:
         "event.preventDefault();\n      event.stopPropagation();",
         "replacement.readOnly = true",
         "replacement.tabIndex = -1",
+        'replacement.addEventListener("dblclick", openNodeModuleActionMenu)',
         'replacement.addEventListener("wheel", handleNodeGraphTextBoxWheel, { passive: false })',
         'const desiredTag = "TEXTAREA"',
         "function setNodeGraphTextBoxModeFromContext(textMode)",
@@ -9302,7 +9345,7 @@ def require_node_graph_mvp_contract() -> None:
         "shootingStarTail: \"Shooting Star Tail\"",
         "shootingStarExplosion: \"Shooting Star Explosion\"",
         "Placeholder trigger for a shooting star tail event.",
-        "Placeholder trigger for a shooting star explosion event.",
+        "Website shooting-star collision event source.",
         "Patch command receiver.",
         "nextPatch: \"Next Patch\"",
         "previousPatch: \"Previous Patch\"",
@@ -9370,15 +9413,23 @@ def require_node_graph_mvp_contract() -> None:
         "wireConnectEvent: { pulseSamples: 0 }",
         "wireDisconnectEvent: { pulseSamples: 0 }",
         "windowReopenEvent: { pulseSamples: 0, gateSamples: 0, totalSamples: 0 }",
+        "shootingStarExplosionEvent: { pulseSamples: 0 }",
         "function triggerNodeGraphWireBreakEvent(reason = \"\")",
         "function triggerNodeGraphWireConnectEvent(reason = \"\")",
         "function triggerNodeGraphWireDisconnectEvent(reason = \"\")",
         "function triggerNodeGraphWindowReopenEvent(reason = \"\")",
+        "function triggerNodeGraphGameEvent(name, payload = {})",
+        "function triggerNodeGraphShootingStarExplosionEvent(payload = {})",
         "window.soemdspSandboxTriggerButtonEvent = triggerNodeGraphExternalButtonEvent",
         "window.soemdspSandboxTriggerWireBreakEvent = triggerNodeGraphWireBreakEvent",
         "window.soemdspSandboxTriggerWireConnectEvent = triggerNodeGraphWireConnectEvent",
         "window.soemdspSandboxTriggerWireDisconnectEvent = triggerNodeGraphWireDisconnectEvent",
         "window.soemdspSandboxTriggerWindowReopenEvent = triggerNodeGraphWindowReopenEvent",
+        "window.soemdspSandboxTriggerGameEvent = triggerNodeGraphGameEvent",
+        "window.soemdspSandboxTriggerShootingStarExplosionEvent = triggerNodeGraphShootingStarExplosionEvent",
+        'message.type === "soundemote:sandbox-event"',
+        "nodeGraphExternalMessageOriginAllowed(event)",
+        "nodeGraphExternalSandboxEventNames.has(eventName)",
         'message.type === "soemdsp-sandbox-button-event"',
         'message.type === "soemdsp-sandbox-file-grid-selection"',
         'type: "externalButtonEvent"',
@@ -9386,6 +9437,7 @@ def require_node_graph_mvp_contract() -> None:
         'type: "wireConnectEvent"',
         'type: "wireDisconnectEvent"',
         'type: "windowReopenEvent"',
+        'type: "shootingStarExplosionEvent"',
         "function nodeGraphBuildLivePlanForPatch(patch)",
         "moduleGroupPlan",
         "node?.type === \"groupInput\"",
@@ -9565,6 +9617,7 @@ def require_node_graph_mvp_contract() -> None:
         "slider.dataset.unboundedValue = String(number)",
         "function nodeSliderSegmentValueFromPointer(slider, surface, clientX)",
         "function setNodeChoiceSliderFromPointer(slider, surface, clientX, options = {})",
+        "Math.round(current) === Math.round(value)",
         "function nodeSliderValueFromPointer(slider, surface, clientX)",
         "function nodeSliderFineTuneScale(event)",
         "nodeGraphNumericDragMultiplier(event)",
@@ -9645,6 +9698,8 @@ def require_node_graph_mvp_contract() -> None:
         "function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch)",
         "const passthroughTypes = new Set([\"badvalMonitor\", \"bandpass\", \"bias\", \"cookbookFilter\", \"gain\", \"highpass\", \"ladderFilter\", \"lowpass\", \"sampleHold\", \"slewLimiter\", \"softClipper\", \"speakerProtection\"])",
         "nodeGraphModuleDefinitions[node?.type]?.visualSink",
+        "function nodeGraphVisualSinkActiveInPlan(node, options = {})",
+        "return true;",
         "nodeGraphModuleDefinitions[node.type]?.monitorSink",
         "function nodeGraphCompiledVisualSinks(graph, reachableNodes)",
         "const visualSinks = nodeGraphCompiledVisualSinks(graph, reachableNodes)",
@@ -10156,6 +10211,7 @@ def require_node_graph_mvp_contract() -> None:
         "node.querySelector(\".node-drag-handle\")?.addEventListener(\"dblclick\", toggleNodeGraphNodeMovementLock)",
         "node.querySelector(\".node-execution-order-badge\")?.addEventListener(\"pointerdown\", beginNodeGraphNodeDrag)",
         "node.querySelector(\".node-header-title-row\")?.addEventListener(\"pointerdown\", beginNodeGraphNodeDrag)",
+        "node.querySelector(\".node-header-title-row\")?.addEventListener(\"dblclick\", openNodeModuleActionMenu)",
         "node.querySelector(\".node-led-face\")?.addEventListener(\"pointerdown\", beginNodeGraphNodeDrag)",
         "node.querySelectorAll(\".dsp-node-io-section\")",
         "node.querySelectorAll(\".node-parameter-row\")",
@@ -10844,6 +10900,7 @@ def require_node_graph_mvp_contract() -> None:
         'addEventListener("auxclick", preventNodeGraphMiddleMouseAuxClick)',
         'addEventListener("mousedown", preventNodeGraphMiddleMouseDefault, true)',
         'document.addEventListener("wheel", preventNodeGraphOuterWheelScroll, { passive: false, capture: true })',
+        'addEventListener("pointerdown", beginNodeGraphWorkspacePinchZoom, true)',
         'addEventListener("pointerdown", beginNodeGraphWorkspacePan, true)',
         'addEventListener("pointerdown", beginNodeGraphMarqueeSelection)',
         'addEventListener("pointermove", dragNodeGraphMarqueeSelection)',
@@ -10851,6 +10908,9 @@ def require_node_graph_mvp_contract() -> None:
         'addEventListener("pointerdown", beginNodeGraphWorkspaceResize)',
         'addEventListener("pointermove", dragNodeGraphWorkspaceResize)',
         'addEventListener("pointerup", endNodeGraphWorkspaceResize)',
+        'addEventListener("pointermove", dragNodeGraphWorkspacePinchZoom)',
+        'addEventListener("pointerup", endNodeGraphWorkspacePinchZoom)',
+        'addEventListener("pointercancel", endNodeGraphWorkspacePinchZoom)',
         'window.addEventListener("resize", handleNodeGraphWindowResize)',
         'addEventListener("pointermove", dragNodeGraphWorkspacePan)',
         'addEventListener("pointerup", endNodeGraphWorkspacePan)',
@@ -12678,7 +12738,7 @@ def require_node_graph_mvp_contract() -> None:
     require('"scope2d"' in module_store_source and 'label: "2D Burn"' in module_store_source, "2D Burn oscilloscope should exist")
     require('"scope2dTrace"' in module_store_source and 'label: "2D Trace"' in module_store_source, "2D Trace oscilloscope should exist")
     require('"dotOscilloscope",\n  "valueOscilloscope",\n  "lineBurnOscilloscope",\n  "scope2d",\n  "scope2dTrace"' in module_store_source, "Oscilloscope modules should be listed together")
-    require('nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([\n  "groupInput",\n  "groupOutput",\n  "shootingStarTail",\n  "shootingStarExplosion",\n]));' in module_store_source, "Only group portals and shooting star trigger placeholders should remain under construction in the store set")
+    require('nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([\n  "groupInput",\n  "groupOutput",\n  "shootingStarTail",\n]));' in module_store_source, "Only group portals and shooting star tail should remain under construction in the store set")
     for oscilloscope_type in ["dotOscilloscope", "valueOscilloscope", "lineBurnOscilloscope", "scope2d", "scope2dTrace"]:
         require(f"{oscilloscope_type}: {{" in module_definitions_source, f"{oscilloscope_type} should have a spawnable module definition")
     require('displayType: "dot"' in module_definitions_source, "0D Burn oscilloscope should declare dot display type")
@@ -13309,13 +13369,18 @@ def require_node_graph_mvp_contract() -> None:
     require(
         "function nodeGraphShaderScriptDarkRoomBloomDefaultFragment()" in shader_script_source
         and "const nodeGraphShaderScriptDefaultFragmentSource = nodeGraphShaderScriptDarkRoomBloomDefaultFragment();" in shader_script_source
+        and "const nodeGraphDefaultScreenShaderPrefs = Object.freeze({" in shader_script_source
+        and "NODE_SHADER_SCENE_EXPOSURE" in shader_script_source
+        and "NODE_SHADER_BLOOM_AMOUNT" in shader_script_source
+        and "NODE_SHADER_GLOW_AMOUNT" in shader_script_source
+        and "enabled: true," in shader_script_source
         and "softLight(screenBloom)" in shader_script_source
         and ".node-graph-workspace.shader-enabled .node-wire-path:not(.inactive-wire)" in style_source
         and ".node-graph-workspace.shader-enabled .node-module-scope-window" in style_source
         and "--node-text-light-level: 0.46;" in style_source
         and ".node-graph-workspace.shader-enabled .dsp-node" in style_source
         and ".node-slider-readout-value," in style_source
-        and "node-graph-shader-script.js?v=dark-room-bloom-1" in index_source,
+        and "node-graph-shader-script.js?v=shader-prefs-0163" in index_source,
         "world shader should default to the dark-room bloom glow pass with wire and screen illumination hooks",
     )
 
@@ -13422,6 +13487,8 @@ def require_node_graph_mvp_contract() -> None:
         'this.setWindowReopenEvent()',
         'value = this.windowReopenEventSample();',
         'windowReopenGateSamples()',
+        'this.setShootingStarExplosionEvent()',
+        'value = this.shootingStarExplosionEventSample();',
     ]:
         require(snippet in worklet_source, f"worklet source missing {snippet}")
 
@@ -13541,12 +13608,12 @@ def require_node_graph_mvp_contract() -> None:
     )
     require(
         "function normalizeNodeGraphTraceDisplayZoomSeconds(value, fallback)" in node_graph_source
-        and "const nodeGraphTraceDisplayMaxZoomSeconds = 10;" in node_graph_source
+        and "const nodeGraphTraceDisplayMaxZoomSeconds = 2;" in node_graph_source
         and "return clampNodeSliderValue(number, 0, nodeGraphTraceDisplayMaxZoomSeconds);" in node_graph_source
         and "return Number.isFinite(safeFallback) ? clampNodeSliderValue(safeFallback, 0, nodeGraphTraceDisplayMaxZoomSeconds) : 0;" in node_graph_source
         and "zoomSeconds: normalizeNodeGraphTraceDisplayZoomSeconds(zoomSeconds, defaults.zoomSeconds)" in node_graph_source
         and "nodeGraphLineBurnSettingsForNode(nodeGraphModuleScopeNodeForSlot(slot))" in node_graph_source,
-        "1D Trace should allow zero-to-ten-second zoom and 1D Burn should use local preparation settings",
+        "1D Trace should clamp to the current stable zero-to-two-second zoom range and 1D Burn should use local preparation settings",
     )
     trace_vertices_source = node_graph_source[
         node_graph_source.index("function buildNodeGraphTraceDisplayVertices"):
@@ -14395,16 +14462,140 @@ def require_node_graph_mvp_contract() -> None:
         "metadata script preview should not style a fake more/less row",
     )
     require(
-        "nodeSceneTextBoxHeightControls" not in index_source
-        and "nodeSceneTextBoxHeightDecrease" not in index_source
-        and "nodeSceneTextBoxHeightIncrease" not in index_source
-        and "adjustNodeGraphModuleHeightFromContext" not in script_sources["./public/node-graph-module-actions.js"]
+        "adjustNodeGraphModuleHeightFromContext" not in script_sources["./public/node-graph-module-actions.js"]
         and "adjustNodeGraphModuleHeightFromContext" not in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
         and "heightOffsetGu" not in script_sources["./public/node-graph-module-sizing.js"]
         and "heightOffsetGu" not in script_sources["./public/node-graph-patch-core.js"]
         and "heightOffsetGu" not in script_sources["./public/node-graph-keyboard-shortcuts.js"]
-        and "heightGu invalid" not in script_sources["./public/node-graph-patch-core.js"],
+        and "text box height invalid" not in script_sources["./public/node-graph-patch-core.js"],
         "manual module height resizing should be removed; module height should come from visible content widgets",
+    )
+    sizing_source = script_sources["./public/node-graph-module-sizing.js"]
+    patch_core_source = script_sources["./public/node-graph-patch-core.js"]
+    module_actions_source = script_sources["./public/node-graph-module-actions.js"]
+    keyboard_shortcuts_source = script_sources["./public/node-graph-keyboard-shortcuts.js"]
+    context_menu_source = script_sources["./public/node-graph-context-menu.js"]
+
+    text_box_height_contracts = {
+        "capability helper defines Text Box as the only top-level module-height owner": (
+            sizing_source,
+            (
+                "function nodeGraphModuleSizingCapabilities(type)",
+                'moduleHeight = normalizedType === "textBox"',
+                '? "textBox"',
+                ': normalizedType === "canvas"',
+                '? "canvasScript"',
+                "displayHeight = nodeGraphModuleTypeHasHideableOscilloscope(normalizedType)",
+                "keyboardHeight: Boolean(moduleHeight || displayHeight)",
+            ),
+        ),
+        "patch normalization preserves heightGu only for height-capable Text Box nodes": (
+            patch_core_source,
+            (
+                "const sizingCapabilities = nodeGraphModuleSizingCapabilities(type);",
+                'const hasCustomWidth = sizingCapabilities.width && Object.hasOwn(node, "widthGu");',
+                'const hasCustomModuleHeight = sizingCapabilities.moduleHeight === "textBox" && Object.hasOwn(node, "heightGu");',
+                "const heightGu = hasCustomModuleHeight ? normalizeNodeGraphTextBoxHeightUnits(node.heightGu) : null;",
+                "normalizeNodeGraphTextBoxHeightUnits(node.heightGu)",
+                '...(hasCustomModuleHeight ? { heightGu } : {}),',
+            ),
+        ),
+        "render sizing reads Text Box heightGu before falling back to content height": (
+            sizing_source,
+            (
+                "function nodeGraphPatchNodeGridHeightUnits(node)",
+                'if (node?.type === "textBox" && Number.isFinite(Number(node.heightGu))) {',
+                "return normalizeNodeGraphTextBoxHeightUnits(node.heightGu);",
+                "const autoHeightGu = nodeGraphModuleGridHeightUnitsForUi(node?.type, node?.ui);",
+            ),
+        ),
+        "Module Settings Text Box height buttons use the same capability gate as keyboard resizing": (
+            module_actions_source + "\n" + context_menu_source,
+            (
+                "function adjustNodeGraphTextBoxHeightFromContext(delta)",
+                'nodeGraphModuleSizingCapabilities(sourceNode.type).moduleHeight !== "textBox"',
+                'nodeGraphModuleSizingCapabilities(targetNode.type).moduleHeight !== "textBox"',
+                "controls: textBoxHeightControls,",
+                "hidden: !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight),",
+            ),
+        ),
+        "Shift+Up/Down routes through capability-based height resizing": (
+            keyboard_shortcuts_source,
+            (
+                "function resizeNodeGraphHeightAdjustableModuleOnGrid(patchNode, delta)",
+                "const capabilities = nodeGraphModuleSizingCapabilities(patchNode?.type);",
+                'if (capabilities.moduleHeight === "textBox") {',
+                "return resizeNodeGraphTextBoxModuleHeightOnGrid(patchNode, delta);",
+                "if (capabilities.displayHeight) {",
+                "return resizeNodeGraphDisplayModuleHeightOnGrid(patchNode, delta);",
+                'ArrowDown: ["height", 1]',
+                'ArrowUp: ["height", -1]',
+            ),
+        ),
+    }
+    for label, (source, snippets) in text_box_height_contracts.items():
+        require(
+            all(snippet in source for snippet in snippets),
+            f"Text Box height sizing contract failed: {label}",
+        )
+    require(
+        "normalizeNodeGraphModuleHeightUnits(type, node.heightGu)" not in patch_core_source
+        and "module height invalid" not in patch_core_source
+        and "Text Box heightGu invalid" in patch_core_source,
+        "patch normalization should not keep obsolete generic module height branches",
+    )
+    require(
+        all(snippet in sizing_source for snippet in text_box_height_contracts["capability helper defines Text Box as the only top-level module-height owner"][1]),
+        "module sizing capabilities should declare width, module height, display height, and keyboard height support",
+    )
+    require(
+        "nodeSceneTextBoxHeightControls" in index_source
+        and "nodeSceneTextBoxHeightLabel" in index_source
+        and "nodeSceneTextBoxHeightDecrease" in index_source
+        and "nodeSceneTextBoxHeightIncrease" in index_source
+        and "function adjustNodeGraphTextBoxHeightFromContext(delta)" in module_actions_source
+        and 'bindNodeGraphSceneElementEvent("nodeSceneTextBoxHeightDecrease", "click", () =>' in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
+        and 'bindNodeGraphSceneElementEvent("nodeSceneTextBoxHeightIncrease", "click", () =>' in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
+        and "adjustNodeGraphTextBoxHeightFromContext(-1));" in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
+        and "adjustNodeGraphTextBoxHeightFromContext(1));" in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
+        and 'const targetSupportsTextBoxHeight = targetSizingCapabilities.moduleHeight === "textBox";' in context_menu_source
+        and "hidden: !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight)," in context_menu_source
+        and all(snippet in patch_core_source for snippet in text_box_height_contracts["patch normalization preserves heightGu only for height-capable Text Box nodes"][1])
+        and all(snippet in sizing_source for snippet in text_box_height_contracts["render sizing reads Text Box heightGu before falling back to content height"][1]),
+        "Text Box should keep a dedicated GU height control and preserve heightGu through patch normalization",
+    )
+    require(
+        "function normalizeNodeGraphTextBoxHeightUnits(heightGu)" in sizing_source
+        and "nodeGraphTextBoxHeightLimits.minGu" in sizing_source
+        and "nodeGraphTextBoxHeightLimits.maxGu" in sizing_source
+        and 'return normalizeNodeGraphModuleHeightUnits("textBox", heightGu);' not in sizing_source,
+        "Text Box explicit height should use Text Box limits instead of being clamped to automatic content height",
+    )
+    require(
+        index_source.index('id="nodeSceneAliasControl"') < index_source.index('id="nodeSceneAddToGroup"')
+        and "nodeSceneWidthLabel" in index_source
+        and "nodeSceneTextBoxHeightLabel" in index_source
+        and "function configureNodeGraphModuleSettingsSizeRow({" in context_menu_source
+        and "function resetNodeGraphModuleSettingsSizeRow(controls, decreaseButton, increaseButton, valueElement)" in context_menu_source
+        and "controls: widthControls," in context_menu_source
+        and "controls: textBoxTextSizeControls," in context_menu_source
+        and "controls: textBoxHeightControls," in context_menu_source
+        and "controls: displayHeightControls," in context_menu_source
+        and ".scene-context-width-controls .scene-context-gu-label" in style_source,
+        "module settings should show Alias before Add to group and configure GU adjustment rows through the shared size-row helper",
+    )
+    require(
+        'target.closest("#nodeGraphWorkspace, #nodeSceneContextMenu, #nodeModuleActionsWindow, #nodeScopeContextMenu, #nodeGlobalScopeMenu, #nodeParameterMetadataPopover")'
+        in script_sources["./public/node-graph-selection.js"],
+        "clicking inside Module Settings should not clear the current module selection",
+    )
+    require(
+        "function resizeNodeGraphTextBoxModuleHeightOnGrid(patchNode, delta)" in keyboard_shortcuts_source
+        and "function resizeNodeGraphDisplayModuleHeightOnGrid(patchNode, delta)" in keyboard_shortcuts_source
+        and "function resizeNodeGraphWidthAdjustableModuleOnGrid(patchNode, delta)" in keyboard_shortcuts_source
+        and all(snippet in keyboard_shortcuts_source for snippet in text_box_height_contracts["Shift+Up/Down routes through capability-based height resizing"][1])
+        and "if (!capabilities.width) {" in keyboard_shortcuts_source,
+        "Shift+Arrow resizing should route through module sizing capabilities",
     )
     require(
         "nodeSceneDisplayHeightControls" in index_source
@@ -14413,10 +14604,12 @@ def require_node_graph_mvp_contract() -> None:
         and "ui.displayHeightOffsetGu = nextOffsetGu;" in script_sources["./public/node-graph-module-actions.js"]
         and 'bindNodeGraphSceneElementEvent("nodeSceneDisplayHeightDecrease", "click", () => adjustNodeGraphModuleDisplayHeightFromContext(-1));' in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
         and 'bindNodeGraphSceneElementEvent("nodeSceneDisplayHeightIncrease", "click", () => adjustNodeGraphModuleDisplayHeightFromContext(1));' in script_sources["./public/node-graph-scene-menu-event-bindings.js"]
-        and "displayHeightControls.hidden = !(moduleMode && !multiModuleMode && nodeGraphPatchNodeHasHideableOscilloscope(targetNode));" in script_sources["./public/node-graph-context-menu.js"]
+        and "const targetSupportsDisplayHeight = targetSizingCapabilities.displayHeight;" in script_sources["./public/node-graph-context-menu.js"]
+        and "hidden: !(moduleMode && !multiModuleMode && targetSupportsDisplayHeight)," in script_sources["./public/node-graph-context-menu.js"]
         and "displayHeightGu <= nodeGraphModuleDisplayHeightLimits.minGu" in script_sources["./public/node-graph-context-menu.js"]
         and "displayHeightGu >= nodeGraphModuleDisplayHeightLimits.maxGu" in script_sources["./public/node-graph-context-menu.js"]
-        and "displayHeightValue.textContent = `${displayHeightGu} display gu`;" in script_sources["./public/node-graph-context-menu.js"],
+        and "value: `${displayHeightGu} gu`," in script_sources["./public/node-graph-context-menu.js"]
+        and "nodeSceneDisplayHeightLabel" in index_source,
         "module actions should adjust display height without restoring arbitrary module height controls",
     )
     ui_view_source = script_sources["./public/node-graph-ui-view.js"]

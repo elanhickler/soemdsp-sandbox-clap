@@ -103,6 +103,23 @@ function nodeGraphPatchNodeHasHideableOscilloscope(node) {
   return nodeGraphModuleTypeHasHideableOscilloscope(patchNode?.type);
 }
 
+function nodeGraphModuleSizingCapabilities(type) {
+  const normalizedType = String(type || "").trim();
+  const definition = nodeGraphModuleDefinitions[normalizedType];
+  const moduleHeight = normalizedType === "textBox"
+    ? "textBox"
+    : normalizedType === "canvas"
+      ? "canvasScript"
+      : false;
+  const displayHeight = nodeGraphModuleTypeHasHideableOscilloscope(normalizedType);
+  return Object.freeze({
+    width: Boolean(definition),
+    moduleHeight,
+    displayHeight,
+    keyboardHeight: Boolean(moduleHeight || displayHeight),
+  });
+}
+
 function nodeGraphModuleDisplayVisibleForUi(type, ui = {}) {
   if (!nodeGraphModuleTypeHasHideableOscilloscope(type)) {
     return false;
@@ -239,7 +256,14 @@ function normalizeNodeGraphModuleHeightUnits(type, heightGu, ui = {}) {
 }
 
 function normalizeNodeGraphTextBoxHeightUnits(heightGu) {
-  return normalizeNodeGraphModuleHeightUnits("textBox", heightGu);
+  const value = Math.round(Number(heightGu));
+  if (!Number.isFinite(value)) {
+    return nodeGraphModuleGridHeightUnitsForUi("textBox");
+  }
+  return Math.max(
+    nodeGraphTextBoxHeightLimits.minGu,
+    Math.min(nodeGraphTextBoxHeightLimits.maxGu, value),
+  );
 }
 
 function nodeGraphModuleSliderBodyHeightGu(type) {
@@ -474,6 +498,9 @@ function nodeGraphPatchNodeGridHeightUnits(node) {
   const scriptGrid = nodeGraphPatchNodeCanvasScriptGridUnits(node);
   if (scriptGrid?.heightGu) {
     return normalizeNodeGraphModuleHeightUnits(node?.type, scriptGrid.heightGu);
+  }
+  if (node?.type === "textBox" && Number.isFinite(Number(node.heightGu))) {
+    return normalizeNodeGraphTextBoxHeightUnits(node.heightGu);
   }
   const autoHeightGu = nodeGraphModuleGridHeightUnitsForUi(node?.type, node?.ui);
   return normalizeNodeGraphModuleHeightUnits(node?.type, autoHeightGu, node?.ui);

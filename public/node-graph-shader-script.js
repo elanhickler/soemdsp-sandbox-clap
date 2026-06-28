@@ -121,9 +121,32 @@ void main() {
 }
 `;
 
+// Default dark-room bloom user prefs.
+// Keep these as plain numbers so the default shader can be tuned without
+// editing the GLSL body. Scene exposure brightens/dims the whole room; bloom
+// and glow only affect screen/wire light sources and their illumination.
+const nodeGraphDefaultScreenShaderPrefs = Object.freeze({
+  bloomAmount: 1.0,
+  cornerDarkness: 1.0,
+  glowAmount: 1.0,
+  roomBrightness: 1.0,
+  sceneExposure: 1.0,
+  screenLightAmount: 1.0,
+  warmGlassAmount: 1.0,
+});
+
 function nodeGraphShaderScriptDarkRoomBloomDefaultFragment() {
+  const prefs = nodeGraphDefaultScreenShaderPrefs;
   return `
 precision mediump float;
+
+const float NODE_SHADER_BLOOM_AMOUNT = ${Number(prefs.bloomAmount).toFixed(3)};
+const float NODE_SHADER_CORNER_DARKNESS = ${Number(prefs.cornerDarkness).toFixed(3)};
+const float NODE_SHADER_GLOW_AMOUNT = ${Number(prefs.glowAmount).toFixed(3)};
+const float NODE_SHADER_ROOM_BRIGHTNESS = ${Number(prefs.roomBrightness).toFixed(3)};
+const float NODE_SHADER_SCENE_EXPOSURE = ${Number(prefs.sceneExposure).toFixed(3)};
+const float NODE_SHADER_SCREEN_LIGHT_AMOUNT = ${Number(prefs.screenLightAmount).toFixed(3)};
+const float NODE_SHADER_WARM_GLASS_AMOUNT = ${Number(prefs.warmGlassAmount).toFixed(3)};
 
 uniform vec2 uResolution;
 uniform float uTime;
@@ -164,7 +187,7 @@ void main() {
       float pane = smoothstep(0.014, -0.003, d);
       float edge = smoothstep(0.018, 0.000, abs(d));
       float scan = 0.88 + 0.12 * sin((uv.y * uResolution.y * 1.35) + uTime * 2.0);
-      screenBloom += outer * 0.30 + mid * 0.20 + pane * scan * 0.12;
+      screenBloom += (outer * 0.30 + mid * 0.20 + pane * scan * 0.12) * NODE_SHADER_BLOOM_AMOUNT;
       screenCore += pane;
       screenEdge += edge;
     }
@@ -175,12 +198,12 @@ void main() {
   screenEdge = clamp(screenEdge, 0.0, 1.0);
 
   float dust = (grain(gl_FragCoord.xy + uTime * 9.0) - 0.5) * 0.010;
-  float cornerDark = 0.32 + roomFalloff * 0.34;
-  vec3 darkRoom = vec3(0.001, 0.004, 0.006) * (1.0 - roomFalloff * 0.35);
-  vec3 cyanGlow = vec3(0.12, 0.62, 0.68) * softLight(screenBloom);
-  vec3 warmGlass = vec3(0.70, 0.48, 0.22) * screenEdge * 0.035;
-  vec3 screenLight = vec3(0.75, 0.95, 0.88) * screenCore * 0.045;
-  vec3 color = darkRoom + cyanGlow + warmGlass + screenLight;
+  float cornerDark = (0.32 + roomFalloff * 0.34) * NODE_SHADER_CORNER_DARKNESS;
+  vec3 darkRoom = vec3(0.001, 0.004, 0.006) * (1.0 - roomFalloff * 0.35) * NODE_SHADER_ROOM_BRIGHTNESS;
+  vec3 cyanGlow = vec3(0.12, 0.62, 0.68) * softLight(screenBloom) * NODE_SHADER_GLOW_AMOUNT;
+  vec3 warmGlass = vec3(0.70, 0.48, 0.22) * screenEdge * 0.035 * NODE_SHADER_WARM_GLASS_AMOUNT;
+  vec3 screenLight = vec3(0.75, 0.95, 0.88) * screenCore * 0.045 * NODE_SHADER_SCREEN_LIGHT_AMOUNT;
+  vec3 color = (darkRoom + cyanGlow + warmGlass + screenLight) * NODE_SHADER_SCENE_EXPOSURE;
 
   float alpha = clamp(cornerDark - screenBloom * 0.16 - screenCore * 0.045 + dust, 0.10, 0.62);
   gl_FragColor = vec4(color, alpha);
@@ -212,7 +235,7 @@ const nodeGraphShaderScriptState = {
   dialogMode: "global",
   dialogDrag: null,
   editorFontSizePx: nodeGraphShaderScriptEditorFontSizeLimits.defaultPx,
-  enabled: false,
+  enabled: true,
   fragmentSource: nodeGraphShaderScriptDefaultFragmentSource.trim(),
   gl: null,
   lastError: "",
@@ -260,7 +283,7 @@ function loadNodeGraphShaderScriptState() {
     nodeGraphShaderScriptState.fragmentSource = nodeGraphShaderScriptDefaultFragmentSource.trim();
     nodeGraphShaderScriptState.editorFontSizePx = nodeGraphShaderScriptEditorFontSizeLimits.defaultPx;
     nodeGraphShaderScriptState.syntaxColors = { ...nodeGraphShaderScriptDefaultSyntaxColors };
-    nodeGraphShaderScriptState.enabled = false;
+    nodeGraphShaderScriptState.enabled = true;
   }
 }
 

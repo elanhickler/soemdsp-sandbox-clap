@@ -209,7 +209,7 @@
             "Loop"
           ],
           "curveAmount": 0,
-          "def": 4,
+          "def": 3,
           "displayChoices": true,
           "divideChoicesVisibly": true,
           "kind": "decimal",
@@ -233,13 +233,70 @@
         "speed": 1,
         "start": 0,
         "end": 1,
-        "transport": 4
+        "transport": 3
       },
-      "type": "audioPlayer"
+      "type": "audioPlayer",
+      "sample": {
+        "id": "chaosarp-lorenz-startup"
+      }
     }
   ],
-  "requiredAssets": [],
-  "samples": [],
+  "requiredAssets": [
+    {
+      "acceptedTypes": [
+        "audio/*"
+      ],
+      "file": {
+        "extension": "mp3",
+        "mime": "audio/mpeg",
+        "name": "Elan Hickler - ChaosArp Lorenz.mp3",
+        "size": 10447933,
+        "sourcePath": "./public/resources/audio/Elan Hickler - ChaosArp Lorenz.mp3"
+      },
+      "id": "chaosarp-lorenz-startup",
+      "kind": "audio",
+      "metadata": {
+        "artist": "Elan Hickler",
+        "title": "ChaosArp Lorenz",
+        "startupMusic": true
+      },
+      "name": "Elan Hickler - ChaosArp Lorenz",
+      "nodeIds": [
+        "audioPlayer-1"
+      ],
+      "requiredBy": [
+        "Music Player 1"
+      ],
+      "resourceId": "chaosarp-lorenz-startup",
+      "sourceName": "Elan Hickler - ChaosArp Lorenz.mp3",
+      "sourcePath": "./public/resources/audio/Elan Hickler - ChaosArp Lorenz.mp3"
+    }
+  ],
+  "samples": [
+    {
+      "acceptedTypes": [
+        "audio/*"
+      ],
+      "file": {
+        "extension": "mp3",
+        "mime": "audio/mpeg",
+        "name": "Elan Hickler - ChaosArp Lorenz.mp3",
+        "size": 10447933,
+        "sourcePath": "./public/resources/audio/Elan Hickler - ChaosArp Lorenz.mp3"
+      },
+      "id": "chaosarp-lorenz-startup",
+      "kind": "audio",
+      "metadata": {
+        "artist": "Elan Hickler",
+        "title": "ChaosArp Lorenz",
+        "startupMusic": true
+      },
+      "name": "Elan Hickler - ChaosArp Lorenz",
+      "resourceId": "chaosarp-lorenz-startup",
+      "sourceName": "Elan Hickler - ChaosArp Lorenz.mp3",
+      "sourcePath": "./public/resources/audio/Elan Hickler - ChaosArp Lorenz.mp3"
+    }
+  ],
   "timing": {
     "tempoBpm": 120,
     "timeSignatureDenominator": 4,

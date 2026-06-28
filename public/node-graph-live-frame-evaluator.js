@@ -55,6 +55,16 @@ function nodeGraphWireConnectEventSample(runtime) {
   return { Pulse: pulseSamples > 0 ? 1 : 0 };
 }
 
+function nodeGraphShootingStarExplosionEventSample(runtime) {
+  const event = runtime?.shootingStarExplosionEvent;
+  if (!event || typeof event !== "object") {
+    return { Pulse: 0 };
+  }
+  const pulseSamples = Math.max(0, Number(event.pulseSamples) || 0);
+  event.pulseSamples = Math.max(0, pulseSamples - 1);
+  return { Pulse: pulseSamples > 0 ? 1 : 0 };
+}
+
 function nodeGraphWindowReopenEventSample(runtime) {
   const event = runtime?.windowReopenEvent;
   if (!event || typeof event !== "object") {
@@ -460,6 +470,7 @@ function nodeGraphEvaluateModuleGroup(runtime, node, mixInput, sampleRate, frame
   groupRuntime.wireConnectEvent = runtime.wireConnectEvent;
   groupRuntime.wireDisconnectEvent = runtime.wireDisconnectEvent;
   groupRuntime.windowReopenEvent = runtime.windowReopenEvent;
+  groupRuntime.shootingStarExplosionEvent = runtime.shootingStarExplosionEvent;
   groupRuntime.externalGroupInputs = new Map(
     group.inputs.map((input) => [input.nodeId, mixInput(node.id, input.name)]),
   );
@@ -2700,6 +2711,8 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       value = nodeGraphWireDisconnectEventSample(runtime);
     } else if (node?.type === "windowReopen") {
       value = nodeGraphWindowReopenEventSample(runtime);
+    } else if (node?.type === "shootingStarExplosion") {
+      value = nodeGraphShootingStarExplosionEventSample(runtime);
     } else if (node?.type === "nextPatch" || node?.type === "previousPatch") {
       const state = runtime.patchCommandStates.get(nodeId) || createNodeGraphPatchCommandState();
       runtime.patchCommandStates.set(nodeId, state);

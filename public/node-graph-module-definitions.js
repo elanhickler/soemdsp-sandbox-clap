@@ -1501,7 +1501,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "1", key: "speed", label: "Speed", linearSmoothing: false, max: "8", maxDigits: 4, mid: "1", min: "0", step: "any", unit: "x" },
       { defaultValue: "0", key: "start", label: "Start", linearSmoothing: false, max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
       { defaultValue: "1", key: "end", label: "End", linearSmoothing: false, max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
-      { choices: ["Off (reset)", "Stop", "Pause", "Play", "Loop"], defaultValue: "4", displayChoices: true, divideChoicesVisibly: true, key: "transport", label: "Play Mode", linearSmoothing: false, max: "4", mid: "2", min: "0", nonlinearSlider: false, step: "1" },
+      { choices: ["Off (reset)", "Stop", "Pause", "Play", "Loop"], defaultValue: "3", displayChoices: true, divideChoicesVisibly: true, key: "transport", label: "Play Mode", linearSmoothing: false, max: "4", mid: "2", min: "0", nonlinearSlider: false, step: "1" },
     ],
   },
   macroControls: {
@@ -1678,6 +1678,8 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   sandboxVisuals: {
+    bufferedInputs: ["Shake", "X", "Y", "Dim", "Red", "Green", "Blue", "Scope Off", "Pause"],
+    displayType: "trace",
     inputs: ["Shake", "X", "Y", "Dim", "Red", "Green", "Blue", "Scope Off", "Pause", "Trace Image"],
     inputAliases: {
       "Screen Shake": "Shake",
@@ -1750,6 +1752,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     visualSink: true,
   },
   bloomGlow: {
+    displayType: "dot",
     outputs: [],
     parameters: [
       { defaultValue: "0", key: "screenDim", label: "Dim", max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "any" },
@@ -1760,6 +1763,8 @@ const nodeGraphModuleDefinitions = Object.freeze({
     visualSink: true,
   },
   rgbaHsla: {
+    bufferedInputs: ["Red", "Green", "Blue", "Hue", "Saturation", "Lightness", "HSL Mix", "Alpha"],
+    displayType: "trace",
     inputs: ["Red", "Green", "Blue", "Hue", "Saturation", "Lightness", "HSL Mix", "Alpha"],
     inputAliases: {
       R: "Red",
@@ -1786,6 +1791,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     visualSink: true,
   },
   chromaColor: {
+    displayType: "dot",
     outputs: [],
     parameters: [
       { defaultValue: "0.58", key: "chromaHue", label: "Hue", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any", wraparound: true },

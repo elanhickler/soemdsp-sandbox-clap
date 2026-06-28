@@ -69,7 +69,7 @@ const nodeGraphModuleScopeState = {
 };
 const nodeGraphModuleScopeSettingsStorageKey = "soemdsp-sandbox.moduleScopeSettings.v1";
 const nodeGraphModuleScopeMaxBackingStoreSize = 4096;
-const nodeGraphTraceDisplayMaxZoomSeconds = 10;
+const nodeGraphTraceDisplayMaxZoomSeconds = 2;
 const nodeGraphModuleScopeDefaultSettings = Object.freeze({
   blinkLightShape: "circle",
   brightness: 1,

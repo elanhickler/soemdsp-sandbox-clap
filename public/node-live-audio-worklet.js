@@ -97,6 +97,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.wireConnectEvent = { pulseSamples: 0 };
     this.wireDisconnectEvent = { pulseSamples: 0 };
     this.windowReopenEvent = { pulseSamples: 0, gateSamples: 0, totalSamples: 0 };
+    this.shootingStarExplosionEvent = { pulseSamples: 0 };
     this.pitchModWheelSignal = { mod: 0, pitch: 0 };
     this.midiKeyboardGatePulseSamples = 0;
     this.midiKeyboardSignal = null;
@@ -332,6 +333,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     if (message.type === "windowReopenEvent") {
       this.setWindowReopenEvent();
+      return;
+    }
+    if (message.type === "shootingStarExplosionEvent") {
+      this.setShootingStarExplosionEvent();
       return;
     }
   }
@@ -1139,6 +1144,24 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const pulseSamples = Math.max(0, Number(event.pulseSamples) || 0);
     event.pulseSamples = Math.max(0, pulseSamples - 1);
     this.wireDisconnectEvent = event;
+    return { Pulse: pulseSamples > 0 ? 1 : 0 };
+  }
+
+  setShootingStarExplosionEvent() {
+    const event = this.shootingStarExplosionEvent && typeof this.shootingStarExplosionEvent === "object"
+      ? this.shootingStarExplosionEvent
+      : { pulseSamples: 0 };
+    event.pulseSamples = Math.max(0, Number(event.pulseSamples) || 0) + 1;
+    this.shootingStarExplosionEvent = event;
+  }
+
+  shootingStarExplosionEventSample() {
+    const event = this.shootingStarExplosionEvent && typeof this.shootingStarExplosionEvent === "object"
+      ? this.shootingStarExplosionEvent
+      : { pulseSamples: 0 };
+    const pulseSamples = Math.max(0, Number(event.pulseSamples) || 0);
+    event.pulseSamples = Math.max(0, pulseSamples - 1);
+    this.shootingStarExplosionEvent = event;
     return { Pulse: pulseSamples > 0 ? 1 : 0 };
   }
 
@@ -3032,6 +3055,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.wireConnectEvent = this.wireConnectEvent;
     runtime.wireDisconnectEvent = this.wireDisconnectEvent;
     runtime.windowReopenEvent = this.windowReopenEvent;
+    runtime.shootingStarExplosionEvent = this.shootingStarExplosionEvent;
     runtime.midiKeyboardGatePulseSamples = 0;
     runtime.midiKeyboardSignal = null;
     runtime.moduleGroupRuntimes = new Map();
@@ -3183,6 +3207,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.wireConnectEvent = this.wireConnectEvent;
     runtime.wireDisconnectEvent = this.wireDisconnectEvent;
     runtime.windowReopenEvent = this.windowReopenEvent;
+    runtime.shootingStarExplosionEvent = this.shootingStarExplosionEvent;
     runtime.externalGroupInputs = new Map(
       (node.moduleGroup?.inputs || []).map((input) => [input.nodeId, mixInput(node.id, input.name)]),
     );
@@ -5481,6 +5506,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = this.wireDisconnectEventSample();
       } else if (node?.type === "windowReopen") {
         value = this.windowReopenEventSample();
+      } else if (node?.type === "shootingStarExplosion") {
+        value = this.shootingStarExplosionEventSample();
       } else if (node?.type === "nextPatch" || node?.type === "previousPatch") {
         const state = this.patchCommandStates.get(nodeId) || this.createPatchCommandState();
         this.patchCommandStates.set(nodeId, state);

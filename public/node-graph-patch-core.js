@@ -92,10 +92,16 @@ function validateNodeGraphPatch(patch) {
     if (!Number.isFinite(gx) || !Number.isFinite(gy)) {
       throw new Error(`node ${id} grid position invalid`);
     }
-    const hasCustomWidth = Object.hasOwn(node, "widthGu");
-    const widthGu = normalizeNodeGraphModuleWidthUnits(type, node.widthGu);
+    const sizingCapabilities = nodeGraphModuleSizingCapabilities(type);
+    const hasCustomWidth = sizingCapabilities.width && Object.hasOwn(node, "widthGu");
+    const widthGu = hasCustomWidth ? normalizeNodeGraphModuleWidthUnits(type, node.widthGu) : null;
     if (hasCustomWidth && !Number.isFinite(Number(node.widthGu))) {
       throw new Error(`node ${id} widthGu invalid`);
+    }
+    const hasCustomModuleHeight = sizingCapabilities.moduleHeight === "textBox" && Object.hasOwn(node, "heightGu");
+    const heightGu = hasCustomModuleHeight ? normalizeNodeGraphTextBoxHeightUnits(node.heightGu) : null;
+    if (hasCustomModuleHeight && !Number.isFinite(Number(node.heightGu))) {
+      throw new Error(`node ${id} Text Box heightGu invalid`);
     }
     const params = {};
     const paramMeta = {};
@@ -149,6 +155,7 @@ function validateNodeGraphPatch(patch) {
         ? { alias: normalizeNodeGraphPatchNodeAlias(node.alias) }
         : {}),
       ...(hasCustomWidth ? { widthGu } : {}),
+      ...(hasCustomModuleHeight ? { heightGu } : {}),
     };
     if (nodeGraphModuleDefinitions[type].layout === "textBox") {
       normalizedNode.layout = normalizeNodeGraphTextBoxLayout(node.layout);

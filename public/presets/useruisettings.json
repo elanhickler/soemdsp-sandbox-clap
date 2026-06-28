@@ -6,7 +6,7 @@
   "controls": {
     "mouseLightEnabled": true,
     "showOriginMarker": false,
-    "modularShaderEnabled": false,
+    "modularShaderEnabled": true,
     "scopeBloomEnabled": false,
     "settingsHeaderTextSize": 100,
     "uiDevButtonTextSize": 50,
@@ -128,8 +128,8 @@
     "moduleOscilloscopesVisible": true,
     "moduleSlidersVisible": true,
     "moduleScopeBackgroundColor": "#000000",
-    "globalSmoothingSeconds": 0.1,
-    "globalSmoothingManual": true,
+    "globalSmoothingSeconds": 0.08796052045679338,
+    "globalSmoothingManual": false,
     "moduleScopeDotCore1Enabled": true,
     "moduleScopeDotCore1Size": 1.94,
     "moduleScopeDotCore1Brightness": 33.5,
@@ -139,25 +139,25 @@
     "moduleScopeDotCore2Brightness": 1.23,
     "moduleScopeDotCore2Color": "#5c0000",
     "moduleScopeFramesPerSecond": 60,
-    "moduleScopePointBudget": 16384,
+    "moduleScopePointBudget": 4096,
     "moduleScopeLineThickness": 1,
     "moduleScopeDiscontinuitySkipSamples": 1,
     "traceSettings": {
       "brightness": 0.92,
       "color": "#75ebff",
       "dot1Enabled": true,
-      "dot1Size": 0.08,
-      "dot2Brightness": 0.18,
+      "dot1Size": 0.0175,
+      "dot2Brightness": 0.93,
       "dot2Color": "#184fff",
-      "dot2Enabled": true,
-      "dot2Size": 0.24,
-      "dot2LineThickness": 0.48,
+      "dot2Enabled": false,
+      "dot2Size": 0.1,
+      "dot2LineThickness": 0,
       "cycles": 2,
       "lineThickness": 0.2,
       "padding": 0,
       "skipSamples": 1,
-      "sourceSync": true,
-      "zoomSeconds": 0.05
+      "sourceSync": false,
+      "zoomSeconds": 0.2625
     },
     "sliderLayout": "text-inside",
     "sliderAmountVisible": false,
@@ -626,19 +626,19 @@
       }
     },
     "sceneContextWindowSize": {
-      "width": 136
+      "width": 140
     },
     "moduleActionWindowSize": {
-      "width": 185,
-      "height": 617
+      "width": 208,
+      "height": 616
     },
     "workspaceWindowStatesVersion": 1,
     "workspaceWindowStates": {
       "commandCenter": {
         "open": false,
         "position": {
-          "left": 570,
-          "top": 262
+          "left": 62,
+          "top": 123
         }
       },
       "moduleActions": {
@@ -653,51 +653,65 @@
       "patchExplorer": {
         "open": false,
         "position": {
-          "left": 90,
-          "top": 375
+          "left": 233,
+          "top": 216
+        },
+        "size": {
+          "width": 240,
+          "height": 617
         }
       },
       "moduleBrowser": {
         "open": false,
         "position": {
-          "left": 81,
-          "top": 162
+          "left": 1531,
+          "top": 122
+        },
+        "size": {
+          "width": 179,
+          "height": 716
         }
       },
       "visibilityMenu": {
         "open": false,
         "position": {
-          "left": 186,
-          "top": 131
+          "left": 1553,
+          "top": 116
+        },
+        "size": {
+          "width": 136
         }
       },
       "uiSettings": {
-        "open": false
+        "open": false,
+        "position": {
+          "left": 477,
+          "top": 96
+        }
       },
       "uiDev": {
         "open": false
       },
       "traceDisplaySettings": {
         "open": false,
-        "targetNode": "scope2dTrace-1"
+        "locked": true
       }
     },
     "sharedInspectorActive": "",
     "sharedInspectorWindowState": {},
     "workspaceView": {
       "pan": {
-        "x": 0,
-        "y": 0
+        "x": -82.42857142857136,
+        "y": -20.241071428571473
       },
-      "zoom": 0.5956522631507978
+      "zoom": 0.3519460776993532
     },
     "moduleStoreDepartment": "",
     "savedPatchBankIndex": 0,
-    "savedPatchBankName": "basic",
+    "savedPatchBankName": "chaos",
     "savedPatchGridColumns": 3,
     "savedPatchExplorerView": "banks",
-    "workingPatch": null,
-    "currentSavedPatchFilename": "",
+    "currentSavedPatchFilename": "bank000-program000-lorenz-demonstration-chaos--lorenz--attractor--strange.json",
     "patchDirtyState": "untouched"
   }
 }

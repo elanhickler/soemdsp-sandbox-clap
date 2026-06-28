@@ -30,6 +30,9 @@ function nodeGraphTextBoxWidthFitScale(field, layout = normalizeNodeGraphTextBox
   if (!field) {
     return 1;
   }
+  if (layout.textMode === "singleLine") {
+    return 1;
+  }
   const style = window.getComputedStyle(field);
   const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
   const paddingRight = Number.parseFloat(style.paddingRight) || 0;
@@ -139,6 +142,7 @@ function syncNodeGraphTextBoxElement(element, patchNode) {
       event.stopPropagation();
     });
     replacement.addEventListener("click", (event) => event.stopPropagation());
+    replacement.addEventListener("dblclick", openNodeModuleActionMenu);
     replacement.addEventListener("wheel", handleNodeGraphTextBoxWheel, { passive: false });
     field?.replaceWith(replacement);
     if (!field) {

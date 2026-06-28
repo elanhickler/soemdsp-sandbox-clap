@@ -346,11 +346,21 @@ function nodeGraphActiveVisualSinkExists(visualSinks = []) {
   );
 }
 
-function nodeGraphVisualSinkDisplayVisible(node, options = {}) {
+function nodeGraphVisualSinkActiveInPlan(node, options = {}) {
   if (!nodeGraphModuleDefinitions[node?.type]?.visualSink) {
     return false;
   }
-  return nodeGraphPatchNodeDisplayVisibleInPlan(node, options);
+  const bypassedNodes = options.bypassedNodes instanceof Set
+    ? options.bypassedNodes
+    : new Set(options.bypassedNodes || []);
+  if (node?.id && bypassedNodes.has(node.id)) {
+    return false;
+  }
+  return true;
+}
+
+function nodeGraphVisualSinkDisplayVisible(node, options = {}) {
+  return nodeGraphVisualSinkActiveInPlan(node, options);
 }
 
 function nodeGraphPatchNodeDisplayVisibleInPlan(node, options = {}) {
@@ -414,7 +424,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
     markReachable(node.id);
   }
   for (const node of graph.nodes) {
-    if (nodeGraphVisualSinkDisplayVisible(node, { bypassedNodes })) {
+    if (nodeGraphVisualSinkActiveInPlan(node, { bypassedNodes })) {
       markReachable(node.id);
     }
     if (
@@ -512,6 +522,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type !== "wireConnect" &&
       type !== "wireDisconnect" &&
       type !== "windowReopen" &&
+      type !== "shootingStarExplosion" &&
       !nodeGraphModuleIsRealtimeOscillatorType(type) &&
       type !== "fractalBrownianNoise" &&
       type !== "flowerChildEnvelopeFollower" &&
@@ -564,6 +575,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type === "wireConnect" ||
       type === "wireDisconnect" ||
       type === "windowReopen" ||
+      type === "shootingStarExplosion" ||
       nodeGraphModuleIsRealtimeOscillatorType(type) ||
       type === "fractalBrownianNoise" ||
       type === "keyboardController" ||
@@ -623,7 +635,7 @@ function nodeGraphCompiledVisualSinks(graph, reachableNodes) {
     .filter((node) =>
       reachableNodes.has(node.id) &&
       !bypassedNodes.has(node.id) &&
-      nodeGraphVisualSinkDisplayVisible(node, { bypassedNodes })
+      nodeGraphVisualSinkActiveInPlan(node, { bypassedNodes })
     )
     .map((node) => {
       const bufferedInputs = nodeGraphPatchNodeBufferedInputs(node);

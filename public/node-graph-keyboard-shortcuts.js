@@ -45,6 +45,9 @@ function nodeGraphCanvasScriptSourceWithGridUnits(source, widthGu, heightGu) {
 }
 
 function resizeNodeGraphCanvasModuleOnGrid(patchNode, delta) {
+  if (nodeGraphModuleSizingCapabilities(patchNode?.type).moduleHeight !== "canvasScript") {
+    return false;
+  }
   const canvasScript = normalizeNodeGraphCanvasScript(patchNode.canvasScript);
   const currentWidthGu = nodeGraphPatchNodeGridWidthUnits(patchNode);
   const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(patchNode);
@@ -56,6 +59,73 @@ function resizeNodeGraphCanvasModuleOnGrid(patchNode, delta) {
   patchNode.canvasScript = normalizeNodeGraphCanvasScript({ ...canvasScript, source });
   delete patchNode.widthGu;
   delete patchNode.heightGu;
+  return true;
+}
+
+function resizeNodeGraphTextBoxModuleHeightOnGrid(patchNode, delta) {
+  if (nodeGraphModuleSizingCapabilities(patchNode?.type).moduleHeight !== "textBox") {
+    return false;
+  }
+  const currentHeightGu = nodeGraphPatchNodeGridHeightUnits(patchNode);
+  const nextHeightGu = normalizeNodeGraphTextBoxHeightUnits(currentHeightGu + delta);
+  if (nextHeightGu === currentHeightGu) {
+    return false;
+  }
+  const defaultHeightGu = nodeGraphModuleGridHeightUnitsForUi("textBox", patchNode.ui);
+  if (nextHeightGu === defaultHeightGu) {
+    delete patchNode.heightGu;
+  } else {
+    patchNode.heightGu = nextHeightGu;
+  }
+  return true;
+}
+
+function resizeNodeGraphDisplayModuleHeightOnGrid(patchNode, delta) {
+  if (!nodeGraphModuleSizingCapabilities(patchNode?.type).displayHeight) {
+    return false;
+  }
+  const ui = normalizeNodeGraphPatchNodeUi(patchNode.ui);
+  const nextOffsetGu = normalizeNodeGraphModuleDisplayHeightOffsetUnits(
+    patchNode.type,
+    ui.displayHeightOffsetGu + delta * nodeGraphModuleDisplayHeightLimits.stepGu,
+  );
+  if (nextOffsetGu === ui.displayHeightOffsetGu) {
+    return false;
+  }
+  ui.displayHeightOffsetGu = nextOffsetGu;
+  applyNodeGraphPatchNodeUi(patchNode, ui);
+  return true;
+}
+
+function resizeNodeGraphHeightAdjustableModuleOnGrid(patchNode, delta) {
+  const capabilities = nodeGraphModuleSizingCapabilities(patchNode?.type);
+  if (capabilities.moduleHeight === "textBox") {
+    return resizeNodeGraphTextBoxModuleHeightOnGrid(patchNode, delta);
+  }
+  if (capabilities.displayHeight) {
+    return resizeNodeGraphDisplayModuleHeightOnGrid(patchNode, delta);
+  }
+  return false;
+}
+
+function resizeNodeGraphWidthAdjustableModuleOnGrid(patchNode, delta) {
+  const capabilities = nodeGraphModuleSizingCapabilities(patchNode?.type);
+  if (!capabilities.width) {
+    return false;
+  }
+  if (capabilities.moduleHeight === "canvasScript") {
+    return resizeNodeGraphCanvasModuleOnGrid(patchNode, delta);
+  }
+  const currentWidthGu = nodeGraphPatchNodeGridWidthUnits(patchNode);
+  const nextWidthGu = normalizeNodeGraphModuleWidthUnits(patchNode.type, currentWidthGu + delta);
+  if (nextWidthGu === currentWidthGu) {
+    return false;
+  }
+  if (nextWidthGu === nodeGraphDefaultModuleGridWidthUnits(patchNode.type)) {
+    delete patchNode.widthGu;
+  } else {
+    patchNode.widthGu = nextWidthGu;
+  }
   return true;
 }
 
@@ -74,25 +144,17 @@ function resizeSelectedNodeGraphModulesOnGrid(axis, delta) {
       continue;
     }
 
-    if (patchNode.type === "canvas") {
-      if (axis === "width" && resizeNodeGraphCanvasModuleOnGrid(patchNode, delta)) {
+    if (axis === "height") {
+      if (resizeNodeGraphHeightAdjustableModuleOnGrid(patchNode, delta)) {
         changedCount += 1;
       }
       continue;
     }
 
     if (axis === "width") {
-      const currentWidthGu = nodeGraphPatchNodeGridWidthUnits(patchNode);
-      const nextWidthGu = normalizeNodeGraphModuleWidthUnits(patchNode.type, currentWidthGu + delta);
-      if (nextWidthGu === currentWidthGu) {
-        continue;
+      if (resizeNodeGraphWidthAdjustableModuleOnGrid(patchNode, delta)) {
+        changedCount += 1;
       }
-      if (nextWidthGu === nodeGraphDefaultModuleGridWidthUnits(patchNode.type)) {
-        delete patchNode.widthGu;
-      } else {
-        patchNode.widthGu = nextWidthGu;
-      }
-      changedCount += 1;
       continue;
     }
 
@@ -103,7 +165,7 @@ function resizeSelectedNodeGraphModulesOnGrid(axis, delta) {
     return false;
   }
   commitNodeGraphPatch(patch, {
-    status: "module width changed",
+    status: axis === "height" ? "module height changed" : "module width changed",
   });
   configureNodeSceneContextMenu("module");
   return true;
@@ -203,6 +265,8 @@ function handleNodeGraphKeydown(event) {
     const shiftArrowSizeActions = {
       ArrowLeft: ["width", -1],
       ArrowRight: ["width", 1],
+      ArrowDown: ["height", 1],
+      ArrowUp: ["height", -1],
     };
     const action = shiftArrowSizeActions[event.key];
     if (action) {

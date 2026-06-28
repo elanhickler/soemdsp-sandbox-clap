@@ -618,6 +618,7 @@ const nodeGraphModuleActionControlIds = [
   "nodeSceneAliasControl",
   "nodeSceneWidthControls",
   "nodeSceneTextBoxTextSizeControls",
+  "nodeSceneTextBoxHeightControls",
   "nodeSceneTextBoxTextControls",
   "nodeSceneCodeblockControls",
   "nodeSceneGraphControls",
@@ -785,6 +786,48 @@ function setNodeModuleSettingsWindowHeader(detail = "") {
   setNodeModuleActionsWindowHeader("MODULE", detail || "Settings");
 }
 
+function configureNodeGraphModuleSettingsSizeRow({
+  controls,
+  decreaseButton,
+  increaseButton,
+  valueElement,
+  hidden,
+  value,
+  decreaseDisabled,
+  increaseDisabled,
+  decreaseTitle,
+  increaseTitle,
+}) {
+  if (controls) {
+    controls.hidden = Boolean(hidden);
+  }
+  if (valueElement) {
+    valueElement.textContent = hidden ? "" : String(value ?? "");
+  }
+  if (decreaseButton) {
+    decreaseButton.disabled = Boolean(hidden || decreaseDisabled);
+    if (decreaseTitle) {
+      decreaseButton.title = decreaseTitle;
+    }
+  }
+  if (increaseButton) {
+    increaseButton.disabled = Boolean(hidden || increaseDisabled);
+    if (increaseTitle) {
+      increaseButton.title = increaseTitle;
+    }
+  }
+}
+
+function resetNodeGraphModuleSettingsSizeRow(controls, decreaseButton, increaseButton, valueElement) {
+  configureNodeGraphModuleSettingsSizeRow({
+    controls,
+    decreaseButton,
+    increaseButton,
+    valueElement,
+    hidden: true,
+  });
+}
+
 function configureNodeSceneContextMenu(mode) {
   ensureNodeGraphModuleActionsWindowBody();
   const actionMode = mode === "module" || mode === "wire";
@@ -815,6 +858,10 @@ function configureNodeSceneContextMenu(mode) {
   const textBoxTextSizeDecrease = document.getElementById("nodeSceneTextBoxTextSizeDecrease");
   const textBoxTextSizeIncrease = document.getElementById("nodeSceneTextBoxTextSizeIncrease");
   const textBoxTextSizeValue = document.getElementById("nodeSceneTextBoxTextSizeValue");
+  const textBoxHeightControls = document.getElementById("nodeSceneTextBoxHeightControls");
+  const textBoxHeightDecrease = document.getElementById("nodeSceneTextBoxHeightDecrease");
+  const textBoxHeightIncrease = document.getElementById("nodeSceneTextBoxHeightIncrease");
+  const textBoxHeightValue = document.getElementById("nodeSceneTextBoxHeightValue");
   const textBoxTextControls = document.getElementById("nodeSceneTextBoxTextControls");
   const textBoxTextInput = document.getElementById("nodeSceneTextBoxTextInput");
   const codeblockControls = document.getElementById("nodeSceneCodeblockControls");
@@ -904,6 +951,12 @@ function configureNodeSceneContextMenu(mode) {
     : nodeGraphModuleWidthLimits;
   const targetNodeUi = normalizeNodeGraphPatchNodeUi(targetNode?.ui);
   const effectiveTargetNodeUi = nodeGraphEffectivePatchNodeUi(targetNode?.ui);
+  const targetSizingCapabilities = targetNode
+    ? nodeGraphModuleSizingCapabilities(targetNode.type)
+    : nodeGraphModuleSizingCapabilities("");
+  const targetSupportsWidth = targetSizingCapabilities.width;
+  const targetSupportsTextBoxHeight = targetSizingCapabilities.moduleHeight === "textBox";
+  const targetSupportsDisplayHeight = targetSizingCapabilities.displayHeight;
   const targetNodeDisabled = targetNode
     ? targetNode.id === "output"
       ? !Boolean(nodeGraphMvp.live.outputEnabled)
@@ -972,9 +1025,7 @@ function configureNodeSceneContextMenu(mode) {
   }
   wireTypeControl.hidden = !wireMode;
   aliasControl.hidden = !moduleMode;
-  widthControls.hidden = !moduleMode;
-  textBoxTextSizeControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
-  textBoxTextControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
+  textBoxTextControls.hidden = !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight);
   codeblockControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "codeblock");
   graphControls.hidden = !(moduleMode && !multiModuleMode && targetIsGraphType);
   toggleModuleEnabledButton.hidden = !moduleMode || multiModuleMode;
@@ -982,19 +1033,24 @@ function configureNodeSceneContextMenu(mode) {
     nativeCodeButton.hidden = !moduleMode || multiModuleMode || !nativeCodeEntry;
   }
   toggleButtonsButton.hidden = !moduleMode || multiModuleMode;
-  toggleOscilloscopeButton.hidden = !(moduleMode && !multiModuleMode && nodeGraphPatchNodeHasHideableOscilloscope(targetNode));
+  toggleOscilloscopeButton.hidden = !(moduleMode && !multiModuleMode && targetSupportsDisplayHeight);
   toggleInterfaceControlsButton.hidden = !(moduleMode && !multiModuleMode && nodeGraphModuleTypeHasInterfaceControls(targetNode?.type));
-  displayHeightControls.hidden = !(moduleMode && !multiModuleMode && nodeGraphPatchNodeHasHideableOscilloscope(targetNode));
   toggleSlidersButton.hidden = !(moduleMode && !multiModuleMode && nodeGraphModuleTypeHasHideableSliders(targetNode?.type));
   toggleIoButton.hidden = !moduleMode || multiModuleMode;
   toggleTitleButton.hidden = !moduleMode || multiModuleMode;
   imageControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "image");
   canvasControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "canvas");
   ledControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "led");
-  textBoxControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
-  textBoxHorizontalAlignControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
-  textBoxVerticalAlignControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
+  textBoxControls.hidden = !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight);
+  textBoxHorizontalAlignControls.hidden = !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight);
+  textBoxVerticalAlignControls.hidden = !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight);
   closeButton.hidden = false;
+  if (!moduleMode) {
+    resetNodeGraphModuleSettingsSizeRow(widthControls, widthDecrease, widthIncrease, widthValue);
+    resetNodeGraphModuleSettingsSizeRow(displayHeightControls, displayHeightDecrease, displayHeightIncrease, displayHeightValue);
+    resetNodeGraphModuleSettingsSizeRow(textBoxTextSizeControls, textBoxTextSizeDecrease, textBoxTextSizeIncrease, textBoxTextSizeValue);
+    resetNodeGraphModuleSettingsSizeRow(textBoxHeightControls, textBoxHeightDecrease, textBoxHeightIncrease, textBoxHeightValue);
+  }
   if (moduleMode) {
     selectedModule.hidden = false;
     selectedModule.querySelector("span").textContent = "module";
@@ -1019,7 +1075,7 @@ function configureNodeSceneContextMenu(mode) {
     addToGroupButton.disabled = true;
     addToGroupButton.setAttribute("aria-disabled", "true");
     addToGroupButton.classList.add("node-under-construction-control");
-    addToGroupButton.title = "Add to group is under construction.";
+    addToGroupButton.title = "Module grouping is under construction.";
     if (addToUiButton) {
       const canAddToUi = targetIsGraphType;
       const uiItems = normalizeNodeGraphPatchUiItems(nodeGraphMvp.patch.uiItems);
@@ -1036,33 +1092,55 @@ function configureNodeSceneContextMenu(mode) {
       : targetNode
         ? nodeGraphTooltipText("actions.deleteUnavailableOutput")
         : nodeGraphTooltipText("actions.deleteUnavailableOneModule");
-    widthValue.textContent = multiModuleMode ? `${selectedNodeIds.size} modules` : `${widthGu} gu`;
-    widthDecrease.disabled = multiModuleMode ? !selectedNodes.length : !targetNode || widthGu <= widthLimits.minGu;
-    widthDecrease.title = nodeGraphTooltipText("actions.widthDecrease");
-    widthIncrease.disabled = multiModuleMode ? !selectedNodes.length : !targetNode || widthGu >= widthLimits.maxGu;
-    widthIncrease.title = nodeGraphTooltipText("actions.widthIncrease");
-    displayHeightValue.textContent = `${displayHeightGu} display gu`;
-    displayHeightDecrease.disabled =
-      !targetNode ||
-      !nodeGraphPatchNodeHasHideableOscilloscope(targetNode) ||
-      displayHeightGu <= nodeGraphModuleDisplayHeightLimits.minGu;
-    displayHeightDecrease.title = "Decrease this module's display height.";
-    displayHeightIncrease.disabled =
-      !targetNode ||
-      !nodeGraphPatchNodeHasHideableOscilloscope(targetNode) ||
-      displayHeightGu >= nodeGraphModuleDisplayHeightLimits.maxGu;
-    displayHeightIncrease.title = "Increase this module's display height.";
-    textBoxTextSizeValue.textContent = `${textBoxLayout.textSizePercent}% text`;
-    textBoxTextSizeDecrease.disabled =
-      !targetNode ||
-      targetNode.type !== "textBox" ||
-      textBoxLayout.textSizePercent <= nodeGraphTextBoxTextSizeLimits.minPercent;
-    textBoxTextSizeDecrease.title = nodeGraphTooltipText("actions.textBoxTextSizeDecrease");
-    textBoxTextSizeIncrease.disabled =
-      !targetNode ||
-      targetNode.type !== "textBox" ||
-      textBoxLayout.textSizePercent >= nodeGraphTextBoxTextSizeLimits.maxPercent;
-    textBoxTextSizeIncrease.title = nodeGraphTooltipText("actions.textBoxTextSizeIncrease");
+    configureNodeGraphModuleSettingsSizeRow({
+      controls: widthControls,
+      decreaseButton: widthDecrease,
+      increaseButton: widthIncrease,
+      valueElement: widthValue,
+      hidden: !moduleMode,
+      value: multiModuleMode ? `${selectedNodeIds.size} modules` : `${widthGu} gu`,
+      decreaseDisabled: multiModuleMode ? !selectedNodes.length : !targetNode || !targetSupportsWidth || widthGu <= widthLimits.minGu,
+      increaseDisabled: multiModuleMode ? !selectedNodes.length : !targetNode || !targetSupportsWidth || widthGu >= widthLimits.maxGu,
+      decreaseTitle: nodeGraphTooltipText("actions.widthDecrease"),
+      increaseTitle: nodeGraphTooltipText("actions.widthIncrease"),
+    });
+    configureNodeGraphModuleSettingsSizeRow({
+      controls: displayHeightControls,
+      decreaseButton: displayHeightDecrease,
+      increaseButton: displayHeightIncrease,
+      valueElement: displayHeightValue,
+      hidden: !(moduleMode && !multiModuleMode && targetSupportsDisplayHeight),
+      value: `${displayHeightGu} gu`,
+      decreaseDisabled: !targetNode || !targetSupportsDisplayHeight || displayHeightGu <= nodeGraphModuleDisplayHeightLimits.minGu,
+      increaseDisabled: !targetNode || !targetSupportsDisplayHeight || displayHeightGu >= nodeGraphModuleDisplayHeightLimits.maxGu,
+      decreaseTitle: "Decrease this module's display height.",
+      increaseTitle: "Increase this module's display height.",
+    });
+    configureNodeGraphModuleSettingsSizeRow({
+      controls: textBoxTextSizeControls,
+      decreaseButton: textBoxTextSizeDecrease,
+      increaseButton: textBoxTextSizeIncrease,
+      valueElement: textBoxTextSizeValue,
+      hidden: !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight),
+      value: `${textBoxLayout.textSizePercent}%`,
+      decreaseDisabled: !targetNode || !targetSupportsTextBoxHeight || textBoxLayout.textSizePercent <= nodeGraphTextBoxTextSizeLimits.minPercent,
+      increaseDisabled: !targetNode || !targetSupportsTextBoxHeight || textBoxLayout.textSizePercent >= nodeGraphTextBoxTextSizeLimits.maxPercent,
+      decreaseTitle: nodeGraphTooltipText("actions.textBoxTextSizeDecrease"),
+      increaseTitle: nodeGraphTooltipText("actions.textBoxTextSizeIncrease"),
+    });
+    const textBoxHeightGu = targetSupportsTextBoxHeight ? nodeGraphPatchNodeGridHeightUnits(targetNode) : 0;
+    configureNodeGraphModuleSettingsSizeRow({
+      controls: textBoxHeightControls,
+      decreaseButton: textBoxHeightDecrease,
+      increaseButton: textBoxHeightIncrease,
+      valueElement: textBoxHeightValue,
+      hidden: !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight),
+      value: `${textBoxHeightGu} gu`,
+      decreaseDisabled: !targetNode || !targetSupportsTextBoxHeight || textBoxHeightGu <= nodeGraphTextBoxHeightLimits.minGu,
+      increaseDisabled: !targetNode || !targetSupportsTextBoxHeight || textBoxHeightGu >= nodeGraphTextBoxHeightLimits.maxGu,
+      decreaseTitle: nodeGraphTooltipText("actions.textBoxHeightDecrease"),
+      increaseTitle: nodeGraphTooltipText("actions.textBoxHeightIncrease"),
+    });
     toggleModuleEnabledButton.disabled = !targetNode;
     toggleModuleEnabledButton.querySelector("span").textContent = targetNodeDisabled ? "Enable module" : "Disable module";
     toggleModuleEnabledButton.setAttribute("aria-pressed", targetNodeDisabled ? "true" : "false");
@@ -1080,7 +1158,7 @@ function configureNodeSceneContextMenu(mode) {
     toggleButtonsButton.querySelector("span").textContent = buttonsHidden ? "Show buttons" : "Hide buttons";
     toggleButtonsButton.setAttribute("aria-pressed", buttonsHidden ? "true" : "false");
     toggleButtonsButton.title = nodeGraphTooltipText(buttonsHidden ? "actions.showModuleButtons" : "actions.hideModuleButtons");
-    toggleOscilloscopeButton.disabled = !targetNode || !nodeGraphPatchNodeHasHideableOscilloscope(targetNode);
+    toggleOscilloscopeButton.disabled = !targetNode || !targetSupportsDisplayHeight;
     toggleOscilloscopeButton.querySelector("span").textContent = oscilloscopeHidden
       ? `Show ${visualFaceLabel}`
       : `Hide ${visualFaceLabel}`;
@@ -1136,8 +1214,8 @@ function configureNodeSceneContextMenu(mode) {
     textBoxMultiline.setAttribute("aria-pressed", textBoxMode === "multiline" ? "true" : "false");
     textBoxSingleLine.title = nodeGraphTooltipText("actions.textBoxSingleLine");
     textBoxMultiline.title = nodeGraphTooltipText("actions.textBoxMultiline");
-    textBoxTextInput.disabled = !targetNode || targetNode.type !== "textBox";
-    textBoxTextInput.value = targetNode?.type === "textBox" ? textBoxLayout.text : "";
+    textBoxTextInput.disabled = !targetNode || !targetSupportsTextBoxHeight;
+    textBoxTextInput.value = targetSupportsTextBoxHeight ? textBoxLayout.text : "";
     textBoxTextInput.title = nodeGraphTooltipText("actions.textBoxContent");
     if (targetNode?.type === "codeblock") {
       const codeblock = normalizeNodeGraphCodeblock(targetNode.codeblock);
@@ -1191,7 +1269,7 @@ function configureNodeSceneContextMenu(mode) {
     textBoxAlignLeft.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "left" ? "true" : "false");
     textBoxAlignCenter.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "center" ? "true" : "false");
     textBoxAlignRight.setAttribute("aria-pressed", textBoxLayout.horizontalAlign === "right" ? "true" : "false");
-    textBoxVerticalAlign.disabled = !targetNode || targetNode.type !== "textBox";
+    textBoxVerticalAlign.disabled = !targetNode || !targetSupportsTextBoxHeight;
     textBoxVerticalAlign.value = String(textBoxLayout.verticalAlignPercent);
     textBoxVerticalAlignValue.textContent = `${textBoxLayout.verticalAlignPercent}%`;
     textBoxVerticalAlign.title = nodeGraphTooltipText("actions.textBoxVerticalPosition");
@@ -1220,12 +1298,9 @@ function configureNodeSceneContextMenu(mode) {
       addToUiButton.disabled = true;
       addToUiButton.querySelector("span").textContent = "";
     }
-    widthValue.textContent = "";
-    widthDecrease.disabled = true;
-    widthIncrease.disabled = true;
-    textBoxTextSizeValue.textContent = "";
-    textBoxTextSizeDecrease.disabled = true;
-    textBoxTextSizeIncrease.disabled = true;
+    resetNodeGraphModuleSettingsSizeRow(widthControls, widthDecrease, widthIncrease, widthValue);
+    resetNodeGraphModuleSettingsSizeRow(textBoxTextSizeControls, textBoxTextSizeDecrease, textBoxTextSizeIncrease, textBoxTextSizeValue);
+    resetNodeGraphModuleSettingsSizeRow(textBoxHeightControls, textBoxHeightDecrease, textBoxHeightIncrease, textBoxHeightValue);
     textBoxTextInput.value = "";
     textBoxTextInput.disabled = true;
     codeblockInputs.value = "";
@@ -1273,12 +1348,9 @@ function configureNodeSceneContextMenu(mode) {
     }
     deleteButton.disabled = true;
     deleteButton.title = nodeGraphTooltipText("actions.deleteTitle");
-    widthValue.textContent = "";
-    widthDecrease.disabled = true;
-    widthIncrease.disabled = true;
-    textBoxTextSizeValue.textContent = "";
-    textBoxTextSizeDecrease.disabled = true;
-    textBoxTextSizeIncrease.disabled = true;
+    resetNodeGraphModuleSettingsSizeRow(widthControls, widthDecrease, widthIncrease, widthValue);
+    resetNodeGraphModuleSettingsSizeRow(textBoxTextSizeControls, textBoxTextSizeDecrease, textBoxTextSizeIncrease, textBoxTextSizeValue);
+    resetNodeGraphModuleSettingsSizeRow(textBoxHeightControls, textBoxHeightDecrease, textBoxHeightIncrease, textBoxHeightValue);
     textBoxTextInput.value = "";
     textBoxTextInput.disabled = true;
     codeblockInputs.value = "";
