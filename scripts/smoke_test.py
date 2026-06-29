@@ -16082,6 +16082,21 @@ def require_node_graph_mvp_contract() -> None:
         ".node-signal-plot",
     ]:
         require(snippet in style_source, f"node graph style missing {snippet}")
+    bad_value_evidence_style = style_source[
+        style_source.index(".node-bad-value-monitor-evidence {"):
+        style_source.index(".node-bad-value-monitor-evidence li {")
+    ]
+    bad_value_evidence_item_style = style_source[
+        style_source.index(".node-bad-value-monitor-evidence li {"):
+        style_source.index(".node-bad-value-monitor-evidence li[data-bad-value-reason]")
+    ]
+    require(
+        "user-select: text;" in bad_value_evidence_style
+        and "-webkit-user-select: text;" in bad_value_evidence_style
+        and "user-select: text;" in bad_value_evidence_item_style
+        and "-webkit-user-select: text;" in bad_value_evidence_item_style,
+        "BADVAL/evidence text should remain selectable for copying scheduler errors",
+    )
     require(
         "scale(var(--node-graph-zoom))" not in style_source,
         "node graph UI zoom should not bitmap-scale text",

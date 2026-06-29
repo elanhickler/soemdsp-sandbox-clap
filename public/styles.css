@@ -15191,6 +15191,8 @@ body.node-slider-dragging .node-param-port {
   margin: 6px 0 8px;
   padding: 0;
   list-style: none;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .node-bad-value-monitor-evidence li {
@@ -15202,6 +15204,8 @@ body.node-slider-dragging .node-param-port {
   font-size: 0.68rem;
   line-height: 1.25;
   padding: 5px 7px;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .node-bad-value-monitor-evidence li[data-bad-value-reason] {
