@@ -92,7 +92,7 @@ It exists so the browser sandbox can detect a local companion process, read a ca
 The browser CLAP host strip has a Host field for the localhost URL.
 The browser CLAP host strip can copy the Windows `.cmd` launcher command for the selected host and port.
 The browser CLAP host strip can run Diagnostics against the selected host and display setup counts from `/diagnostics`.
-The Windows launcher starts the prototype host with descriptor inspection enabled unless `-NoInspectMetadata` is passed.
+The `/shutdown` route closes all instances and initiates threaded server shutdown. Undocumented experimental route; may be removed or guarded in later versions.
 The Windows launcher validates the port, host script path, and Python command before starting.
 The Windows launcher runs the host from the sandbox repository root for predictable relative paths.
 The browser has a `CLAP Plugin` module shell that can select a catalog entry and request/delete a host instance.

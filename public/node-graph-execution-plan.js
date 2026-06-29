@@ -511,6 +511,30 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   }
 
   const scheduling = nodeGraphBuildSchedulingDependencies(graph, reachableNodes);
+
+  // Surface CLAP feedback at plan time so the user sees the issue before hitting Render.
+  for (const connection of scheduling.feedbackConnections) {
+    const sourceType = graph.nodeMap.get(connection.sourceNode)?.type;
+    const destinationType = graph.nodeMap.get(connection.destinationNode)?.type;
+    if (sourceType === "clapPlugin" || destinationType === "clapPlugin") {
+      issues.push(`feedback involving CLAP Plugin nodes is not supported yet: ${connection.sourceNode} -> ${connection.destinationNode}`);
+    }
+  }
+  for (const modulation of scheduling.feedbackModulations) {
+    const sourceType = graph.nodeMap.get(modulation.sourceNode)?.type;
+    const destinationType = graph.nodeMap.get(modulation.destinationNode)?.type;
+    if (sourceType === "clapPlugin" || destinationType === "clapPlugin") {
+      issues.push(`feedback modulation involving CLAP Plugin nodes is not supported yet: ${modulation.sourceNode} -> ${modulation.destinationNode}`);
+    }
+  }
+  for (const graphConnection of scheduling.feedbackGraphConnections) {
+    const sourceType = graph.nodeMap.get(graphConnection.sourceNode)?.type;
+    const destinationType = graph.nodeMap.get(graphConnection.destinationNode)?.type;
+    if (sourceType === "clapPlugin" || destinationType === "clapPlugin") {
+      issues.push(`feedback graph connection involving CLAP Plugin nodes is not supported yet: ${graphConnection.sourceNode} -> ${graphConnection.destinationNode}`);
+    }
+  }
+
   const topology = nodeGraphTopologicalOrder(graph.nodes, scheduling.orderDependencies, reachableNodes);
   const order = topology.order.filter((nodeId) => reachableNodes.has(nodeId));
   const sourceNodes = order.filter((nodeId) => {

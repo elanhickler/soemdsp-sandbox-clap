@@ -364,7 +364,13 @@ function nodeGraphClapRenderParameterPayload(entries) {
 }
 
 function nodeGraphClapReportedLatencyFrames(latency = {}) {
-  if (latency?.supported !== true || latency?.error) {
+  if (latency?.supported !== true) {
+    return 0;
+  }
+  if (latency?.error) {
+    if (typeof console?.warn === "function") {
+      console.warn("CLAP latency report error:", latency.error, "(instance/summary:", latency, ")");
+    }
     return 0;
   }
   const samples = Number(latency.samples);
@@ -372,7 +378,16 @@ function nodeGraphClapReportedLatencyFrames(latency = {}) {
 }
 
 function nodeGraphClapReportedTailState(tail = {}) {
-  if (tail?.supported !== true || tail?.error) {
+  if (tail?.supported !== true) {
+    return {
+      infinite: false,
+      samples: 0,
+    };
+  }
+  if (tail?.error) {
+    if (typeof console?.warn === "function") {
+      console.warn("CLAP tail report error:", tail.error, "(instance/summary:", tail, ")");
+    }
     return {
       infinite: false,
       samples: 0,
@@ -663,7 +678,7 @@ async function nodeGraphRenderExternalClapOutputs(plan, engineSampleRate, inputE
   assertNodeGraphClapRenderFeedbackSafe(plan, clapNodes);
   assertNodeGraphClapRenderInstancesPresent(clapNodes);
   if (nodeGraphClapHostState.status !== "connected" || typeof postNodeGraphClapHostJson !== "function") {
-    throw new Error("CLAP host is not connected");
+    throw new Error("CLAP host is not connected (CLAP is under construction — connect via the local launcher at tools\\webui-clap-host\\start_webui_clap_host.cmd)");
   }
   if (typeof nodeGraphClapHostCanProcessAudio === "function" && !nodeGraphClapHostCanProcessAudio()) {
     throw new Error("connected CLAP host does not report audio processing support");
@@ -674,7 +689,11 @@ async function nodeGraphRenderExternalClapOutputs(plan, engineSampleRate, inputE
 
   const renderNodes = clapNodes.map((clapNode) => {
     const outputPorts = nodeGraphPatchNodeClapAudioOutputPorts(clapNode);
-    const outputAudio = outputPorts.map(() => new Float32Array(engineFrames));
+    // Pad output buffer by max process chunk to absorb latency compensation shift.
+    // Without this padding, the last latencyFrames of output are written to indices
+    // beyond the buffer and silently dropped, leaving trailing zeros in the render.
+    const bufferFrames = engineFrames + nodeGraphClapProcessChunkFrames();
+    const outputAudio = outputPorts.map(() => new Float32Array(bufferFrames));
     outputs.set(
       clapNode.id,
       Object.fromEntries(outputPorts.map((port, index) => [port, outputAudio[index]])),
