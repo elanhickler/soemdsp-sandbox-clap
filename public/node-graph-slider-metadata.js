@@ -376,6 +376,7 @@ function nodeSliderMetadata(slider) {
     mid,
     min,
     step,
+    tooltip: String(slider.dataset.tooltip || "").slice(0, 240),
   };
 }
 
@@ -384,6 +385,7 @@ function formatNodeSliderMetadataTooltip(slider) {
   const numberOptions = { kind: metadata.kind, maxDigits: metadata.maxDigits };
   const stepText = formatNodeMetadataStep(metadata.step);
   const rows = [
+    ...(metadata.tooltip ? [`tooltip ${metadata.tooltip}`] : []),
     `current ${formatNodeSliderNumber(metadata.cur, numberOptions)}`,
     `default ${formatNodeSliderNumber(metadata.def, numberOptions)}`,
     `min ${formatNodeSliderNumber(metadata.min, numberOptions)}`,

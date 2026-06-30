@@ -1,14 +1,6 @@
 const nodeGraphModuleStoreTypes = Object.freeze([
-  "osc",
-  "additiveOsc",
-  "gpuAdditiveOsc",
-  "distortionOscillator",
-  "dsfOscillator",
-  "ellipsoid",
   "polyBlep",
-  "fbPolyBlepOsc",
   "sineWavetable",
-  "jerobeamNyqistShannon",
   "drumMachine",
   "kickDrum",
   "snareDrum",
@@ -156,7 +148,7 @@ const nodeGraphModuleStoreDepartments = Object.freeze([
 const nodeGraphModuleStoreVisualGroups = Object.freeze([
   {
     label: "Generate",
-    departments: Object.freeze(["Oscillator", "Chaos", "OMS", "Noise", "Additive", "Drum", "Sequence"]),
+    departments: Object.freeze(["Oscillator", "Chaos", "OMS", "Noise", "Drum", "Sequence"]),
   },
   {
     label: "Process",
@@ -290,65 +282,17 @@ const nodeGraphModuleStoreDepartmentAds = Object.freeze({
 });
 
 const nodeGraphModuleStoreCatalog = Object.freeze({
-  osc: {
-    category: "Oscillator",
-    description: "Core tone generator. Turns frequency, phase, and waveform into a controllable voice.",
-    notes: ["phase counter", "waveform selection", "frequency control"],
-  },
-  additiveOsc: {
-    category: "Additive",
-    developerOnly: true,
-    description: "Harmonic additive tone source using SOEMDSP waveform partial recipes.",
-    notes: ["harmonic sum", "waveform selector", "band-limited partials"],
-  },
-  gpuAdditiveOsc: {
-    category: "Additive",
-    developerOnly: true,
-    description: "Buffered GPU additive engine proof module. Reuses the CPU additive path in live audio and prepares WebGPU chunk rendering with fallback.",
-    label: "GPU Additive",
-    notes: ["WebGPU proof", "buffered backend", "CPU fallback"],
-  },
-  distortionOscillator: {
-    category: "Oscillator",
-    description: "Placeholder for a tone source with built-in distortion character and drive-shaped motion.",
-    label: "DistortionOscillator",
-    notes: ["placeholder", "driven tone", "future oscillator"],
-  },
-  dsfOscillator: {
-    category: "Oscillator",
-    description: "Placeholder for a discrete summation formula oscillator with rich harmonic control.",
-    label: "DSFOscillator",
-    notes: ["placeholder", "harmonic series", "future oscillator"],
-  },
-  ellipsoid: {
-    category: "Oscillator",
-    description: "SOEMDSP ellipsoid motion oscillator. Emits paired X/Y curved waveform outputs from two phase-offset ellipsoid DSP paths.",
-    label: "Ellipsoid",
-    notes: ["geometric motion", "x/y output", "soemdsp oscillator"],
-  },
   polyBlep: {
     category: "Oscillator",
     description: "Anti-aliased PolyBLEP oscillator for clean saw, ramp, square, triangle, sine, and noise waveform outputs.",
     label: "PolyBLEP",
     notes: ["anti-aliasing", "polyblep", "realtime oscillator"],
   },
-  fbPolyBlepOsc: {
-    category: "Oscillator",
-    description: "Realtime forward/backward PolyBLEP oscillator test module, split out from the current PolyBLEP oscillator path for edge-repair experiments.",
-    label: "F/B PolyBLEP",
-    notes: ["anti-aliasing", "known-edge repair", "realtime oscillator"],
-  },
   sineWavetable: {
     category: "Oscillator",
     description: "Table-driven sine/cosine oscillator with pitch, frequency, amplitude, and Nyquist-edge fade.",
     label: "SinCos",
     notes: ["implemented", "wavetable", "sin/cos"],
-  },
-  jerobeamNyqistShannon: {
-    category: "Oscillator",
-    description: "Placeholder for a Jerobeam Nyqist/Shannon oscillator concept and audiovisual sampling study.",
-    label: "JerobeamNyqistShannon",
-    notes: ["placeholder", "sampling theorem", "future oscillator"],
   },
   drumMachine: {
     category: "Drum",

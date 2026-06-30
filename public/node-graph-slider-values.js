@@ -448,6 +448,7 @@ function setNodeSliderMetadata(slider, metadata) {
     normalizeNodeGraphMetadataMaxDigits(metadata.maxDigits, metadata.kind),
   );
   slider.dataset.unit = metadata.unit ?? "";
+  slider.dataset.tooltip = metadata.tooltip ?? "";
   slider.dataset.choices = formatNodeMetadataChoices(metadata.choices || []);
   slider.dataset.displayChoices = metadata.displayChoices ? "true" : "false";
   slider.dataset.divideChoicesVisibly = metadata.divideChoicesVisibly ? "true" : "false";

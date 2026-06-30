@@ -530,7 +530,7 @@
               <span>text colors</span>
               <button id="nodeShaderScriptSyntaxColorsReset" type="button">Reset</button>
             </div>
-            <label>
+            <label data-tooltip-key="parameterSettings.max">
               <span>property</span>
               <input id="nodeShaderScriptSyntaxColorProperty" type="color" data-shader-syntax-color="property" value="#7fc7d9">
             </label>
@@ -2331,7 +2331,7 @@
                 <button type="button" data-metadata-step-target="metadataMaxValue" data-metadata-step-direction="1">+</button>
               </span>
             </label>
-            <label id="metadataMidLabel">
+            <label id="metadataMidLabel" data-tooltip-key="parameterSettings.mid">
               <span>MID</span>
               <span class="metadata-stepper-control">
                 <button type="button" data-metadata-step-target="metadataMidValue" data-metadata-step-direction="-1">-</button>
@@ -2339,7 +2339,7 @@
                 <button type="button" data-metadata-step-target="metadataMidValue" data-metadata-step-direction="1">+</button>
               </span>
             </label>
-            <label>
+            <label data-tooltip-key="parameterSettings.min">
               <span>MIN</span>
               <span class="metadata-stepper-control">
                 <button type="button" data-metadata-step-target="metadataMinValue" data-metadata-step-direction="-1">-</button>
@@ -2347,7 +2347,7 @@
                 <button type="button" data-metadata-step-target="metadataMinValue" data-metadata-step-direction="1">+</button>
               </span>
             </label>
-            <label>
+            <label data-tooltip-key="parameterSettings.default">
               <span>DEFAULT</span>
               <span class="metadata-stepper-control">
                 <button type="button" data-metadata-step-target="metadataDefaultValue" data-metadata-step-direction="-1">-</button>
@@ -2355,7 +2355,7 @@
                 <button type="button" data-metadata-step-target="metadataDefaultValue" data-metadata-step-direction="1">+</button>
               </span>
             </label>
-            <label>
+            <label data-tooltip-key="parameterSettings.step">
               <span>STEP</span>
               <span class="metadata-stepper-control">
                 <button type="button" data-metadata-step-target="metadataStepValue" data-metadata-step-direction="-1">-</button>
@@ -2363,30 +2363,31 @@
                 <button type="button" data-metadata-step-target="metadataStepValue" data-metadata-step-direction="1">+</button>
               </span>
             </label>
-            <label class="metadata-curve-label">
-              <span>CURVE</span>
+            <label class="metadata-curve-label" data-tooltip-key="parameterSettings.skew">
+              <span>SKEW</span>
               <select id="metadataSliderCurveValue">
-                <option value="linear">Linear</option>
-                <option value="skew">Skew</option>
-                <option value="edges">Edges</option>
+                <option value="linear">off</option>
+                <option value="skew">mid skew</option>
+                <option value="edges">edge skew</option>
               </select>
               <input id="metadataNonlinearSliderValue" type="checkbox" hidden tabindex="-1" aria-hidden="true">
             </label>
-            <label id="metadataCurveSensitivityLabel" class="metadata-curve-sensitivity-label">
+            <label id="metadataCurveSensitivityLabel" class="metadata-curve-sensitivity-label" data-tooltip-key="parameterSettings.skewSensitivity">
               <span>SENSITIVITY</span>
               <span class="metadata-stepper-control">
-                <button type="button" data-metadata-step-target="metadataCurveSensitivityValue" data-metadata-step-direction="-1">-</button>
-                <input id="metadataCurveSensitivityValue" type="text" inputmode="decimal">
-                <button type="button" data-metadata-step-target="metadataCurveSensitivityValue" data-metadata-step-direction="1">+</button>
+                <button type="button" data-metadata-step-target="metadataCurveSensitivityValue" data-metadata-step-direction="-1" data-tooltip-key="parameterSettings.skewSensitivity">-</button>
+                <input id="metadataCurveSensitivityValue" type="text" inputmode="decimal" data-tooltip-key="parameterSettings.skewSensitivity">
+                <button type="button" data-metadata-step-target="metadataCurveSensitivityValue" data-metadata-step-direction="1" data-tooltip-key="parameterSettings.skewSensitivity">+</button>
               </span>
             </label>
           </div>
           <div class="metadata-section-title">Fields</div>
           <div class="metadata-field-section metadata-identity-section">
-            <label><span>ALIAS</span><input id="metadataAliasValue" type="text" spellcheck="false"></label>
-            <label><span>KIND</span><select id="metadataKindValue"></select></label>
-            <label><span>UNIT</span><input id="metadataUnitValue" type="text" placeholder="Hz"></label>
-            <label>
+            <label data-tooltip-key="parameterSettings.alias"><span>ALIAS</span><input id="metadataAliasValue" type="text" spellcheck="false"></label>
+            <label data-tooltip-key="parameterSettings.tooltip"><span>TOOLTIP</span><input id="metadataTooltipValue" type="text" spellcheck="false"></label>
+            <label data-tooltip-key="parameterSettings.kind"><span>KIND</span><select id="metadataKindValue"></select></label>
+            <label data-tooltip-key="parameterSettings.unit"><span>UNIT</span><input id="metadataUnitValue" type="text" placeholder="Hz"></label>
+            <label data-tooltip-key="parameterSettings.maxDigits">
               <span>MAX DIGITS</span>
               <span class="metadata-stepper-control">
                 <button type="button" data-metadata-step-target="metadataMaxDigitsValue" data-metadata-step-direction="-1">-</button>
@@ -2395,7 +2396,7 @@
               </span>
             </label>
           </div>
-          <label class="metadata-choices-label">
+          <label class="metadata-choices-label" data-tooltip-key="parameterSettings.choices">
             <span>CHOICES</span>
             <textarea
               id="metadataChoicesValue"
@@ -2405,23 +2406,23 @@
           </label>
           <div class="metadata-section-title">Toggles</div>
           <div class="metadata-toggle-section" aria-label="Metaparameter toggles">
-            <label class="metadata-checkbox-label">
+            <label class="metadata-checkbox-label" data-tooltip-key="parameterSettings.linearSmoothing">
               <input id="metadataLinearSmoothingValue" type="checkbox">
               Linear smoothing
             </label>
-            <label class="metadata-checkbox-label">
+            <label class="metadata-checkbox-label" data-tooltip-key="parameterSettings.showSign">
               <input id="metadataShowSignValue" type="checkbox">
               Always show +/-
             </label>
-            <label class="metadata-checkbox-label">
+            <label class="metadata-checkbox-label" data-tooltip-key="parameterSettings.wraparound">
               <input id="metadataWraparoundValue" type="checkbox">
               Wraparound
             </label>
-            <label class="metadata-checkbox-label">
+            <label class="metadata-checkbox-label" data-tooltip-key="parameterSettings.displayChoices">
               <input id="metadataDisplayChoicesValue" type="checkbox">
               Display choices
             </label>
-            <label class="metadata-checkbox-label">
+            <label class="metadata-checkbox-label" data-tooltip-key="parameterSettings.divideChoices">
               <input id="metadataDivideChoicesValue" type="checkbox">
               Divide choices visibly
             </label>

@@ -412,6 +412,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
       : midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON),
     showSign: Boolean(parameter.showSign),
     step: Number.isFinite(step) && step > 0 ? step : 0,
+    tooltip: String(parameter.tooltip || "").slice(0, 240),
     unboundedMax: Boolean(parameter.unboundedMax),
     unboundedMin: Boolean(parameter.unboundedMin),
     unit: parameter.unit ?? "",
@@ -472,6 +473,7 @@ function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
     sliderCurve: normalizeNodeSliderCurve(source.sliderCurve, source.nonlinearSlider),
     showSign: Boolean(source.showSign),
     step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 0,
+    tooltip: String(source.tooltip || "").slice(0, 240),
     unboundedMax: Boolean(source.unboundedMax),
     unboundedMin: Boolean(source.unboundedMin),
     unit: String(source.unit || ""),
@@ -555,6 +557,7 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
     ),
     showSign: Object.hasOwn(source, "showSign") ? Boolean(source.showSign) : fallback.showSign,
     step: Number.isFinite(step) && step > 0 ? step : 0,
+    tooltip: String(Object.hasOwn(source, "tooltip") ? source.tooltip ?? "" : fallback.tooltip || "").slice(0, 240),
     unboundedMax: Object.hasOwn(source, "unboundedMax")
       ? Boolean(source.unboundedMax)
       : Boolean(fallback.unboundedMax),

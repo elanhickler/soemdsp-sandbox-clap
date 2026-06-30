@@ -143,20 +143,20 @@
     "moduleScopeLineThickness": 1,
     "moduleScopeDiscontinuitySkipSamples": 1,
     "traceSettings": {
-      "brightness": 0.92,
-      "color": "#75ebff",
+      "brightness": 0.0384,
+      "color": "#ff0000",
       "dot1Enabled": true,
-      "dot1Size": 0.0175,
-      "dot2Brightness": 0.93,
+      "dot1Size": 0.001,
+      "dot2Brightness": 0.18,
       "dot2Color": "#184fff",
       "dot2Enabled": false,
-      "dot2Size": 0.1,
-      "dot2LineThickness": 0,
+      "dot2Size": 0,
+      "dot2LineThickness": 0.48,
       "cycles": 2,
       "lineThickness": 0.2,
       "padding": 0,
-      "skipSamples": 2,
-      "sourceSync": false,
+      "skipDiscontinuities": true,
+      "sourceSync": true,
       "zoomSeconds": 0.05
     },
     "sliderLayout": "text-inside",
@@ -164,43 +164,11 @@
     "sliderPositionVisible": true,
     "hideMouseWhileDragging": true,
     "moduleCatalogVisibility": {
-      "osc": {
-        "developer": true,
-        "home": false
-      },
-      "additiveOsc": {
-        "developer": true,
-        "home": false
-      },
-      "gpuAdditiveOsc": {
-        "developer": true,
-        "home": false
-      },
-      "distortionOscillator": {
-        "developer": true,
-        "home": false
-      },
-      "dsfOscillator": {
-        "developer": true,
-        "home": false
-      },
-      "ellipsoid": {
-        "developer": true,
-        "home": false
-      },
       "polyBlep": {
         "developer": true,
         "home": false
       },
-      "fbPolyBlepOsc": {
-        "developer": true,
-        "home": false
-      },
       "sineWavetable": {
-        "developer": true,
-        "home": false
-      },
-      "jerobeamNyqistShannon": {
         "developer": true,
         "home": false
       },
@@ -633,16 +601,16 @@
       "width": 140
     },
     "moduleActionWindowSize": {
-      "width": 185,
-      "height": 620
+      "width": 208,
+      "height": 616
     },
     "workspaceWindowStatesVersion": 1,
     "workspaceWindowStates": {
       "commandCenter": {
         "open": true,
         "position": {
-          "left": 415,
-          "top": 234
+          "left": 62,
+          "top": 123
         }
       },
       "moduleActions": {
@@ -657,23 +625,23 @@
       "patchExplorer": {
         "open": false,
         "position": {
-          "left": 98,
-          "top": 69
+          "left": 233,
+          "top": 216
         },
         "size": {
-          "width": 171,
-          "height": 351
+          "width": 240,
+          "height": 617
         }
       },
       "moduleBrowser": {
         "open": true,
         "position": {
-          "left": 211,
-          "top": 58
+          "left": 1531,
+          "top": 122
         },
         "size": {
-          "width": 164,
-          "height": 720
+          "width": 179,
+          "height": 716
         }
       },
       "visibilityMenu": {
@@ -697,28 +665,28 @@
         "open": false
       },
       "traceDisplaySettings": {
-        "open": true,
+        "open": false,
         "locked": true,
-        "targetNode": "polyBlep-1"
+        "targetNode": "bias-2"
       }
     },
     "sharedInspectorActive": "traceDisplaySettings",
     "sharedInspectorWindowState": {
       "position": {
-        "left": 1391,
-        "top": 203
+        "left": 1418,
+        "top": 168
       },
       "size": {
-        "width": 185,
-        "height": 620
+        "width": 208,
+        "height": 616
       }
     },
     "workspaceView": {
       "pan": {
-        "x": 257.60714285714283,
-        "y": 309.79464285714283
+        "x": -197.60000000000002,
+        "y": -62.33250000000004
       },
-      "zoom": 1.4900858874962732
+      "zoom": 1.0930910948563093
     },
     "moduleStoreDepartment": "",
     "savedPatchBankIndex": 0,
@@ -777,24 +745,24 @@
       "info": {
         "author": "",
         "bank": 0,
-        "bankName": "basic",
+        "bankName": "chaos",
         "description": "",
-        "name": "ellipsoid",
+        "name": "lorenz demonstration",
         "program": 0,
-        "tags": "circle"
+        "tags": "chaos, lorenz, attractor, strange"
       },
       "modulations": [],
       "monitors": [],
       "nodes": [
         {
           "gx": 7,
-          "gy": -14,
+          "gy": 4,
           "id": "output",
           "paramMeta": {
             "volume": {
               "alias": "",
               "choices": [],
-              "curveAmount": 0.5,
+              "curveAmount": 0,
               "def": 0.1,
               "displayChoices": false,
               "divideChoicesVisibly": false,
@@ -808,6 +776,7 @@
               "sliderCurve": "linear",
               "showSign": false,
               "step": 0,
+              "tooltip": "",
               "unboundedMax": false,
               "unboundedMin": false,
               "unit": "",
@@ -815,30 +784,24 @@
             }
           },
           "params": {
-            "volume": 0.411323377374953
+            "volume": 0.384137585847563
           },
           "type": "output",
-          "traceDisplaySettings": {
-            "brightness": 0.92,
-            "color": "#75ebff",
-            "dot1Enabled": true,
-            "dot1Size": 0.08,
-            "dot2Brightness": 0.18,
-            "dot2Color": "#184fff",
-            "dot2Enabled": true,
-            "dot2Size": 0.24,
-            "dot2LineThickness": 0.48,
-            "cycles": 2,
-            "lineThickness": 0.2,
-            "padding": 0,
-            "skipSamples": 1,
-            "sourceSync": true,
-            "zoomSeconds": 0.05
+          "ui": {
+            "buttonsHidden": false,
+            "displayHeightOffsetGu": 0,
+            "displayModeKey": "",
+            "ioHidden": false,
+            "interfaceControlsHidden": false,
+            "movementLocked": false,
+            "oscilloscopeHidden": true,
+            "slidersHidden": false,
+            "titleHidden": false
           }
         },
         {
-          "gx": -13,
-          "gy": -13,
+          "gx": -7,
+          "gy": -3,
           "id": "polyBlep-1",
           "paramMeta": {
             "waveform": {
@@ -865,6 +828,7 @@
               "sliderCurve": "skew",
               "showSign": false,
               "step": 1,
+              "tooltip": "",
               "unboundedMax": false,
               "unboundedMin": false,
               "unit": "",
@@ -887,6 +851,7 @@
               "sliderCurve": "skew",
               "showSign": false,
               "step": 0,
+              "tooltip": "",
               "unboundedMax": false,
               "unboundedMin": false,
               "unit": "Hz",
@@ -909,6 +874,7 @@
               "sliderCurve": "linear",
               "showSign": false,
               "step": 0.01,
+              "tooltip": "",
               "unboundedMax": false,
               "unboundedMin": false,
               "unit": "cycle",
@@ -931,6 +897,7 @@
               "sliderCurve": "linear",
               "showSign": false,
               "step": 0,
+              "tooltip": "",
               "unboundedMax": false,
               "unboundedMin": false,
               "unit": "",
@@ -938,40 +905,16 @@
             }
           },
           "params": {
-            "waveform": 0,
+            "waveform": 1,
             "frequency": 0,
-            "phase": 0.22999999999999998,
+            "phase": 0,
             "level": 1
           },
           "type": "polyBlep"
         }
       ],
       "requiredAssets": [],
-      "samples": [
-        {
-          "acceptedTypes": [
-            "audio/*"
-          ],
-          "id": "chaosarp-lorenz-startup",
-          "kind": "audio",
-          "file": {
-            "extension": "mp3",
-            "mime": "audio/mpeg",
-            "name": "Elan Hickler - ChaosArp Lorenz.mp3",
-            "size": 10447933,
-            "sourcePath": "./public/resources/audio/Elan Hickler - ChaosArp Lorenz.mp3"
-          },
-          "metadata": {
-            "artist": "Elan Hickler",
-            "title": "ChaosArp Lorenz",
-            "startupMusic": true
-          },
-          "name": "Elan Hickler - ChaosArp Lorenz",
-          "resourceId": "chaosarp-lorenz-startup",
-          "sourceName": "Elan Hickler - ChaosArp Lorenz.mp3",
-          "sourcePath": "./public/resources/audio/Elan Hickler - ChaosArp Lorenz.mp3"
-        }
-      ],
+      "samples": [],
       "timing": {
         "tempoBpm": 120,
         "timeSignatureDenominator": 4,
@@ -979,9 +922,9 @@
       },
       "uiItems": [],
       "view": {
-        "heightGu": 23,
-        "widthGu": 26,
-        "zoom": 1.4900858874962732
+        "heightGu": 28,
+        "widthGu": 36,
+        "zoom": 1.0930910948563093
       },
       "visual": {
         "background": {

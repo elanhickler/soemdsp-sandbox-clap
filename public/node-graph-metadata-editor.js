@@ -283,6 +283,7 @@ const nodeMetadataScriptSupportedKeys = new Set([
   "sliderCurve",
   "showSign",
   "step",
+  "tooltip",
   "unit",
   "wraparound",
 ]);
@@ -684,6 +685,7 @@ function formatNodeMetadataScript(slider, metadata = nodeSliderMetadata(slider))
     `param.${key}.max = ${nodeMetadataScriptValue(metadata.max, "max")};`,
     `param.${key}.def = ${nodeMetadataScriptValue(metadata.def, "def")};`,
     `param.${key}.step = ${nodeMetadataScriptValue(metadata.step, "step")};`,
+    `param.${key}.tooltip = ${nodeMetadataScriptValue(metadata.tooltip, "tooltip")};`,
     `param.${key}.unit = ${nodeMetadataScriptValue(metadata.unit, "unit")};`,
     `param.${key}.maxDigits = ${nodeMetadataScriptValue(metadata.maxDigits, "maxDigits")};`,
     `param.${key}.choices = ${nodeMetadataScriptValue(metadata.choices, "choices")};`,
@@ -716,6 +718,7 @@ function nodeMetadataScriptTemplateForKind(slider, kind) {
     sliderCurve: normalizeNodeSliderCurve(template.sliderCurve, template.nonlinearSlider),
     showSign: Boolean(template.showPlusMinus),
     step: Number.isFinite(Number(template.step)) ? Number(template.step) : 0,
+    tooltip: String(template.tooltip || ""),
     unit: template.unit || "",
     wraparound: Boolean(template.wraparound),
   };
@@ -1132,8 +1135,9 @@ this line is intentionally invalid
     nodeMetadataScriptUnsupportedPreviewDetails({ path: "param.frequency.unknown" }).after === "unsupported: param.frequency.unknown",
     nodeMetadataScriptDiagnosticMessage("param.frequency.def = 441;").message.includes("changes"),
     nodeMetadataScriptDiagnosticMessage("param.frequency.unknown = 1;").message.includes("ignored lines"),
-    nodeMetadataScriptEffectiveRows({ kind: "decimal", min: 0, mid: 0.5, max: 1, def: 0.25, step: 0, unit: "", maxDigits: 2, choices: [], displayChoices: false, divideChoicesVisibly: false, linearSmoothing: true, nonlinearSlider: false, showSign: false, wraparound: false })
+    nodeMetadataScriptEffectiveRows({ kind: "decimal", min: 0, mid: 0.5, max: 1, def: 0.25, step: 0, tooltip: "tip", unit: "", maxDigits: 2, choices: [], displayChoices: false, divideChoicesVisibly: false, linearSmoothing: true, nonlinearSlider: false, showSign: false, wraparound: false })
       .some(([key, value]) => key === "step" && value === "0"),
+    parseNodeMetadataScriptValue('"hello tip"', "tooltip", { tooltip: "" }) === "hello tip",
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.choices = [Saw, Ramp, Square, Triangle, Sine, Noise];"),
     nodeMetadataScriptTemplateForKind(fakeSlider, "waveform").includes("param.waveform.displayChoices = true;"),
     nodeMetadataScriptAssignmentInsertion("param.a.min = 0;", "param.a.max = 1;", 16) === "\nparam.a.max = 1;",
@@ -1180,6 +1184,9 @@ function parseNodeMetadataScriptValue(rawValue, key, current) {
   }
   if (key === "sliderCurve") {
     return normalizeNodeSliderCurve(value.replace(/^["']|["']$/g, ""), current.nonlinearSlider);
+  }
+  if (key === "tooltip") {
+    return value.replace(/^["']|["']$/g, "").slice(0, 240);
   }
   if (key === "unit") {
     return value.replace(/^["']|["']$/g, "");
@@ -1271,6 +1278,7 @@ function applyNodeMetadataScriptPortAliases(slider, portAliases = []) {
 
 function writeNodeMetadataEditorValues(metadata) {
   document.getElementById("metadataAliasValue").value = metadata.alias || "";
+  document.getElementById("metadataTooltipValue").value = metadata.tooltip || "";
   document.getElementById("metadataMinValue").value = formatNodeSliderCompactNumber(metadata.min);
   document.getElementById("metadataMidValue").value = formatNodeSliderCompactNumber(metadata.mid);
   document.getElementById("metadataMaxValue").value = formatNodeSliderCompactNumber(metadata.max);
@@ -1819,6 +1827,7 @@ function readNodeMetadataEditorValues(slider) {
   const kind = normalizeNodeMetadataKind(document.getElementById("metadataKindValue").value);
   return {
     alias: normalizeNodeGraphPatchMetadataAlias(document.getElementById("metadataAliasValue").value),
+    tooltip: String(document.getElementById("metadataTooltipValue").value || "").trim().slice(0, 240),
     curveAmount: normalizeNodeSliderCurveAmount(
       sanitizeMetadataNumberInput("metadataCurveSensitivityValue"),
       current.curveAmount,
@@ -1973,6 +1982,7 @@ function setNodeMetadataDefaultsFromKind() {
     document.getElementById("metadataMaxValue").value = String(template.max);
   }
   document.getElementById("metadataUnitValue").value = template.unit;
+  document.getElementById("metadataTooltipValue").value = template.tooltip || "";
   document.getElementById("metadataMaxDigitsValue").value =
     String(normalizeNodeGraphMetadataMaxDigits(template.maxDigits, kind));
   document.getElementById("metadataChoicesValue").value = formatNodeMetadataChoices(choices);

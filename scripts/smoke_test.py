@@ -2341,7 +2341,10 @@ def require_user_ui_settings_update_contract(base_url: str) -> None:
 
 
 def require_root_shell(base_url: str) -> None:
-    expected = (PUBLIC / "index.html").read_bytes()
+    server_source = (ROOT / "server.py").read_text(encoding="utf-8")
+    build_number_match = re.search(r'BUILD_NUMBER = "([^"]+)"', server_source)
+    build_number = build_number_match.group(1) if build_number_match else ""
+    expected = (PUBLIC / "index.html").read_text(encoding="utf-8").replace("{{BUILD_NUMBER}}", build_number).encode("utf-8")
     expected_size = str(len(expected))
     root_response: Response | None = None
     for path in ["/", "/public/index.html"]:
@@ -6484,6 +6487,7 @@ def require_node_graph_mvp_contract() -> None:
         "metadataMaxDigitsValue",
         "metadataKindValue",
         "metadataUnitValue",
+        "metadataTooltipValue",
         "metadataChoicesValue",
         "Choices",
         "metadataDisplayChoicesValue",
@@ -6499,7 +6503,13 @@ def require_node_graph_mvp_contract() -> None:
         "metadataNonlinearSliderValue",
         "metadataSliderCurveValue",
         "metadataCurveSensitivityValue",
-        "CURVE",
+        "SKEW",
+        '<option value="linear">off</option>',
+        '<option value="skew">mid skew</option>',
+        '<option value="edges">edge skew</option>',
+        'data-tooltip-key="parameterSettings.skew"',
+        'data-tooltip-key="parameterSettings.skewSensitivity"',
+        'data-tooltip-key="parameterSettings.tooltip"',
         "SENSITIVITY",
         "metadataPopoverDragHandle",
         "metadataPopoverSubtitle",
@@ -6950,6 +6960,11 @@ def require_node_graph_mvp_contract() -> None:
         '"slider"',
         '"settings"',
         '"audio"',
+        '"parameterSettings": {',
+        '"tooltip": "Tooltip text stored in this parameter',
+        '"skew": "Slider response curve.',
+        '"skewSensitivity": "Edge skew strength.',
+        '"max": "Highest value this parameter can reach."',
         '"Mouse: middle-drag to move the modular view freely. Touch: drag empty workspace to move the view. Ctrl+middle-drag or Alt+middle-drag slowly zooms, including over modules and controls. Ctrl+Shift+G aligns the view to the grid."',
         '"Mouse: drag to move modules. Click to select. Ctrl/Shift+click adds or removes from selection; Ctrl/Shift+drag adds to selection while moving."',
         '"Mouse: drag to move modules. Click to select; Ctrl/Shift+click adds or removes from selection. Alt+click an empty I/O section to toggle bypass. When module buttons are hidden, Alt+click the title also toggles bypass."',
@@ -8223,6 +8238,10 @@ def require_node_graph_mvp_contract() -> None:
         "!Object.hasOwn(node, \"ui\")",
         "patch.nodes.push(createNodeGraphPatchNode(type",
         "function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {})",
+        "tooltip: String(parameter.tooltip || \"\").slice(0, 240)",
+        "\"tooltip\"",
+        "param.${key}.tooltip",
+        "metadataTooltipValue",
         "function nodeGraphGridSnapOffset()",
         "return 6;",
         "function normalizeNodeGraphPatchView(view = {})",
@@ -17089,6 +17108,8 @@ def require_native_module_contract(base_url: str) -> None:
     require(sabrina_source_path.exists(), "native Sabrina Reverb source should exist")
     sabrina_source = sabrina_source_path.read_text(encoding="utf-8")
     require("// soemdsp-native-module: sabrina_reverb" in sabrina_source, "native Sabrina source metadata missing")
+    require("soemdsp-native-tooltip" not in sabrina_source, "native C++ source should not carry comment tooltips")
+    require("soemdsp-native-param-tooltip" not in sabrina_source, "native parameter tooltips should live in metaparameter spec")
     require("extern \"C\" int soemdsp_sabrina_reverb_create" in sabrina_source, "native Sabrina create export missing")
     require("extern \"C\" void soemdsp_sabrina_reverb_process" in sabrina_source, "native Sabrina process export missing")
     require("extern \"C\" double soemdsp_sabrina_reverb_left" in sabrina_source, "native Sabrina output export missing")
@@ -17097,6 +17118,11 @@ def require_native_module_contract(base_url: str) -> None:
     require("NATIVE_MODULES = ROOT / \"native_modules\"" in server_source, "native modules folder constant missing")
     require("\"/api/native-modules\"" in server_source, "native modules API route missing")
     require("\".wasm\": \"application/wasm\"" in server_source, "wasm MIME mapping missing")
+    require('"tooltips": tooltips' not in server_source, "native modules API should not expose comment-parsed tooltip metadata")
+    require('"param-tooltip": "params"' not in server_source, "native modules API should not parse parameter tooltip comments")
+    require("header_pairs: list[tuple[str, str]]" not in server_source, "native tooltip comment parser should be absent")
+    require('tooltip_key, tooltip = value.split(":", 1)' not in server_source, "native tooltip comment splitting should be absent")
+    require('tooltip: "Wet/dry balance for the reverb output."' in definitions_source, "Sabrina parameter tooltip should live in metaparameter spec")
     require("nodeGraphNativeModuleEntriesByTarget" in module_store_source, "native module store target index missing")
     require("loadNodeGraphNativeModuleCatalog" in module_store_source, "native module catalog loader missing")
     require("\"Native C++\"" in module_store_source, "native module browser badge missing")
@@ -17127,6 +17153,7 @@ def require_native_module_contract(base_url: str) -> None:
     sabrina = next((item for item in modules if item.get("targetType") == "reverbEffect"), None)
     require(sabrina is not None, "native modules API should include Sabrina Reverb")
     require(sabrina.get("wasmAvailable") is True, "native Sabrina wasm should be available")
+    require("tooltips" not in sabrina, "native modules API should not expose comment-parsed tooltips")
 
     wasm_response = request(f"{base_url}/native_modules/ellipsoid/ellipsoid.wasm")
     require(wasm_response.status == 200, "native ellipsoid wasm should be served")

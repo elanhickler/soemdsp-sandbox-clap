@@ -51,6 +51,26 @@
     "globalSmoothing": "Global smoothing time in seconds. This controls how quickly smoothed module parameters glide toward new values. Drag the number to tune it, double-click to type, Ctrl-click to reset to one audio block.",
     "speedUnderConstruction": "Speed control is under construction. It is shown here as a future global timing multiplier, but it is not active yet."
   },
+  "parameterSettings": {
+    "alias": "Display name for this parameter.",
+    "tooltip": "Tooltip text stored in this parameter's metadata spec. This is language-neutral and can be authored by C++, JavaScript, or any future module source.",
+    "kind": "Parameter value type and default formatting behavior.",
+    "unit": "Unit text shown next to the parameter value.",
+    "maxDigits": "Maximum number of displayed digits for this parameter value.",
+    "max": "Highest value this parameter can reach.",
+    "mid": "Middle reference value used by mid skew.",
+    "min": "Lowest value this parameter can reach.",
+    "default": "Value used when the parameter is reset.",
+    "step": "Smallest normal increment. Use 0 or any for continuous values.",
+    "choices": "Comma-separated choice labels for stepped parameters.",
+    "skew": "Slider response curve. Off is linear, mid skew bends around the MID value, edge skew gives extra control near both edges.",
+    "skewSensitivity": "Edge skew strength. Higher values push more slider travel toward the low and high edges, making the center move faster.",
+    "linearSmoothing": "Smooth this parameter with a linear glide.",
+    "showSign": "Always show a plus or minus sign for this parameter.",
+    "wraparound": "Let the parameter wrap from max to min and min to max.",
+    "displayChoices": "Show choice labels instead of only numbers.",
+    "divideChoices": "Draw visible separators between choice regions."
+  },
   "script": {
     "apply": "Validate and apply the current patch script",
     "copy": "Copy patch script to clipboard",

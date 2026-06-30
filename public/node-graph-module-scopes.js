@@ -2393,7 +2393,7 @@ const nodeGraphTraceDisplaySettingsDefaults = Object.freeze({
   cycles: 2,
   lineThickness: 0.2,
   padding: 0,
-  skipSamples: 1,
+  skipDiscontinuities: true,
   sourceSync: true,
   zoomSeconds: 0.05,
 });
@@ -2495,10 +2495,6 @@ function normalizeNodeGraphTraceDisplayNumber(value, fallback, min, max, integer
   return integer ? Math.round(normalized) : normalized;
 }
 
-function normalizeNodeGraphTraceDisplaySkipSamples(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? clampNodeSliderValue(Math.round(number), 0, 2) : 1;
-}
 
 function normalizeNodeGraphTraceDisplayZoomSeconds(value, fallback) {
   const number = Number(value);
@@ -2607,7 +2603,7 @@ function normalizeNodeGraphTraceDisplaySettings(settings = {}) {
     cycles: normalizeNodeGraphTraceDisplayNumber(source.cycles, defaults.cycles, -Infinity, Infinity),
     lineThickness: normalizeNodeGraphTraceDisplayNumber(source.lineThickness, defaults.lineThickness, 0, 1),
     padding: normalizeNodeGraphTraceDisplayNumber(source.padding, defaults.padding, -Infinity, Infinity),
-    skipSamples: normalizeNodeGraphTraceDisplaySkipSamples(source.skipSamples ?? defaults.skipSamples),
+    skipDiscontinuities: source.skipDiscontinuities !== false,
     sourceSync: source.sourceSync !== false,
     zoomSeconds: normalizeNodeGraphTraceDisplayZoomSeconds(zoomSeconds, defaults.zoomSeconds),
   };
@@ -3046,7 +3042,7 @@ function prepareNodeGraphTraceDisplayBuffer(buffer, settings = nodeGraphTraceDis
   buffer.nodeGraphScopeDrawStartProgress = 0;
   buffer.nodeGraphScopeDrawWrap = false;
   buffer.nodeGraphScopeHoldPoint = false;
-  buffer.nodeGraphScopeDiscontinuitySkipSamples = traceSettings.skipSamples;
+  buffer.nodeGraphScopeSkipDiscontinuities = traceSettings.skipDiscontinuities;
   buffer.nodeGraphScopeTracePadding = 0;
   buffer.nodeGraphScopeMinPointSpacingPx = 0.5;
   buffer.nodeGraphScopeVisualPointLimit = nodeGraphTraceDisplayRenderPointBudget();
@@ -3405,7 +3401,7 @@ const nodeGraphTraceDisplaySettingFields = Object.freeze([
   ["burn", "Burn"],
   ["decay", "Decay"],
   ["padding", "Amp"],
-  ["skipSamples", "Skip"],
+
   ["dot1Size", "Dot 1 size"],
   ["lineThickness", "Dot 1 blur"],
   ["dot1Brightness", "Dot 1 light"],
@@ -3428,7 +3424,6 @@ const nodeGraphTraceDisplayActiveControlsByType = Object.freeze({
   trace: Object.freeze({
     fields: Object.freeze([
       "zoomSeconds",
-      "skipSamples",
       "dot1Size",
       "lineThickness",
       "dot1Brightness",
@@ -3437,7 +3432,7 @@ const nodeGraphTraceDisplayActiveControlsByType = Object.freeze({
       "dot2Brightness",
     ]),
     colors: Object.freeze(["dot1Color", "dot2Color"]),
-    toggles: Object.freeze(["sourceSync", "dot1Enabled", "dot2Enabled"]),
+    toggles: Object.freeze(["sourceSync", "skipDiscontinuities", "dot1Enabled", "dot2Enabled"]),
     choices: Object.freeze([]),
   }),
   dot: Object.freeze({
@@ -3544,9 +3539,9 @@ const nodeGraphTraceDisplaySectionControls = Object.freeze({
     choices: Object.freeze([]),
   }),
   trace: Object.freeze({
-    fields: Object.freeze(["burn", "decay", "zoomSeconds", "historySeconds", "scale", "padding", "skipSamples"]),
+    fields: Object.freeze(["burn", "decay", "zoomSeconds", "historySeconds", "scale", "padding"]),
     colors: Object.freeze([]),
-    toggles: Object.freeze(["sourceSync"]),
+    toggles: Object.freeze(["sourceSync", "skipDiscontinuities"]),
     choices: Object.freeze([]),
   }),
   value: Object.freeze({
@@ -3682,9 +3677,9 @@ function nodeGraphTraceDisplaySettingsElement() {
             <button type="button" data-trace-display-step-target="padding" data-trace-display-step-direction="1">+</button>
           </span>
         </label>
-        <label>
-          <span>Skip</span>
-          <input id="nodeTraceDisplaySkipSamples" type="text" inputmode="numeric" data-trace-display-field="skipSamples">
+        <label class="metadata-checkbox-label">
+          <input id="nodeTraceDisplaySkipDiscontinuities" type="checkbox" data-trace-display-toggle="skipDiscontinuities">
+          Skip discontinuities
         </label>
       </div>
       <div class="metadata-section-title node-trace-display-value-title">Line</div>
@@ -3822,7 +3817,7 @@ function applyNodeGraphTraceDisplaySettingsTooltips(popover) {
     burn: "traceDisplaySettings.burn",
     decay: "traceDisplaySettings.decay",
     zoomSeconds: "traceDisplaySettings.zoomSeconds",
-    skipSamples: "traceDisplaySettings.skipSamples",
+    skipDiscontinuities: "traceDisplaySettings.skipDiscontinuities",
     padding: "traceDisplaySettings.padding",
     lineThickness: "traceDisplaySettings.lineThickness",
     lineLength: "traceDisplaySettings.lineLength",
@@ -4197,9 +4192,7 @@ function nodeGraphTraceDisplayStepperQuantum(input) {
   if (!input) {
     return 0.1;
   }
-  if (input.dataset.traceDisplayField === "skipSamples") {
-    return 1;
-  }
+
   return 0.1;
 }
 
@@ -4247,9 +4240,6 @@ function setNodeGraphTraceDisplayZoomEditActive(active) {
 }
 
 function normalizeNodeGraphTraceDisplaySettingValueForKey(key, value) {
-  if (key === "skipSamples") {
-    return normalizeNodeGraphTraceDisplaySkipSamples(value);
-  }
   const formType = nodeGraphTraceDisplaySettingsFormType();
   if (["burn", "decay", "dot1Size", "dot2Size", "lineLength", "capSize", "capLength"].includes(key)) {
     return clampNodeSliderValue(Number(value) || 0, 0, 1);
@@ -4367,10 +4357,6 @@ function beginNodeGraphTraceDisplayFieldDrag(event) {
   const key = input.dataset.traceDisplayField;
   if (typeof nodeGraphNumericModifierReserved === "function" && nodeGraphNumericModifierReserved(event)) {
     event.preventDefault();
-    event.stopPropagation();
-    return;
-  }
-  if (key === "skipSamples") {
     event.stopPropagation();
     return;
   }
@@ -6408,7 +6394,7 @@ function nodeGraphTraceDisplayDrawSignature(slot, item, buffer, settings) {
     Math.round((Number(item?.visibleProgressRange?.[1]) || 0) * 10000),
     settings.zoomSeconds,
     settings.padding,
-    settings.skipSamples,
+    settings.skipDiscontinuities ? 1 : 0,
     settings.lineThickness,
     settings.brightness,
     settings.color,
@@ -6723,14 +6709,16 @@ function nodeGraphModuleScopeProgressRangeIntersection(range, clipRange) {
   return clippedEnd - clippedStart > 0.001 ? [clippedStart, clippedEnd] : null;
 }
 
+const nodeGraphModuleScopeDiscontinuityFixedSkipCount = 2;
+
 function nodeGraphModuleScopeDiscontinuitySkipSamplesForSlot(slot, buffer) {
   if (buffer?.nodeGraphScopeDisableDiscontinuitySkip === true) {
     return 0;
   }
   if (nodeGraphModuleDisplayRendererForSlot(slot) === "trace") {
-    return normalizeNodeGraphTraceDisplaySkipSamples(
-      buffer?.nodeGraphScopeDiscontinuitySkipSamples ?? nodeGraphTraceDisplaySettingsForSlot(slot).skipSamples,
-    );
+    const enabled = buffer?.nodeGraphScopeSkipDiscontinuities
+      ?? nodeGraphTraceDisplaySettingsForSlot(slot).skipDiscontinuities;
+    return enabled ? nodeGraphModuleScopeDiscontinuityFixedSkipCount : 0;
   }
   return typeof normalizeNodeGraphModuleScopeDiscontinuitySkipSamples === "function"
     ? normalizeNodeGraphModuleScopeDiscontinuitySkipSamples(nodeGraphMvp?.moduleScopeDiscontinuitySkipSamples ?? 1)
@@ -6742,7 +6730,7 @@ function nodeGraphModuleScopeDiscontinuitySkipSamplesForPoints(points) {
     return 0;
   }
   if (Number.isFinite(Number(points?.nodeGraphScopeDiscontinuitySkipSamples))) {
-    return normalizeNodeGraphTraceDisplaySkipSamples(points.nodeGraphScopeDiscontinuitySkipSamples);
+    return Math.min(nodeGraphModuleScopeDiscontinuityFixedSkipCount, Math.max(0, Math.round(Number(points.nodeGraphScopeDiscontinuitySkipSamples))));
   }
   return typeof normalizeNodeGraphModuleScopeDiscontinuitySkipSamples === "function"
     ? normalizeNodeGraphModuleScopeDiscontinuitySkipSamples(nodeGraphMvp?.moduleScopeDiscontinuitySkipSamples ?? 1)
@@ -7164,47 +7152,33 @@ function buildNodeGraphTraceDisplayVertices(buffer, rect, canvas, pixelRatio, sl
   const pointCount = nodeGraphTraceDisplayVisualPointCount(metricRect, buffer);
   const scratch = nodeGraphTraceDisplayScratchForSlot(slot, Math.max(0, pointCount - 1) * 36);
   const vertices = scratch.vertices;
-  const skipSamples = nodeGraphModuleScopeDiscontinuitySkipSamplesForSlot(slot, buffer);
   const pointGenerationStartMs = timing ? nodeGraphModuleScopeNowMs() : 0;
   let previousX = 0;
   let previousY = 0;
-  let previousRaw = 0;
   let hasPrevious = false;
-  let skipThroughSegment = -1;
   let vertexOffset = 0;
   let segmentCount = 0;
   const samplesPerPoint = (visibleSamples * drawSpan) / Math.max(1, pointCount);
-  for (let pointIndex = 0; pointIndex < pointCount; pointIndex += 1) {
-    const progress = start + ((pointIndex + 0.5) / pointCount) * drawSpan;
-    const samplePosition = view.start + progress * visibleSamples;
-    const x = rect.left + progress * rect.width;
-    const sampleInfo = nodeGraphTraceDisplaySampleInfo(buffer, samplePosition, samplesPerPoint);
-    const rawValue = Number.isFinite(Number(sampleInfo.value)) ? Number(sampleInfo.value) : 0;
-    const value = clampNodeSliderValue((rawValue * view.gain) + view.offset, -1, 1);
-    const y = midY - value * halfHeight;
-    if (hasPrevious) {
+  const progressFn = (index, count) => start + ((index + 0.5) / count) * drawSpan;
+  const traceSamples = buildNodeGraphTraceDisplaySamples(buffer, slot, pointCount, progressFn, samplesPerPoint);
+  for (let pointIndex = 0; pointIndex < (traceSamples?.length ?? 0); pointIndex += 1) {
+    const s = traceSamples[pointIndex];
+    const x = rect.left + s.progress * rect.width;
+    const y = midY - s.value * halfHeight;
+    if (hasPrevious && !s.breakBefore) {
       const segmentIndex = pointIndex - 1;
-      if (skipSamples > 0 && sampleInfo.discontinuity) {
-        skipThroughSegment = Math.max(skipThroughSegment, segmentIndex + skipSamples);
-      }
-      if (skipSamples > 0 && Math.abs(rawValue - previousRaw) > nodeGraphModuleScopeDiscontinuityThreshold) {
-        skipThroughSegment = Math.max(skipThroughSegment, segmentIndex + skipSamples - 1);
-      }
-      if (segmentIndex > skipThroughSegment) {
-        const x1 = previousX * pixelRatio;
-        const y1 = previousY * pixelRatio;
-        const x2 = x * pixelRatio;
-        const y2 = y * pixelRatio;
-        if (Math.hypot(x2 - x1, y2 - y1) >= 0.001) {
-          const age = segmentIndex / Math.max(1, pointCount - 1);
-          vertexOffset = appendNodeGraphTraceDisplayBeamSegment(vertices, vertexOffset, x1, y1, x2, y2, age);
-          segmentCount += 1;
-        }
+      const x1 = previousX * pixelRatio;
+      const y1 = previousY * pixelRatio;
+      const x2 = x * pixelRatio;
+      const y2 = y * pixelRatio;
+      if (Math.hypot(x2 - x1, y2 - y1) >= 0.001) {
+        const age = segmentIndex / Math.max(1, pointCount - 1);
+        vertexOffset = appendNodeGraphTraceDisplayBeamSegment(vertices, vertexOffset, x1, y1, x2, y2, age);
+        segmentCount += 1;
       }
     }
     previousX = x;
     previousY = y;
-    previousRaw = rawValue;
     hasPrevious = true;
   }
   if (timing) {
@@ -9829,15 +9803,48 @@ function drawNodeGraphScope2dTraceItem(renderer, item, pixelRatio) {
   drawNodeGraphScope2dTraceLayer(context, points, dotSpace, settings, "dot1");
 }
 
+function buildNodeGraphTraceDisplaySamples(buffer, slot, pointCount, progressFn, samplesPerPoint) {
+  const view = nodeGraphTraceDisplayBufferView(buffer, slot);
+  if (!view || view.end <= view.start) {
+    return null;
+  }
+  const visibleSamples = Math.max(1, view.end - view.start);
+  const spPt = Number.isFinite(Number(samplesPerPoint))
+    ? samplesPerPoint
+    : visibleSamples / Math.max(1, pointCount - 1);
+  const skipSamples = nodeGraphModuleScopeDiscontinuitySkipSamplesForSlot(slot, buffer);
+  const samples = [];
+  let previousRaw = null;
+  let skipThroughIndex = -1;
+  for (let index = 0; index < pointCount; index += 1) {
+    const progress = progressFn(index, pointCount);
+    const samplePosition = view.start + progress * Math.max(0, visibleSamples - 1);
+    const sampleInfo = nodeGraphTraceDisplaySampleInfo(buffer, samplePosition, spPt);
+    const raw = Number.isFinite(Number(sampleInfo.value)) ? Number(sampleInfo.value) : 0;
+    const value = clampNodeSliderValue((raw * view.gain) + view.offset, -1, 1);
+    if (skipSamples > 0 && previousRaw !== null) {
+      if (sampleInfo.discontinuity) {
+        skipThroughIndex = Math.max(skipThroughIndex, index + skipSamples);
+      }
+      if (Math.abs(raw - previousRaw) > nodeGraphModuleScopeDiscontinuityThreshold) {
+        skipThroughIndex = Math.max(skipThroughIndex, index + skipSamples - 1);
+      }
+    }
+    samples.push({ progress, samplePosition, raw, value, breakBefore: index <= skipThroughIndex });
+    previousRaw = raw;
+  }
+  return samples;
+}
+
 function buildNodeGraphTraceDisplayCanvasPoints(buffer, canvas, slot) {
   if (!buffer?.length || !canvas?.width || !canvas?.height) {
     return [];
   }
   const view = nodeGraphTraceDisplayBufferView(buffer, slot);
+  const halfHeight = canvas.height * nodeGraphModuleScopeTraceHalfHeightRatio(slot, buffer, { height: canvas.height });
   if (!view || view.end <= view.start) {
     const sample = nodeGraphModuleScopeInterpolatedSample(buffer, Math.max(0, buffer.length - 1));
     const value = clampNodeSliderValue((sample * (Number(view?.gain) || 1)) + (Number(view?.offset) || 0), -1, 1);
-    const halfHeight = canvas.height * 0.42;
     return [{
       x: 0,
       y: (canvas.height * 0.5) - value * halfHeight,
@@ -9850,34 +9857,21 @@ function buildNodeGraphTraceDisplayCanvasPoints(buffer, canvas, slot) {
   const width = Math.max(1, canvas.width);
   const pointCount = Math.max(2, Math.min(width, Math.ceil(visibleSamples)));
   const midY = canvas.height * 0.5;
-  const halfHeight = canvas.height * 0.42;
   const samplesPerPoint = visibleSamples / Math.max(1, pointCount - 1);
-  const skipSamples = nodeGraphModuleScopeDiscontinuitySkipSamplesForSlot(slot, buffer);
+  const progressFn = (index, count) => count <= 1 ? 0 : index / (count - 1);
+  const samples = buildNodeGraphTraceDisplaySamples(buffer, slot, pointCount, progressFn, samplesPerPoint);
+  if (!samples) {
+    return [];
+  }
   const points = [];
-  let previousRaw = null;
-  let skipThroughIndex = -1;
-  for (let index = 0; index < pointCount; index += 1) {
-    const progress = pointCount <= 1 ? 0 : index / (pointCount - 1);
-    const samplePosition = view.start + progress * Math.max(0, visibleSamples - 1);
-    const sampleInfo = nodeGraphTraceDisplaySampleInfo(buffer, samplePosition, samplesPerPoint);
-    const raw = sampleInfo.value;
-    const value = clampNodeSliderValue((raw * view.gain) + view.offset, -1, 1);
-    if (skipSamples > 0 && previousRaw !== null) {
-      if (sampleInfo.discontinuity) {
-        skipThroughIndex = Math.max(skipThroughIndex, index + skipSamples);
-      }
-      if (Math.abs(raw - previousRaw) > nodeGraphModuleScopeDiscontinuityThreshold) {
-        skipThroughIndex = Math.max(skipThroughIndex, index + skipSamples - 1);
-      }
-    }
-    if (index <= skipThroughIndex) {
+  for (const s of samples) {
+    if (s.breakBefore) {
       if (points.length > 0 && points[points.length - 1] !== null) {
         points.push(null);
       }
     } else {
-      points.push({ x: progress * width, y: midY - value * halfHeight });
+      points.push({ x: s.progress * width, y: midY - s.value * halfHeight });
     }
-    previousRaw = raw;
   }
   return points;
 }

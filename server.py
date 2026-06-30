@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
-BUILD_NUMBER = "20260654"
+BUILD_NUMBER = "20260663"
 DEFAULT_PRESET = PUBLIC / "presets" / "default.json"
 DEFAULT_UI_SETTINGS = PUBLIC / "presets" / "useruisettings.json"
 DEFAULT_UI_SETTINGS_SCRIPT = PUBLIC / "presets" / "useruisettings.js"
@@ -406,7 +406,9 @@ class SandboxServer(BaseHTTPRequestHandler):
             for line in source_path.read_text(encoding="utf-8").splitlines()[:48]:
                 match = NATIVE_MODULE_HEADER_RE.match(line)
                 if match:
-                    headers[match.group(1).lower()] = match.group(2).strip()
+                    key = match.group(1).lower()
+                    value = match.group(2).strip()
+                    headers[key] = value
         except OSError:
             return None
         name = headers.get("module") or headers.get("name") or source_path.parent.name
@@ -421,7 +423,7 @@ class SandboxServer(BaseHTTPRequestHandler):
             "targetType": target_type,
             "kind": headers.get("kind") or "",
             "source": relative_source,
-            "sourceUrl": f"/{relative_source}",
+            "sourceUrl": f"https://github.com/soundemote/soemdsp-sandbox/blob/master/{relative_source}",
             "wasm": relative_wasm,
             "wasmUrl": f"/{relative_wasm}",
             "wasmAvailable": wasm_path.exists(),

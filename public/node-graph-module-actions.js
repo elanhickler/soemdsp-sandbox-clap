@@ -1715,9 +1715,13 @@ function openNodeGraphNativeModuleCodeFromContext() {
   if (!entry?.sourceUrl) {
     return;
   }
-  const opened = window.open(entry.sourceUrl, "_blank", "noopener");
+  const opened = window.open(entry.sourceUrl, "_blank", "noopener,noreferrer");
   if (!opened) {
-    window.location.href = entry.sourceUrl;
+    const a = document.createElement("a");
+    a.href = entry.sourceUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.click();
     return;
   }
   setNodeInteractionHelp(`Opened ${entry.source || entry.sourceUrl}.`);
