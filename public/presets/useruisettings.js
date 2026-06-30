@@ -158,9 +158,9 @@
       "cycles": 2,
       "lineThickness": 0.2,
       "padding": 0,
-      "skipSamples": 1,
+      "skipSamples": 2,
       "sourceSync": false,
-      "zoomSeconds": 2
+      "zoomSeconds": 0.05
     },
     "sliderLayout": "text-inside",
     "sliderAmountVisible": false,
@@ -511,6 +511,10 @@
         "developer": true,
         "home": false
       },
+      "pll": {
+        "developer": true,
+        "home": false
+      },
       "distortionEffect": {
         "developer": true,
         "home": false
@@ -638,10 +642,10 @@
     "workspaceWindowStatesVersion": 1,
     "workspaceWindowStates": {
       "commandCenter": {
-        "open": false,
+        "open": true,
         "position": {
-          "left": 1562,
-          "top": 242
+          "left": 415,
+          "top": 234
         }
       },
       "moduleActions": {
@@ -696,12 +700,12 @@
         "open": false
       },
       "traceDisplaySettings": {
-        "open": false,
+        "open": true,
         "locked": true,
-        "targetNode": "noiseGenerator-1"
+        "targetNode": "polyBlep-1"
       }
     },
-    "sharedInspectorActive": "moduleActions",
+    "sharedInspectorActive": "traceDisplaySettings",
     "sharedInspectorWindowState": {
       "position": {
         "left": 1391,
@@ -714,12 +718,12 @@
     },
     "workspaceView": {
       "pan": {
-        "x": 45.35714285714289,
-        "y": 145.97321428571422
+        "x": 257.60714285714283,
+        "y": 309.79464285714283
       },
-      "zoom": 1.0606137022653643
+      "zoom": 1.4900858874962732
     },
-    "moduleStoreDepartment": "Audio",
+    "moduleStoreDepartment": "",
     "savedPatchBankIndex": 0,
     "savedPatchBankName": "chaos",
     "savedPatchGridColumns": 3,
@@ -754,7 +758,15 @@
         "slots": [],
         "ui": []
       },
-      "connections": [],
+      "connections": [
+        {
+          "destinationNode": "output",
+          "destinationPort": "Mono",
+          "sourceNode": "polyBlep-1",
+          "sourcePort": "Saw",
+          "tracePoints": []
+        }
+      ],
       "format": {
         "kind": "soemdsp-sandbox-node-patch",
         "version": 1
@@ -778,8 +790,8 @@
       "monitors": [],
       "nodes": [
         {
-          "gx": 2,
-          "gy": -11,
+          "gx": 7,
+          "gy": -14,
           "id": "output",
           "paramMeta": {
             "volume": {
@@ -828,10 +840,83 @@
           }
         },
         {
-          "gx": -12,
-          "gy": -15,
-          "id": "audioPlayer-1",
+          "gx": -13,
+          "gy": -13,
+          "id": "polyBlep-1",
           "paramMeta": {
+            "waveform": {
+              "alias": "",
+              "choices": [
+                "Saw",
+                "Ramp",
+                "Square",
+                "Triangle",
+                "Sine",
+                "Noise"
+              ],
+              "curveAmount": 0,
+              "def": 0,
+              "displayChoices": true,
+              "divideChoicesVisibly": true,
+              "kind": "waveform",
+              "linearSmoothing": false,
+              "max": 5,
+              "maxDigits": 3,
+              "mid": 2,
+              "min": 0,
+              "nonlinearSlider": true,
+              "sliderCurve": "skew",
+              "showSign": false,
+              "step": 1,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "",
+              "wraparound": false
+            },
+            "frequency": {
+              "alias": "",
+              "choices": [],
+              "curveAmount": 0,
+              "def": 440,
+              "displayChoices": false,
+              "divideChoicesVisibly": false,
+              "kind": "frequency",
+              "linearSmoothing": true,
+              "max": 20000,
+              "maxDigits": 5,
+              "mid": 440,
+              "min": 0,
+              "nonlinearSlider": true,
+              "sliderCurve": "skew",
+              "showSign": false,
+              "step": 0,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "Hz",
+              "wraparound": false
+            },
+            "phase": {
+              "alias": "",
+              "choices": [],
+              "curveAmount": 0,
+              "def": 0,
+              "displayChoices": false,
+              "divideChoicesVisibly": false,
+              "kind": "phase",
+              "linearSmoothing": true,
+              "max": 1,
+              "maxDigits": 3,
+              "mid": 0.5,
+              "min": 0,
+              "nonlinearSlider": false,
+              "sliderCurve": "linear",
+              "showSign": false,
+              "step": 0.01,
+              "unboundedMax": false,
+              "unboundedMin": false,
+              "unit": "cycle",
+              "wraparound": true
+            },
             "level": {
               "alias": "",
               "choices": [],
@@ -853,110 +938,15 @@
               "unboundedMin": false,
               "unit": "",
               "wraparound": false
-            },
-            "speed": {
-              "alias": "",
-              "choices": [],
-              "curveAmount": 0,
-              "def": 1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": false,
-              "max": 8,
-              "maxDigits": 4,
-              "mid": 1,
-              "min": 0,
-              "nonlinearSlider": true,
-              "sliderCurve": "skew",
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "x",
-              "wraparound": false
-            },
-            "start": {
-              "alias": "",
-              "choices": [],
-              "curveAmount": 0,
-              "def": 0,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": false,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.5,
-              "min": 0,
-              "nonlinearSlider": false,
-              "sliderCurve": "linear",
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "end": {
-              "alias": "",
-              "choices": [],
-              "curveAmount": 0,
-              "def": 1,
-              "displayChoices": false,
-              "divideChoicesVisibly": false,
-              "kind": "decimal",
-              "linearSmoothing": false,
-              "max": 1,
-              "maxDigits": 3,
-              "mid": 0.5,
-              "min": 0,
-              "nonlinearSlider": false,
-              "sliderCurve": "linear",
-              "showSign": false,
-              "step": 0,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
-            },
-            "transport": {
-              "alias": "",
-              "choices": [
-                "Off (reset)",
-                "Stop",
-                "Pause",
-                "Loop",
-                "Play"
-              ],
-              "curveAmount": 0,
-              "def": 4,
-              "displayChoices": true,
-              "divideChoicesVisibly": true,
-              "kind": "decimal",
-              "linearSmoothing": false,
-              "max": 4,
-              "maxDigits": 3,
-              "mid": 2,
-              "min": 0,
-              "nonlinearSlider": false,
-              "sliderCurve": "linear",
-              "showSign": false,
-              "step": 1,
-              "unboundedMax": false,
-              "unboundedMin": false,
-              "unit": "",
-              "wraparound": false
             }
           },
           "params": {
-            "level": 1,
-            "speed": 1,
-            "start": 0,
-            "end": 1,
-            "transport": 4
+            "waveform": 0,
+            "frequency": 0,
+            "phase": 0.22999999999999998,
+            "level": 1
           },
-          "type": "audioPlayer"
+          "type": "polyBlep"
         }
       ],
       "requiredAssets": [],
@@ -994,7 +984,7 @@
       "view": {
         "heightGu": 23,
         "widthGu": 26,
-        "zoom": 1.0606137022653643
+        "zoom": 1.4900858874962732
       },
       "visual": {
         "background": {
