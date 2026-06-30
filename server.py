@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
+BUILD_NUMBER = "20260651"
 DEFAULT_PRESET = PUBLIC / "presets" / "default.json"
 DEFAULT_UI_SETTINGS = PUBLIC / "presets" / "useruisettings.json"
 DEFAULT_UI_SETTINGS_SCRIPT = PUBLIC / "presets" / "useruisettings.js"
@@ -331,7 +332,7 @@ class SandboxServer(BaseHTTPRequestHandler):
     def serve_request(self, send_body: bool) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/":
-            self.serve_file(PUBLIC / "index.html", send_body=send_body)
+            self.serve_index(send_body=send_body)
             return
 
         if parsed.path.startswith("/public/"):
@@ -1176,6 +1177,20 @@ class SandboxServer(BaseHTTPRequestHandler):
             return
 
         self.serve_file(path, send_body=send_body)
+
+    def serve_index(self, send_body: bool = True) -> None:
+        path = PUBLIC / "index.html"
+        if not path.exists():
+            self.send_error(404, "Not found")
+            return
+        body = path.read_text(encoding="utf-8").replace("{{BUILD_NUMBER}}", BUILD_NUMBER).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_no_store_headers()
+        self.end_headers()
+        if send_body:
+            self.wfile.write(body)
 
     def serve_file(self, path: Path, send_body: bool = True) -> None:
         if not path.exists() or not path.is_file():
