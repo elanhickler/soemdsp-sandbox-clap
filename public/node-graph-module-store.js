@@ -85,6 +85,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "slewLimiter",
   "delayEffect",
   "reverbEffect",
+  "pll",
   "distortionEffect",
   "sampleHold",
   "digitalCurveEnvelope",
@@ -783,6 +784,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Raw Sabrina reverb port: serial diffusion stages with cross-feedback delay, modulation, recycle, and wet/dry mix.",
     label: "Sabrina Reverb",
     notes: ["Sabrina", "serial diffusion", "cross feedback"],
+  },
+  pll: {
+    category: "Modulation",
+    description: "Phase-locked loop based on the Doepfer A-196. VCO tracks an incoming signal via a phase comparator (XOR, RS flip-flop, or PFD) and one-pole loop filter. Outputs VCO, PC, LPF CV, and lock gate.",
+    label: "PLL",
+    notes: ["phase locked loop", "A-196", "vco", "frequency tracking"],
   },
   distortionEffect: {
     category: "Delay",
