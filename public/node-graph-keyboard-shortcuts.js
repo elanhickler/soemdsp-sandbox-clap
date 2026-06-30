@@ -175,7 +175,7 @@ function handleNodeGraphKeydown(event) {
   if (handleNodeGraphFloatingWindowKeyboardNudge(event)) {
     return;
   }
-  if (event.key === "Escape" && nodeGraphWireInteractions?.cancelManualTrace?.()) {
+  if (event.key === "Escape" && nodeGraphWireInteractions?.cancelPortConnectionMode?.()) {
     event.preventDefault();
     return;
   }

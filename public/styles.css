@@ -8921,6 +8921,22 @@ audio {
   pointer-events: none;
 }
 
+.node-io-row.port-connection-selected,
+.node-io-row.port-connection-selected .node-port {
+  color: var(--accent);
+  --node-port-stroke-mask-color: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 80%, transparent);
+  background-color: var(--node-port-stroke-mask-color);
+  cursor: crosshair;
+}
+
+.node-port.port-connection-selected,
+.node-param-port.port-connection-selected {
+  filter: brightness(1.15);
+  border-color: color-mix(in srgb, var(--accent) 80%, transparent) !important;
+  cursor: crosshair;
+}
+
 .node-wire-path.destroyed {
   stroke: rgba(255, 82, 82, 0.96);
   stroke-dasharray: 10 5;

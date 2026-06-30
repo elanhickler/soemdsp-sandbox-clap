@@ -26,7 +26,12 @@ function bindNodeGraphWorkspaceInteractionEvents() {
     ?.addEventListener("keydown", handleNodeGraphWorldPositionReadoutKeydown);
   document
     .getElementById("nodeGraphWorkspace")
-    .addEventListener("pointerdown", nodeGraphWireInteractions.beginPatchPointWireDrag, true);
+    .addEventListener("click", nodeGraphWireInteractions.handleWorkspaceClick);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      nodeGraphWireInteractions.cancelPortConnectionMode();
+    }
+  });
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("pointerdown", beginNodeGraphWorkspacePinchZoom, true);
@@ -68,7 +73,7 @@ function bindNodeGraphWorkspaceInteractionEvents() {
     .addEventListener("pointerdown", beginNodeGraphWorkspaceResize);
   bindNodeGraphConstraintOverlayToggles();
 
-  document.addEventListener("pointermove", nodeGraphWireInteractions.dragWire);
+  document.addEventListener("pointermove", nodeGraphWireInteractions.updateConnectionModeCursor);
   document.addEventListener("pointermove", dragNodeGraphNode);
   document.addEventListener("pointerup", endNodeGraphNodeDrag);
   document.addEventListener("pointercancel", endNodeGraphNodeDrag);
@@ -76,8 +81,6 @@ function bindNodeGraphWorkspaceInteractionEvents() {
   document.addEventListener("pointerdown", completeNodeGraphModulePlacement, true);
   document.addEventListener("pointermove", dragNodeSlider);
   document.addEventListener("pointermove", dragNodeGraphScopeNumber);
-  document.addEventListener("pointerup", nodeGraphWireInteractions.endWireDrag);
-  document.addEventListener("pointercancel", nodeGraphWireInteractions.endWireDrag);
   document.addEventListener("pointerup", endNodeSliderDrag);
   document.addEventListener("pointercancel", endNodeSliderDrag);
   document.addEventListener("pointerup", endNodeGraphScopeNumberDrag);
