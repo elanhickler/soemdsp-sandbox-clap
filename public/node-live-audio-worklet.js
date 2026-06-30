@@ -131,6 +131,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativePllReady = false;
     this.nativeNoiseGenerator = null;
     this.nativeNoiseGeneratorReady = false;
+    this.nativeFbm = null;
+    this.nativeFbmReady = false;
     this.nativeSoftClipper = null;
     this.nativeSoftClipperReady = false;
     this.pllStates = new Map();
@@ -449,6 +451,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "fractal_brownian_noise" || targetType === "fractalBrownianNoise") {
+        for (const state of this.fractalBrownianNoiseStates.values()) {
+          this.destroyFbmNativeState(state);
+        }
+        this.nativeFbm = exports;
+        this.nativeFbmReady = Boolean(
+          this.nativeFbm?.soemdsp_fbm_create &&
+          this.nativeFbm?.soemdsp_fbm_sample &&
+          this.nativeFbm?.soemdsp_fbm_x &&
+          this.nativeFbm?.soemdsp_fbm_y &&
+          this.nativeFbm?.soemdsp_fbm_z,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "fractal_brownian_noise",
+          status: this.nativeFbmReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       this.port.postMessage({
         type: "nativeModuleStatus",
         name,
@@ -507,6 +528,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.delayedTriggerStates = new Map();
     this.delayEffectStates = new Map();
     this.expAdsrStates = new Map();
+    for (const state of this.fractalBrownianNoiseStates.values()) {
+      this.destroyFbmNativeState(state);
+    }
     this.fractalBrownianNoiseStates = new Map();
     this.gpuAdditiveQueues = new Map();
     this.gpuAdditiveStatusCounter = 0;
@@ -1007,6 +1031,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.fractalBrownianNoiseStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyFbmNativeState(this.fractalBrownianNoiseStates.get(id));
         this.fractalBrownianNoiseStates.delete(id);
       }
     }
@@ -2872,6 +2897,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyFbmNativeState(state) {
+    if (state.nativeHandle && this.nativeFbm?.soemdsp_fbm_destroy) {
+      this.nativeFbm.soemdsp_fbm_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   createRandomWalkState() {
     return {
       lowpass: this.createLowpassState(),
@@ -2882,9 +2914,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   createFractalBrownianNoiseState() {
-    return {
-      axes: {},
-    };
+    return { axes: {}, nativeHandle: 0 };
   }
 
   safeFilterNumber(value, state) {
@@ -3603,24 +3633,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return number;
   }
 
-  softClipperSample(input, center = 0, width = 2) {
-    const safeWidth = Math.max(0.000001, Math.abs(Number(width) || 2));
-    const safeCenter = Number(center) || 0;
-    const scaleX = 2 / safeWidth;
-    const shiftX = -1 - (scaleX * (safeCenter - 0.5 * safeWidth));
-    const scaleY = 1 / scaleX;
-    const shiftY = -shiftX * scaleY;
-    return shiftY + scaleY * Math.tanh(scaleX * (Number(input) || 0) + shiftX);
-  }
-
   nativeSoftClipperSample(input, center = 0, width = 2) {
+    const dry = Number(input) || 0;
     if (!this.nativeSoftClipperReady || !this.nativeSoftClipper?.soemdsp_soft_clipper_sample) {
-      return this.softClipperSample(input, center, width);
+      return dry;
     }
     try {
       return this.safeFilterNumber(
         this.nativeSoftClipper.soemdsp_soft_clipper_sample(
-          Number(input) || 0,
+          dry,
           Number(center) || 0,
           Number(width) || 2,
         ),
@@ -3634,7 +3655,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         status: "disabled",
         message: String(error?.message || error || "native Soft Clipper failed"),
       });
-      return this.softClipperSample(input, center, width);
+      return dry;
     }
   }
 
@@ -4734,10 +4755,30 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   fractalBrownianNoiseVector(state, params, rate = sampleRate, nodeId = "") {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    if (this.nativeFbmReady) {
+      if (!state.nativeHandle) {
+        state.nativeHandle = this.nativeFbm.soemdsp_fbm_create();
+      }
+      if (state.nativeHandle) {
+        const seed = Math.max(0, Math.round(this.safeFilterNumber(params.seed, null)));
+        const octaves = Math.max(1, Math.min(8, Math.round(this.safeFilterNumber(params.octaves, null))));
+        const persistence = this.clampValue(this.safeFilterNumber(params.persistence, null), 0, 0.99);
+        const scale = Math.max(0.000001, this.safeFilterNumber(params.scale, null));
+        const frequency = Math.max(0, this.safeFilterNumber(params.frequency, null));
+        const level = this.safeFilterNumber(params.level, null);
+        this.nativeFbm.soemdsp_fbm_sample(state.nativeHandle, seed, octaves, persistence, scale, frequency, level, safeRate);
+        return {
+          "Out X": this.safeFilterNumber(this.nativeFbm.soemdsp_fbm_x(state.nativeHandle), null),
+          "Out Y": this.safeFilterNumber(this.nativeFbm.soemdsp_fbm_y(state.nativeHandle), null),
+          "Out Z": this.safeFilterNumber(this.nativeFbm.soemdsp_fbm_z(state.nativeHandle), null),
+        };
+      }
+    }
     return {
-      "Out X": this.fractalBrownianNoiseSample(state, params, rate, nodeId, "x"),
-      "Out Y": this.fractalBrownianNoiseSample(state, params, rate, nodeId, "y"),
-      "Out Z": this.fractalBrownianNoiseSample(state, params, rate, nodeId, "z"),
+      "Out X": this.fractalBrownianNoiseSample(state, params, safeRate, nodeId, "x"),
+      "Out Y": this.fractalBrownianNoiseSample(state, params, safeRate, nodeId, "y"),
+      "Out Z": this.fractalBrownianNoiseSample(state, params, safeRate, nodeId, "z"),
     };
   }
 

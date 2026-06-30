@@ -98,3 +98,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\soft_clipper\soft_clipper.wasm" `
   "$root\native_modules\soft_clipper\soft_clipper.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_fbm_create" `
+  "-Wl,--export=soemdsp_fbm_destroy" `
+  "-Wl,--export=soemdsp_fbm_sample" `
+  "-Wl,--export=soemdsp_fbm_x" `
+  "-Wl,--export=soemdsp_fbm_y" `
+  "-Wl,--export=soemdsp_fbm_z" `
+  "-Wl,--export=soemdsp_fbm_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\fractal_brownian_noise\fractal_brownian_noise.wasm" `
+  "$root\native_modules\fractal_brownian_noise\fractal_brownian_noise.cpp"

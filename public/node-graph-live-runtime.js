@@ -1663,7 +1663,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=noise-generator-stereo-20260630"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=fbm-wasm-20260630"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(
