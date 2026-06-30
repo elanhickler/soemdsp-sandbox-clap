@@ -259,6 +259,7 @@ function createNodeGraphLiveRuntime(plan) {
   const randomClockStates = new Map();
   const randomWalkStates = new Map();
   const reverbEffectStates = new Map();
+  const pllStates = new Map();
   const sampleHoldStates = new Map();
   const samplePlaybackStates = new Map();
   const samples = new Map((plan.samples || []).map((sample) => [sample.id, sample]));
@@ -322,6 +323,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "reverbEffect") {
       reverbEffectStates.set(node.id, createNodeGraphSabrinaReverbState());
+    }
+    if (node.type === "pll") {
+      pllStates.set(node.id, createNodeGraphPllState());
     }
     if (node.type === "randomClock") {
       randomClockStates.set(node.id, createNodeGraphRandomClockState());
@@ -442,6 +446,7 @@ function createNodeGraphLiveRuntime(plan) {
     highpassStates,
     lowpassStates,
     reverbEffectStates,
+    pllStates,
     order: [...(plan.order || [])],
     outputNode: plan.outputNode || "output",
     patchCommandStates,
@@ -559,6 +564,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.reverbEffectStates) {
     runtime.reverbEffectStates = new Map();
   }
+  if (!runtime.pllStates) {
+    runtime.pllStates = new Map();
+  }
   if (!runtime.sampleHoldStates) {
     runtime.sampleHoldStates = new Map();
   }
@@ -673,6 +681,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "reverbEffect" && !runtime.reverbEffectStates.has(node.id)) {
       runtime.reverbEffectStates.set(node.id, createNodeGraphSabrinaReverbState());
+    }
+    if (node.type === "pll" && !runtime.pllStates.has(node.id)) {
+      runtime.pllStates.set(node.id, createNodeGraphPllState());
     }
     if (node.type === "randomClock" && !runtime.randomClockStates.has(node.id)) {
       runtime.randomClockStates.set(node.id, createNodeGraphRandomClockState());
@@ -870,6 +881,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.reverbEffectStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.reverbEffectStates.delete(id);
+    }
+  }
+  for (const id of [...(runtime.pllStates?.keys() || [])]) {
+    if (!nodeIds.has(id)) {
+      runtime.pllStates.delete(id);
     }
   }
   for (const id of [...runtime.sampleHoldStates.keys()]) {

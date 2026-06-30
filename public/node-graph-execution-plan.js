@@ -403,7 +403,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const outputNode = "output";
   const reachableNodes = new Set();
   const bypassedNodes = new Set(graph.bypassedNodes || []);
-  const passthroughTypes = new Set(["badvalMonitor", "bandpass", "bias", "cookbookFilter", "gain", "highpass", "ladderFilter", "lowpass", "sampleHold", "slewLimiter", "softClipper", "speakerProtection"]);
+  const passthroughTypes = new Set(["badvalMonitor", "bandpass", "bias", "cookbookFilter", "gain", "highpass", "ladderFilter", "lowpass", "pll", "reverbEffect", "sampleHold", "slewLimiter", "softClipper", "speakerProtection"]);
 
   function markReachable(nodeId) {
     if (reachableNodes.has(nodeId) || !graph.nodeMap.has(nodeId)) {
@@ -451,7 +451,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   for (const nodeId of reachableNodes) {
     const type = graph.nodeMap.get(nodeId)?.type;
     if (passthroughTypes.has(type)) {
-      const inputPorts = type === "reverbEffect" ? ["Left", "Right"] : ["In"];
+      const inputPorts = type === "reverbEffect" ? ["In", "Left", "Right"] : ["In"];
       const inputCount = inputPorts.reduce(
         (count, port) => count + (graph.inputConnections.get(nodeGraphInputKey(nodeId, port)) || []).length,
         0,
@@ -639,7 +639,7 @@ function nodeGraphCompiledScopeCaptureNodeIds(graph, reachableNodes) {
     .filter((node) =>
       reachableNodes.has(node.id) &&
       !bypassedNodes.has(node.id) &&
-      nodeGraphModuleDefinitions[node?.type]?.displayType &&
+      nodeGraphModuleDisplayRendererForNode(node) !== "legacy" &&
       nodeGraphPatchNodeDisplayVisibleInPlan(node, { bypassedNodes })
     )
     .map((node) => node.id);

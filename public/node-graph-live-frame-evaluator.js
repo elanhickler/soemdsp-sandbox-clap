@@ -193,6 +193,10 @@ function createNodeGraphSabrinaReverbState() {
   };
 }
 
+function createNodeGraphPllState() {
+  return { nativeHandle: 0, nativeParamKey: "", nativeSampleRate: 0 };
+}
+
 function createNodeGraphSampleHoldState() {
   return {
     held: 0,
@@ -1160,6 +1164,47 @@ function nodeGraphSabrinaReverbSample(state, leftInput, rightInput, params, samp
     state.nativeHandle = 0;
     state.nativeParamKey = "";
     return dry;
+  }
+}
+
+function nodeGraphPllSample(state, signalIn, cvIn, cvConnected, params, sampleRate, runtime = null, nodeId = "") {
+  const silent = { "VCO Out": 0, "PC Out": 0, "LPF Out": 0, Locked: 0 };
+  const native = runtime?.nativePllReady ? runtime?.nativePll : null;
+  if (!native?.soemdsp_pll_create || !native?.soemdsp_pll_process) return silent;
+  try {
+    const safeRate = Math.max(1, Math.round(Number(sampleRate) || 44100));
+    if (!state.nativeHandle || state.nativeSampleRate !== safeRate) {
+      if (state.nativeHandle && native.soemdsp_pll_destroy) {
+        native.soemdsp_pll_destroy(state.nativeHandle);
+      }
+      state.nativeHandle = native.soemdsp_pll_create(safeRate) || 0;
+      state.nativeSampleRate = safeRate;
+      state.nativeParamKey = "";
+    }
+    if (!state.nativeHandle) return silent;
+    const range  = Math.max(0, Math.min(2, Math.round(Number(params.range)  || 1)));
+    const offset = Math.max(0, Math.min(10, Number(params.offset) || 5));
+    const type   = Math.max(0, Math.min(2, Math.round(Number(params.type)   || 1)));
+    const frequ  = Math.max(0.1, Number(params.frequ) || 10);
+    const paramKey = `${range}:${Math.round(offset * 1000)}:${type}:${Math.round(frequ * 1000)}`;
+    if (paramKey !== state.nativeParamKey && native.soemdsp_pll_set_params) {
+      state.nativeParamKey = paramKey;
+      native.soemdsp_pll_set_params(state.nativeHandle, safeRate, range, offset, type, frequ);
+    }
+    const safeSig = nodeGraphSafeFilterNumber(signalIn, runtime, nodeId, null, "PLL signal in");
+    const safeCv  = Math.max(0, Math.min(1, nodeGraphSafeFilterNumber(cvIn, runtime, nodeId, null, "PLL cv in")));
+    native.soemdsp_pll_process(state.nativeHandle, safeSig, safeCv, cvConnected);
+    return {
+      "VCO Out": nodeGraphSafeFilterNumber(native.soemdsp_pll_vco_out?.(state.nativeHandle), runtime, nodeId, null, "PLL vco out"),
+      "PC Out":  nodeGraphSafeFilterNumber(native.soemdsp_pll_pc_out?.(state.nativeHandle),  runtime, nodeId, null, "PLL pc out"),
+      "LPF Out": nodeGraphSafeFilterNumber(native.soemdsp_pll_lpf_out?.(state.nativeHandle), runtime, nodeId, null, "PLL lpf out"),
+      Locked:    nodeGraphSafeFilterNumber(native.soemdsp_pll_locked?.(state.nativeHandle),   runtime, nodeId, null, "PLL locked"),
+    };
+  } catch {
+    if (runtime) runtime.nativePllReady = false;
+    if (state.nativeHandle && native.soemdsp_pll_destroy) native.soemdsp_pll_destroy(state.nativeHandle);
+    state.nativeHandle = 0;
+    return silent;
   }
 }
 
@@ -2363,7 +2408,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     } else if (node?.type === "noise") {
       const state = runtime.noiseSampleHoldStates.get(nodeId) || createNodeGraphNoiseSampleHoldState();
       runtime.noiseSampleHoldStates.set(nodeId, state);
-      value = nodeGraphNoiseSampleHoldSample(
+      const raw = nodeGraphNoiseSampleHoldSample(
         runtime,
         state,
         nodeId,
@@ -2386,7 +2431,8 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           frameValues,
         ),
         sampleRate,
-      ) * readNodeGraphLiveEffectiveParam(
+      );
+      const level = readNodeGraphLiveEffectiveParam(
         runtime,
         node,
         "level",
@@ -2395,6 +2441,10 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
+      value = {
+        Out: raw * level,
+        Raw: raw,
+      };
     } else if (node?.type === "stereoNoise") {
       const level = readNodeGraphLiveEffectiveParam(
         runtime,
@@ -3029,6 +3079,26 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           lfoVariation: read("lfoVariation", 0.001),
           mix: read("mix", 0.43),
           recycle: read("recycle", 0.70),
+        },
+        sampleRate,
+        runtime,
+        nodeId,
+      );
+    } else if (node?.type === "pll") {
+      const state = runtime.pllStates?.get(nodeId) || createNodeGraphPllState();
+      if (runtime.pllStates) runtime.pllStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      const cvConnected = hasInput(nodeId, "VCO CV In") ? 1 : 0;
+      value = nodeGraphPllSample(
+        state,
+        mixInput(nodeId, "Signal In"),
+        mixInput(nodeId, "VCO CV In"),
+        cvConnected,
+        {
+          range:  read("range",  1),
+          offset: read("offset", 5),
+          type:   read("type",   1),
+          frequ:  read("frequ",  10),
         },
         sampleRate,
         runtime,
