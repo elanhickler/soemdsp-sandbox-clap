@@ -465,19 +465,6 @@
     const { helpers, state } = deps;
     let hoveredPatchPoint = null;
 
-    function eventIsPrimaryWireStart(event) {
-      if (!event || event.isPrimary === false) {
-        return false;
-      }
-      if (event.button === 1 || event.button === 2) {
-        return false;
-      }
-      if (event.buttons !== undefined && event.buttons !== 0 && !(event.buttons & 1)) {
-        return false;
-      }
-      return event.button === undefined || event.button <= 0;
-    }
-
     function setHoveredPatchPoint(target) {
       if (hoveredPatchPoint === target) {
         return;
@@ -528,7 +515,9 @@
         return;
       }
       for (const { element } of mode.selected.values()) {
-        element?.classList.remove("port-connection-selected");
+        if (!element) { continue; }
+        element.classList.remove("port-connection-selected");
+        element.querySelector?.(".node-port")?.classList.remove("port-connection-selected");
       }
       state.portConnectionMode = null;
     }
@@ -562,47 +551,54 @@
     }
 
     function handlePortClickFromElement(portElement, clientX, clientY) {
-      const endpoint = helpers.endpointFromElement(portElement);
+      const hitboxElement = portElement.closest?.(".node-io-row") || portElement;
+      const endpoint = helpers.endpointFromElement(hitboxElement);
       if (!endpoint) {
         return false;
       }
-      if (!helpers.pointInEndpointHitbox(endpoint, clientX, clientY, portElement)) {
+      if (!helpers.pointInEndpointHitbox(endpoint, clientX, clientY, hitboxElement)) {
         return false;
       }
+      const visualElement = hitboxElement.classList.contains("node-io-row")
+        ? (hitboxElement.querySelector(".node-port") || hitboxElement)
+        : hitboxElement;
       const mode = state.portConnectionMode;
       if (!mode) {
-        const from = helpers.endpointPoint(endpoint, portElement);
+        const from = helpers.endpointPoint(endpoint, hitboxElement);
         if (!from) {
           return false;
         }
         state.portConnectionMode = {
           direction: portDirectionFromIo(endpoint.io),
-          selected: new Map([[endpointKey(endpoint), { endpoint, element: portElement, from }]]),
-          cursorPoint: { x: clientX, y: clientY },
+          selected: new Map([[endpointKey(endpoint), { endpoint, element: hitboxElement, from }]]),
+          cursorPoint: deps.clientPoint({ clientX, clientY }),
         };
-        portElement.classList.add("port-connection-selected");
+        hitboxElement.classList.add("port-connection-selected");
+        visualElement.classList.add("port-connection-selected");
         deps.drawWires();
         return true;
       }
       if (isCompatibleTarget(mode, endpoint)) {
-        commitPortConnectionMode(endpoint, portElement);
+        commitPortConnectionMode(endpoint, hitboxElement);
         return true;
       }
       if (isSameDirection(mode, endpoint)) {
         const key = endpointKey(endpoint);
         if (mode.selected.has(key)) {
           mode.selected.delete(key);
-          portElement.classList.remove("port-connection-selected");
+          hitboxElement.classList.remove("port-connection-selected");
+          visualElement.classList.remove("port-connection-selected");
           if (mode.selected.size === 0) {
             cancelPortConnectionMode();
           } else {
             deps.drawWires();
           }
         } else {
-          const from = helpers.endpointPoint(endpoint, portElement);
+          const from = helpers.endpointPoint(endpoint, hitboxElement);
           if (from) {
-            mode.selected.set(key, { endpoint, element: portElement, from });
-            portElement.classList.add("port-connection-selected");
+            mode.selected.set(key, { endpoint, element: hitboxElement, from });
+            hitboxElement.classList.add("port-connection-selected");
+            visualElement.classList.add("port-connection-selected");
             deps.drawWires();
           }
         }
@@ -612,7 +608,7 @@
     }
 
     function handlePortClick(event) {
-      if (!eventIsPrimaryWireStart(event)) {
+      if (event.button !== undefined && event.button !== 0) {
         return;
       }
       const port = event.currentTarget instanceof Element ? event.currentTarget : null;
