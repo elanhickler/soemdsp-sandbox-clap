@@ -45,3 +45,24 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\sabrina_reverb\sabrina_reverb.wasm" `
   "$root\native_modules\sabrina_reverb\sabrina_reverb.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_pll_version" `
+  "-Wl,--export=soemdsp_pll_create" `
+  "-Wl,--export=soemdsp_pll_destroy" `
+  "-Wl,--export=soemdsp_pll_reset" `
+  "-Wl,--export=soemdsp_pll_set_params" `
+  "-Wl,--export=soemdsp_pll_process" `
+  "-Wl,--export=soemdsp_pll_vco_out" `
+  "-Wl,--export=soemdsp_pll_pc_out" `
+  "-Wl,--export=soemdsp_pll_lpf_out" `
+  "-Wl,--export=soemdsp_pll_locked" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\pll\pll.wasm" `
+  "$root\native_modules\pll\pll.cpp"

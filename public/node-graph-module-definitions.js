@@ -517,6 +517,17 @@ const nodeGraphModuleDefinitions = Object.freeze({
   },
   ellipsoid: {
     displayType: "scope2d",
+    displaySignals: [
+      { key: "Mono", kind: "scalar" },
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+    ],
+    defaultDisplayMode: "xyBurn",
     inputs: ["Reset", "0.1V/Oct", "Increment"],
     inputLabels: {
       "0.1V/Oct": "0.1V",
@@ -542,6 +553,17 @@ const nodeGraphModuleDefinitions = Object.freeze({
   },
   spiral: {
     displayType: "scope2d",
+    displaySignals: [
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "Z", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+    ],
+    defaultDisplayMode: "xyBurn",
     outputs: ["X", "Y", "Z"],
     parameters: [
       { key: "frequency", label: "Frequency", defaultValue: "440", min: "40", mid: "440", max: "2000", step: "any", unit: "Hz" },
@@ -561,6 +583,17 @@ const nodeGraphModuleDefinitions = Object.freeze({
   },
   lorenzAttractor: {
     displayType: "scope2d",
+    displaySignals: [
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "Z", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+    ],
+    defaultDisplayMode: "xyBurn",
     inputs: ["Reset"],
     outputs: ["X", "Y", "Z"],
     parameters: [
@@ -575,6 +608,15 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   noise: {
+    displaySignals: [
+      { key: "Raw", kind: "scalar" },
+      { key: "Out", kind: "scalar" },
+    ],
+    displayModes: [
+      { key: "rawTrace", label: "Raw Trace", renderer: "trace", settingsSchema: "trace", source: { value: "Raw" } },
+      { key: "postLevelTrace", label: "Post-Level Trace", renderer: "trace", settingsSchema: "trace", source: { value: "Out" } },
+    ],
+    defaultDisplayMode: "rawTrace",
     outputs: ["Out"],
     parameters: [
       {
@@ -611,6 +653,18 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   stereoNoise: {
+    displaySignals: [
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "Out", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+      { key: "monoTrace", label: "Mono Trace", renderer: "trace", settingsSchema: "trace", source: { value: "Out" } },
+    ],
+    defaultDisplayMode: "xyBurn",
     outputs: ["X", "Y", "Out"],
     parameters: [
       {
@@ -750,6 +804,20 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   fractalBrownianNoise: {
+    displaySignals: [
+      { key: "Out X", kind: "scalar" },
+      { key: "Out Y", kind: "scalar" },
+      { key: "Out Z", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "Out X", y: "Out Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "Out X", y: "Out Y" } },
+      { key: "xTrace", label: "X Trace", renderer: "trace", settingsSchema: "trace", source: { value: "Out X" } },
+      { key: "yTrace", label: "Y Trace", renderer: "trace", settingsSchema: "trace", source: { value: "Out Y" } },
+      { key: "zTrace", label: "Z Trace", renderer: "trace", settingsSchema: "trace", source: { value: "Out Z" } },
+    ],
+    defaultDisplayMode: "xyBurn",
     outputs: ["Out X", "Out Y", "Out Z"],
     parameters: [
       {
@@ -1517,7 +1585,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "1", key: "speed", label: "Speed", linearSmoothing: false, max: "8", maxDigits: 4, mid: "1", min: "0", step: "any", unit: "x" },
       { defaultValue: "0", key: "start", label: "Start", linearSmoothing: false, max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
       { defaultValue: "1", key: "end", label: "End", linearSmoothing: false, max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
-      { choices: ["Off (reset)", "Stop", "Pause", "Play", "Loop"], defaultValue: "3", displayChoices: true, divideChoicesVisibly: true, key: "transport", label: "Play Mode", linearSmoothing: false, max: "4", mid: "2", min: "0", nonlinearSlider: false, step: "1" },
+      { choices: ["Off (reset)", "Stop", "Pause", "Loop", "Play"], defaultValue: "4", displayChoices: true, divideChoicesVisibly: true, key: "transport", label: "Play Mode", linearSmoothing: false, max: "4", mid: "2", min: "0", nonlinearSlider: false, step: "1" },
     ],
   },
   macroControls: {

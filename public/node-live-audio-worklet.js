@@ -1979,7 +1979,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       max: Number.isFinite(Number(metadata?.max)) ? Number(metadata.max) : 1,
       metadata,
       min: Number.isFinite(Number(metadata?.min)) ? Number(metadata.min) : 0,
-      nonlinearSmoothing: metadata?.linearSmoothing !== false,
+      nonlinearSmoothing: Boolean(metadata?.nonlinearSlider),
       outputBuffer: signal,
       targetSignal: signal,
       target: safeValue,
@@ -2017,7 +2017,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     smoother.max = Number.isFinite(Number(metadata?.max)) ? Number(metadata.max) : smoother.max;
     smoother.metadata = metadata;
     smoother.min = Number.isFinite(Number(metadata?.min)) ? Number(metadata.min) : smoother.min;
-    smoother.nonlinearSmoothing = metadata?.linearSmoothing !== false;
+    smoother.nonlinearSmoothing = Boolean(metadata?.nonlinearSlider);
     smoother.targetSignal = this.parameterValueToNormalizedSignal(smoother.target, metadata);
     smoother.wraparound = Boolean(metadata?.wraparound);
     if (!smoother.linearSmoothing) {
@@ -3498,8 +3498,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const transportReset = transportMode <= 0;
     const transportStopped = transportMode === 1;
     const transportPaused = transportMode === 2;
-    const transportPlayOnce = transportMode === 3;
-    const transportLooping = transportMode >= 4;
+    const transportLooping = transportMode === 3;
+    const transportPlayOnce = transportMode >= 4;
     if (state.transportMode !== transportMode) {
       state.completed = false;
       state.transportMode = transportMode;
@@ -5350,14 +5350,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "noise") {
         const state = this.noiseSampleHoldStates.get(nodeId) || this.createNoiseSampleHoldState();
         this.noiseSampleHoldStates.set(nodeId, state);
-        value = this.noiseSampleHoldSample(
+        const raw = this.noiseSampleHoldSample(
           state,
           nodeId,
           this.readEffectiveParameter(node, "seed", 1, frame, frames, frameValues),
           this.readEffectiveParameter(node, "speed", 1, frame, frames, frameValues),
           safeRate,
-        ) *
-          this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues);
+        );
+        const level = this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues);
+        value = {
+          Out: raw * level,
+          Raw: raw,
+        };
       } else if (node?.type === "stereoNoise") {
         const level = this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues);
         const seed = this.readEffectiveParameter(node, "seed", 1, frame, frames, frameValues);
