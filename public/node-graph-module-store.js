@@ -461,7 +461,7 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   softClipper: {
     category: "Dynamics",
-    description: "SOEMDSP tanh soft clipper with center bias and clipping width controls.",
+    description: "Native soft clipper with center bias and clipping width controls.",
     label: "Soft Clipper",
     notes: ["soft clipping", "tanh", "dynamics"],
   },

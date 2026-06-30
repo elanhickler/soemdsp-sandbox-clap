@@ -12714,8 +12714,8 @@ def require_node_graph_mvp_contract() -> None:
     require(
         'softClipper: {\n    category: "Dynamics"' in module_store_source
         and 'label: "Soft Clipper"' in module_store_source
-        and "SOEMDSP tanh soft clipper" in module_store_source,
-        "Soft Clipper should be an implemented Dynamics module from the SOEMDSP tanh shaper",
+        and "Native soft clipper with center bias" in module_store_source,
+        "Soft Clipper should be an implemented native-backed Dynamics module",
     )
     require('"reverbEffect"' in module_store_source, "Sabrina Reverb should be listed in the module browser type registry")
     require('reverbEffect: "Sabrina Reverb"' in module_definitions_source, "Sabrina Reverb label should be registered")
@@ -13425,17 +13425,18 @@ def require_node_graph_mvp_contract() -> None:
         and "Math.tanh(scaleX * (Number(input) || 0) + shiftX)" in live_frame_source
         and 'node?.type === "softClipper"' in live_frame_source
         and "nodeGraphSoftClipperSample(" in live_frame_source,
-        "browser fallback should evaluate Soft Clipper with the SOEMDSP tanh transfer math",
+        "browser fallback should retain a Soft Clipper evaluator for non-worklet fallback",
     )
     require("timing: normalizeNodeGraphPatchTiming(plan.timing)" in live_plan_runtime_source, "fallback runtime should retain plan timing")
     require("transportSample(params, frame" in worklet_source and 'node?.type === "transport"' in worklet_source, "AudioWorklet should evaluate Transport")
     require(
-        "softClipperSample(input, center = 0, width = 2)" in worklet_source
-        and "const scaleX = 2 / safeWidth" in worklet_source
-        and "Math.tanh(scaleX * (Number(input) || 0) + shiftX)" in worklet_source
+        "nativeSoftClipperSample(input, center = 0, width = 2)" in worklet_source
+        and 'name === "soft_clipper" || targetType === "softClipper"' in worklet_source
+        and "this.nativeSoftClipper?.soemdsp_soft_clipper_sample" in worklet_source
         and 'node?.type === "softClipper"' in worklet_source
-        and "this.softClipperSample(" in worklet_source,
-        "AudioWorklet should evaluate Soft Clipper with the SOEMDSP tanh transfer math",
+        and "value = this.nativeSoftClipperSample(" in worklet_source
+        and "softClipperSample(input, center = 0, width = 2)" not in worklet_source,
+        "AudioWorklet should evaluate Soft Clipper through native wasm instead of the old JS DSP branch",
     )
     require('"reverbEffect"' in execution_plan_source, "execution plan should treat Sabrina Reverb as a supported passthrough processor")
     require(
@@ -17094,10 +17095,13 @@ def require_native_module_contract(base_url: str) -> None:
     event_bindings_source = (PUBLIC / "node-graph-scene-menu-event-bindings.js").read_text(encoding="utf-8")
     live_runtime_source = (PUBLIC / "node-graph-live-runtime.js").read_text(encoding="utf-8")
     worklet_source = (PUBLIC / "node-live-audio-worklet.js").read_text(encoding="utf-8")
+    native_build_source = (ROOT / "scripts" / "build_native_modules.ps1").read_text(encoding="utf-8")
     ellipsoid_source_path = ROOT / "native_modules" / "ellipsoid" / "ellipsoid.cpp"
     ellipsoid_wasm_path = ROOT / "native_modules" / "ellipsoid" / "ellipsoid.wasm"
     sabrina_source_path = ROOT / "native_modules" / "sabrina_reverb" / "sabrina_reverb.cpp"
     sabrina_wasm_path = ROOT / "native_modules" / "sabrina_reverb" / "sabrina_reverb.wasm"
+    soft_clipper_source_path = ROOT / "native_modules" / "soft_clipper" / "soft_clipper.cpp"
+    soft_clipper_wasm_path = ROOT / "native_modules" / "soft_clipper" / "soft_clipper.wasm"
     require(ellipsoid_source_path.exists(), "native ellipsoid source should exist")
     ellipsoid_source = ellipsoid_source_path.read_text(encoding="utf-8")
     require("// soemdsp-native-module: ellipsoid" in ellipsoid_source, "native ellipsoid source metadata missing")
@@ -17115,6 +17119,18 @@ def require_native_module_contract(base_url: str) -> None:
     require("extern \"C\" double soemdsp_sabrina_reverb_left" in sabrina_source, "native Sabrina output export missing")
     require(sabrina_wasm_path.exists(), "native Sabrina wasm should exist")
     require(sabrina_wasm_path.read_bytes().startswith(b"\0asm"), "native Sabrina wasm magic bytes missing")
+    require(soft_clipper_source_path.exists(), "native Soft Clipper source should exist")
+    soft_clipper_source = soft_clipper_source_path.read_text(encoding="utf-8")
+    require("// soemdsp-native-module: soft_clipper" in soft_clipper_source, "native Soft Clipper source metadata missing")
+    require("// soemdsp-native-target: softClipper" in soft_clipper_source, "native Soft Clipper target metadata missing")
+    require("extern \"C\" double soemdsp_soft_clipper_sample" in soft_clipper_source, "native Soft Clipper sample export missing")
+    require("extern \"C\" const char* soemdsp_soft_clipper_metadata_json()" in soft_clipper_source, "native Soft Clipper metadata export missing")
+    require("\"inputs\":[\"In\"]" in soft_clipper_source, "native Soft Clipper metadata should declare In input")
+    require("\"outputs\":[\"Out\"]" in soft_clipper_source, "native Soft Clipper metadata should declare Out output")
+    require("\"key\":\"center\"" in soft_clipper_source and "\"tooltip\":\"Moves the soft clipping curve" in soft_clipper_source, "native Soft Clipper center tooltip metadata missing")
+    require("\"key\":\"width\"" in soft_clipper_source and "\"tooltip\":\"Sets the width" in soft_clipper_source, "native Soft Clipper width tooltip metadata missing")
+    require(soft_clipper_wasm_path.exists(), "native Soft Clipper wasm should exist")
+    require(soft_clipper_wasm_path.read_bytes().startswith(b"\0asm"), "native Soft Clipper wasm magic bytes missing")
     require("NATIVE_MODULES = ROOT / \"native_modules\"" in server_source, "native modules folder constant missing")
     require("\"/api/native-modules\"" in server_source, "native modules API route missing")
     require("\".wasm\": \"application/wasm\"" in server_source, "wasm MIME mapping missing")
@@ -17138,8 +17154,21 @@ def require_native_module_contract(base_url: str) -> None:
     )
     require("sendNodeGraphLiveNativeModules" in live_runtime_source, "native worklet sender missing")
     require("\"setNativeModuleWasm\"" in live_runtime_source, "native worklet post message missing")
+    require("soft-clipper-native-only-20260630" in live_runtime_source, "Soft Clipper worklet cache bust key missing")
     require("async setNativeModuleWasm(message)" in worklet_source, "native worklet loader missing")
     require("nativeEllipsoidVectorSample(" in worklet_source, "native ellipsoid worklet path missing")
+    require(
+        'name === "soft_clipper" || targetType === "softClipper"' in worklet_source
+        and "this.nativeSoftClipper?.soemdsp_soft_clipper_sample" in worklet_source
+        and "value = this.nativeSoftClipperSample(" in worklet_source
+        and "softClipperSample(input, center = 0, width = 2)" not in worklet_source,
+        "native Soft Clipper should be worklet-backed with old JS worklet DSP removed",
+    )
+    require(
+        "-Wl,--export=soemdsp_soft_clipper_sample" in native_build_source
+        and "native_modules\\soft_clipper\\soft_clipper.wasm" in native_build_source,
+        "native Soft Clipper build exports should be registered",
+    )
 
     response = request(f"{base_url}/api/native-modules")
     require(response.status == 200, "native modules API should return 200")
@@ -17154,6 +17183,11 @@ def require_native_module_contract(base_url: str) -> None:
     require(sabrina is not None, "native modules API should include Sabrina Reverb")
     require(sabrina.get("wasmAvailable") is True, "native Sabrina wasm should be available")
     require("tooltips" not in sabrina, "native modules API should not expose comment-parsed tooltips")
+    soft_clipper = next((item for item in modules if item.get("targetType") == "softClipper"), None)
+    require(soft_clipper is not None, "native modules API should include Soft Clipper")
+    require(soft_clipper.get("name") == "soft_clipper", "native Soft Clipper API name should be stable")
+    require(soft_clipper.get("wasmAvailable") is True, "native Soft Clipper wasm should be available")
+    require("tooltips" not in soft_clipper, "native Soft Clipper API should not expose comment-parsed tooltips")
 
     wasm_response = request(f"{base_url}/native_modules/ellipsoid/ellipsoid.wasm")
     require(wasm_response.status == 200, "native ellipsoid wasm should be served")
@@ -17163,6 +17197,10 @@ def require_native_module_contract(base_url: str) -> None:
     require(sabrina_wasm_response.status == 200, "native Sabrina wasm should be served")
     require_content_type(sabrina_wasm_response, "application/wasm", "native Sabrina wasm")
     require(sabrina_wasm_response.body.startswith(b"\0asm"), "served native Sabrina wasm magic bytes missing")
+    soft_clipper_wasm_response = request(f"{base_url}/native_modules/soft_clipper/soft_clipper.wasm")
+    require(soft_clipper_wasm_response.status == 200, "native Soft Clipper wasm should be served")
+    require_content_type(soft_clipper_wasm_response, "application/wasm", "native Soft Clipper wasm")
+    require(soft_clipper_wasm_response.body.startswith(b"\0asm"), "served native Soft Clipper wasm magic bytes missing")
 
 
 def wait_for_server(base_url: str, process: subprocess.Popen[bytes]) -> None:
