@@ -580,38 +580,19 @@ function applyNodeGraphPatchToDom() {
 }
 
 function commitNodeGraphPatch(patch, options = {}) {
+  const isWireEdit = Boolean(options.wireEdit);
   nodeGraphMvp.patch = cloneNodeGraphPatch(validateNodeGraphPatch(patch));
   if (typeof preserveNodeGraphEditorZoomOnPatch === "function") {
     preserveNodeGraphEditorZoomOnPatch(nodeGraphMvp.patch);
   }
   syncNodeGraphRuntimeFromPatch();
-  applyNodeGraphPatchToDom();
-  if (typeof applyNodeGraphZoom === "function") {
-    applyNodeGraphZoom();
-  }
-  syncNodeGraphMonitorIndicators();
-  pruneNodeGraphSelectionAfterPatch();
-  renderNodePalette();
-  renderNodeGraphConnectionList();
-  syncNodeGraphGhostSliders();
-  syncNodeGraphFilterCurveDisplays();
-  renderNodeGraphVisualSettings();
-  syncNodeGraphSettingsView();
-  if (typeof renderNodeGraphMissingSampleAssetsDialog === "function") {
-    renderNodeGraphMissingSampleAssetsDialog(nodeGraphMvp.patch);
-  }
-  if (typeof renderNodeGraphCodeScreen === "function" && !document.getElementById("nodeCodeScreenView")?.hidden) {
-    renderNodeGraphCodeScreen();
-  }
-  const scriptStatus = nodeGraphPatchScriptStatus(
-    options.status || "script synced",
-    options.ok ?? true,
-  );
-  syncNodeGraphScriptView(scriptStatus.message, scriptStatus.ok);
-  if (options.record !== false) {
-    recordNodeGraphHistory();
-  } else {
-    renderNodeGraphHistoryControls();
+  if (!isWireEdit) {
+    applyNodeGraphPatchToDom();
+    if (typeof applyNodeGraphZoom === "function") {
+      applyNodeGraphZoom();
+    }
+    syncNodeGraphMonitorIndicators();
+    pruneNodeGraphSelectionAfterPatch();
   }
   if (options.markPending !== false) {
     markNodeGraphRenderPending();
@@ -624,12 +605,45 @@ function commitNodeGraphPatch(patch, options = {}) {
   } else if (options.autosaveWorkingPatch !== false) {
     nodeGraphMvp.patchDirtyState = "edited";
   }
-  if (options.autosaveWorkingPatch !== false && typeof saveNodeGraphWorkingPatchToUserSettings === "function") {
-    saveNodeGraphWorkingPatchToUserSettings();
-  } else if (typeof syncNodeGraphCurrentSavedPatchHeader === "function") {
-    syncNodeGraphCurrentSavedPatchHeader();
-  }
   scheduleNodeGraphLivePlanSync();
+
+  const runDeferredUiPanels = () => {
+    renderNodePalette();
+    renderNodeGraphConnectionList();
+    syncNodeGraphGhostSliders();
+    syncNodeGraphFilterCurveDisplays();
+    renderNodeGraphVisualSettings();
+    syncNodeGraphSettingsView();
+    if (typeof renderNodeGraphMissingSampleAssetsDialog === "function") {
+      renderNodeGraphMissingSampleAssetsDialog(nodeGraphMvp.patch);
+    }
+    if (typeof renderNodeGraphCodeScreen === "function" && !document.getElementById("nodeCodeScreenView")?.hidden) {
+      renderNodeGraphCodeScreen();
+    }
+    const scriptStatus = nodeGraphPatchScriptStatus(
+      options.status || "script synced",
+      options.ok ?? true,
+    );
+    syncNodeGraphScriptView(scriptStatus.message, scriptStatus.ok);
+    if (options.record !== false) {
+      recordNodeGraphHistory();
+    } else {
+      renderNodeGraphHistoryControls();
+    }
+    if (options.autosaveWorkingPatch !== false && typeof saveNodeGraphWorkingPatchToUserSettings === "function") {
+      saveNodeGraphWorkingPatchToUserSettings();
+    } else if (typeof syncNodeGraphCurrentSavedPatchHeader === "function") {
+      syncNodeGraphCurrentSavedPatchHeader();
+    }
+  };
+
+  if (isWireEdit) {
+    window.requestAnimationFrame(() => {
+      window.setTimeout(runDeferredUiPanels, 0);
+    });
+  } else {
+    runDeferredUiPanels();
+  }
 }
 
 function clearNodeGraphWires() {

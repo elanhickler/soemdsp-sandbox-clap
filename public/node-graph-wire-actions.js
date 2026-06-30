@@ -49,7 +49,7 @@ function setSelectedNodeGraphWireType(wireType) {
   } else {
     wire.wireType = nextType;
   }
-  commitNodeGraphPatch(patch, { status: `wire set to ${nextType}` });
+  commitNodeGraphPatch(patch, { status: `wire set to ${nextType}`, wireEdit: true });
   setNodeGraphSelection(selection);
   configureNodeSceneContextMenu("wire");
   return true;
@@ -77,7 +77,7 @@ function disconnectNodeGraphConnection(index, kind = "signal") {
   } else if (selection?.type === "wire" && (selection.kind || "signal") === kind && selection.index > index) {
     setNodeGraphSelection({ ...selection, index: selection.index - 1 });
   }
-  commitNodeGraphPatch(patch, { status: "wire disconnected" });
+  commitNodeGraphPatch(patch, { status: "wire disconnected", wireEdit: true });
   if (typeof triggerNodeGraphWireDisconnectEvent === "function") {
     triggerNodeGraphWireDisconnectEvent(kind);
   }
@@ -128,7 +128,7 @@ function connectNodeGraphGraphInput(sourceNode, sourcePort, destinationNode, des
       ...patch.graphConnections[duplicateIndex],
       ...nextWireData,
     };
-    commitNodeGraphPatch(patch, { status: "graph wire traced" });
+    commitNodeGraphPatch(patch, { status: "graph wire traced", wireEdit: true });
     return true;
   }
   patch.graphConnections.push({
@@ -138,7 +138,7 @@ function connectNodeGraphGraphInput(sourceNode, sourcePort, destinationNode, des
     sourcePort: canonicalSourcePort,
     ...nextWireData,
   });
-  commitNodeGraphPatch(patch, { status: "graph connected" });
+  commitNodeGraphPatch(patch, { status: "graph connected", wireEdit: true });
   if (typeof triggerNodeGraphWireConnectEvent === "function") {
     triggerNodeGraphWireConnectEvent("graph");
   }
@@ -243,7 +243,7 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
       ...patch.connections[duplicateIndex],
       ...nextWireData,
     };
-    commitNodeGraphPatch(patch, { status: "wire traced" });
+    commitNodeGraphPatch(patch, { status: "wire traced", wireEdit: true });
     return true;
   }
   patch.connections.push({
@@ -263,7 +263,7 @@ function connectNodeGraphPorts(sourceNode, sourcePort, destinationNode, destinat
       destinationPort,
       nextWireData,
     );
-  commitNodeGraphPatch(patch, { status: autoConnected ? `wire connected +${autoConnected}` : "wire connected" });
+  commitNodeGraphPatch(patch, { status: autoConnected ? `wire connected +${autoConnected}` : "wire connected", wireEdit: true });
   if (typeof triggerNodeGraphWireConnectEvent === "function") {
     triggerNodeGraphWireConnectEvent("signal");
   }
@@ -304,7 +304,7 @@ function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, des
       ...patch.modulations[duplicateIndex],
       ...nextWireData,
     };
-    commitNodeGraphPatch(patch, { status: "modulation traced" });
+    commitNodeGraphPatch(patch, { status: "modulation traced", wireEdit: true });
     return true;
   }
   patch.modulations.push({
@@ -314,7 +314,7 @@ function connectNodeGraphModulation(sourceNode, sourcePort, destinationNode, des
     destinationParam,
     ...nextWireData,
   });
-  commitNodeGraphPatch(patch, { status: "modulation connected" });
+  commitNodeGraphPatch(patch, { status: "modulation connected", wireEdit: true });
   if (typeof triggerNodeGraphWireConnectEvent === "function") {
     triggerNodeGraphWireConnectEvent("modulation");
   }

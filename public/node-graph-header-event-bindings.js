@@ -128,7 +128,6 @@ function bindNodeGraphHeaderControlEvents() {
     .addEventListener("change", handleNodeGraphSceneScopeOptionInput);
   document.getElementById("nodeModuleSlidersToggleButton").addEventListener("click", toggleNodeGraphModuleSlidersVisibility);
   document.getElementById("nodeTooltipToggleButton").addEventListener("click", toggleNodeGraphTooltipVisibility);
-  document.getElementById("nodeCurrentSavedPatchButton").addEventListener("click", () => setNodeGraphSavedPatchesWindowVisible(true));
   document.getElementById("nodePreviousSavedPatchButton").addEventListener("click", () => loadAdjacentNodeGraphSavedPatch(-1));
   document.getElementById("nodeNextSavedPatchButton").addEventListener("click", () => loadAdjacentNodeGraphSavedPatch(1));
   document.getElementById("nodePatchInitButton").addEventListener("click", confirmAndInitNodeGraphPatchFromDefault);
@@ -137,10 +136,9 @@ function bindNodeGraphHeaderControlEvents() {
   document.getElementById("nodeSavedPatchesWindowHeading").addEventListener("pointerdown", beginNodeGraphSavedPatchesWindowDrag);
   document.getElementById("nodeSavedPatchesDragHandle").addEventListener("pointerdown", beginNodeGraphSavedPatchesWindowDrag);
   document.getElementById("nodeSavedPatchesResizeHandle").addEventListener("pointerdown", beginNodeGraphSavedPatchesWindowResize);
-  document.getElementById("nodeSavedPatchesCopyPatch").textContent = "Copy";
-  document.getElementById("nodeSavedPatchesPastePatch").textContent = "Paste";
-  document.getElementById("nodeSavedPatchesCopyPatch").addEventListener("click", copyNodeGraphScriptToClipboard);
-  document.getElementById("nodeSavedPatchesPastePatch").addEventListener("click", pasteNodeGraphScriptFromClipboard);
+  document.getElementById("nodePatchEditButton").addEventListener("click", () => setNodeGraphViewMode("settings"));
+  document.getElementById("nodePatchCopyButton").addEventListener("click", copyNodeGraphScriptToClipboard);
+  document.getElementById("nodePatchPasteButton").addEventListener("click", pasteNodeGraphScriptFromClipboard);
   document.addEventListener("pointermove", dragNodeGraphSavedPatchesWindow);
   document.addEventListener("pointerup", endNodeGraphSavedPatchesWindowDrag);
   document.addEventListener("pointercancel", endNodeGraphSavedPatchesWindowDrag);
@@ -222,9 +220,7 @@ function bindNodeGraphHeaderControlEvents() {
     .addEventListener("click", () => setNodeGraphViewMode("script"));
   document.getElementById("nodePatchScript").addEventListener("input", handleNodePatchScriptInput);
   document.getElementById("saveNodeGraphScriptEditorButton")?.addEventListener("click", saveNodeGraphScriptEditor);
-  document.getElementById("copyNodeGraphScriptButton").addEventListener("click", copyNodeGraphScriptToClipboard);
   document.getElementById("downloadNodeGraphScriptButton").addEventListener("click", saveNodeGraphScript);
-  document.getElementById("pasteNodeGraphScriptButton").addEventListener("click", pasteNodeGraphScriptFromClipboard);
   document.getElementById("nodePatchPresetSaveButton").addEventListener("click", saveCurrentNodeGraphPatchPreset);
   document.getElementById("nodePatchPresetLoadButton").addEventListener("click", loadSelectedNodeGraphPatchPreset);
   document.getElementById("nodePatchPresetDeleteButton").addEventListener("click", deleteSelectedNodeGraphPatchPreset);

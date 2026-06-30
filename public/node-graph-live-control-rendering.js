@@ -53,6 +53,11 @@ function renderNodeGraphLiveControls(running = Boolean(nodeGraphMvp.live.node)) 
       return;
     }
     const stateText = stateOverride || (active ? "(Live)" : "(Off)");
+    const nextLabel = `${name}\n${stateText}`;
+    if (button.dataset.liveToggleLabel === nextLabel) {
+      return;
+    }
+    button.dataset.liveToggleLabel = nextLabel;
     button.replaceChildren();
     for (const text of [name, stateText]) {
       const line = document.createElement("span");

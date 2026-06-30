@@ -1131,10 +1131,77 @@ function assertNodeGraphLivePlanSupportsClap(plan = {}) {
   throw error;
 }
 
+function nodeGraphLivePlanErrorIssues(error) {
+  return Array.isArray(error?.issues) && error.issues.length
+    ? error.issues.map((issue) => String(issue))
+    : [String(error?.message || error || "unknown live plan failure")];
+}
+
+function nodeGraphLivePlanIssueRemovesOutputRoute(issue) {
+  return issue === "output node missing" || issue === "missing Output speaker input";
+}
+
+function nodeGraphCurrentPatchHasSpeakerOutputRoute() {
+  try {
+    const plan = compileNodeGraphExecutionPlan(nodeGraphMvp.patch);
+    const issues = Array.isArray(plan?.issues) ? plan.issues.map((issue) => String(issue)) : [];
+    return Boolean(plan?.speakerOutputActive) && !issues.some(nodeGraphLivePlanIssueRemovesOutputRoute);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function nodeGraphShouldPreservePreviousLivePlanAfterError(error) {
+  const issues = nodeGraphLivePlanErrorIssues(error);
+  if (issues.some(nodeGraphLivePlanIssueRemovesOutputRoute)) {
+    return false;
+  }
+  return nodeGraphCurrentPatchHasSpeakerOutputRoute();
+}
+
+function nodeGraphLivePlanShapeSignature(plan = {}) {
+  return JSON.stringify({
+    nodes: (Array.isArray(plan.nodes) ? plan.nodes : []).map((node) => [node.id, node.type]),
+    order: Array.isArray(plan.order) ? plan.order : [],
+    outputNode: plan.outputNode || "output",
+    samples: (Array.isArray(plan.samples) ? plan.samples : []).map((sample) => sample?.id || ""),
+    scopeCaptureNodeIds: Array.isArray(plan.scopeCaptureNodeIds) ? plan.scopeCaptureNodeIds : [],
+    visualSinks: (Array.isArray(plan.visualSinks) ? plan.visualSinks : []).map((sink) => [
+      sink.nodeId,
+      sink.displayType,
+      (Array.isArray(sink.bufferedInputs) ? sink.bufferedInputs : []).join(","),
+    ]),
+  });
+}
+
+function nodeGraphLiveConnectionUpdatePayload(plan = {}, audio = {}) {
+  return {
+    connections: Array.isArray(plan.connections) ? plan.connections : [],
+    engineSampleRate: audio.clampedEngineSampleRate,
+    graphConnections: Array.isArray(plan.graphConnections) ? plan.graphConnections : [],
+    modulations: Array.isArray(plan.modulations) ? plan.modulations : [],
+    outputNode: plan.outputNode || "output",
+    oversamplingRatio: audio.oversamplingRatio,
+    patchFingerprint: plan.patchFingerprint,
+    planSerial: nodeGraphMvp.live.planSerial,
+    sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
+    scopeCaptureNodeIds: Array.isArray(plan.scopeCaptureNodeIds) ? plan.scopeCaptureNodeIds : [],
+    sessionId: nodeGraphMvp.live.sessionId,
+    type: "setConnections",
+    visualSinks: Array.isArray(plan.visualSinks) ? plan.visualSinks : [],
+  };
+}
+
 async function sendNodeGraphLivePlan() {
   if (!nodeGraphMvp.live.node && !nodeGraphMvp.live.context) {
     return;
   }
+  const hadLivePlan = Boolean(
+    nodeGraphMvp.live.planEvidence ||
+    nodeGraphMvp.live.runtime ||
+    nodeGraphMvp.live.planSerial > 0 ||
+    nodeGraphMvp.live.activeNodeIds?.size,
+  );
 
   try {
     const plan = nodeGraphBuildLivePlan();
@@ -1143,6 +1210,12 @@ async function sendNodeGraphLivePlan() {
     }
     assertNodeGraphLivePlanSupportsClap(plan);
     const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
+    const planShapeSignature = nodeGraphLivePlanShapeSignature(plan);
+    const canSendConnectionUpdate = Boolean(
+      hadLivePlan &&
+      nodeGraphMvp.live.planShapeSignature &&
+      nodeGraphMvp.live.planShapeSignature === planShapeSignature,
+    );
     nodeGraphMvp.live.activeNodeIds = new Set(plan.order);
     beginNodeGraphLiveModuleScopeCapture(plan, {
       sampleRate: nodeGraphMvp.live.usesWorklet
@@ -1160,19 +1233,27 @@ async function sendNodeGraphLivePlan() {
       setNodeGraphLiveEvidence("plan-sent", nodeGraphMvp.live.planEvidence);
       setNodeGraphLivePlanStatus(nodeGraphLivePlanSentStatusText(), "warn");
       setNodeGraphLivePlanTitle(nodeGraphLivePlanScheduleTitle(plan.order));
-      nodeGraphMvp.live.node?.port?.postMessage({
-        engineSampleRate: audio.clampedEngineSampleRate,
-        oversamplingRatio: audio.oversamplingRatio,
-        plan,
-        patchFingerprint: plan.patchFingerprint,
-        planSerial: nodeGraphMvp.live.planSerial,
-        sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
-        sessionId: nodeGraphMvp.live.sessionId,
-        type: "setPlan",
-      });
-      nodeGraphStartGpuAdditiveProducer(plan, audio);
+      if (canSendConnectionUpdate) {
+        nodeGraphMvp.live.node?.port?.postMessage(nodeGraphLiveConnectionUpdatePayload(plan, audio));
+      } else {
+        nodeGraphMvp.live.node?.port?.postMessage({
+          engineSampleRate: audio.clampedEngineSampleRate,
+          oversamplingRatio: audio.oversamplingRatio,
+          plan,
+          patchFingerprint: plan.patchFingerprint,
+          planSerial: nodeGraphMvp.live.planSerial,
+          sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
+          sessionId: nodeGraphMvp.live.sessionId,
+          type: "setPlan",
+        });
+        nodeGraphStartGpuAdditiveProducer(plan, audio);
+      }
     } else if (nodeGraphMvp.live.runtime) {
-      updateNodeGraphLiveRuntimePlan(nodeGraphMvp.live.runtime, plan);
+      if (canSendConnectionUpdate && typeof updateNodeGraphLiveRuntimeConnections === "function") {
+        updateNodeGraphLiveRuntimeConnections(nodeGraphMvp.live.runtime, plan);
+      } else {
+        updateNodeGraphLiveRuntimePlan(nodeGraphMvp.live.runtime, plan);
+      }
       setNodeGraphLiveEvidence("plan-applied", nodeGraphMvp.live.planEvidence);
       setNodeGraphLivePlanStatus(nodeGraphLivePlanStatusText(plan), "good");
       setNodeGraphLivePlanTitle(nodeGraphLivePlanScheduleTitle(plan.order));
@@ -1185,12 +1266,18 @@ async function sendNodeGraphLivePlan() {
     if (!nodeGraphBeginGpuAdditivePrime(plan)) {
       nodeGraphSetLivePlanRunningStatus(plan);
     }
+    nodeGraphMvp.live.planShapeSignature = planShapeSignature;
   } catch (error) {
+    const issues = nodeGraphLivePlanErrorIssues(error);
     nodeGraphClearGpuAdditivePrime();
-    setNodeGraphLiveOutputMuted(true);
-    nodeGraphMvp.live.runtime = null;
-    nodeGraphMvp.live.node?.port?.postMessage({ type: "stop", sessionId: nodeGraphMvp.live.sessionId, planSerial: nodeGraphMvp.live.planSerial });
-    setNodeGraphLiveBlockedError("plan", error);
+    error.issues = issues;
+    const canPreservePlan = hadLivePlan && nodeGraphShouldPreservePreviousLivePlanAfterError(error);
+    if (!canPreservePlan) {
+      setNodeGraphLiveOutputMuted(true);
+      nodeGraphMvp.live.runtime = null;
+      nodeGraphMvp.live.node?.port?.postMessage({ type: "stop", sessionId: nodeGraphMvp.live.sessionId, planSerial: nodeGraphMvp.live.planSerial });
+    }
+    setNodeGraphLiveBlockedError("plan", error, { preservePreviousPlan: canPreservePlan });
   }
 }
 
@@ -1576,7 +1663,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=sabrina-reverb-0170"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=connection-update-20260642"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

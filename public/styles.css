@@ -56,7 +56,6 @@ body.node-boot-loading .shell {
   inset: 0;
   z-index: 100000;
   display: none;
-  place-items: center;
   background: #000000;
   color: rgba(243, 241, 236, 0.82);
   font-family: "Segoe UI", Arial, sans-serif;
@@ -68,23 +67,78 @@ body.node-boot-loading .shell {
 }
 
 .node-boot-loading-panel {
-  display: grid;
-  grid-template-columns: minmax(0, min(52vw, 320px));
-  gap: 10px;
-  justify-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 3rem;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.node-boot-loading-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .node-boot-loading-label {
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   text-align: center;
 }
 
 .node-boot-loading-bar {
   position: relative;
   overflow: hidden;
-  height: 7px;
+  height: 12px;
   border: 1px solid rgba(127, 199, 217, 0.26);
   border-radius: 999px;
   background: rgba(127, 199, 217, 0.08);
+  flex-shrink: 0;
+}
+
+.node-boot-build-number {
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.35;
+  flex-shrink: 0;
+  user-select: text;
+  cursor: text;
+}
+
+.node-boot-sysinfo {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.28;
+  flex-shrink: 0;
+  user-select: text;
+  cursor: text;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.node-boot-loading-messages {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.5;
+  display: flex;
+  flex-direction: column-reverse;
+  margin-top: 0.5rem;
+}
+
+.node-boot-loading-message {
+  padding: 0.2rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .node-boot-loading-bar span {
@@ -99,7 +153,7 @@ body.node-boot-loading .shell {
 
 body.node-boot-loading .node-boot-loading-screen,
 body.node-boot-fading .node-boot-loading-screen {
-  display: grid;
+  display: block;
 }
 
 body.node-boot-fading .node-boot-loading-screen {
@@ -2361,7 +2415,7 @@ audio {
 
 .node-build-number-readout {
   flex: 1.2 1 0;
-  gap: 0.38em;
+  gap: 0;
   padding: 0;
   background: rgba(7, 11, 14, 0.94);
   color: rgba(127, 199, 217, 0.98);
@@ -2370,6 +2424,8 @@ audio {
   font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .node-world-position-readout span,
@@ -2377,7 +2433,16 @@ audio {
 .node-selection-count-readout span,
 .node-build-number-readout span {
   line-height: 1;
+}
+
+.node-selection-count-readout span {
   pointer-events: none;
+}
+
+.node-build-number-readout span {
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .node-wiring-panel.modular-only-view .node-modular-view-size-readout {
@@ -10191,6 +10256,10 @@ audio {
   border-inline-end: 0;
 }
 
+.node-header-render-range-field:first-of-type {
+  border-inline-start: 1px solid rgba(127, 199, 217, 0.22);
+}
+
 .node-header-timing-row > :last-child {
   border-inline-end: 0;
 }
@@ -15034,6 +15103,8 @@ body.node-slider-dragging .node-param-port {
 
 #nodeLiveRouteStatus {
   width: 22em;
+  user-select: text;
+  cursor: text;
 }
 
 .node-live-toggle.active {

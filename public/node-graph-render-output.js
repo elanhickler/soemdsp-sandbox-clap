@@ -803,12 +803,16 @@ async function renderNodeGraphAudio() {
   }
 
   syncNodeGraphRenderSecondsFromInput({ normalize: true });
+  syncNodeGraphRenderRangeFromInputs();
+  const renderStart = nodeGraphMvp.renderStartSeconds ?? 0;
+  const renderEnd = nodeGraphMvp.renderEndSeconds ?? nodeGraphMvp.seconds ?? 2;
+  const renderDuration = Math.max(0.05, renderEnd - renderStart);
   const audio = nodeGraphAudioDerivation(nodeGraphMvp.patch);
   const outputSampleRate = audio.outputSampleRate;
   const engineSampleRate = audio.clampedEngineSampleRate;
   const patchFingerprint = nodeGraphPatchFingerprint();
-  const requestedOutputFrames = Math.floor(outputSampleRate * nodeGraphMvp.seconds);
-  const requestedEngineFrames = Math.max(1, Math.round(engineSampleRate * nodeGraphMvp.seconds));
+  const requestedOutputFrames = Math.floor(outputSampleRate * renderDuration);
+  const requestedEngineFrames = Math.max(1, Math.round(engineSampleRate * renderDuration));
   const plan = nodeGraphBuildLivePlan();
   const clapNodes = nodeGraphPlanClapRenderNodes(plan);
   const initialClapTail = nodeGraphClapInitialTailState(clapNodes, engineSampleRate);

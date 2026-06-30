@@ -1,10 +1,6 @@
 function bindNodeGraphRenderLiveControlEvents() {
   document.getElementById("nodeRenderButton").addEventListener("click", renderNodeGraphAudio);
-  document.getElementById("nodeRenderSecondsValue").addEventListener("input", handleNodeGraphRenderSecondsInput);
-  document
-    .getElementById("nodeRenderSecondsValue")
-    .addEventListener("change", () => syncNodeGraphRenderSecondsFromInput({ normalize: true }));
-  document.getElementById("nodeCopyRuntimeSketchButton").addEventListener("click", copyNodeGraphRuntimeSketch);
+document.getElementById("nodeCopyRuntimeSketchButton").addEventListener("click", copyNodeGraphRuntimeSketch);
   document.getElementById("nodeCopyExecutionJsonButton").addEventListener("click", copyNodeGraphExecutionJson);
   document.getElementById("nodeBadValueMonitorButton").addEventListener("click", toggleNodeGraphBadValueMonitor);
   document.getElementById("nodeTripEarProtectionButton")

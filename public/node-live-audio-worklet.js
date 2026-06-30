@@ -127,7 +127,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeEllipsoidReady = false;
     this.nativeSabrinaReverb = null;
     this.nativeSabrinaReverbReady = false;
-    this.sabrinaReverbDspEnabled = false;
     this.fractalBrownianNoiseStates = new Map();
     this.graphInputConnections = new Map();
     this.gpuAdditiveQueues = new Map();
@@ -304,6 +303,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     if (message.type === "setPlan") {
       this.setPlan(message.plan, message);
+      return;
+    }
+    if (message.type === "setConnections") {
+      this.setConnections(message.plan || message, message);
       return;
     }
     if (message.type === "setNativeModuleWasm") {
@@ -649,7 +652,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       inputs: (Array.isArray(sink?.inputs) ? sink.inputs : []).map((input) => ({ ...input })),
     }));
     this.syncVisualInputBuffers();
-    this.inputConnections = this.buildInputConnectionMap(plan?.connections, ids);
+    const newInputConnections = this.buildInputConnectionMap(plan?.connections, ids);
+    this.inputConnections = newInputConnections;
     this.graphInputConnections = this.buildGraphInputConnectionMap(plan?.graphConnections, ids);
     this.modulationConnections = this.buildModulationConnectionMap(plan?.modulations, ids);
     this.resetVisualControls();
@@ -1027,6 +1031,26 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       visualSinkCount: Array.isArray(plan?.visualSinks) ? plan.visualSinks.length : 0,
       visualSinks: Array.isArray(plan?.visualSinks) ? plan.visualSinks : [],
     });
+  }
+
+  setConnections(plan, message = {}) {
+    this.patchFingerprint = message.patchFingerprint || plan?.patchFingerprint || this.patchFingerprint || "";
+    this.planSerial = message.planSerial || this.planSerial || 0;
+    this.sessionId = message.sessionId || this.sessionId || 0;
+    this.outputNode = plan?.outputNode || this.outputNode || "output";
+    this.scopeCaptureNodeIds = Array.isArray(plan?.scopeCaptureNodeIds)
+      ? plan.scopeCaptureNodeIds.map((nodeId) => String(nodeId || "")).filter(Boolean)
+      : this.scopeCaptureNodeIds;
+    this.visualSinks = (Array.isArray(plan?.visualSinks) ? plan.visualSinks : this.visualSinks).map((sink) => ({
+      ...sink,
+      bufferedInputs: Array.isArray(sink?.bufferedInputs) ? [...sink.bufferedInputs] : [],
+      inputs: (Array.isArray(sink?.inputs) ? sink.inputs : []).map((input) => ({ ...input })),
+    }));
+    this.syncVisualInputBuffers();
+    const ids = new Set([...this.nodes.keys()]);
+    this.inputConnections = this.buildInputConnectionMap(plan?.connections, ids);
+    this.graphInputConnections = this.buildGraphInputConnectionMap(plan?.graphConnections, ids);
+    this.modulationConnections = this.buildModulationConnectionMap(plan?.modulations, ids);
   }
 
   setParams(nodes, message = {}) {
@@ -1955,7 +1979,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       max: Number.isFinite(Number(metadata?.max)) ? Number(metadata.max) : 1,
       metadata,
       min: Number.isFinite(Number(metadata?.min)) ? Number(metadata.min) : 0,
-      nonlinearSmoothing: Boolean(metadata?.nonlinearSlider),
+      nonlinearSmoothing: metadata?.linearSmoothing !== false,
       outputBuffer: signal,
       targetSignal: signal,
       target: safeValue,
@@ -1993,7 +2017,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     smoother.max = Number.isFinite(Number(metadata?.max)) ? Number(metadata.max) : smoother.max;
     smoother.metadata = metadata;
     smoother.min = Number.isFinite(Number(metadata?.min)) ? Number(metadata.min) : smoother.min;
-    smoother.nonlinearSmoothing = Boolean(metadata?.nonlinearSlider);
+    smoother.nonlinearSmoothing = metadata?.linearSmoothing !== false;
     smoother.targetSignal = this.parameterValueToNormalizedSignal(smoother.target, metadata);
     smoother.wraparound = Boolean(metadata?.wraparound);
     if (!smoother.linearSmoothing) {
@@ -4065,163 +4089,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  sabrinaParabol(value) {
-    const fit = (((2 * value) % 2) + 2) % 2 - 1;
-    return 4 * fit * (1 - Math.abs(fit));
-  }
-
-  createSabrinaDelay(seed = 0) {
-    return {
-      buffer: null,
-      bufferSize: 0,
-      comb: 0,
-      driver: 0,
-      feedback: 0,
-      lfopercent: 0,
-      modInc: 0,
-      modSpeed: 0,
-      offset: 1,
-      rndAcc: 0,
-      rndNext: Math.abs(Math.round(seed)) % 123094,
-      sampleRate: 0,
-    };
-  }
-
-  sabrinaRnd(delay) {
-    delay.rndNext = (delay.rndNext + 109) % 123094;
-    delay.rndAcc = this.sabrinaParabol(
-      this.sabrinaParabol((delay.rndNext + delay.rndAcc + 10) * 134987.489798 + 1987.19687) * 1987.4987 + 98497.19879,
-    );
-    return delay.rndAcc * 0.5 + 0.5;
-  }
-
-  sabrinaSetOffsetSize(delay, size, maxDelaySize) {
-    delay.offset = (maxDelaySize * this.sabrinaRnd(delay) * ((Number(size) || 0) * 0.1 + 0.0000001)) + 1;
-  }
-
-  sabrinaInitializeMod(delay, lfoSeconds, lfoVariation, rateHz) {
-    const seconds = Math.max(0.000001, (Number(lfoSeconds) || 0) + this.sabrinaRnd(delay) * (Number(lfoVariation) || 0));
-    delay.modSpeed = (1 / seconds) / Math.max(1, Number(rateHz) || sampleRate || 44100);
-  }
-
-  sabrinaInitializeDelay(delay, maxDelaySize, rateHz, seed = 0) {
-    delay.bufferSize = Math.max(2, Math.floor(maxDelaySize));
-    delay.buffer = new Float32Array(delay.bufferSize);
-    delay.driver = 0;
-    delay.feedback = 0;
-    delay.rndNext = Math.abs(Math.round(seed)) % 123094;
-    delay.rndAcc = 0;
-    this.sabrinaRnd(delay);
-    this.sabrinaRnd(delay);
-    this.sabrinaRnd(delay);
-    this.sabrinaSetOffsetSize(delay, 0.06, maxDelaySize);
-    delay.modInc = Math.abs(this.sabrinaRnd(delay));
-    delay.modInc = 0;
-    delay.comb = delay.offset;
-    this.sabrinaInitializeMod(delay, 1, 0.001, rateHz);
-    delay.sampleRate = rateHz;
-  }
-
   createSabrinaReverbState() {
     return {
-      ch0: 0,
-      ch1: 0,
-      delays: [],
-      maxDelaySize: 0,
       nativeHandle: 0,
       nativeParamKey: "",
       nativeSampleRate: 0,
-      paramKey: "",
-      sampleRate: 0,
+      idleCounter: 0,
+      isIdle: false,
     };
   }
 
-  sabrinaDelayRead(delay, where) {
-    const length = delay.bufferSize || 0;
-    if (!delay.buffer || length <= 0) {
-      return 0;
-    }
-    const wrapped = ((where % length) + length) % length;
-    const before = Math.floor(wrapped) % length;
-    const after = (before + 1) % length;
-    const mix = wrapped - Math.floor(wrapped);
-    return delay.buffer[before] * (1 - mix) + delay.buffer[after] * mix;
-  }
-
-  sabrinaDelaySample(delay, input, maxDelaySize) {
-    const safeInput = this.safeFilterNumber(input, null);
-    delay.modInc += delay.modSpeed;
-    const lfo = this.sabrinaParabol(delay.modInc) * 0.5 + 0.5;
-    const readPosition = delay.driver - delay.offset - delay.offset * lfo * delay.lfopercent;
-    delay.driver = (delay.driver + 1) % delay.bufferSize;
-    const delayed = this.sabrinaDelayRead(delay, readPosition);
-    delay.buffer[delay.driver] = safeInput;
-    return this.safeFilterNumber(delayed, null);
-  }
-
-  sabrinaDiffuseSample(delay, input, maxDelaySize) {
-    const safeInput = this.safeFilterNumber(input, null);
-    delay.modInc += delay.modSpeed;
-    const lfo = this.sabrinaParabol(delay.modInc) * 0.5 + 0.5;
-    const readPosition = delay.driver - delay.offset - delay.offset * lfo * delay.lfopercent;
-    delay.driver = (delay.driver + 1) % delay.bufferSize;
-    const delayed = this.sabrinaDelayRead(delay, readPosition);
-    const write = (0 - safeInput) - delayed * delay.feedback;
-    delay.buffer[delay.driver] = this.clampValue(write, -16, 16);
-    return this.safeFilterNumber(safeInput * delay.feedback - delayed * (1 - delay.feedback * delay.feedback), null);
-  }
-
-  sabrinaEnsureState(state, rateHz = sampleRate) {
-    const safeRate = Math.max(1, Math.round(Number(rateHz) || sampleRate || 44100));
-    const maxDelaySize = Math.max(2, Math.round(safeRate * 4));
-    if (state.sampleRate === safeRate && state.maxDelaySize === maxDelaySize && state.delays.length === 14) {
-      return;
-    }
-    state.sampleRate = safeRate;
-    state.maxDelaySize = maxDelaySize;
-    state.ch0 = 0;
-    state.ch1 = 0;
-    state.paramKey = "";
-    state.delays = [];
-    for (let index = 0; index < 14; index += 1) {
-      const delay = this.createSabrinaDelay(index * 137 + 7);
-      this.sabrinaInitializeDelay(delay, maxDelaySize, safeRate, index * 137 + 7);
-      state.delays.push(delay);
-    }
-  }
-
-  sabrinaApplyParams(state, params) {
-    const maxDelaySize = state.maxDelaySize;
-    const key = [
-      params.diffusionSize,
-      params.diffusionAmount,
-      params.delaySize,
-      params.lfoAmplitude,
-      params.lfoBaseSpeed,
-      params.lfoVariation,
-    ].map((value) => Math.round(value * 1000000)).join(":");
-    if (key === state.paramKey) {
-      return;
-    }
-    state.paramKey = key;
-    const lfoSpeed = ((1 - params.lfoBaseSpeed) * 1.95 + 0.5) * 0.5;
-    const lfoVariation = (1 - params.lfoVariation) * 0.25;
-    for (let index = 0; index < 12; index += 1) {
-      const delay = state.delays[index];
-      this.sabrinaSetOffsetSize(delay, params.diffusionSize, maxDelaySize);
-      delay.feedback = params.diffusionAmount;
-      delay.lfopercent = params.lfoAmplitude * 0.1;
-      this.sabrinaInitializeMod(delay, lfoSpeed, lfoVariation, state.sampleRate);
-    }
-    for (let index = 12; index < 14; index += 1) {
-      const delay = state.delays[index];
-      delay.offset = (maxDelaySize - 2) * params.delaySize * 0.1 + 1;
-      delay.lfopercent = params.lfoAmplitude * 0.1;
-      this.sabrinaInitializeMod(delay, lfoSpeed, lfoVariation, state.sampleRate);
-    }
-  }
-
-  nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate) {
+  nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate, frame = 0) {
     const native = this.nativeSabrinaReverb;
     if (
       !this.nativeSabrinaReverbReady ||
@@ -4239,6 +4117,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         state.nativeHandle = native.soemdsp_sabrina_reverb_create(safeRate) || 0;
         state.nativeSampleRate = safeRate;
         state.nativeParamKey = "";
+        state.idleCounter = 0;
+        state.isIdle = false;
       }
       if (!state.nativeHandle) {
         return null;
@@ -4277,16 +4157,31 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeParams.lfoVariation,
         );
       }
-      native.soemdsp_sabrina_reverb_process(
-        state.nativeHandle,
-        this.safeFilterNumber(leftInput, null),
-        this.safeFilterNumber(rightInput, null),
-      );
-      const left = this.safeFilterNumber(native.soemdsp_sabrina_reverb_left?.(state.nativeHandle), null);
-      const right = this.safeFilterNumber(native.soemdsp_sabrina_reverb_right?.(state.nativeHandle), null);
-      const wet = this.safeFilterNumber(native.soemdsp_sabrina_reverb_wet?.(state.nativeHandle), null);
-      const mono = (left + right) * 0.5;
-      return { Left: left, Mono: mono, Out: mono, Right: right, Wet: wet };
+      const dryLeft = this.safeFilterNumber(leftInput, null);
+      const dryRight = this.safeFilterNumber(rightInput, null);
+      const dryMono = (dryLeft + dryRight) * 0.5;
+      const inputActive = Math.abs(dryLeft) >= 0.000001 || Math.abs(dryRight) >= 0.000001;
+      if (inputActive) {
+        state.isIdle = false;
+        state.idleCounter = 0;
+      }
+      // Bypass mode: reverb is idle, pass dry signal straight through all outputs
+      if (state.isIdle) {
+        return { "Left Dry": dryLeft, "Mono Dry": dryMono, "Right Dry": dryRight, "Left Mix": dryLeft, "Mono Mix": dryMono, "Right Mix": dryRight };
+      }
+      native.soemdsp_sabrina_reverb_process(state.nativeHandle, dryLeft, dryRight);
+      const mixLeft = this.safeFilterNumber(native.soemdsp_sabrina_reverb_left?.(state.nativeHandle), null);
+      const mixRight = this.safeFilterNumber(native.soemdsp_sabrina_reverb_right?.(state.nativeHandle), null);
+      const outputPeak = Math.max(Math.abs(mixLeft), Math.abs(mixRight));
+      if (outputPeak < 0.000001) {
+        state.idleCounter += 1;
+        if (state.idleCounter >= safeRate) {
+          state.isIdle = true;
+        }
+      } else {
+        state.idleCounter = 0;
+      }
+      return { "Left Dry": dryLeft, "Mono Dry": dryMono, "Right Dry": dryRight, "Left Mix": mixLeft, "Mono Mix": (mixLeft + mixRight) * 0.5, "Right Mix": mixRight };
     } catch (error) {
       this.nativeSabrinaReverbReady = false;
       if (state.nativeHandle && native.soemdsp_sabrina_reverb_destroy) {
@@ -4294,6 +4189,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       state.nativeHandle = 0;
       state.nativeParamKey = "";
+      state.idleCounter = 0;
+      state.isIdle = false;
       this.port.postMessage({
         type: "nativeModuleStatus",
         name: "sabrina_reverb",
@@ -4304,57 +4201,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  sabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate) {
+  sabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate, frame = 0) {
     const dryLeft = this.safeFilterNumber(leftInput, null);
     const dryRight = this.safeFilterNumber(rightInput, null);
     const dryMono = (dryLeft + dryRight) * 0.5;
-    if (!this.sabrinaReverbDspEnabled) {
-      return {
-        Left: dryLeft,
-        Mono: dryMono,
-        Out: dryMono,
-        Right: dryRight,
-        Wet: dryMono,
-      };
-    }
-    const nativeOutput = this.nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz);
+    const nativeOutput = this.nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz, frame);
     if (nativeOutput) {
       return nativeOutput;
     }
-    this.sabrinaEnsureState(state, rateHz);
-    const safeParams = {
-      delaySize: this.clampValue(this.safeFilterNumber(params.delaySize, null), 0, 1),
-      diffusionAmount: this.clampValue(this.safeFilterNumber(params.diffusionAmount, null), 0, 0.98),
-      diffusionSize: this.clampValue(this.safeFilterNumber(params.diffusionSize, null), 0, 1),
-      lfoAmplitude: this.clampValue(this.safeFilterNumber(params.lfoAmplitude, null), 0, 1),
-      lfoBaseSpeed: this.clampValue(this.safeFilterNumber(params.lfoBaseSpeed, null), 0, 1),
-      lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
-      mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
-      recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
-    };
-    this.sabrinaApplyParams(state, safeParams);
-    const delays = state.delays;
-    const maxDelaySize = state.maxDelaySize;
-    let left = dryLeft + this.sabrinaDelaySample(delays[12], state.ch1, maxDelaySize) * safeParams.recycle;
-    for (let index = 0; index < 6; index += 1) {
-      left = this.sabrinaDiffuseSample(delays[index * 2], left, maxDelaySize);
-    }
-    let right = dryRight + this.sabrinaDelaySample(delays[13], state.ch0, maxDelaySize) * safeParams.recycle;
-    for (let index = 0; index < 6; index += 1) {
-      right = this.sabrinaDiffuseSample(delays[index * 2 + 1], right, maxDelaySize);
-    }
-    state.ch0 = Number.isFinite(left) ? this.clampValue(left, -16, 16) : 0;
-    state.ch1 = Number.isFinite(right) ? this.clampValue(right, -16, 16) : 0;
-    const leftOutput = state.ch0 * safeParams.mix + dryLeft * (1 - safeParams.mix);
-    const rightOutput = state.ch1 * safeParams.mix + dryRight * (1 - safeParams.mix);
-    const monoOutput = (leftOutput + rightOutput) * 0.5;
-    return {
-      Left: leftOutput,
-      Mono: monoOutput,
-      Out: monoOutput,
-      Right: rightOutput,
-      Wet: (state.ch0 + state.ch1) * 0.5,
-    };
+    return { "Left Dry": dryLeft, "Mono Dry": dryMono, "Right Dry": dryRight, "Left Mix": dryLeft, "Mono Mix": dryMono, "Right Mix": dryRight };
   }
 
   sampleHoldSample(state, input, trigger, threshold) {
@@ -6026,8 +5881,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.reverbEffectStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
         const monoInput = mixInput(nodeId, "In");
-        const leftInput = hasInput(nodeId, "Left") ? mixInput(nodeId, "Left") : monoInput;
-        const rightInput = hasInput(nodeId, "Right") ? mixInput(nodeId, "Right") : leftInput;
+        const leftInput = mixInput(nodeId, "Left") + monoInput;
+        const rightInput = mixInput(nodeId, "Right") + monoInput;
         value = this.sabrinaReverbSample(
           state,
           leftInput,
@@ -6043,6 +5898,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             recycle: read("recycle", 0.70),
           },
           safeRate,
+          frame,
         );
       } else if (node?.type === "slewLimiter") {
         const state = this.slewLimiterStates.get(nodeId) || this.createSlewLimiterState();

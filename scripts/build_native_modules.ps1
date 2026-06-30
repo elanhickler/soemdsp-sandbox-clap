@@ -39,6 +39,8 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_sabrina_reverb_left" `
   "-Wl,--export=soemdsp_sabrina_reverb_right" `
   "-Wl,--export=soemdsp_sabrina_reverb_wet" `
+  "-Wl,--export=soemdsp_sabrina_reverb_wet_left" `
+  "-Wl,--export=soemdsp_sabrina_reverb_wet_right" `
   "-Wl,--export=soemdsp_sabrina_reverb_version" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\sabrina_reverb\sabrina_reverb.wasm" `

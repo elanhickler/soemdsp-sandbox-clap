@@ -960,6 +960,22 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   }
 }
 
+function updateNodeGraphLiveRuntimeConnections(runtime, plan) {
+  runtime.inputConnections = nodeGraphLiveInputConnectionMap(plan);
+  runtime.graphInputConnections = nodeGraphLiveGraphInputConnectionMap(plan);
+  runtime.modulationConnections = nodeGraphLiveModulationConnectionMap(plan);
+  runtime.outputNode = plan.outputNode || runtime.outputNode || "output";
+  runtime.scopeCaptureNodeIds = [...(plan.scopeCaptureNodeIds || [])];
+  runtime.visualSinks = (plan.visualSinks || []).map((sink) => ({
+    ...sink,
+    bufferedInputs: [...(sink.bufferedInputs || [])],
+    inputs: (sink.inputs || []).map((input) => ({ ...input })),
+  }));
+  if (typeof syncNodeGraphVisualInputBuffers === "function") {
+    syncNodeGraphVisualInputBuffers(runtime);
+  }
+}
+
 function updateNodeGraphLiveRuntimeParameters(runtime, nodes) {
   if (!runtime) {
     return;

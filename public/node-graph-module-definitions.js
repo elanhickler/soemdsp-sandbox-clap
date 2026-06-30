@@ -1382,8 +1382,9 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   reverbEffect: {
+    displayType: "trace",
     inputs: ["In", "Left", "Right"],
-    outputs: ["Out", "Mono", "Left", "Right", "Wet"],
+    outputs: ["Mono Dry", "Left Dry", "Right Dry", "Mono Mix", "Left Mix", "Right Mix"],
     parameters: [
       { defaultValue: "0.43", key: "mix", label: "Mix", max: "1", mid: "0.43", min: "0", nonlinearSlider: false, step: "any" },
       { defaultValue: "0.35", key: "diffusionSize", label: "Diff Size", max: "1", mid: "0.35", min: "0", nonlinearSlider: false, step: "any" },
@@ -2136,6 +2137,7 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "stereoNoise",
     "noise",
     "output",
+    "reverbEffect",
   ]);
   return inputCapableSources.has(type);
 }

@@ -252,6 +252,38 @@ function handleNodeGraphTapTempo() {
   });
 }
 
+function createNodeGraphHeaderRenderRangeInput(className, label, defaultValue, options = {}) {
+  const field = document.createElement("label");
+  field.className = "node-header-timing-field node-header-render-range-field";
+  field.setAttribute("aria-label", options.ariaLabel || label);
+  if (options.tooltip) field.title = options.tooltip;
+
+  const caption = document.createElement("span");
+  caption.className = "node-header-timing-caption";
+  caption.textContent = label;
+  field.append(caption);
+
+  const input = document.createElement("input");
+  input.className = `node-header-timing-input ${className}`;
+  input.inputMode = "decimal";
+  input.min = String(options.min ?? 0);
+  input.max = String(options.max ?? 3600);
+  input.step = "0.05";
+  input.type = "number";
+  input.value = formatNodeSliderCompactNumber(defaultValue);
+  input.setAttribute("aria-label", options.ariaLabel || label);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { input.blur(); }
+    event.stopPropagation();
+  });
+  input.addEventListener("change", handleNodeGraphRenderRangeInput);
+  input.addEventListener("blur", handleNodeGraphRenderRangeInput);
+  input.addEventListener("pointerdown", (event) => event.stopPropagation());
+  field.append(input);
+
+  return field;
+}
+
 function createNodeGraphHeaderTimingWidgets() {
   const group = document.createElement("div");
   group.className = "node-header-timing-widgets";
@@ -276,6 +308,8 @@ function createNodeGraphHeaderTimingWidgets() {
       },
     ),
     createNodeGraphHeaderSpeedPlaceholder(),
+    createNodeGraphHeaderRenderRangeInput("node-header-render-start-input", "Start", nodeGraphMvp.renderStartSeconds ?? 0, { ariaLabel: "Render start time in seconds", min: 0, max: 3599, tooltip: "Sets the Render Sample start point (seconds)" }),
+    createNodeGraphHeaderRenderRangeInput("node-header-render-end-input", "End", nodeGraphMvp.renderEndSeconds ?? (nodeGraphMvp.seconds ?? 2), { ariaLabel: "Render end time in seconds", min: 0.05, max: 3600, tooltip: "Sets the Render Sample end point (seconds)" }),
   );
   return group;
 }
@@ -315,6 +349,7 @@ function renderNodeGraphPatchTimingControls() {
   }
   bindNodeGraphHeaderTimingWidgets(host);
   syncNodeGraphHeaderTimingWidgets();
+  syncNodeGraphRenderRangeToUI();
 }
 
 function createNodeGraphModuleHeader(type, node, definition) {

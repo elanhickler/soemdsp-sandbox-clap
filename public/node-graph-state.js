@@ -264,6 +264,8 @@ var nodeGraphMvp = {
   selected: null,
   sampleRate: 44100,
   seconds: 2,
+  renderStartSeconds: 0,
+  renderEndSeconds: 2,
   sceneContextDragging: null,
   sceneContextResizing: null,
   sceneContextWindowSize: null,

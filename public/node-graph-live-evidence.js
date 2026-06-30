@@ -19,6 +19,9 @@ function setNodeGraphLiveEvidence(kind = "idle", details = {}) {
     kind,
     matchesCurrentPatch: patchFingerprint ? patchFingerprint === currentPatchFingerprint : false,
     message: String(details.message || ""),
+    issues: Array.isArray(details.issues) ? details.issues.map((issue) => String(issue)) : [],
+    stack: String(details.stack || ""),
+    action: String(details.action || ""),
     modulationCount: Number(details.modulationCount ?? planEvidence.modulationCount) || 0,
     nodeCount: Number(details.nodeCount ?? planEvidence.nodeCount) || 0,
     oversamplingRatio: Number(details.oversamplingRatio ?? planEvidence.oversamplingRatio) || 1,
@@ -135,18 +138,35 @@ function nodeGraphRecordBadValueEvent(details = {}) {
 
 function setNodeGraphLiveBlockedError(kind, error, options = {}) {
   const message = error?.message || "unknown issue";
+  const issues = Array.isArray(error?.issues) && error.issues.length
+    ? error.issues.map((issue) => String(issue))
+    : [message];
+  const action = options.preservePreviousPlan
+    ? "previous live plan preserved"
+    : "live plan stopped";
+  const detail = [
+    `${kind} blocked: ${message}`,
+    action,
+    ...issues.map((issue) => `- ${issue}`),
+  ].filter(Boolean).join("\n");
   setNodeGraphLiveEvidence(`${kind}-blocked`, {
+    action,
+    issues,
     message,
     patchFingerprint: nodeGraphPatchFingerprint(),
+    stack: String(error?.stack || ""),
   });
   setNodeGraphLivePlanStatus(nodeGraphLiveBlockedStatusText(kind, error), "warn");
-  setNodeGraphLivePlanTitle(message);
+  setNodeGraphLivePlanTitle(detail);
   setNodeGraphLiveInputMeter();
   setNodeGraphLiveMeter();
   if (options.schedule !== false) {
-    setNodeGraphLiveScheduleStatus(`schedule blocked: ${message}`, "warn");
+    const scheduleText = options.preservePreviousPlan
+      ? `schedule blocked; previous plan preserved: ${message}`
+      : `schedule blocked: ${message}`;
+    setNodeGraphLiveScheduleStatus(scheduleText, "warn");
   }
   setNodeGraphLiveStatus("error", "warn");
-  document.getElementById("nodeLiveStatus").title = message;
+  document.getElementById("nodeLiveStatus").title = detail;
   renderNodeGraphLiveControls(Boolean(nodeGraphMvp.live.node));
 }

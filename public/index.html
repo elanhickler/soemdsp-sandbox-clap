@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=evidence-selectable-0171">
+  <link rel="stylesheet" href="./public/styles.css?v=build-selectable-20260641">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
     <div class="node-boot-loading-panel">
-      <span id="nodeBootLoadingLabel" class="node-boot-loading-label">loading</span>
+      <div class="node-boot-loading-center">
+        <span id="nodeBootLoadingLabel" class="node-boot-loading-label">loading</span>
+      </div>
       <div
         class="node-boot-loading-bar"
         role="progressbar"
@@ -19,6 +21,9 @@
         aria-valuenow="8">
         <span id="nodeBootLoadingBarFill" style="width: 8%;"></span>
       </div>
+      <span class="node-boot-build-number">v0.1.0 &nbsp;·&nbsp; build 20260642</span>
+      <div id="nodeBootSysinfo" class="node-boot-sysinfo"></div>
+      <div id="nodeBootLoadingMessages" class="node-boot-loading-messages" aria-live="polite"></div>
     </div>
   </div>
   <div
@@ -170,10 +175,9 @@
           <span
             id="nodeBuildNumberReadout"
             class="node-build-number-readout"
-            aria-label="Build number 0171"
-            title="Build number 0171">
-            <span>B</span>
-            <span data-build-number-value>0171</span>
+            aria-label="Build number B20260642"
+            title="Build number B20260642">
+            <span data-build-number-value>B20260642</span>
           </span>
           <button id="nodeVisibilityMenuButton" type="button" aria-pressed="false" aria-haspopup="menu">Visibility</button>
         </div>
@@ -230,9 +234,45 @@
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
-          <div class="node-patch-clipboard-controls node-saved-patches-clipboard-row" role="group" aria-label="Patch clipboard">
-            <button id="nodeSavedPatchesCopyPatch" type="button" aria-label="Copy patch" title="Copy patch">Copy</button>
-            <button id="nodeSavedPatchesPastePatch" type="button" aria-label="Paste patch" title="Paste patch">Paste</button>
+          <div class="node-patch-step-controls" role="group" aria-label="Patch navigation">
+            <button id="nodePreviousSavedPatchButton" type="button" aria-label="Load previous saved patch">&larr;</button>
+            <button id="nodeNextSavedPatchButton" type="button" aria-label="Load next saved patch">&rarr;</button>
+          </div>
+          <div class="node-patch-save-controls" role="group" aria-label="Patch save controls">
+            <button id="nodePatchInitButton" type="button">Init</button>
+            <button id="nodePatchSaveButton" type="button">Save</button>
+            <button id="nodePatchShareLinkButton" type="button">Share</button>
+            <button id="nodePatchEditButton" type="button">Edit</button>
+            <button id="nodePatchCopyButton" type="button" aria-label="Copy patch" title="Copy patch">Copy</button>
+            <button id="nodePatchPasteButton" type="button" aria-label="Paste patch" title="Paste patch">Paste</button>
+          </div>
+          <div class="node-patch-header-fields">
+            <label for="nodePatchNameHeader">Name</label>
+            <input
+              id="nodePatchNameHeader"
+              class="node-patch-header-field name"
+              type="text"
+              autocomplete="off"
+              aria-label="Patch name"
+              data-patch-header-info-field="name">
+            <label for="nodePatchBankNameHeader">Category</label>
+            <input
+              id="nodePatchBankNameHeader"
+              class="node-patch-header-field bank"
+              type="text"
+              autocomplete="off"
+              placeholder="Bank name"
+              aria-label="Patch bank name"
+              data-patch-bank-name-field>
+            <label for="nodePatchTagsHeader">Tags</label>
+            <input
+              id="nodePatchTagsHeader"
+              class="node-patch-header-field tags"
+              type="text"
+              autocomplete="off"
+              placeholder="Tags"
+              aria-label="Patch tags"
+              data-patch-header-info-field="tags">
           </div>
           <div
             id="nodeSavedPatchWindowList"
@@ -588,17 +628,9 @@
         </div>
         <div class="node-script-actions" aria-label="Patch script editor actions">
           <button
-            id="copyNodeGraphScriptButton"
-            type="button"
-            data-tooltip-key="script.copy">Copy</button>
-          <button
             id="downloadNodeGraphScriptButton"
             type="button"
             data-tooltip-key="script.save">Save Patch</button>
-          <button
-            id="pasteNodeGraphScriptButton"
-            type="button"
-            data-tooltip-key="script.paste">Paste</button>
           <output id="nodeScriptStatus" class="pill" aria-live="polite">script ready</output>
         </div>
         <div class="node-preset-controls" aria-label="Browser patch presets">
@@ -2169,50 +2201,7 @@
       </div>
       <div id="nodeScopeContextMenu" hidden></div>
 
-      <section class="audio-panel node-sample-panel" aria-label="Patch controls">
-        <div class="node-sample-identity">
-          <div class="node-patch-step-controls" role="group" aria-label="Patch navigation">
-            <button id="nodePreviousSavedPatchButton" type="button" aria-label="Load previous saved patch">&larr;</button>
-            <button id="nodeNextSavedPatchButton" type="button" aria-label="Load next saved patch">&rarr;</button>
-          </div>
-          <button
-            id="nodeCurrentSavedPatchButton"
-            class="node-current-saved-patch-button"
-            type="button"
-            aria-label="Open patch explorer"><span>Patch</span><strong>Unsaved</strong></button>
-          <div class="node-patch-save-controls" role="group" aria-label="Patch save controls">
-            <button id="nodePatchInitButton" type="button">Init</button>
-            <button id="nodePatchSaveButton" type="button">Save</button>
-            <button id="nodePatchShareLinkButton" type="button">Share</button>
-          </div>
-          <div class="node-patch-header-fields">
-            <input
-              id="nodePatchBankNameHeader"
-              class="node-patch-header-field bank"
-              type="text"
-              autocomplete="off"
-              placeholder="Bank name"
-              aria-label="Patch bank name"
-              data-patch-bank-name-field>
-            <input
-              id="nodePatchNameHeader"
-              class="node-patch-header-field name"
-              type="text"
-              autocomplete="off"
-              aria-label="Patch name"
-              data-patch-header-info-field="name">
-            <input
-              id="nodePatchTagsHeader"
-              class="node-patch-header-field tags"
-              type="text"
-              autocomplete="off"
-              placeholder="Tags"
-              aria-label="Patch tags"
-              data-patch-header-info-field="tags">
-          </div>
-          <h2 id="audioTitle"></h2>
-        </div>
-      </section>
+      <h2 id="audioTitle" hidden></h2>
 
       <div class="node-graph-controls">
         <button
@@ -2252,19 +2241,9 @@
             <span>(Off)</span>
           </button>
         </div>
-        <label class="node-render-duration-control">
+        <div class="node-render-duration-control">
           <button id="nodeRenderButton" type="button">Render Sample</button>
-          <span>Seconds</span>
-          <input
-            id="nodeRenderSecondsValue"
-            type="number"
-            min="0.05"
-            max="60"
-            step="0.05"
-            value="2"
-            inputmode="decimal"
-            aria-label="Render sample length in seconds">
-        </label>
+        </div>
         <div class="node-patch-audio-player-row">
           <audio id="audioPlayer" controls preload="metadata"></audio>
         </div>
@@ -3047,24 +3026,24 @@
   <script src="./public/node-graph-ui-settings-persistence.js?v=0075"></script>
   <script src="./public/node-graph-ui-settings-sync.js?v=floating-window-header-height-1"></script>
   <script src="./public/node-graph-keyboard-shortcuts.js?v=shift-height-resize-1"></script>
-  <script src="./public/node-graph-live-status-text.js?v=sample-rate-oversampling-1780468200000"></script>
+  <script src="./public/node-graph-live-status-text.js?v=live-plan-preserve-20260634"></script>
   <script src="./public/node-graph-live-status-controls.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-live-meter-controls.js?v=audio-overrun-meter-2"></script>
   <script src="./public/node-graph-live-input-status.js?v=slider-unit-color-1780307400000"></script>
-  <script src="./public/node-graph-live-evidence.js?v=sample-rate-oversampling-1780468200000"></script>
-  <script src="./public/node-graph-live-control-rendering.js?v=ear-protection-reset-1"></script>
+  <script src="./public/node-graph-live-evidence.js?v=live-plan-preserve-20260634"></script>
+  <script src="./public/node-graph-live-control-rendering.js?v=stable-live-buttons-20260641"></script>
   <script src="./public/node-graph-default-patch.js?v=content-height-only-1"></script>
   <script src="./public/node-graph-state.js?v=shooting-star-placeholders-1"></script>
   <script src="./public/node-graph-external-ui-events.js?v=shooting-star-event-0164"></script>
-  <script src="./public/node-graph-patch-core.js?v=0025"></script>
-  <script src="./public/node-graph-live-plan-runtime.js?v=sabrina-reverb-0170"></script>
+  <script src="./public/node-graph-patch-core.js?v=wire-fast-lane-20260641"></script>
+  <script src="./public/node-graph-live-plan-runtime.js?v=connection-update-20260642"></script>
   <script src="./public/node-graph-live-parameter-runtime.js?v=unbounded-speed-1"></script>
   <script src="./public/node-graph-oscillator-runtime.js?v=0147"></script>
   <script src="./public/node-graph-gpu-additive-backend.js?v=external-graph-inputs-1780816800000"></script>
   <script src="./public/node-graph-jerobeam-spiral.js?v=node-graph-jerobeam-spiral-refactor-1780371000000"></script>
   <script src="./public/node-graph-lorenz-attractor.js?v=lorenz-unbounded-speed-1"></script>
   <script src="./public/node-graph-live-frame-evaluator.js?v=sabrina-reverb-0170"></script>
-  <script src="./public/node-graph-live-runtime.js?v=sabrina-reverb-0170"></script>
+  <script src="./public/node-graph-live-runtime.js?v=connection-update-20260642"></script>
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=wire-break-trigger-0129"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=mobile-pinch-zoom-1"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=beta-polish-1"></script>

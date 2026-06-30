@@ -44,6 +44,9 @@ struct SabrinaDelay {
   double modInc;
   double modSpeed;
   double lfopercent;
+  // Stored random values so applyParams can reuse them without advancing the RNG
+  double rndOffset;
+  double rndMod;
 };
 
 struct SabrinaState {
@@ -79,12 +82,14 @@ void clearDelay(SabrinaDelay& delay) {
   }
 }
 
+// Uses stored rndOffset — safe to call repeatedly without changing the random sequence
 void setOffsetSize(SabrinaDelay& delay, double size, double maxDelaySize) {
-  delay.offset = maxDelaySize * rnd(delay) * (size * 0.1 + 0.0000001) + 1.0;
+  delay.offset = maxDelaySize * delay.rndOffset * (size * 0.1 + 0.0000001) + 1.0;
 }
 
+// Uses stored rndMod — safe to call repeatedly without changing the random sequence
 void initializeMod(SabrinaDelay& delay, double lfoSeconds, double lfoVariation, double sampleRate) {
-  const double seconds = lfoSeconds + rnd(delay) * lfoVariation;
+  const double seconds = lfoSeconds + delay.rndMod * lfoVariation;
   delay.modSpeed = (1.0 / (seconds > 0.000001 ? seconds : 0.000001)) / sampleRate;
 }
 
@@ -97,9 +102,12 @@ void initializeDelay(SabrinaDelay& delay, int seed, double sampleRate) {
   rnd(delay);
   rnd(delay);
   rnd(delay);
-  setOffsetSize(delay, 0.06, sampleRate * 4.0);
+  // Consume and store the random values that applyParams will need
+  delay.rndOffset = rnd(delay);
+  delay.rndMod = rnd(delay);
   delay.modInc = 0.0;
   delay.lfopercent = 0.0;
+  setOffsetSize(delay, 0.06, sampleRate * 4.0);
   initializeMod(delay, 1.0, 0.001, sampleRate);
 }
 
@@ -277,6 +285,16 @@ extern "C" double soemdsp_sabrina_reverb_right(int handle) {
 extern "C" double soemdsp_sabrina_reverb_wet(int handle) {
   SabrinaState* state = stateForHandle(handle);
   return state ? state->lastWet : 0.0;
+}
+
+extern "C" double soemdsp_sabrina_reverb_wet_left(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? state->ch0 : 0.0;
+}
+
+extern "C" double soemdsp_sabrina_reverb_wet_right(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? state->ch1 : 0.0;
 }
 
 extern "C" int soemdsp_sabrina_reverb_version() {
