@@ -157,6 +157,16 @@ function nodeGraphCssColor(property, fallback) {
 
 function nodeGraphPortWireColor(node, port, io) {
   const canonicalPort = nodeGraphCanonicalPortForNode(node, port, io);
+  // Digital signal (12-bit bitmask) ports get a black-to-white wire instead
+  // of the usual role color -- see the .node-io-row[data-digital-signal]
+  // CSS for the matching color-inverted port taps.
+  const patchNodeType = nodeGraphPatchNode(node)?.type;
+  if (patchNodeType === "turingMachine" && canonicalPort === "Scale" && io === "output") {
+    return "#000000";
+  }
+  if (patchNodeType === "pitchQuantizer" && canonicalPort === "Scale" && io === "input") {
+    return "#ffffff";
+  }
   if (io === "input") {
     return nodeGraphCssColor("--node-input-fill", "#7fc7d9");
   }
