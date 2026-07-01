@@ -61,8 +61,9 @@ function nodeGraphShootingStarExplosionEventSample(runtime) {
     return { Pulse: 0 };
   }
   const pulseSamples = Math.max(0, Number(event.pulseSamples) || 0);
+  const power = Math.max(0, Math.min(1, Number(event.power ?? 1) || 0));
   event.pulseSamples = Math.max(0, pulseSamples - 1);
-  return { Pulse: pulseSamples > 0 ? 1 : 0 };
+  return { Pulse: pulseSamples > 0 ? power : 0 };
 }
 
 function nodeGraphWindowReopenEventSample(runtime) {

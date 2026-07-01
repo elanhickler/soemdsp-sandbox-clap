@@ -370,7 +370,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       return;
     }
     if (message.type === "shootingStarExplosionEvent") {
-      this.setShootingStarExplosionEvent();
+      this.setShootingStarExplosionEvent(message.power);
       return;
     }
   }
@@ -1391,11 +1391,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return { Pulse: pulseSamples > 0 ? 1 : 0 };
   }
 
-  setShootingStarExplosionEvent() {
+  setShootingStarExplosionEvent(power = 1) {
     const event = this.shootingStarExplosionEvent && typeof this.shootingStarExplosionEvent === "object"
       ? this.shootingStarExplosionEvent
-      : { pulseSamples: 0 };
+      : { pulseSamples: 0, power: 1 };
     event.pulseSamples = Math.max(0, Number(event.pulseSamples) || 0) + 1;
+    const normalizedPower = Number(power);
+    event.power = Number.isFinite(normalizedPower) ? Math.max(0, Math.min(1, normalizedPower)) : 1;
     this.shootingStarExplosionEvent = event;
   }
 
@@ -1404,9 +1406,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       ? this.shootingStarExplosionEvent
       : { pulseSamples: 0 };
     const pulseSamples = Math.max(0, Number(event.pulseSamples) || 0);
+    const power = Math.max(0, Math.min(1, Number(event.power ?? 1) || 0));
     event.pulseSamples = Math.max(0, pulseSamples - 1);
     this.shootingStarExplosionEvent = event;
-    return { Pulse: pulseSamples > 0 ? 1 : 0 };
+    return { Pulse: pulseSamples > 0 ? power : 0 };
   }
 
   windowReopenGateSamples() {

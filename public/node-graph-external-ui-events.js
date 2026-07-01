@@ -183,29 +183,38 @@ function triggerNodeGraphWireDisconnectEvent(reason = "") {
   return scheduleNodeGraphLiveGameTriggerEvent(sendNodeGraphLiveWireDisconnectEvent, reason);
 }
 
-function setNodeGraphShootingStarExplosionEventPulse(target, sampleRate) {
+function nodeGraphShootingStarExplosionEventPower(payload) {
+  const power = Number(payload?.power);
+  return Number.isFinite(power) ? Math.max(0, Math.min(1, power)) : 1;
+}
+
+function setNodeGraphShootingStarExplosionEventPulse(target, sampleRate, power = 1) {
   if (!target || typeof target !== "object") {
     return false;
   }
   const event = target.shootingStarExplosionEvent && typeof target.shootingStarExplosionEvent === "object"
     ? target.shootingStarExplosionEvent
-    : { pulseSamples: 0 };
+    : { pulseSamples: 0, power: 1 };
   event.pulseSamples = Math.max(0, Number(event.pulseSamples) || 0) + 1;
+  event.power = Math.max(0, Math.min(1, Number(power) || 0));
   target.shootingStarExplosionEvent = event;
   return true;
 }
 
 function sendNodeGraphLiveShootingStarExplosionEvent(payload = {}) {
   const eventPayload = payload && typeof payload === "object" ? payload : {};
+  const power = nodeGraphShootingStarExplosionEventPower(eventPayload);
   if (nodeGraphMvp.live.runtime) {
     setNodeGraphShootingStarExplosionEventPulse(
       nodeGraphMvp.live.runtime,
       nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
+      power,
     );
   }
   if (nodeGraphMvp.live.usesWorklet && nodeGraphMvp.live.node?.port) {
     nodeGraphMvp.live.node.port.postMessage({
       payload: eventPayload,
+      power,
       type: "shootingStarExplosionEvent",
     });
   }
