@@ -3565,7 +3565,7 @@ function nodeGraphTraceDisplaySettingsElement() {
       <div class="metadata-field-section node-trace-display-trace-section">
         <label class="metadata-checkbox-label node-trace-display-sync-row">
           <input id="nodeTraceDisplaySourceSync" type="checkbox" data-trace-display-toggle="sourceSync">
-          Sync (work in progress)
+          Sync
         </label>
         <label class="node-trace-display-line-burn-row">
           <span>Burn</span>
@@ -6009,11 +6009,77 @@ function nodeGraphTraceDisplayVisibleSamples(buffer, settings) {
   return Math.max(0, Math.min(buffer.length, Math.round(requestedSamples)));
 }
 
+// Re-anchoring the trigger from scratch every frame (nearest zero-crossing to
+// the buffer tail) looks fine for a perfectly stable tone, but for anything
+// less clean -- noise, FM, a slowly evolving waveform -- the "nearest
+// crossing" can land on a different cycle each frame, reading as constant
+// jitter instead of a locked trace. This holds the previous lock's absolute
+// phase and only re-searches when the lock is actually lost (period drifted
+// too far, the window size changed, or the predicted position fell out of
+// range). The buffer is a fixed-capacity scrolling window (old samples are
+// shifted out as new ones arrive, so a fixed index does NOT mean a fixed
+// point in time) -- nodeGraphScopeTotalSampleCount is the only thing that
+// tracks how far the window has actually scrolled since the last lock, so
+// the predicted anchor is shifted by exactly that amount, then folded back
+// into range by whole periods (which preserves phase).
+function nodeGraphTraceDisplayStabilizedSyncStart(buffer, syncBuffer, cycleEstimate, visibleSamples, validStart, validEnd) {
+  const periodSamples = Number(cycleEstimate?.periodSamples) || 0;
+  if (!(periodSamples > 0)) {
+    return null;
+  }
+  const prevStart = Number(buffer.nodeGraphScopeLastSyncStart);
+  const prevPeriod = Number(buffer.nodeGraphScopeLastSyncPeriod);
+  const prevVisibleSamples = Number(buffer.nodeGraphScopeLastSyncVisibleSamples);
+  const prevTotalSampleCount = Number(buffer.nodeGraphScopeLastSyncTotalSampleCount);
+  const totalSampleCount = Number(buffer.nodeGraphScopeTotalSampleCount);
+  const elapsed = Number.isFinite(prevTotalSampleCount) && Number.isFinite(totalSampleCount)
+    ? totalSampleCount - prevTotalSampleCount
+    : NaN;
+  const periodDrift = Number.isFinite(prevPeriod) && prevPeriod > 0
+    ? Math.abs(periodSamples - prevPeriod) / prevPeriod
+    : Infinity;
+  if (
+    Number.isFinite(prevStart) &&
+    Number.isFinite(elapsed) &&
+    elapsed >= 0 &&
+    prevVisibleSamples === visibleSamples &&
+    periodDrift < 0.15
+  ) {
+    let predicted = prevStart - elapsed;
+    if (predicted < validStart) {
+      predicted += Math.ceil((validStart - predicted) / periodSamples) * periodSamples;
+    }
+    if (predicted + visibleSamples > validEnd) {
+      predicted -= Math.ceil((predicted + visibleSamples - validEnd) / periodSamples) * periodSamples;
+    }
+    if (predicted >= validStart && predicted + visibleSamples <= validEnd) {
+      buffer.nodeGraphScopeLastSyncStart = predicted;
+      buffer.nodeGraphScopeLastSyncPeriod = periodSamples;
+      buffer.nodeGraphScopeLastSyncVisibleSamples = visibleSamples;
+      buffer.nodeGraphScopeLastSyncTotalSampleCount = totalSampleCount;
+      return predicted;
+    }
+  }
+  const reacquired = nodeGraphTraceDisplaySyncedStart(
+    syncBuffer || buffer,
+    cycleEstimate,
+    visibleSamples,
+    validStart,
+    validEnd,
+  );
+  if (reacquired !== null) {
+    buffer.nodeGraphScopeLastSyncStart = reacquired;
+    buffer.nodeGraphScopeLastSyncPeriod = periodSamples;
+    buffer.nodeGraphScopeLastSyncVisibleSamples = visibleSamples;
+    buffer.nodeGraphScopeLastSyncTotalSampleCount = totalSampleCount;
+  }
+  return reacquired;
+}
+
 function nodeGraphTraceDisplayBufferView(buffer, slot) {
   const settings = nodeGraphTraceDisplaySettingsForSlot(slot);
   const zoomEditActive = Boolean(nodeGraphMvp?.traceDisplayZoomEditActive);
   const syncBuffer = nodeGraphModuleScopeSyncBuffer(buffer);
-  const estimatedCycle = null;
   const availableSamples = nodeGraphScopeAvailableSampleCount(buffer);
   const validEnd = buffer.length;
   const validStart = availableSamples > 0
@@ -6022,9 +6088,13 @@ function nodeGraphTraceDisplayBufferView(buffer, slot) {
   const validSamples = Math.max(0, validEnd - validStart);
   const visibleSamples = Math.min(validSamples, nodeGraphTraceDisplayVisibleSamples(buffer, settings));
   let start = Math.max(validStart, validEnd - visibleSamples);
+  const estimatedCycle = settings.sourceSync && !zoomEditActive && visibleSamples < validSamples
+    ? nodeGraphModuleScopeEstimatedCycle(syncBuffer || buffer)
+    : null;
   if (settings.sourceSync && !zoomEditActive && estimatedCycle && visibleSamples < validSamples) {
-    const triggeredStart = nodeGraphTraceDisplaySyncedStart(
-      syncBuffer || buffer,
+    const triggeredStart = nodeGraphTraceDisplayStabilizedSyncStart(
+      buffer,
+      syncBuffer,
       estimatedCycle,
       visibleSamples,
       validStart,

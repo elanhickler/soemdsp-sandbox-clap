@@ -14132,14 +14132,23 @@ def require_node_graph_mvp_contract() -> None:
         "function setNodeGraphTraceDisplayZoomEditActive(active)" in node_graph_source
         and "nodeGraphMvp.traceDisplayZoomEditActive = Boolean(active)" in node_graph_source
         and "const zoomEditActive = Boolean(nodeGraphMvp?.traceDisplayZoomEditActive)" in node_graph_source
-        and "const estimatedCycle = null" in node_graph_source
         and 'input.dataset.traceDisplayField === "zoomSeconds"' in node_graph_source,
-        "Trace sync should stay WIP-disabled so zoom edits do not re-trigger anchoring",
+        "Trace display zoom edits should still suppress sync re-triggering while actively dragging/typing",
+    )
+    require(
+        "function nodeGraphTraceDisplayStabilizedSyncStart(buffer, syncBuffer, cycleEstimate, visibleSamples, validStart, validEnd)" in node_graph_source
+        and "buffer.nodeGraphScopeLastSyncStart" in node_graph_source
+        and "buffer.nodeGraphScopeLastSyncTotalSampleCount" in node_graph_source
+        and "totalSampleCount - prevTotalSampleCount" in node_graph_source
+        and "periodDrift < 0.15" in node_graph_source,
+        "Trace sync should hold the previous lock's absolute phase (via nodeGraphScopeTotalSampleCount) across frames, "
+        "not re-anchor from scratch every frame -- otherwise a scrolling buffer makes the trigger jump constantly",
     )
     require(
         "Sync to source" not in node_graph_source
-        and "Sync (work in progress)" in node_graph_source,
-        "Trace settings source-sync label should be clearly marked WIP",
+        and "Sync (work in progress)" not in node_graph_source
+        and '>\n          Sync\n        </label>' in node_graph_source,
+        "Trace settings source-sync label should no longer be marked WIP now that trigger-hold is implemented",
     )
     require(
         "nodeGraphModuleLabel(" not in node_graph_source,
