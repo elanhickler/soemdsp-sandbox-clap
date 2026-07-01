@@ -128,6 +128,7 @@ let nodeGraphNativeModuleEntriesByTarget = Object.freeze({});
 let nodeGraphNativeModuleCatalogLoadStarted = false;
 
 const nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([
+  "canvas",
   "graph",
   "graph2",
   "groupInput",

@@ -12770,7 +12770,7 @@ def require_node_graph_mvp_contract() -> None:
     require('"scope2d"' in module_store_source and 'label: "2D Burn"' in module_store_source, "2D Burn oscilloscope should exist")
     require('"scope2dTrace"' in module_store_source and 'label: "2D Trace"' in module_store_source, "2D Trace oscilloscope should exist")
     require('"dotOscilloscope",\n  "valueOscilloscope",\n  "numberReadout",\n  "lineBurnOscilloscope",\n  "scope2d",\n  "scope2dTrace"' in module_store_source, "Oscilloscope modules should be listed together")
-    require('nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([\n  "graph",\n  "graph2",\n  "groupInput",\n  "groupOutput",\n  "shootingStarTail",\n]));' in module_store_source, "Graph modules, group portals, and shooting star tail should be under construction in the store set")
+    require('nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([\n  "canvas",\n  "graph",\n  "graph2",\n  "groupInput",\n  "groupOutput",\n  "shootingStarTail",\n]));' in module_store_source, "Canvas, graph modules, group portals, and shooting star tail should be under construction in the store set")
     for oscilloscope_type in ["dotOscilloscope", "valueOscilloscope", "numberReadout", "lineBurnOscilloscope", "scope2d", "scope2dTrace"]:
         require(f"{oscilloscope_type}: {{" in module_definitions_source, f"{oscilloscope_type} should have a spawnable module definition")
     require('displayType: "dot"' in module_definitions_source, "0D Burn oscilloscope should declare dot display type")
