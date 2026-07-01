@@ -121,6 +121,8 @@ let nodeGraphNativeModuleEntriesByTarget = Object.freeze({});
 let nodeGraphNativeModuleCatalogLoadStarted = false;
 
 const nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([
+  "graph",
+  "graph2",
   "groupInput",
   "groupOutput",
   "shootingStarTail",
@@ -155,7 +157,7 @@ const nodeGraphModuleStoreDepartments = Object.freeze([
 const nodeGraphModuleStoreVisualGroups = Object.freeze([
   {
     label: "Generate",
-    departments: Object.freeze(["Oscillator", "Chaos", "Jerobeam", "Noise", "Drum", "Sequence", "Envelope"]),
+    departments: Object.freeze(["Oscillator", "Chaos", "Jerobeam", "Noise", "Drum", "Envelope"]),
   },
   {
     label: "Process",
@@ -163,7 +165,7 @@ const nodeGraphModuleStoreVisualGroups = Object.freeze([
   },
   {
     label: "Memory",
-    departments: Object.freeze(["Audio", "Delay", "Loops", "Samples"]),
+    departments: Object.freeze(["Audio", "Delay", "Loops", "Samples", "Sequence"]),
   },
   {
     label: "Interact",
