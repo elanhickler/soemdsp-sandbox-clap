@@ -10631,11 +10631,16 @@ audio {
 }
 
 .node-io-row {
-  display: grid;
-  align-items: center;
-  gap: var(--node-io-label-gap);
+  /* The port hit-box is a fixed-size overlay (see .node-io-row .node-port
+     below), not a grid track — the label is plain text that gets the row's
+     full width, with just enough padding to clear the port visually. This
+     keeps the hit-box stable without the label's available width depending
+     on how the port element happens to render. */
+  position: relative;
+  display: block;
   min-width: 0;
   max-width: 100%;
+  width: 100%;
   color: var(--muted);
   font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
   font-size: 0.84rem;
@@ -10645,20 +10650,34 @@ audio {
 }
 
 .node-io-row.input {
-  grid-template-columns: auto minmax(0, 1fr);
   justify-self: start;
-  width: 100%;
+  padding-left: calc(var(--node-signal-port-width) + var(--node-io-label-gap));
   text-align: left;
 }
 
 .node-io-row.output {
-  grid-template-columns: minmax(0, 1fr) auto;
   justify-self: end;
-  width: 100%;
+  padding-right: calc(var(--node-signal-port-width) + var(--node-io-label-gap));
   text-align: right;
 }
 
+.node-io-row .node-port {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.node-io-row.input .node-port {
+  left: 0;
+}
+
+.node-io-row.output .node-port {
+  right: 0;
+}
+
 .node-io-label {
+  display: block;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: clip;
