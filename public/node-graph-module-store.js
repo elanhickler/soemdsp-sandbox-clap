@@ -25,6 +25,14 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "chordSequencer",
   "arpeggiator",
   "spiral",
+  "blubb",
+  "boing",
+  "keplerBoukamp",
+  "mushroom",
+  "nyquistShannon",
+  "radar",
+  "torus",
+  "wirdoSpiral",
   "lorenzAttractor",
   "rosslerAttractor",
   "chuaAttractor",
@@ -147,11 +155,11 @@ const nodeGraphModuleStoreDepartments = Object.freeze([
 const nodeGraphModuleStoreVisualGroups = Object.freeze([
   {
     label: "Generate",
-    departments: Object.freeze(["Oscillator", "Chaos", "Jerobeam", "Noise", "Drum", "Sequence"]),
+    departments: Object.freeze(["Oscillator", "Chaos", "Jerobeam", "Noise", "Drum", "Sequence", "Envelope"]),
   },
   {
     label: "Process",
-    departments: Object.freeze(["Filter", "Envelope", "Modulators", "Dynamics"]),
+    departments: Object.freeze(["Filter", "Modulators", "Dynamics"]),
   },
   {
     label: "Memory",
@@ -375,6 +383,54 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Jerobeam spiral engine. Emits X/Y/Z motion-signal for alien curves and audiovisual flight paths.",
     label: "Spiral Generator",
     notes: ["attractor motion", "rotation", "density and morph controls"],
+  },
+  blubb: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Blubb motion engine.",
+    label: "Blubb",
+    notes: ["placeholder", "jerobeam"],
+  },
+  boing: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Boing motion engine.",
+    label: "Boing",
+    notes: ["placeholder", "jerobeam"],
+  },
+  keplerBoukamp: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Kepler-Boukamp motion engine.",
+    label: "KeplerBoukamp",
+    notes: ["placeholder", "jerobeam"],
+  },
+  mushroom: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Mushroom motion engine.",
+    label: "Mushroom",
+    notes: ["placeholder", "jerobeam"],
+  },
+  nyquistShannon: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Nyquist-Shannon motion engine.",
+    label: "NyquistShannon",
+    notes: ["placeholder", "jerobeam"],
+  },
+  radar: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Radar motion engine.",
+    label: "Radar",
+    notes: ["placeholder", "jerobeam"],
+  },
+  torus: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam Torus motion engine.",
+    label: "Torus",
+    notes: ["placeholder", "jerobeam"],
+  },
+  wirdoSpiral: {
+    category: "Jerobeam",
+    description: "Placeholder for the Jerobeam WirdoSpiral motion engine.",
+    label: "WirdoSpiral",
+    notes: ["placeholder", "jerobeam"],
   },
   lorenzAttractor: {
     category: "Chaos",
