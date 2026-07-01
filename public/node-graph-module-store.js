@@ -1832,7 +1832,7 @@ function closeNodeGraphModuleShop() {
   if (typeof rememberNodeGraphWorkspaceWindowState === "function") {
     rememberNodeGraphWorkspaceWindowState("moduleBrowser", panel, { open: false }, { status: false });
   }
-  setNodeGraphViewMode("modular");
+  setNodeGraphViewMode(nodeGraphMvp.modularSubViewMode || "modular");
 }
 
 function loadNodeGraphModuleStoreStateLocal() {

@@ -1838,7 +1838,15 @@ function setNodeGraphViewMode(mode) {
   const codeMode = mode === "code";
   const uiMode = mode === "ui";
   const mappingMode = mode === "mapping";
-  const modularOnlyMode = mode === "modular-only";
+  // "shop" (module browser) and "modular"/"modular-only" are orthogonal:
+  // opening the browser shouldn't silently drop modular-only mode. Track
+  // the last modular sub-mode so shop mode can preserve it, and so closing
+  // the browser returns to whichever one was active before it opened.
+  if (mode === "modular" || mode === "modular-only") {
+    nodeGraphMvp.modularSubViewMode = mode;
+  }
+  const modularOnlyMode = mode === "modular-only" ||
+    (shopMode && nodeGraphMvp.modularSubViewMode === "modular-only");
   const modularMode = modularOnlyMode || shopMode || (!settingsMode && !scriptMode && !codeMode && !uiMode && !mappingMode);
   const workspaceMode = modularMode;
   const wiringPanel = document.getElementById("nodeWiringPanel");
