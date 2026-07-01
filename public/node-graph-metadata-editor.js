@@ -282,6 +282,7 @@ const nodeMetadataScriptSupportedKeys = new Set([
   "nonlinearSlider",
   "sliderCurve",
   "showSign",
+  "smoothingSeconds",
   "step",
   "tooltip",
   "unit",
@@ -692,6 +693,7 @@ function formatNodeMetadataScript(slider, metadata = nodeSliderMetadata(slider))
     `param.${key}.displayChoices = ${nodeMetadataScriptValue(metadata.displayChoices, "displayChoices")};`,
     `param.${key}.divideChoicesVisibly = ${nodeMetadataScriptValue(metadata.divideChoicesVisibly, "divideChoicesVisibly")};`,
     `param.${key}.linearSmoothing = ${nodeMetadataScriptValue(metadata.linearSmoothing, "linearSmoothing")};`,
+    `param.${key}.smoothingSeconds = ${nodeMetadataScriptValue(metadata.smoothingSeconds, "smoothingSeconds")};`,
     `param.${key}.nonlinearSlider = ${nodeMetadataScriptValue(metadata.nonlinearSlider, "nonlinearSlider")};`,
     `param.${key}.showSign = ${nodeMetadataScriptValue(metadata.showSign, "showSign")};`,
     `param.${key}.wraparound = ${nodeMetadataScriptValue(metadata.wraparound, "wraparound")};`,
@@ -958,6 +960,7 @@ function nodeMetadataScriptEffectiveRows(metadata) {
     ["step", nodeMetadataScriptPreviewValueText(metadata.step, "step")],
     ["unit", metadata.unit || "none"],
     ["digits", normalizeNodeGraphMetadataMaxDigits(metadata.maxDigits, metadata.kind)],
+    ["smoothing time", Number.isFinite(Number(metadata.smoothingSeconds)) ? `${metadata.smoothingSeconds}s` : "auto"],
     ["choices", choices],
     ["flags", flags.length ? flags.join(", ") : "none"],
   ];
@@ -1197,6 +1200,12 @@ function parseNodeMetadataScriptValue(rawValue, key, current) {
   if (key === "maxDigits") {
     return normalizeNodeGraphMetadataMaxDigits(value, current.kind);
   }
+  if (key === "smoothingSeconds") {
+    if (!sanitizeNodeGraphNumericText(value)) {
+      return null;
+    }
+    return normalizeNodeGraphMetadataSmoothingSeconds(parseNodeMetadataNumber(value, current.smoothingSeconds));
+  }
   return parseNodeMetadataNumber(value, current[key]);
 }
 
@@ -1295,6 +1304,8 @@ function writeNodeMetadataEditorValues(metadata) {
   document.getElementById("metadataDivideChoicesValue").checked = metadata.divideChoicesVisibly;
   document.getElementById("metadataLinearSmoothingValue").checked = metadata.linearSmoothing;
   document.getElementById("metadataNonlinearSliderValue").checked = metadata.nonlinearSlider;
+  document.getElementById("metadataSmoothingSecondsValue").value =
+    Number.isFinite(Number(metadata.smoothingSeconds)) ? formatNodeSliderCompactNumber(metadata.smoothingSeconds) : "";
   document.getElementById("metadataSliderCurveValue").value = normalizeNodeSliderCurve(metadata.sliderCurve, metadata.nonlinearSlider);
   document.getElementById("metadataCurveSensitivityValue").value = formatNodeSliderCompactNumber(metadata.curveAmount);
   document.getElementById("metadataShowSignValue").checked = metadata.showSign;
@@ -1827,6 +1838,10 @@ function readNodeMetadataEditorValues(slider) {
   }
   const stepInput = sanitizeMetadataNumberInput("metadataStepValue");
   const kind = normalizeNodeMetadataKind(document.getElementById("metadataKindValue").value);
+  const smoothingSecondsInput = sanitizeMetadataNumberInput("metadataSmoothingSecondsValue");
+  const smoothingSeconds = smoothingSecondsInput === ""
+    ? null
+    : Math.max(0, parseNodeMetadataNumber(smoothingSecondsInput, current.smoothingSeconds ?? 0));
   return {
     alias: normalizeNodeGraphPatchMetadataAlias(document.getElementById("metadataAliasValue").value),
     tooltip: String(document.getElementById("metadataTooltipValue").value || "").trim().slice(0, 240),
@@ -1848,6 +1863,7 @@ function readNodeMetadataEditorValues(slider) {
     divideChoicesVisibly: document.getElementById("metadataDivideChoicesValue").checked,
     linearSmoothing: document.getElementById("metadataLinearSmoothingValue").checked,
     nonlinearSlider: document.getElementById("metadataSliderCurveValue").value !== "linear",
+    smoothingSeconds,
     sliderCurve: normalizeNodeSliderCurve(document.getElementById("metadataSliderCurveValue").value),
     step: Math.max(0, parseNodeMetadataNumber(stepInput, current.step)),
     showSign: document.getElementById("metadataShowSignValue").checked,
@@ -1992,6 +2008,8 @@ function setNodeMetadataDefaultsFromKind() {
   document.getElementById("metadataDivideChoicesValue").checked = Boolean(template.divideChoicesVisibly);
   document.getElementById("metadataLinearSmoothingValue").checked = template.linearSmoothing !== false;
   document.getElementById("metadataNonlinearSliderValue").checked = Boolean(template.nonlinearSlider);
+  document.getElementById("metadataSmoothingSecondsValue").value =
+    Number.isFinite(Number(template.smoothingSeconds)) ? formatNodeSliderCompactNumber(template.smoothingSeconds) : "";
   document.getElementById("metadataSliderCurveValue").value = normalizeNodeSliderCurve(template.sliderCurve, template.nonlinearSlider);
   document.getElementById("metadataCurveSensitivityValue").value =
     formatNodeSliderCompactNumber(normalizeNodeSliderCurveAmount(template.curveAmount));

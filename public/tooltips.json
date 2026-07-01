@@ -66,6 +66,7 @@
     "skew": "Slider response curve. Off is linear, mid skew bends around the MID value, edge skew gives extra control near both edges.",
     "skewSensitivity": "Edge skew strength. Higher values push more slider travel toward the low and high edges, making the center move faster.",
     "linearSmoothing": "Smooth this parameter with a linear glide.",
+    "smoothingSeconds": "How long this parameter's glide takes, in seconds. Leave blank to use the global smoothing time.",
     "showSign": "Always show a plus or minus sign for this parameter.",
     "wraparound": "Let the parameter wrap from max to min and min to max.",
     "displayChoices": "Show choice labels instead of only numbers.",

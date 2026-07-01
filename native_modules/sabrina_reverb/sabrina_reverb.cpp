@@ -8,6 +8,11 @@ constexpr int kDelayCount = 14;
 constexpr int kDiffusionCount = 12;
 constexpr int kMaxInstances = 2;
 constexpr int kMaxDelaySamples = 192000;
+// Internal per-sample ramp time for delay-line geometry (offset/LFO speed).
+// This runs independent of whatever smoothing the JS caller applies, so a
+// param update never snaps a delay tap length -- which is audible as a click
+// even when the incoming value itself arrives already smoothed.
+constexpr double kParamSmoothSeconds = 0.05;
 
 double clamp(double value, double minValue, double maxValue) {
   if (value < minValue) {
@@ -34,6 +39,32 @@ double parabol(double value) {
   return 4.0 * fit * (1.0 - __builtin_fabs(fit));
 }
 
+double smoothStep(double current, double target, double alpha) {
+  return current + (target - current) * alpha;
+}
+
+// nostdlib build has no libm to link against, so exp() isn't available --
+// range-reduce by halving then a short Taylor series, which is plenty
+// accurate for deriving a one-pole smoothing coefficient.
+double expApprox(double x) {
+  int halvings = 0;
+  double reduced = x;
+  while (reduced > 0.5 || reduced < -0.5) {
+    reduced *= 0.5;
+    halvings += 1;
+  }
+  double term = 1.0;
+  double sum = 1.0;
+  for (int index = 1; index <= 12; index += 1) {
+    term *= reduced / index;
+    sum += term;
+  }
+  for (int index = 0; index < halvings; index += 1) {
+    sum *= sum;
+  }
+  return sum;
+}
+
 struct SabrinaDelay {
   float buffer[kMaxDelaySamples];
   int driver;
@@ -44,7 +75,7 @@ struct SabrinaDelay {
   double modInc;
   double modSpeed;
   double lfopercent;
-  // Stored random values so applyParams can reuse them without advancing the RNG
+  // Stored random values so applyDelayGeometry can reuse them without advancing the RNG
   double rndOffset;
   double rndMod;
 };
@@ -67,6 +98,15 @@ struct SabrinaState {
   double lfoBaseSpeed;
   double lfoVariation;
   int seed;
+  // Ramped copies of the params that feed delay-line offsets/LFO speed --
+  // advanced one step per sample in advanceSabrinaSmoothing so the geometry
+  // that applyDelayGeometry derives from them never jumps discontinuously.
+  double smoothedDiffusionSize;
+  double smoothedDelaySize;
+  double smoothedLfoAmplitude;
+  double smoothedLfoBaseSpeed;
+  double smoothedLfoVariation;
+  double paramSmoothAlpha;
 };
 
 SabrinaState states[kMaxInstances];
@@ -103,7 +143,7 @@ void initializeDelay(SabrinaDelay& delay, int seed, double sampleRate) {
   rnd(delay);
   rnd(delay);
   rnd(delay);
-  // Consume and store the random values that applyParams will need
+  // Consume and store the random values that applyDelayGeometry will need
   delay.rndOffset = rnd(delay);
   delay.rndMod = rnd(delay);
   delay.modInc = 0.0;
@@ -161,23 +201,37 @@ void reseedDelays(SabrinaState& state, int seed) {
   }
 }
 
-void applyParams(SabrinaState& state) {
+// Derives delay-line offsets/LFO speed from the ramped (smoothed*) copies of
+// the params, never the raw target values -- called every sample so tap
+// length changes glide instead of snapping.
+void applyDelayGeometry(SabrinaState& state) {
   const double maxDelaySize = state.sampleRate * 4.0;
-  const double lfoSpeed = ((1.0 - state.lfoBaseSpeed) * 1.95 + 0.5) * 0.5;
-  const double lfoVariation = (1.0 - state.lfoVariation) * 0.25;
+  const double lfoSpeed = ((1.0 - state.smoothedLfoBaseSpeed) * 1.95 + 0.5) * 0.5;
+  const double lfoVariation = (1.0 - state.smoothedLfoVariation) * 0.25;
   for (int index = 0; index < kDiffusionCount; index += 1) {
     SabrinaDelay& delay = state.delays[index];
-    setOffsetSize(delay, state.diffusionSize, maxDelaySize);
+    setOffsetSize(delay, state.smoothedDiffusionSize, maxDelaySize);
     delay.feedback = state.diffusionAmount;
-    delay.lfopercent = state.lfoAmplitude * 0.1;
+    delay.lfopercent = state.smoothedLfoAmplitude * 0.1;
     initializeMod(delay, lfoSpeed, lfoVariation, state.sampleRate);
   }
   for (int index = kDiffusionCount; index < kDelayCount; index += 1) {
     SabrinaDelay& delay = state.delays[index];
-    delay.offset = (maxDelaySize - 2.0) * state.delaySize * 0.1 + 1.0;
-    delay.lfopercent = state.lfoAmplitude * 0.1;
+    delay.offset = (maxDelaySize - 2.0) * state.smoothedDelaySize * 0.1 + 1.0;
+    delay.lfopercent = state.smoothedLfoAmplitude * 0.1;
     initializeMod(delay, lfoSpeed, lfoVariation, state.sampleRate);
   }
+}
+
+// Advances the smoothed* fields one step toward their targets and reapplies
+// delay geometry. Call once per sample.
+void advanceSabrinaSmoothing(SabrinaState& state) {
+  state.smoothedDiffusionSize = smoothStep(state.smoothedDiffusionSize, state.diffusionSize, state.paramSmoothAlpha);
+  state.smoothedDelaySize = smoothStep(state.smoothedDelaySize, state.delaySize, state.paramSmoothAlpha);
+  state.smoothedLfoAmplitude = smoothStep(state.smoothedLfoAmplitude, state.lfoAmplitude, state.paramSmoothAlpha);
+  state.smoothedLfoBaseSpeed = smoothStep(state.smoothedLfoBaseSpeed, state.lfoBaseSpeed, state.paramSmoothAlpha);
+  state.smoothedLfoVariation = smoothStep(state.smoothedLfoVariation, state.lfoVariation, state.paramSmoothAlpha);
+  applyDelayGeometry(state);
 }
 
 void resetState(SabrinaState& state, double sampleRate) {
@@ -196,8 +250,14 @@ void resetState(SabrinaState& state, double sampleRate) {
   state.lfoAmplitude = 0.07;
   state.lfoBaseSpeed = 0.83;
   state.lfoVariation = 0.001;
+  state.smoothedDiffusionSize = state.diffusionSize;
+  state.smoothedDelaySize = state.delaySize;
+  state.smoothedLfoAmplitude = state.lfoAmplitude;
+  state.smoothedLfoBaseSpeed = state.lfoBaseSpeed;
+  state.smoothedLfoVariation = state.lfoVariation;
+  state.paramSmoothAlpha = 1.0 - expApprox(-1.0 / (kParamSmoothSeconds * state.sampleRate));
   reseedDelays(state, 0);
-  applyParams(state);
+  applyDelayGeometry(state);
 }
 
 SabrinaState* stateForHandle(int handle) {
@@ -263,7 +323,6 @@ extern "C" void soemdsp_sabrina_reverb_set_params(
   if (seedInt != state->seed) {
     reseedDelays(*state, seedInt);
   }
-  applyParams(*state);
 }
 
 extern "C" void soemdsp_sabrina_reverb_process(int handle, double leftInput, double rightInput) {
@@ -271,6 +330,7 @@ extern "C" void soemdsp_sabrina_reverb_process(int handle, double leftInput, dou
   if (!state) {
     return;
   }
+  advanceSabrinaSmoothing(*state);
   const double dryLeft = finite(leftInput) ? leftInput : 0.0;
   const double dryRight = finite(rightInput) ? rightInput : dryLeft;
   double left = dryLeft + delaySample(state->delays[12], state->ch1) * state->recycle;

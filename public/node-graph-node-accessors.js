@@ -79,6 +79,7 @@ function nodeGraphReadNodeParameterMetadata(node, key) {
         linearSmoothing: patchMetadata.linearSmoothing !== false,
         max: Number(patchMetadata.max ?? 1),
         min: Number(patchMetadata.min ?? 0),
+        smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(patchMetadata.smoothingSeconds),
         wraparound: Boolean(patchMetadata.wraparound),
       };
     }
@@ -88,6 +89,7 @@ function nodeGraphReadNodeParameterMetadata(node, key) {
       linearSmoothing: parameter?.linearSmoothing !== false,
       max: Number(parameter?.max ?? 1),
       min: Number(parameter?.min ?? 0),
+      smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(parameter?.smoothingSeconds),
       wraparound: Boolean(parameter?.wraparound),
     };
   }
@@ -95,6 +97,7 @@ function nodeGraphReadNodeParameterMetadata(node, key) {
     linearSmoothing: nodeSliderShouldUseLinearSmoothing(input),
     max: Number(input.max),
     min: Number(input.min),
+    smoothingSeconds: nodeSliderSmoothingSeconds(input),
     wraparound: nodeSliderShouldWraparound(input),
   };
 }

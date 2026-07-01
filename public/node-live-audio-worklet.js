@@ -2363,6 +2363,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return delta;
   }
 
+  smoothingSecondsFromMetadata(metadata = {}) {
+    const value = Number(metadata?.smoothingSeconds);
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
   createSmoother(initialValue, metadata = {}) {
     const value = Number(initialValue);
     const safeValue = Number.isFinite(value) ? value : 0;
@@ -2373,7 +2378,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       max: Number.isFinite(Number(metadata?.max)) ? Number(metadata.max) : 1,
       metadata,
       min: Number.isFinite(Number(metadata?.min)) ? Number(metadata.min) : 0,
-      nonlinearSmoothing: Boolean(metadata?.nonlinearSlider),
+      smoothingSeconds: this.smoothingSecondsFromMetadata(metadata),
       outputBuffer: signal,
       targetSignal: signal,
       target: safeValue,
@@ -2411,7 +2416,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     smoother.max = Number.isFinite(Number(metadata?.max)) ? Number(metadata.max) : smoother.max;
     smoother.metadata = metadata;
     smoother.min = Number.isFinite(Number(metadata?.min)) ? Number(metadata.min) : smoother.min;
-    smoother.nonlinearSmoothing = Boolean(metadata?.nonlinearSlider);
+    smoother.smoothingSeconds = this.smoothingSecondsFromMetadata(metadata);
     smoother.targetSignal = this.parameterValueToNormalizedSignal(smoother.target, metadata);
     smoother.wraparound = Boolean(metadata?.wraparound);
     if (!smoother.linearSmoothing) {
@@ -2430,53 +2435,42 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     if (!smoother.linearSmoothing) {
       return smoother.target;
     }
-    if (smoother.nonlinearSmoothing) {
-      if (smoother.lastFrame === frame) {
-        return smoother.lastValue;
-      }
-      const smoothingSeconds = this.clampAutoSmoothingSeconds(this.autoSmoothingSeconds);
-      if (smoothingSeconds <= 0) {
-        smoother.current = smoother.target;
-        smoother.outputBuffer = smoother.targetSignal;
-        smoother.lastFrame = frame;
-        smoother.lastValue = smoother.target;
-        return smoother.target;
-      }
-      const signal = this.onePoleLowpassSample(
-        smoother,
-        smoother.targetSignal,
-        this.smoothingFrequencyFromSeconds(smoothingSeconds),
-        sampleRate,
-      );
-      const value = this.normalizedSignalToParameterValue(signal, smoother.metadata);
-      smoother.current = value;
-      smoother.lastFrame = frame;
-      smoother.lastValue = value;
-      return value;
+    if (smoother.lastFrame === frame) {
+      return smoother.lastValue;
     }
-    if (frames <= 1) {
+    const smoothingSeconds = this.clampAutoSmoothingSeconds(
+      smoother.smoothingSeconds ?? this.autoSmoothingSeconds,
+    );
+    if (smoothingSeconds <= 0) {
+      smoother.current = smoother.target;
+      smoother.outputBuffer = smoother.targetSignal;
+      smoother.lastFrame = frame;
+      smoother.lastValue = smoother.target;
       return smoother.target;
     }
-    const progress = (frame + 1) / frames;
-    const delta = smoother.wraparound
-      ? this.shortestWrapDelta(smoother.current, smoother.target, smoother.min, smoother.max)
-      : smoother.target - smoother.current;
-    const value = smoother.current + delta * progress;
-    return smoother.wraparound
-      ? this.wrapValue(value, smoother.min, smoother.max)
-      : value;
+    const signal = this.onePoleLowpassSample(
+      smoother,
+      smoother.targetSignal,
+      this.smoothingFrequencyFromSeconds(smoothingSeconds),
+      sampleRate,
+    );
+    const value = this.normalizedSignalToParameterValue(signal, smoother.metadata);
+    smoother.current = value;
+    smoother.lastFrame = frame;
+    smoother.lastValue = value;
+    return value;
   }
 
   finishSmoothing() {
     for (const smoother of this.smoothers.values()) {
-      if (smoother.nonlinearSmoothing) {
-        smoother.current = smoother.lastValue ?? smoother.current;
-        smoother.lastFrame = -1;
+      if (!smoother.linearSmoothing) {
+        smoother.current = smoother.wraparound
+          ? this.wrapValue(smoother.target, smoother.min, smoother.max)
+          : smoother.target;
         continue;
       }
-      smoother.current = smoother.wraparound
-        ? this.wrapValue(smoother.target, smoother.min, smoother.max)
-        : smoother.target;
+      smoother.current = smoother.lastValue ?? smoother.current;
+      smoother.lastFrame = -1;
     }
     for (const runtime of this.moduleGroupRuntimes?.values?.() || []) {
       runtime.finishSmoothing();

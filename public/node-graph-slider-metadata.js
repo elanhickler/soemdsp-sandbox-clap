@@ -219,6 +219,11 @@ function nodeSliderShouldUseNonlinearSlider(slider) {
   return slider.dataset.nonlinearSlider === "true";
 }
 
+function nodeSliderSmoothingSeconds(slider) {
+  const value = Number(slider.dataset.smoothingSeconds);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 function normalizeNodeSliderCurve(value, nonlinearSlider = false) {
   const curve = String(value || "").trim().toLowerCase();
   if (curve === "edges" || curve === "edge" || curve === "s") {
@@ -368,6 +373,7 @@ function nodeSliderMetadata(slider) {
     nonlinearSlider: nodeSliderShouldUseNonlinearSlider(slider),
     sliderCurve: nodeSliderCurve(slider),
     showSign: nodeSliderShouldShowSign(slider),
+    smoothingSeconds: nodeSliderSmoothingSeconds(slider),
     wraparound: nodeSliderShouldWraparound(slider),
     unit: slider.dataset.unit ?? "",
     kind: slider.dataset.kind || "decimal",

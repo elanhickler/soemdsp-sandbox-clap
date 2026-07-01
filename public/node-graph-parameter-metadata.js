@@ -15,6 +15,11 @@ function normalizeNodeSliderCurveAmount(value, fallback = 0) {
   return clampNodeSliderValue(Number.isFinite(safe) ? safe : 0, -1, 1);
 }
 
+function normalizeNodeGraphMetadataSmoothingSeconds(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
 function nodeGraphDefaultParamsForType(type) {
   const params = {};
   for (const parameter of nodeGraphModuleDefinitions[type]?.parameters || []) {
@@ -412,6 +417,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
       ? Boolean(parameter.nonlinearSlider)
       : midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON),
     showSign: Boolean(parameter.showSign),
+    smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(parameter.smoothingSeconds),
     step: Number.isFinite(step) && step > 0 ? step : 0,
     tooltip: String(parameter.tooltip || "").slice(0, 240),
     unboundedMax: Boolean(parameter.unboundedMax),
@@ -473,6 +479,7 @@ function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
     nonlinearSlider: Boolean(source.nonlinearSlider),
     sliderCurve: normalizeNodeSliderCurve(source.sliderCurve, source.nonlinearSlider),
     showSign: Boolean(source.showSign),
+    smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(source.smoothingSeconds),
     step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 0,
     tooltip: String(source.tooltip || "").slice(0, 240),
     unboundedMax: Boolean(source.unboundedMax),
@@ -557,6 +564,9 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
       Object.hasOwn(source, "nonlinearSlider") ? Boolean(source.nonlinearSlider) : fallback.nonlinearSlider,
     ),
     showSign: Object.hasOwn(source, "showSign") ? Boolean(source.showSign) : fallback.showSign,
+    smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(
+      Object.hasOwn(source, "smoothingSeconds") ? source.smoothingSeconds : fallback.smoothingSeconds,
+    ),
     step: Number.isFinite(step) && step > 0 ? step : 0,
     tooltip: String(Object.hasOwn(source, "tooltip") ? source.tooltip ?? "" : fallback.tooltip || "").slice(0, 240),
     unboundedMax: Object.hasOwn(source, "unboundedMax")

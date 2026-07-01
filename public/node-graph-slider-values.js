@@ -117,6 +117,11 @@ function denormalizeNodeGraphSmootherSignal(signal, metadata = {}) {
   return Number.isFinite(range) && range > 0 ? min + range * clampNodeSliderValue(signal, 0, 1) : signal;
 }
 
+function nodeGraphParameterSmoothingSecondsFromMetadata(metadata = {}) {
+  const value = Number(metadata.smoothingSeconds);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 function createNodeGraphParameterSmoother(initialValue, metadata = {}) {
   const value = Number(initialValue);
   const safeValue = Number.isFinite(value) ? value : 0;
@@ -127,7 +132,7 @@ function createNodeGraphParameterSmoother(initialValue, metadata = {}) {
     max: Number.isFinite(Number(metadata.max)) ? Number(metadata.max) : 1,
     metadata,
     min: Number.isFinite(Number(metadata.min)) ? Number(metadata.min) : 0,
-    nonlinearSmoothing: Boolean(metadata.nonlinearSlider),
+    smoothingSeconds: nodeGraphParameterSmoothingSecondsFromMetadata(metadata),
     outputBuffer: signal,
     targetSignal: signal,
     target: safeValue,
@@ -144,7 +149,7 @@ function updateNodeGraphParameterSmoother(smoother, targetValue, metadata = {}) 
   smoother.max = Number.isFinite(Number(metadata.max)) ? Number(metadata.max) : smoother.max;
   smoother.metadata = metadata;
   smoother.min = Number.isFinite(Number(metadata.min)) ? Number(metadata.min) : smoother.min;
-  smoother.nonlinearSmoothing = Boolean(metadata.nonlinearSlider);
+  smoother.smoothingSeconds = nodeGraphParameterSmoothingSecondsFromMetadata(metadata);
   smoother.targetSignal = normalizeNodeGraphSmootherSignal(smoother.target, metadata);
   smoother.wraparound = Boolean(metadata.wraparound);
   if (!smoother.linearSmoothing) {
@@ -158,58 +163,42 @@ function readNodeGraphSmoothedParameter(smoother, frame, frames) {
   if (!smoother || !smoother.linearSmoothing) {
     return smoother?.target ?? 0;
   }
-  if (smoother.nonlinearSmoothing) {
-    if (smoother.lastFrame === frame) {
-      return smoother.lastValue;
-    }
-    const smoothingSeconds = clampNodeGraphAutoSmoothingSeconds(nodeGraphMvp?.live?.autoSmoothingSeconds);
-    if (smoothingSeconds <= 0) {
-      smoother.current = smoother.target;
-      smoother.outputBuffer = smoother.targetSignal;
-      smoother.lastFrame = frame;
-      smoother.lastValue = smoother.target;
-      return smoother.target;
-    }
-    const signal = nodeGraphOnePoleParameterLowpassSample(
-      smoother,
-      smoother.targetSignal,
-      nodeGraphSmoothingFrequencyFromSeconds(smoothingSeconds),
-      nodeGraphMvp?.sampleRate || 44100,
-    );
-    const value = denormalizeNodeGraphSmootherSignal(signal, smoother.metadata);
-    smoother.current = value;
-    smoother.lastFrame = frame;
-    smoother.lastValue = value;
-    return value;
+  if (smoother.lastFrame === frame) {
+    return smoother.lastValue;
   }
-  if (frames <= 1) {
+  const smoothingSeconds = clampNodeGraphAutoSmoothingSeconds(
+    smoother.smoothingSeconds ?? nodeGraphMvp?.live?.autoSmoothingSeconds,
+  );
+  if (smoothingSeconds <= 0) {
+    smoother.current = smoother.target;
+    smoother.outputBuffer = smoother.targetSignal;
+    smoother.lastFrame = frame;
+    smoother.lastValue = smoother.target;
     return smoother.target;
   }
-  const progress = (frame + 1) / frames;
-  const delta = smoother.wraparound
-    ? shortestNodeGraphWrapDelta(
-      smoother.current,
-      smoother.target,
-      smoother.min,
-      smoother.max,
-    )
-    : smoother.target - smoother.current;
-  const value = smoother.current + delta * progress;
-  return smoother.wraparound
-    ? wrapNodeSliderValue(value, smoother.min, smoother.max)
-    : value;
+  const signal = nodeGraphOnePoleParameterLowpassSample(
+    smoother,
+    smoother.targetSignal,
+    nodeGraphSmoothingFrequencyFromSeconds(smoothingSeconds),
+    nodeGraphMvp?.sampleRate || 44100,
+  );
+  const value = denormalizeNodeGraphSmootherSignal(signal, smoother.metadata);
+  smoother.current = value;
+  smoother.lastFrame = frame;
+  smoother.lastValue = value;
+  return value;
 }
 
 function finishNodeGraphParameterSmoothing(smoothers) {
   for (const smoother of smoothers.values()) {
-    if (smoother.nonlinearSmoothing) {
-      smoother.current = smoother.lastValue ?? smoother.current;
-      smoother.lastFrame = -1;
+    if (!smoother.linearSmoothing) {
+      smoother.current = smoother.wraparound
+        ? wrapNodeSliderValue(smoother.target, smoother.min, smoother.max)
+        : smoother.target;
       continue;
     }
-    smoother.current = smoother.wraparound
-      ? wrapNodeSliderValue(smoother.target, smoother.min, smoother.max)
-      : smoother.target;
+    smoother.current = smoother.lastValue ?? smoother.current;
+    smoother.lastFrame = -1;
   }
 }
 
@@ -453,6 +442,9 @@ function setNodeSliderMetadata(slider, metadata) {
   slider.dataset.displayChoices = metadata.displayChoices ? "true" : "false";
   slider.dataset.divideChoicesVisibly = metadata.divideChoicesVisibly ? "true" : "false";
   slider.dataset.linearSmoothing = metadata.linearSmoothing ? "true" : "false";
+  slider.dataset.smoothingSeconds = Number.isFinite(Number(metadata.smoothingSeconds)) && Number(metadata.smoothingSeconds) >= 0
+    ? String(metadata.smoothingSeconds)
+    : "";
   slider.dataset.sliderCurve = normalizeNodeSliderCurve(metadata.sliderCurve, metadata.nonlinearSlider);
   slider.dataset.curveAmount = String(normalizeNodeSliderCurveAmount(metadata.curveAmount));
   slider.dataset.nonlinearSlider = slider.dataset.sliderCurve === "linear" ? "false" : "true";
