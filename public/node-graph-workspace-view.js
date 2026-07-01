@@ -626,6 +626,22 @@ function handleNodeGraphWindowResize() {
   drawNodeGraphWires();
 }
 
+function beginNodeGraphWorkspacePanFrom(pointerId, clientX, clientY) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const pan = nodeGraphMvp.pan || { x: 0, y: 0 };
+  nodeGraphMvp.workspacePanning = {
+    pointerId,
+    startClientX: clientX,
+    startClientY: clientY,
+    startPanX: pan.x,
+    startPanY: pan.y,
+  };
+  workspace?.classList.add("panning");
+  if (workspace?.hasPointerCapture && !workspace.hasPointerCapture(pointerId)) {
+    workspace.setPointerCapture(pointerId);
+  }
+}
+
 function beginNodeGraphWorkspacePan(event) {
   if (nodeGraphMvp.workspacePinchZooming) {
     return;
@@ -634,17 +650,7 @@ function beginNodeGraphWorkspacePan(event) {
     return;
   }
 
-  const workspace = document.getElementById("nodeGraphWorkspace");
-  const pan = nodeGraphMvp.pan || { x: 0, y: 0 };
-  nodeGraphMvp.workspacePanning = {
-    pointerId: event.pointerId,
-    startClientX: event.clientX,
-    startClientY: event.clientY,
-    startPanX: pan.x,
-    startPanY: pan.y,
-  };
-  workspace.classList.add("panning");
-  workspace.setPointerCapture(event.pointerId);
+  beginNodeGraphWorkspacePanFrom(event.pointerId, event.clientX, event.clientY);
   event.preventDefault();
   event.stopPropagation();
 }
@@ -754,6 +760,13 @@ function endNodeGraphWorkspacePinchZoom(event) {
   if (nodeGraphMvp.workspacePinchZooming?.pointerIds?.includes(event.pointerId)) {
     nodeGraphMvp.workspacePinchZooming = null;
     document.getElementById("nodeGraphWorkspace")?.classList.remove("panning");
+    // One finger of the pinch lifted but the other is still down -- hand off
+    // to a pan drag from the surviving finger instead of leaving it inert
+    // until every finger lifts and a fresh pointerdown starts a new gesture.
+    if (touchPoints.size === 1) {
+      const [survivor] = touchPoints.values();
+      beginNodeGraphWorkspacePanFrom(survivor.pointerId, survivor.clientX, survivor.clientY);
+    }
     event.preventDefault();
     event.stopPropagation();
   }
