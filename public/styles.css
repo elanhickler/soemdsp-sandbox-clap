@@ -47,7 +47,8 @@ body.node-boot-fading {
   overflow-x: hidden;
 }
 
-body.node-boot-loading .shell {
+body.node-boot-loading .shell,
+body.node-boot-fading .shell {
   visibility: hidden;
 }
 

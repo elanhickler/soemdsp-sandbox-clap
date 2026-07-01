@@ -146,6 +146,9 @@ function finishNodeBootLoading() {
   if (!document.body.classList.contains("node-boot-loading")) {
     return;
   }
+  if (typeof resetNodeGraphStartupView === "function") {
+    resetNodeGraphStartupView();
+  }
   setNodeBootLoadingProgress(100, "ready");
   document.body.dataset.nodeBootFinished = "interface-ready";
   document.body.classList.remove("node-boot-loading");

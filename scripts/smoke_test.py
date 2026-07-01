@@ -6493,7 +6493,7 @@ def require_node_graph_mvp_contract() -> None:
         "Render Sample",
         "toggleDebugButton",
         '<body class="debug-collapsed node-boot-loading">',
-        '<script src="./public/boot-loading.js?v=loading-steps-1"></script>',
+        '<script src="./public/boot-loading.js?v=boot-fade-shell-20260701"></script>',
         "node-boot-loading-screen",
         'aria-label="loading"',
         "nodeBootLoadingLabel",
