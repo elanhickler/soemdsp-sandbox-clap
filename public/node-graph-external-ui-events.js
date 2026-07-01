@@ -354,5 +354,37 @@ window.addEventListener("message", (event) => {
       return;
     }
     triggerNodeGraphGameEvent(eventName, message.payload || {});
+  } else if (message.type === "soundemote:sandbox-project-data") {
+    try {
+      if (typeof nodeGraphPatchFromShareProjectData === "function") {
+        const loadedPatch = nodeGraphPatchFromShareProjectData(message.projectData);
+        const clonedPatch =
+          typeof cloneNodeGraphPatch === "function"
+            ? cloneNodeGraphPatch(loadedPatch)
+            : loadedPatch;
+        commitNodeGraphPatch(clonedPatch, { status: "shared patch loaded" });
+      }
+    } catch (error) {
+      if (typeof setNodeGraphScriptStatus === "function") {
+        setNodeGraphScriptStatus(`shared patch load failed: ${error?.message || error}`, false);
+      }
+    }
+  } else if (message.type === "soundemote:request-current-patch") {
+    let projectData = null;
+    try {
+      if (typeof nodeGraphShareProjectData === "function") {
+        projectData = nodeGraphShareProjectData();
+      }
+    } catch (error) {
+      projectData = null;
+    }
+    event.source?.postMessage(
+      {
+        type: "soundemote:current-patch",
+        requestId: message.requestId || null,
+        projectData,
+      },
+      event.origin,
+    );
   }
 });

@@ -17122,6 +17122,13 @@ def require_native_module_contract(base_url: str) -> None:
         all(not str(entry.get("wasmUrl", "")).startswith("/") for entry in static_catalog["modules"]),
         "static native module catalog wasmUrl entries must be relative paths",
     )
+    external_ui_events_source = (PUBLIC / "node-graph-external-ui-events.js").read_text(encoding="utf-8")
+    require(
+        'message.type === "soundemote:sandbox-project-data"' in external_ui_events_source
+        and 'message.type === "soundemote:request-current-patch"' in external_ui_events_source
+        and 'type: "soundemote:current-patch"' in external_ui_events_source,
+        "external UI events should support the soundemote-site postMessage bridge for loading/requesting the current patch",
+    )
 
     expected_native_exports = {
         "ellipsoid": ["soemdsp_ellipsoid_sample", "soemdsp_ellipsoid_vector_sample"],
