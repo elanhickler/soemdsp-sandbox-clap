@@ -220,3 +220,25 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\shooting_star_explosion\shooting_star_explosion.wasm" `
   "$root\native_modules\shooting_star_explosion\shooting_star_explosion.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_polyblep_create" `
+  "-Wl,--export=soemdsp_polyblep_destroy" `
+  "-Wl,--export=soemdsp_polyblep_reset" `
+  "-Wl,--export=soemdsp_polyblep_sample" `
+  "-Wl,--export=soemdsp_polyblep_out" `
+  "-Wl,--export=soemdsp_polyblep_saw" `
+  "-Wl,--export=soemdsp_polyblep_ramp" `
+  "-Wl,--export=soemdsp_polyblep_square" `
+  "-Wl,--export=soemdsp_polyblep_tri" `
+  "-Wl,--export=soemdsp_polyblep_sine" `
+  "-Wl,--export=soemdsp_polyblep_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\polyblep\polyblep.wasm" `
+  "$root\native_modules\polyblep\polyblep.cpp"

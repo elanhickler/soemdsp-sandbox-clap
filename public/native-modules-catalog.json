@@ -79,6 +79,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "polyblep",
+      "label": "PolyBLEP",
+      "targetType": "polyBlep",
+      "kind": "oscillator",
+      "source": "native_modules/polyblep/polyblep.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/polyblep/polyblep.cpp",
+      "wasm": "native_modules/polyblep/polyblep.wasm",
+      "wasmUrl": "native_modules/polyblep/polyblep.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "sabrina_reverb",
       "label": "Sabrina Reverb",
       "targetType": "reverbEffect",

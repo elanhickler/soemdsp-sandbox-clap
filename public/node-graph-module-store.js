@@ -1125,6 +1125,25 @@ function nodeGraphNativeModulesForType(type) {
   return nodeGraphNativeModuleEntriesByTarget[String(type || "")] || [];
 }
 
+// "Code" button entries for modules that stay JavaScript on purpose (not
+// backed by a native_modules/*.cpp entry). Points at the file where the
+// module's DSP is actually implemented, not just where it's dispatched.
+const nodeGraphJsSourceEntriesByType = Object.freeze({
+  sineWavetable: {
+    source: "public/node-graph-oscillator-runtime.js",
+    sourceUrl: "https://github.com/soundemote/soemdsp-sandbox/blob/master/public/node-graph-oscillator-runtime.js",
+  },
+});
+
+function nodeGraphJsSourceEntryForType(type) {
+  return nodeGraphJsSourceEntriesByType[String(type || "")] || null;
+}
+
+function nodeGraphCodeEntryForType(type) {
+  return nodeGraphNativeModulesForType(type).find((entry) => entry?.sourceUrl) ||
+    nodeGraphJsSourceEntryForType(type);
+}
+
 function nodeGraphModuleStoreEntries() {
   return nodeGraphModuleStoreTypes
     .map((type) => {

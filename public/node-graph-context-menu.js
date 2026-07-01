@@ -929,8 +929,8 @@ function configureNodeSceneContextMenu(mode) {
   }
   const targetNode = targetNodeId ? nodeGraphPatchNode(targetNodeId) : null;
   const nativeCodeEntry =
-    targetNode && typeof nodeGraphNativeModulesForType === "function"
-      ? nodeGraphNativeModulesForType(targetNode.type).find((entry) => entry?.sourceUrl)
+    targetNode && typeof nodeGraphCodeEntryForType === "function"
+      ? nodeGraphCodeEntryForType(targetNode.type)
       : null;
   const selectedWire = wireMode ? nodeGraphWireFromSelection(nodeGraphMvp.selected) : null;
   const hasModuleActionTarget = Boolean(targetNode) || multiModuleMode;
@@ -1151,8 +1151,8 @@ function configureNodeSceneContextMenu(mode) {
       nativeCodeButton.disabled = !nativeCodeEntry;
       nativeCodeButton.querySelector("span").textContent = "Code";
       nativeCodeButton.title = nativeCodeEntry
-        ? `Open ${nativeCodeEntry.source || "native C++ source"}.`
-        : "Native C++ source unavailable.";
+        ? `Open ${nativeCodeEntry.source || "source"}.`
+        : "Source unavailable.";
     }
     toggleButtonsButton.disabled = !targetNode;
     toggleButtonsButton.querySelector("span").textContent = buttonsHidden ? "Show buttons" : "Hide buttons";

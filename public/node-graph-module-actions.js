@@ -1703,10 +1703,10 @@ function copySelectedNodeGraphModule() {
 }
 
 function nodeGraphNativeModuleCodeEntryForNode(node) {
-  if (!node || typeof nodeGraphNativeModulesForType !== "function") {
+  if (!node || typeof nodeGraphCodeEntryForType !== "function") {
     return null;
   }
-  return nodeGraphNativeModulesForType(node.type).find((entry) => entry?.sourceUrl) || null;
+  return nodeGraphCodeEntryForType(node.type) || null;
 }
 
 function openNodeGraphNativeModuleCodeFromContext() {

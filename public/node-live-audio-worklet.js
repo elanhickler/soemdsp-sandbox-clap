@@ -146,6 +146,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeVactrolEnvelopeReady = false;
     this.nativeSoftClipper = null;
     this.nativeSoftClipperReady = false;
+    this.nativePolyBlep = null;
+    this.nativePolyBlepReady = false;
+    this.polyBlepStates = new Map();
     this.pllStates = new Map();
     this.fractalBrownianNoiseStates = new Map();
     this.graphInputConnections = new Map();
@@ -574,6 +577,23 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "polyblep" || targetType === "polyBlep") {
+        for (const state of this.polyBlepStates.values()) {
+          this.destroyPolyBlepNativeState(state);
+        }
+        this.nativePolyBlep = exports;
+        this.nativePolyBlepReady = Boolean(
+          this.nativePolyBlep?.soemdsp_polyblep_create &&
+          this.nativePolyBlep?.soemdsp_polyblep_sample &&
+          this.nativePolyBlep?.soemdsp_polyblep_out,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "polyblep",
+          status: this.nativePolyBlepReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       this.port.postMessage({
         type: "nativeModuleStatus",
         name,
@@ -684,6 +704,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.triggerDividerStates = new Map();
     this.triangleStates = new Map();
     this.vactrolEnvelopeStates = new Map();
+    this.polyBlepStates = new Map();
     this.visualSinks = [];
     this.resetVisualControls();
   }
@@ -964,6 +985,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if ((node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") && !this.vactrolEnvelopeStates.has(id)) {
         this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
       }
+      if (node?.type === "polyBlep" && !this.polyBlepStates.has(id)) {
+        this.polyBlepStates.set(id, this.createPolyBlepState());
+      }
       if (node?.type === "moduleGroup" && node.moduleGroupPlan && !this.moduleGroupRuntimes.has(id)) {
         this.moduleGroupRuntimes.set(id, this.createNestedRuntime(node.moduleGroupPlan));
       }
@@ -1184,6 +1208,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyVactrolEnvelopeNativeState(this.vactrolEnvelopeStates.get(id));
         this.vactrolEnvelopeStates.delete(id);
+      }
+    }
+    for (const id of [...this.polyBlepStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyPolyBlepNativeState(this.polyBlepStates.get(id));
+        this.polyBlepStates.delete(id);
       }
     }
     for (const id of [...this.moduleGroupRuntimes.keys()]) {
@@ -2549,6 +2579,47 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.oscillatorSample(nodeId, phase, phaseIncrement, waveform);
   }
 
+  polyBlepNativeVectorSample(state, phase, phaseIncrement, waveform, level, resetEdge) {
+    if (!this.nativePolyBlepReady) {
+      return null;
+    }
+    try {
+      if (!state.nativeHandle) {
+        state.nativeHandle = this.nativePolyBlep.soemdsp_polyblep_create();
+      }
+      if (!state.nativeHandle) {
+        return null;
+      }
+      if (resetEdge) {
+        this.nativePolyBlep.soemdsp_polyblep_reset(state.nativeHandle);
+      }
+      this.nativePolyBlep.soemdsp_polyblep_sample(
+        state.nativeHandle,
+        Number(phase) || 0,
+        Number(phaseIncrement) || 0,
+        Math.round(Number(waveform) || 0),
+        Number(level) || 0,
+      );
+      return {
+        out: this.safeFilterNumber(this.nativePolyBlep.soemdsp_polyblep_out(state.nativeHandle), null),
+        saw: this.safeFilterNumber(this.nativePolyBlep.soemdsp_polyblep_saw(state.nativeHandle), null),
+        ramp: this.safeFilterNumber(this.nativePolyBlep.soemdsp_polyblep_ramp(state.nativeHandle), null),
+        square: this.safeFilterNumber(this.nativePolyBlep.soemdsp_polyblep_square(state.nativeHandle), null),
+        tri: this.safeFilterNumber(this.nativePolyBlep.soemdsp_polyblep_tri(state.nativeHandle), null),
+        sine: this.safeFilterNumber(this.nativePolyBlep.soemdsp_polyblep_sine(state.nativeHandle), null),
+      };
+    } catch (error) {
+      this.nativePolyBlepReady = false;
+      this.port.postMessage({
+        type: "nativeModuleStatus",
+        name: "polyblep",
+        status: "disabled",
+        message: String(error?.message || error || "native PolyBLEP failed"),
+      });
+      return null;
+    }
+  }
+
   ellipsoidSample(phase, offset = 0, shape = 0, scale = 1) {
     const phaseRadians = Number(phase) || 0;
     const sinPhase = Math.sin(phaseRadians);
@@ -3022,6 +3093,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createPolyBlepState() {
+    return {
+      nativeHandle: 0,
+    };
+  }
+
   createFlowerChildEnvelopeFollowerState() {
     return {
       currentSlewedValue: 0,
@@ -3438,6 +3515,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.triggerDividerStates = new Map();
     runtime.triangleStates = new Map();
     runtime.vactrolEnvelopeStates = new Map();
+    runtime.polyBlepStates = new Map();
     runtime.resetVisualControls();
     runtime.setNestedPlan(plan);
     return runtime;
@@ -3504,6 +3582,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "triggerCounter") this.triggerCounterStates.set(id, this.createTriggerCounterState());
       if (node?.type === "triggerDivider") this.triggerDividerStates.set(id, this.createTriggerDividerState());
       if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
+      if (node?.type === "polyBlep") this.polyBlepStates.set(id, this.createPolyBlepState());
       if (node?.type === "moduleGroup" && node.moduleGroupPlan) {
         this.moduleGroupRuntimes.set(id, this.createNestedRuntime(node.moduleGroupPlan));
       }
@@ -5328,6 +5407,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyPolyBlepNativeState(state) {
+    if (state?.nativeHandle && this.nativePolyBlep?.soemdsp_polyblep_destroy) {
+      this.nativePolyBlep.soemdsp_polyblep_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   vactrolEnvelopeSample(state, light, params, rate = sampleRate) {
     const safeRate = Math.max(1, rate || sampleRate || 44100);
     if (this.nativeVactrolEnvelopeReady) {
@@ -5781,22 +5867,48 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
         const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
         const level = this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues);
-        const sampleOscillator = (sampleNodeId, sampleWaveform) => (
-          node?.type === "fbPolyBlepOsc"
-            ? this.forwardBackwardPolyBlepOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform)
-            : this.oscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform)
-        );
-        const selected = sampleOscillator(nodeId, waveform) * level;
-        value = {
-          Out: selected,
-          Saw: sampleOscillator(`${nodeId}:saw`, 0) * level,
-          Ramp: sampleOscillator(`${nodeId}:ramp`, 1) * level,
-          Square: sampleOscillator(`${nodeId}:square`, 2) * level,
-          Tri: sampleOscillator(`${nodeId}:tri`, 3) * level,
-          Sine: sampleOscillator(`${nodeId}:sine`, 4) * level,
-          "Wave Out": selected,
-          Noise: selected,
-        };
+        let nativeVector = null;
+        if (node?.type === "polyBlep") {
+          const polyBlepState = this.polyBlepStates.get(nodeId) || this.createPolyBlepState();
+          this.polyBlepStates.set(nodeId, polyBlepState);
+          nativeVector = this.polyBlepNativeVectorSample(
+            polyBlepState,
+            phase + phaseOffset,
+            phaseIncrement,
+            waveform,
+            level,
+            resetEdge,
+          );
+        }
+        if (nativeVector) {
+          value = {
+            Out: nativeVector.out,
+            Saw: nativeVector.saw,
+            Ramp: nativeVector.ramp,
+            Square: nativeVector.square,
+            Tri: nativeVector.tri,
+            Sine: nativeVector.sine,
+            "Wave Out": nativeVector.out,
+            Noise: nativeVector.out,
+          };
+        } else {
+          const sampleOscillator = (sampleNodeId, sampleWaveform) => (
+            node?.type === "fbPolyBlepOsc"
+              ? this.forwardBackwardPolyBlepOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform)
+              : this.oscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform)
+          );
+          const selected = sampleOscillator(nodeId, waveform) * level;
+          value = {
+            Out: selected,
+            Saw: sampleOscillator(`${nodeId}:saw`, 0) * level,
+            Ramp: sampleOscillator(`${nodeId}:ramp`, 1) * level,
+            Square: sampleOscillator(`${nodeId}:square`, 2) * level,
+            Tri: sampleOscillator(`${nodeId}:tri`, 3) * level,
+            Sine: sampleOscillator(`${nodeId}:sine`, 4) * level,
+            "Wave Out": selected,
+            Noise: selected,
+          };
+        }
         this.phases.set(
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
