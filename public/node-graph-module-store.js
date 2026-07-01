@@ -1087,20 +1087,36 @@ function applyNodeGraphNativeModuleCatalog(entries = []) {
   renderNodeGraphModuleStoreCatalog();
 }
 
+async function fetchNodeGraphNativeModuleCatalogFallback() {
+  try {
+    const response = await fetch("native-modules-catalog.json", { cache: "no-store" });
+    return response.ok ? response.json() : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 async function loadNodeGraphNativeModuleCatalog() {
   if (nodeGraphNativeModuleCatalogLoadStarted || typeof fetch !== "function") {
     return nodeGraphNativeModuleEntries;
   }
   nodeGraphNativeModuleCatalogLoadStarted = true;
   try {
+    let payload = null;
     const response = await fetch("/api/native-modules", { cache: "no-store" });
-    if (!response.ok) {
-      return nodeGraphNativeModuleEntries;
+    if (response.ok) {
+      payload = await response.json();
+    } else {
+      payload = await fetchNodeGraphNativeModuleCatalogFallback();
     }
-    const payload = await response.json();
     applyNodeGraphNativeModuleCatalog(payload?.modules || []);
   } catch (_error) {
-    // Native modules are optional; the JS module catalog remains usable without them.
+    // No server behind the page (e.g. static export) -- fall back to the
+    // pre-generated catalog shipped alongside index.html.
+    const fallback = await fetchNodeGraphNativeModuleCatalogFallback();
+    if (fallback?.modules) {
+      applyNodeGraphNativeModuleCatalog(fallback.modules);
+    }
   }
   return nodeGraphNativeModuleEntries;
 }
