@@ -151,11 +151,11 @@ const nodeGraphModuleStoreVisualGroups = Object.freeze([
   },
   {
     label: "Process",
-    departments: Object.freeze(["Filter", "Envelope", "Modulators", "Delay", "Dynamics"]),
+    departments: Object.freeze(["Filter", "Envelope", "Modulators", "Dynamics"]),
   },
   {
     label: "Memory",
-    departments: Object.freeze(["Audio", "Loops", "Samples"]),
+    departments: Object.freeze(["Audio", "Delay", "Loops", "Samples"]),
   },
   {
     label: "Interact",
@@ -698,7 +698,7 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     notes: ["feedback highpass", "resonance skewed", "15 modes"],
   },
   slewLimiter: {
-    category: "Modulators",
+    category: "Filter",
     description: "Limits rising and falling motion independently, turning abrupt changes into shaped ramps.",
     notes: ["up time", "down time", "asymmetric glide"],
   },
