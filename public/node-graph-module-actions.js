@@ -1715,15 +1715,16 @@ function openNodeGraphNativeModuleCodeFromContext() {
   if (!entry?.sourceUrl) {
     return;
   }
-  const opened = window.open(entry.sourceUrl, "_blank", "noopener,noreferrer");
-  if (!opened) {
-    const a = document.createElement("a");
-    a.href = entry.sourceUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.click();
-    return;
-  }
+  // window.open's return value can't be trusted here: with "noopener" set,
+  // many browsers return null even on success (there's no opener reference
+  // to hand back), so checking it to decide whether to fall back caused a
+  // second tab to open on every click. The anchor-click approach alone is
+  // reliable and still gets the noopener/noreferrer protection.
+  const a = document.createElement("a");
+  a.href = entry.sourceUrl;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.click();
   setNodeInteractionHelp(`Opened ${entry.source || entry.sourceUrl}.`);
 }
 

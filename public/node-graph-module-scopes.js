@@ -2236,7 +2236,7 @@ function nodeGraphModuleScopeCapturedBufferForSlot(slot) {
       ? { xPort: source.x, yPort: source.y }
       : {});
   }
-  if (["traceDisplay", "dotOscilloscope", "valueOscilloscope", "lineBurnOscilloscope"].includes(slot?.type)) {
+  if (["traceDisplay", "dotOscilloscope", "valueOscilloscope", "numberReadout", "lineBurnOscilloscope"].includes(slot?.type)) {
     return nodeGraphModuleScopeState.buffers.get(`${nodeId}:In`) ||
       nodeGraphModuleScopeConnectedSourceBuffer(nodeId, "In") ||
       null;
@@ -8775,6 +8775,18 @@ function nodeGraphNumberReadoutFormatValue(sample, decimals) {
   return fixed.startsWith("-") ? fixed : ` ${fixed}`;
 }
 
+function nodeGraphNumberReadoutUnitForSlot(slot) {
+  const connection = nodeGraphModuleScopeConnectionsTo(slot?.nodeId, "In")
+    .find((candidate) => candidate?.sourceNode && candidate?.sourcePort);
+  if (!connection) {
+    return "";
+  }
+  const sourceNode = nodeGraphPatchNode(connection.sourceNode);
+  return sourceNode?.type === "helmholtzPitch" && connection.sourcePort === "Frequency"
+    ? "Hz"
+    : "";
+}
+
 function drawNodeGraphNumberReadoutItem(renderer, item, pixelRatio) {
   const rect = item?.scopeRect;
   const slot = item?.slot;
@@ -8794,9 +8806,11 @@ function drawNodeGraphNumberReadoutItem(renderer, item, pixelRatio) {
   const node = nodeGraphModuleScopeNodeForSlot(slot);
   const settings = nodeGraphNumberReadoutSettingsForNode(node);
   const hasSample = item?.buffer?.length > 0 && !item.buffer?.nodeGraphScopeXy;
-  const text = hasSample
+  const unit = nodeGraphNumberReadoutUnitForSlot(slot);
+  const valueText = hasSample
     ? nodeGraphNumberReadoutFormatValue(nodeGraphOscilloscopeLatestSample(item.buffer, 0), settings.decimals)
     : "--";
+  const text = unit ? `${valueText} ${unit}` : valueText;
   if (
     canvas._nodeGraphNumberReadoutText === text &&
     canvas._nodeGraphNumberReadoutColor === settings.color &&

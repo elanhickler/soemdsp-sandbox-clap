@@ -1475,12 +1475,12 @@ const nodeGraphModuleDefinitions = Object.freeze({
     outputs: ["Frequency", "Fidelity"],
     parameters: [
       {
-        defaultValue: "1024",
+        defaultValue: "512",
         key: "windowSize",
         label: "Window",
-        max: "2048",
-        mid: "1024",
-        min: "256",
+        max: "1024",
+        mid: "512",
+        min: "128",
         step: "1",
         tooltip: "Analysis window in samples. Larger windows track lower frequencies but update more slowly.",
       },

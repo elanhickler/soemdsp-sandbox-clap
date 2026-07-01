@@ -1278,8 +1278,17 @@ function nodeGraphHelmholtzPitchView(frequencyHz) {
   return norm * 2 - 1;
 }
 
-function nodeGraphHelmholtzSample(state, input, params, sampleRate, runtime = null, nodeId = "") {
+function nodeGraphHelmholtzSample(state, input, params, inputConnected, sampleRate, runtime = null, nodeId = "") {
   const silent = { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
+  if (!inputConnected) {
+    if (state.nativeHandle && runtime?.nativeHelmholtz?.soemdsp_helmholtz_destroy) {
+      runtime.nativeHelmholtz.soemdsp_helmholtz_destroy(state.nativeHandle);
+    }
+    state.nativeHandle = 0;
+    state.nativeSampleRate = 0;
+    state.nativeParamKey = "";
+    return silent;
+  }
   const native = runtime?.nativeHelmholtzReady ? runtime?.nativeHelmholtz : null;
   if (!native?.soemdsp_helmholtz_create || !native?.soemdsp_helmholtz_process) return silent;
   try {
@@ -1293,7 +1302,7 @@ function nodeGraphHelmholtzSample(state, input, params, sampleRate, runtime = nu
       state.nativeParamKey = "";
     }
     if (!state.nativeHandle) return silent;
-    const windowSize = Math.max(256, Math.min(2048, Math.round(Number(params.windowSize) || 1024)));
+    const windowSize = Math.max(128, Math.min(1024, Math.round(Number(params.windowSize) || 512)));
     const threshold = Math.max(0.5, Math.min(0.999, Number(params.threshold) || 0.93));
     const paramKey = `${windowSize}:${Math.round(threshold * 1000)}`;
     if (paramKey !== state.nativeParamKey && native.soemdsp_helmholtz_set_params) {
@@ -3158,9 +3167,10 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         state,
         mixInput(nodeId, "In"),
         {
-          windowSize: read("windowSize", 1024),
+          windowSize: read("windowSize", 512),
           threshold: read("threshold", 0.93),
         },
+        hasInput(nodeId, "In"),
         sampleRate,
         runtime,
         nodeId,

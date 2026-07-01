@@ -3451,6 +3451,7 @@ def require_node_graph_mvp_contract() -> None:
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
     tooltip_source = (PUBLIC / "tooltips.json").read_text(encoding="utf-8")
     worklet_source = (PUBLIC / "node-live-audio-worklet.js").read_text(encoding="utf-8")
+    live_frame_evaluator_source = script_sources["./public/node-graph-live-frame-evaluator.js"]
     default_preset_source = (PUBLIC / "presets" / "default.json").read_text(encoding="utf-8")
     default_ui_settings_source = (PUBLIC / "presets" / "useruisettings.json").read_text(encoding="utf-8")
     slider_values_source = script_sources["./public/node-graph-slider-values.js"]
@@ -3526,10 +3527,41 @@ def require_node_graph_mvp_contract() -> None:
     output_without_input_start = node_graph_module_definitions_source.index("function nodeGraphModuleProducesOutputWithoutSignalInput(type)")
     output_without_input_end = node_graph_module_definitions_source.index("function nodeGraphCanonicalInputPort", output_without_input_start)
     output_without_input_source = node_graph_module_definitions_source[output_without_input_start:output_without_input_end]
+    helmholtz_definition_start = node_graph_module_definitions_source.index("  helmholtzPitch: {")
+    helmholtz_definition_end = node_graph_module_definitions_source.index("  slewLimiter: {", helmholtz_definition_start)
+    helmholtz_definition_source = node_graph_module_definitions_source[helmholtz_definition_start:helmholtz_definition_end]
     require(
         '"helmholtzPitch"' not in passthrough_source
         and '"helmholtzPitch"' in output_without_input_source,
         "Helmholtz Pitch should be classified as an analyzer/control output, not an audio passthrough route",
+    )
+    require(
+        'inputs: ["In"]' in helmholtz_definition_source
+        and 'outputs: ["Frequency", "Fidelity"]' in helmholtz_definition_source
+        and 'outputs: ["Out"]' not in helmholtz_definition_source
+        and "visualSink: true" not in helmholtz_definition_source,
+        "Helmholtz Pitch should expose analyzer outputs only and should not masquerade as an audio effect or visual sink",
+    )
+    require(
+        "// soemdsp-native-kind: analysis" in (ROOT / "native_modules" / "helmholtz" / "helmholtz.cpp").read_text(encoding="utf-8"),
+        "native Helmholtz metadata should declare analysis kind",
+    )
+    require(
+        "helmholtzSample(state, input, params, inputConnected = true" in worklet_source
+        and "if (!inputConnected) {" in worklet_source
+        and 'return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };' in worklet_source
+        and "reportHelmholtzStatus(status, message = \"\")" in worklet_source
+        and "native Helmholtz handle creation failed; analyzer outputs zero" in worklet_source
+        and "native Helmholtz failed; analyzer outputs zero:" in worklet_source
+        and "this.nativeHelmholtzReady = false;" in worklet_source
+        and "Math.max(128, Math.min(1024" in worklet_source
+        and 'windowSize: read("windowSize", 512)' in worklet_source
+        and 'hasInput(nodeId, "In"),\n          safeRate,' in worklet_source
+        and "function nodeGraphHelmholtzSample(state, input, params, inputConnected, sampleRate" in live_frame_evaluator_source
+        and "Math.max(128, Math.min(1024" in live_frame_evaluator_source
+        and 'windowSize: read("windowSize", 512)' in live_frame_evaluator_source
+        and 'hasInput(nodeId, "In"),\n        sampleRate,' in live_frame_evaluator_source,
+        "Helmholtz Pitch should output analyzer zeros on disconnected input and clamp analysis to the temporary safe window range",
     )
     require(
         "nodeGraphModuleIsRealtimeOscillatorType(type) ||" in execution_plan_source[source_nodes_start:source_nodes_end],
@@ -12759,6 +12791,13 @@ def require_node_graph_mvp_contract() -> None:
         "Number Readout must read only real captured input, never an offline model-guess buffer",
     )
     require(
+        '["traceDisplay", "dotOscilloscope", "valueOscilloscope", "numberReadout", "lineBurnOscilloscope"].includes(slot?.type)' in node_graph_source
+        and "function nodeGraphNumberReadoutUnitForSlot(slot)" in node_graph_source
+        and 'sourceNode?.type === "helmholtzPitch" && connection.sourcePort === "Frequency"' in node_graph_source
+        and 'const text = unit ? `${valueText} ${unit}` : valueText;' in node_graph_source,
+        "Number Readout should capture wired In and label Helmholtz Frequency as Hz",
+    )
+    require(
         "function nodeGraphNumberReadoutCanvasForSlot(slot)" in node_graph_source
         and '.node-number-readout-canvas' in node_graph_source
         and "function syncNodeGraphNumberReadoutCanvas(canvas, screenElement, pixelRatio)" in node_graph_source
@@ -17094,6 +17133,17 @@ def require_native_module_contract(base_url: str) -> None:
         require(str(wasm_rel) in native_build_source, f"native {module_name} build output missing")
         require(wasm_path.exists(), f"native {module_name} wasm should exist")
         require(wasm_path.read_bytes().startswith(b"\0asm"), f"native {module_name} wasm magic bytes missing")
+        if module_name == "helmholtz":
+            require(
+                "constexpr int kMaxWindow = 1024;" in source_text
+                and "constexpr int kMinWindow = 128;" in source_text
+                and "constexpr int kDefaultWindow = 512;" in source_text
+                and "constexpr double kAnalysisRateHz = 20.0;" in source_text
+                and "analysisIntervalSamples" in source_text
+                and "s->hopCounter >= s->analysisIntervalSamples" in source_text
+                and "const int hop = s->windowSize / 2;" not in source_text,
+                "native Helmholtz should keep MPM analysis bounded by a safe temporary window cap and control-rate cadence",
+            )
 
     ellipsoid_source_path = ROOT / "native_modules" / "ellipsoid" / "ellipsoid.cpp"
     ellipsoid_wasm_path = ROOT / "native_modules" / "ellipsoid" / "ellipsoid.wasm"
@@ -17153,7 +17203,11 @@ def require_native_module_contract(base_url: str) -> None:
     require("nodeSceneOpenNativeCode" in context_menu_source, "native module code action menu state missing")
     require("nodeGraphNativeModulesForType(targetNode.type)" in context_menu_source, "native code action should use scanned module catalog")
     require("function openNodeGraphNativeModuleCodeFromContext()" in module_actions_source, "native module code opener missing")
-    require("window.open(entry.sourceUrl" in module_actions_source, "native module code opener should use source URL")
+    require(
+        "a.href = entry.sourceUrl" in module_actions_source
+        and "window.open(entry.sourceUrl" not in module_actions_source,
+        "native module code opener should use a single reliable anchor click, not window.open (whose noopener return value can't be trusted for success detection)",
+    )
     require(
         'bindNodeGraphSceneElementEvent("nodeSceneOpenNativeCode", "click", openNodeGraphNativeModuleCodeFromContext)'
         in event_bindings_source,

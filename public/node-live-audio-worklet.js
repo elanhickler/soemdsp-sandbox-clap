@@ -131,6 +131,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativePllReady = false;
     this.nativeHelmholtz = null;
     this.nativeHelmholtzReady = false;
+    this.nativeHelmholtzStatusKey = "";
     this.nativeNoiseGenerator = null;
     this.nativeNoiseGeneratorReady = false;
     this.nativeFbm = null;
@@ -415,6 +416,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           this.destroyHelmholtzState(state);
         }
         this.nativeHelmholtz = exports;
+        this.nativeHelmholtzStatusKey = "";
         this.nativeHelmholtzReady = Boolean(
           this.nativeHelmholtz?.soemdsp_helmholtz_create &&
           this.nativeHelmholtz?.soemdsp_helmholtz_process &&
@@ -4403,9 +4405,30 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     state.nativeHandle = 0;
   }
 
-  helmholtzSample(state, input, params, rateHz = sampleRate) {
+  reportHelmholtzStatus(status, message = "") {
+    const key = `${status}:${message}`;
+    if (this.nativeHelmholtzStatusKey === key) return;
+    this.nativeHelmholtzStatusKey = key;
+    this.port.postMessage({
+      type: "nativeModuleStatus",
+      name: "helmholtz",
+      status,
+      message,
+    });
+  }
+
+  helmholtzSample(state, input, params, inputConnected = true, rateHz = sampleRate) {
+    if (!inputConnected) {
+      this.destroyHelmholtzState(state);
+      state.nativeSampleRate = 0;
+      state.nativeParamKey = "";
+      return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
+    }
     const native = this.nativeHelmholtz;
     if (!this.nativeHelmholtzReady || !native?.soemdsp_helmholtz_create || !native?.soemdsp_helmholtz_process) {
+      if (native) {
+        this.reportHelmholtzStatus("disabled", "native Helmholtz exports missing; analyzer outputs zero");
+      }
       return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
     }
     try {
@@ -4419,9 +4442,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         state.nativeParamKey = "";
       }
       if (!state.nativeHandle) {
+        this.reportHelmholtzStatus("disabled", "native Helmholtz handle creation failed; analyzer outputs zero");
         return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
       }
-      const windowSize = Math.max(256, Math.min(2048, Math.round(this.safeFilterNumber(params.windowSize, null) ?? 1024)));
+      const windowSize = Math.max(128, Math.min(1024, Math.round(this.safeFilterNumber(params.windowSize, null) ?? 512)));
       const threshold = this.clampValue(this.safeFilterNumber(params.threshold, null) ?? 0.93, 0.5, 0.999);
       const paramKey = `${windowSize}:${Math.round(threshold * 1000)}`;
       if (paramKey !== state.nativeParamKey && native.soemdsp_helmholtz_set_params) {
@@ -4436,9 +4460,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         Fidelity: this.safeFilterNumber(native.soemdsp_helmholtz_fidelity?.(state.nativeHandle), null) ?? 0,
         "Pitch View": this.helmholtzPitchView(frequency),
       };
-    } catch {
+    } catch (error) {
       this.nativeHelmholtzReady = false;
       this.destroyHelmholtzState(state);
+      this.reportHelmholtzStatus(
+        "disabled",
+        `native Helmholtz failed; analyzer outputs zero: ${String(error?.message || error || "unknown error")}`,
+      );
       return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
     }
   }
@@ -6301,9 +6329,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           state,
           mixInput(nodeId, "In"),
           {
-            windowSize: read("windowSize", 1024),
+            windowSize: read("windowSize", 512),
             threshold: read("threshold", 0.93),
           },
+          hasInput(nodeId, "In"),
           safeRate,
         );
       } else if (node?.type === "slewLimiter") {

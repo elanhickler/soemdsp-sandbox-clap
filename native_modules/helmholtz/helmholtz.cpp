@@ -9,8 +9,10 @@
 namespace {
 
 constexpr int kMaxInstances = 4;
-constexpr int kMaxWindow = 2048;
-constexpr int kMinWindow = 256;
+constexpr int kMaxWindow = 1024;
+constexpr int kMinWindow = 128;
+constexpr int kDefaultWindow = 512;
+constexpr double kAnalysisRateHz = 20.0;
 
 static double clampd(double v, double lo, double hi) {
   return v < lo ? lo : (v > hi ? hi : v);
@@ -30,6 +32,7 @@ struct HelmholtzState {
 
   double sampleRate;
   int windowSize;
+  int analysisIntervalSamples;
   double threshold;  // fidelity threshold, 0..1 (MPM default ~0.93)
 
   double nsdf[kMaxWindow];
@@ -44,7 +47,9 @@ struct HelmholtzState {
     filled = 0;
     hopCounter = 0;
     sampleRate = sr > 0.0 ? sr : 44100.0;
-    windowSize = 1024;
+    windowSize = kDefaultWindow;
+    analysisIntervalSamples = (int)(sampleRate / kAnalysisRateHz + 0.5);
+    if (analysisIntervalSamples < 1) analysisIntervalSamples = 1;
     threshold = 0.93;
     frequencyOut = 0.0;
     fidelityOut = 0.0;
@@ -196,6 +201,8 @@ extern "C" void soemdsp_helmholtz_set_params(
   s->sampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
   int w = windowSize < kMinWindow ? kMinWindow : (windowSize > kMaxWindow ? kMaxWindow : windowSize);
   s->windowSize = w;
+  s->analysisIntervalSamples = (int)(s->sampleRate / kAnalysisRateHz + 0.5);
+  if (s->analysisIntervalSamples < 1) s->analysisIntervalSamples = 1;
   s->threshold = clampd(threshold, 0.5, 0.999);
 }
 
@@ -209,8 +216,7 @@ extern "C" void soemdsp_helmholtz_process(int handle, double input) {
   if (s->filled < kMaxWindow) s->filled++;
   s->hopCounter++;
 
-  const int hop = s->windowSize / 2;
-  if (s->filled >= s->windowSize && s->hopCounter >= hop) {
+  if (s->filled >= s->windowSize && s->hopCounter >= s->analysisIntervalSamples) {
     s->hopCounter = 0;
     analyze(*s);
   }
