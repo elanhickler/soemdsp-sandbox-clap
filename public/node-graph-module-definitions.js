@@ -64,7 +64,8 @@ const nodeGraphNodeLabels = Object.freeze({
   flowerChildEnvelopeFollower: "FlowerChild Envelope Follower",
   linearEnvelope: "Linear Envelope",
   pluckEnvelope: "Pluck Envelope",
-  vactrolEnvelope: "Vactrol Envelope",
+  vactrolEnvelope: "VTL5C3",
+  vactrolEnvelopeC4: "VTL5C4",
   sandboxVisuals: "Screen Visuals",
   screenSpaceShader: "Screen Space Shader",
   bloomGlow: "Bloom & Glow",
@@ -1790,21 +1791,22 @@ const nodeGraphModuleDefinitions = Object.freeze({
   // Knobs stay normalized 0..1 (or their existing native ranges) for patching/automation;
   // displayTransform only changes the readout text, mapping to real-world vactrol/LDR
   // physics (photoconductive gamma, illuminance, dark resistance) so the numbers on
-  // screen mean something to someone who knows a real vactrol datasheet. Reference
-  // assumptions: normalized Light input 1.0 == 1000 lux (bright close-range LED, the
-  // usual vactrol drive scenario); LDR resistance spans ~300 ohm lit to ~1 megohm dark
-  // (typical CdS-cell / VTL5C3-class figures), attack/release defaults already match
-  // VTL5C3 datasheet timing (10ms / 450ms).
+  // screen mean something to a real vactrol datasheet reader. Reference assumptions:
+  // normalized Light input 1.0 == 1000 lux (bright close-range LED, the usual vactrol
+  // drive scenario); dark/lit resistance and attack/release defaults are taken directly
+  // from the PerkinElmer VTL5C-series datasheets for each named part below. VTL5C3 is
+  // the classic "fast" Buchla/Serge-style LPG vactrol; VTL5C4 is the well-known "slow"
+  // alternative with a ~40x longer release.
   vactrolEnvelope: {
     inputs: ["Light"],
     outputs: ["Out"],
     parameters: [
       {
-        defaultValue: "0.010", key: "attack", kind: "time", label: "Attack", max: "2", maxDigits: 5, mid: "0.01", min: "0", step: "any", unit: "s",
+        defaultValue: "0.0025", key: "attack", kind: "time", label: "Attack", max: "2", maxDigits: 5, mid: "0.0025", min: "0", step: "any", unit: "s",
         displayTransform: (value) => ({ maxDigits: 1, unit: "ms", value: value * 1000 }),
       },
       {
-        defaultValue: "0.450", key: "release", kind: "time", label: "Release", max: "5", maxDigits: 5, mid: "0.45", min: "0", step: "any", unit: "s",
+        defaultValue: "0.035", key: "release", kind: "time", label: "Release", max: "5", maxDigits: 5, mid: "0.035", min: "0", step: "any", unit: "s",
         displayTransform: (value) => ({ maxDigits: 1, unit: "ms", value: value * 1000 }),
       },
       {
@@ -1822,8 +1824,46 @@ const nodeGraphModuleDefinitions = Object.freeze({
       {
         defaultValue: "0", key: "darkCurrent", label: "Dark Current", max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "any",
         displayTransform: (value) => {
-          const litKohm = 0.3;
-          const darkKohm = 1000;
+          // VTL5C3: ~1.5 ohm lit (@40mA) to 10 megohm dark (datasheet min).
+          const litKohm = 0.0015;
+          const darkKohm = 10000;
+          const leak = Math.max(0, Math.min(1, value));
+          return { maxDigits: 1, unit: "kΩ dark R", value: litKohm * Math.pow(darkKohm / litKohm, 1 - leak) };
+        },
+      },
+    ],
+  },
+  vactrolEnvelopeC4: {
+    inputs: ["Light"],
+    outputs: ["Out"],
+    parameters: [
+      {
+        defaultValue: "0.006", key: "attack", kind: "time", label: "Attack", max: "2", maxDigits: 5, mid: "0.006", min: "0", step: "any", unit: "s",
+        displayTransform: (value) => ({ maxDigits: 1, unit: "ms", value: value * 1000 }),
+      },
+      {
+        defaultValue: "1.5", key: "release", kind: "time", label: "Release", max: "5", maxDigits: 5, mid: "1.5", min: "0", step: "any", unit: "s",
+        displayTransform: (value) => ({ maxDigits: 1, unit: "ms", value: value * 1000 }),
+      },
+      {
+        defaultValue: "1", key: "curve", label: "Curve", max: "8", maxDigits: 5, mid: "1", min: "0.001", step: "any",
+        displayTransform: (value) => ({ maxDigits: 3, unit: "γ (LDR gamma)", value }),
+      },
+      {
+        defaultValue: "1", key: "sensitivity", label: "Sensitivity", max: "4", maxDigits: 5, mid: "1", min: "0", nonlinearSlider: false, step: "any",
+        displayTransform: (value) => ({ maxDigits: 0, unit: "lux full-drive", value: 1000 / Math.max(value, 0.001) }),
+      },
+      {
+        defaultValue: "0", key: "lightOffset", label: "Light Offset", max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "any",
+        displayTransform: (value) => ({ maxDigits: 0, unit: "lux bias", value: value * 1000 }),
+      },
+      {
+        defaultValue: "0", key: "darkCurrent", label: "Dark Current", max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "any",
+        displayTransform: (value) => {
+          // VTL5C4: ~75 ohm lit (@40mA) to 400 kilohm dark (datasheet min) -- much
+          // lower dynamic range than VTL5C3, matching its lower-resistance construction.
+          const litKohm = 0.075;
+          const darkKohm = 400;
           const leak = Math.max(0, Math.min(1, value));
           return { maxDigits: 1, unit: "kΩ dark R", value: litKohm * Math.pow(darkKohm / litKohm, 1 - leak) };
         },
@@ -2292,6 +2332,7 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "triggerCounter",
     "triggerDivider",
     "vactrolEnvelope",
+    "vactrolEnvelopeC4",
     "visualOscilloscope",
     "spiral",
     "output",

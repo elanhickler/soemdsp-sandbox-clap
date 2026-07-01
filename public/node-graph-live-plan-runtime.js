@@ -367,7 +367,7 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "triggerDivider") {
       triggerDividerStates.set(node.id, createNodeGraphTriggerDividerState());
     }
-    if (node.type === "vactrolEnvelope") {
+    if (node.type === "vactrolEnvelope" || node.type === "vactrolEnvelopeC4") {
       vactrolEnvelopeStates.set(node.id, createNodeGraphVactrolEnvelopeState());
     }
     if (node.type === "moduleGroup" && node.moduleGroup?.sourcePatch) {
@@ -710,7 +710,7 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     if (node.type === "triggerCounter" && !runtime.triggerCounterStates.has(node.id)) {
       runtime.triggerCounterStates.set(node.id, createNodeGraphTriggerCounterState());
     }
-    if (node.type === "vactrolEnvelope" && !runtime.vactrolEnvelopeStates.has(node.id)) {
+    if ((node.type === "vactrolEnvelope" || node.type === "vactrolEnvelopeC4") && !runtime.vactrolEnvelopeStates.has(node.id)) {
       runtime.vactrolEnvelopeStates.set(node.id, createNodeGraphVactrolEnvelopeState());
     }
     if (node.type === "moduleGroup" && node.moduleGroup?.sourcePatch && !runtime.moduleGroupRuntimes.has(node.id)) {

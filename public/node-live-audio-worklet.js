@@ -931,7 +931,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "triggerDivider" && !this.triggerDividerStates.has(id)) {
         this.triggerDividerStates.set(id, this.createTriggerDividerState());
       }
-      if (node?.type === "vactrolEnvelope" && !this.vactrolEnvelopeStates.has(id)) {
+      if ((node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") && !this.vactrolEnvelopeStates.has(id)) {
         this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
       }
       if (node?.type === "moduleGroup" && node.moduleGroupPlan && !this.moduleGroupRuntimes.has(id)) {
@@ -3445,7 +3445,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "stepSequencer") this.stepSequencerStates.set(id, this.createStepSequencerState());
       if (node?.type === "triggerCounter") this.triggerCounterStates.set(id, this.createTriggerCounterState());
       if (node?.type === "triggerDivider") this.triggerDividerStates.set(id, this.createTriggerDividerState());
-      if (node?.type === "vactrolEnvelope") this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
+      if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
       if (node?.type === "moduleGroup" && node.moduleGroupPlan) {
         this.moduleGroupRuntimes.set(id, this.createNestedRuntime(node.moduleGroupPlan));
       }
@@ -6433,19 +6433,20 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           },
           safeRate,
         );
-      } else if (node?.type === "vactrolEnvelope") {
+      } else if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") {
         const state = this.vactrolEnvelopeStates.get(nodeId) || this.createVactrolEnvelopeState();
         this.vactrolEnvelopeStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const isC4 = node?.type === "vactrolEnvelopeC4";
         value = this.vactrolEnvelopeSample(
           state,
           mixInput(nodeId, "Light"),
           {
-            attack: read("attack", 0.01),
+            attack: read("attack", isC4 ? 0.006 : 0.0025),
             curve: read("curve", 1),
             darkCurrent: read("darkCurrent", 0),
             lightOffset: read("lightOffset", 0),
-            release: read("release", 0.45),
+            release: read("release", isC4 ? 1.5 : 0.035),
             sensitivity: read("sensitivity", 1),
           },
           safeRate,
