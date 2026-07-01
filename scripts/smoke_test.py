@@ -202,6 +202,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-chua-attractor.js",
     "./public/node-graph-chord-memory.js",
     "./public/node-graph-turing-machine.js",
+    "./public/node-graph-pitch-quantizer.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-live-runtime.js",
     "./public/node-graph-wire-controller-bootstrap.js",

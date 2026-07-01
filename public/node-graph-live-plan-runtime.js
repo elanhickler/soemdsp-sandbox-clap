@@ -252,6 +252,7 @@ function createNodeGraphLiveRuntime(plan) {
   const chuaAttractorStates = new Map();
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
+  const pitchQuantizerStates = new Map();
   const lorenzAttractorStates = new Map();
   const moduleGroupRuntimes = new Map();
   const noiseGeneratorStates = new Map();
@@ -305,6 +306,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "turingMachine") {
       turingMachineStates.set(node.id, createNodeGraphTuringMachineState());
+    }
+    if (node.type === "pitchQuantizer") {
+      pitchQuantizerStates.set(node.id, createNodeGraphPitchQuantizerState());
     }
     if (node.type === "passiveFilter") {
       passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -430,6 +434,7 @@ function createNodeGraphLiveRuntime(plan) {
     chuaAttractorStates,
     chordMemoryStates,
     turingMachineStates,
+    pitchQuantizerStates,
     lorenzAttractorStates,
     meterCounter: 0,
     meterClipCount: 0,
@@ -571,6 +576,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.turingMachineStates) {
     runtime.turingMachineStates = new Map();
   }
+  if (!runtime.pitchQuantizerStates) {
+    runtime.pitchQuantizerStates = new Map();
+  }
   if (!runtime.clockStates) {
     runtime.clockStates = new Map();
   }
@@ -683,6 +691,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "turingMachine" && !runtime.turingMachineStates.has(node.id)) {
       runtime.turingMachineStates.set(node.id, createNodeGraphTuringMachineState());
+    }
+    if (node.type === "pitchQuantizer" && !runtime.pitchQuantizerStates.has(node.id)) {
+      runtime.pitchQuantizerStates.set(node.id, createNodeGraphPitchQuantizerState());
     }
     if (node.type === "passiveFilter" && !runtime.passiveFilterStates.has(node.id)) {
       runtime.passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -870,6 +881,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.turingMachineStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.turingMachineStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.pitchQuantizerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.pitchQuantizerStates.delete(id);
     }
   }
   for (const id of [...runtime.passiveFilterStates.keys()]) {

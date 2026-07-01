@@ -165,6 +165,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chuaAttractorStates = new Map();
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
+    this.pitchQuantizerStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -623,6 +624,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "pitch_quantizer" || targetType === "pitchQuantizer") {
+        for (const state of this.pitchQuantizerStates.values()) {
+          this.destroyPitchQuantizerNativeState(state);
+        }
+        this.nativePitchQuantizer = exports;
+        this.nativePitchQuantizerReady = Boolean(
+          this.nativePitchQuantizer?.soemdsp_pitch_quantizer_create &&
+          this.nativePitchQuantizer?.soemdsp_pitch_quantizer_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pitch_quantizer",
+          status: this.nativePitchQuantizerReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -736,6 +753,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chuaAttractorStates = new Map();
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
+    this.pitchQuantizerStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -976,6 +994,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "turingMachine" && !this.turingMachineStates.has(id)) {
         this.turingMachineStates.set(id, this.createTuringMachineState());
       }
+      if (node?.type === "pitchQuantizer" && !this.pitchQuantizerStates.has(id)) {
+        this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
+      }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createPassiveFilterState());
       }
@@ -1165,6 +1186,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const id of [...this.turingMachineStates.keys()]) {
       if (!ids.has(id)) {
         this.turingMachineStates.delete(id);
+      }
+    }
+    for (const id of [...this.pitchQuantizerStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyPitchQuantizerNativeState(this.pitchQuantizerStates.get(id));
+        this.pitchQuantizerStates.delete(id);
       }
     }
     for (const id of [...this.passiveFilterStates.keys()]) {
@@ -3621,6 +3648,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.chuaAttractorStates = new Map();
     runtime.chordMemoryStates = new Map();
     runtime.turingMachineStates = new Map();
+    runtime.pitchQuantizerStates = new Map();
     runtime.stepSequencerStates = new Map();
     runtime.triggerCounterStates = new Map();
     runtime.triggerDividerStates = new Map();
@@ -3668,6 +3696,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "chuaAttractor") this.chuaAttractorStates.set(id, this.createChuaAttractorState());
       if (node?.type === "chordMemory") this.chordMemoryStates.set(id, this.createChordMemoryState());
       if (node?.type === "turingMachine") this.turingMachineStates.set(id, this.createTuringMachineState());
+      if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
@@ -6060,6 +6089,94 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createPitchQuantizerState() {
+    return { hasOutput: false, lastOutput: 0, nativeHandle: 0 };
+  }
+
+  destroyPitchQuantizerNativeState(state) {
+    if (state?.nativeHandle && this.nativePitchQuantizer?.soemdsp_pitch_quantizer_destroy) {
+      this.nativePitchQuantizer.soemdsp_pitch_quantizer_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  pitchQuantizerMaskFromChoice(choiceIndex) {
+    const masks = [4095, 2741, 1453, 661, 1193, 1365];
+    const index = Math.max(0, Math.min(masks.length - 1, Math.round(Number(choiceIndex) || 0)));
+    return masks[index];
+  }
+
+  pitchQuantizerSampleJs(state, options = {}) {
+    const pitch = Number(options.pitch) || 0;
+    const mask = options.hasScaleInput
+      ? Math.round(Number(options.scaleInput) || 0) & 0xFFF
+      : this.pitchQuantizerMaskFromChoice(options.scaleChoice);
+    if (mask === 0) {
+      return state.hasOutput ? state.lastOutput : pitch;
+    }
+    const semitoneFloat = pitch * 120;
+    const rounded = Math.round(semitoneFloat);
+    let bestSemitone = rounded;
+    let bestDistance = Infinity;
+    let found = false;
+    for (let radius = 0; radius <= 12 && !found; radius += 1) {
+      const signs = radius === 0 ? [0] : [-1, 1];
+      for (const sign of signs) {
+        const candidate = rounded + sign * radius;
+        const pitchClass = ((candidate % 12) + 12) % 12;
+        if (!((mask >> pitchClass) & 1)) continue;
+        const distance = Math.abs(candidate - semitoneFloat);
+        if (!found || distance < bestDistance) {
+          found = true;
+          bestDistance = distance;
+          bestSemitone = candidate;
+        }
+      }
+    }
+    const output = found ? bestSemitone / 120 : pitch;
+    state.hasOutput = true;
+    state.lastOutput = output;
+    return output;
+  }
+
+  pitchQuantizerSample(state, options = {}) {
+    const pitch = Number(options.pitch) || 0;
+    const mask = options.hasScaleInput
+      ? Math.round(Number(options.scaleInput) || 0) & 0xFFF
+      : this.pitchQuantizerMaskFromChoice(options.scaleChoice);
+    if (
+      this.nativePitchQuantizerReady &&
+      this.nativePitchQuantizer?.soemdsp_pitch_quantizer_create &&
+      this.nativePitchQuantizer?.soemdsp_pitch_quantizer_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativePitchQuantizer.soemdsp_pitch_quantizer_create();
+        }
+        if (state.nativeHandle) {
+          const output = this.nativePitchQuantizer.soemdsp_pitch_quantizer_sample(
+            state.nativeHandle,
+            pitch,
+            mask,
+          );
+          const safeOutput = this.safeFilterNumber(output, null);
+          state.hasOutput = true;
+          state.lastOutput = safeOutput;
+          return safeOutput;
+        }
+      } catch (error) {
+        this.nativePitchQuantizerReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pitch_quantizer",
+          status: "disabled",
+          message: String(error?.message || error || "native Pitch Quantizer failed"),
+        });
+      }
+    }
+    return this.pitchQuantizerSampleJs(state, options);
+  }
+
   spiralWrap01(value) {
     return value - Math.floor(value);
   }
@@ -6817,6 +6934,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           probability: read("probability", 0.25),
           reset: mixInput(nodeId, "Reset"),
         });
+      } else if (node?.type === "pitchQuantizer") {
+        const state = this.pitchQuantizerStates.get(nodeId) || this.createPitchQuantizerState();
+        this.pitchQuantizerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = {
+          Pitch: this.pitchQuantizerSample(state, {
+            hasScaleInput: hasInput(nodeId, "Scale"),
+            pitch: mixInput(nodeId, "Pitch"),
+            scaleChoice: read("scale", 1),
+            scaleInput: mixInput(nodeId, "Scale"),
+          }),
+        };
       } else if (node?.type === "midiOut") {
         const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
         const midiNumber = this.clampValue(Math.round(this.readEffectiveParameter(

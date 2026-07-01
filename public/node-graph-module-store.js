@@ -25,6 +25,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "chordSequencer",
   "chordMemory",
   "turingMachine",
+  "pitchQuantizer",
   "arpeggiator",
   "spiral",
   "blubb",
@@ -391,6 +392,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Classic mutating shift-register sequencer: each Clock, the pattern shifts and the new bit is randomly flipped with a set Probability, giving evolving, semi-repeating loops. Also outputs a 12-bit Scale mask.",
     label: "Turing Machine",
     notes: ["generative", "shift register", "mutating pattern", "scale mask output"],
+  },
+  pitchQuantizer: {
+    category: "Sequence",
+    description: "Snaps a 0.1V/Oct pitch signal to the nearest note in a scale. Pick a preset (Major, Minor, Pentatonic...) or feed a 12-bit pitch-class mask into the Scale input.",
+    label: "Pitch Quantizer",
+    notes: ["quantizer", "scale", "0.1v/oct", "melody from chaos"],
   },
   arpeggiator: {
     category: "Sequence",

@@ -2905,6 +2905,18 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         probability: read("probability", 0.25),
         reset: mixInput(nodeId, "Reset"),
       });
+    } else if (node?.type === "pitchQuantizer") {
+      const state = runtime.pitchQuantizerStates.get(nodeId) || createNodeGraphPitchQuantizerState();
+      runtime.pitchQuantizerStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = {
+        Pitch: nodeGraphPitchQuantizerSample(state, {
+          hasScaleInput: hasInput(nodeId, "Scale"),
+          pitch: mixInput(nodeId, "Pitch"),
+          scaleChoice: read("scale", 1),
+          scaleInput: mixInput(nodeId, "Scale"),
+        }),
+      };
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);
