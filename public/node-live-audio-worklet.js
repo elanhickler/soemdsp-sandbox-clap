@@ -4766,6 +4766,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
         mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
         recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
+        seed: Math.max(0, Math.min(99999, Math.round(this.safeFilterNumber(params.seed, null) ?? 0))),
       };
       const paramKey = [
         safeParams.mix,
@@ -4776,7 +4777,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         safeParams.lfoAmplitude,
         safeParams.lfoBaseSpeed,
         safeParams.lfoVariation,
-      ].map((value) => Math.round(value * 1000000)).join(":");
+      ].map((value) => Math.round(value * 1000000)).join(":") + `:${safeParams.seed}`;
       if (paramKey !== state.nativeParamKey && native.soemdsp_sabrina_reverb_set_params) {
         state.nativeParamKey = paramKey;
         native.soemdsp_sabrina_reverb_set_params(
@@ -4789,6 +4790,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeParams.lfoAmplitude,
           safeParams.lfoBaseSpeed,
           safeParams.lfoVariation,
+          safeParams.seed,
         );
       }
       const dryLeft = this.safeFilterNumber(leftInput, null);
@@ -7096,6 +7098,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             lfoVariation: read("lfoVariation", 0.001),
             mix: read("mix", 0.43),
             recycle: read("recycle", 0.70),
+            seed: read("seed", 0),
           },
           safeRate,
           frame,

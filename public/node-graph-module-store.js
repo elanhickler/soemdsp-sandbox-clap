@@ -804,9 +804,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   reverbEffect: {
     category: "Delay",
-    description: "Raw Sabrina reverb port: serial diffusion stages with cross-feedback delay, modulation, recycle, and wet/dry mix.",
+    description: "Raw Sabrina reverb port: serial diffusion stages with cross-feedback delay, modulation, recycle, and wet/dry mix. Seed randomizes the delay line pattern.",
     label: "Sabrina Reverb",
-    notes: ["Sabrina", "serial diffusion", "cross feedback"],
+    notes: ["Sabrina", "serial diffusion", "cross feedback", "seed"],
   },
   pll: {
     category: "Sequence",

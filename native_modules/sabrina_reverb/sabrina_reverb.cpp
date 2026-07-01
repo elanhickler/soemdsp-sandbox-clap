@@ -66,6 +66,7 @@ struct SabrinaState {
   double lfoAmplitude;
   double lfoBaseSpeed;
   double lfoVariation;
+  int seed;
 };
 
 SabrinaState states[kMaxInstances];
@@ -148,6 +149,18 @@ double diffuseSample(SabrinaDelay& delay, double input) {
   return finite(output) ? output : 0.0;
 }
 
+// Re-derives every delay line's random offset/modulation phase from a single
+// seed, clearing their buffers in the process (same as a reset). Each delay
+// line keeps its own distinct sub-seed (index * 137 + 7) so they don't all
+// land on the same random values -- seed 0 reproduces the original hardcoded
+// pattern exactly, any other seed shifts the whole random sequence.
+void reseedDelays(SabrinaState& state, int seed) {
+  state.seed = seed;
+  for (int index = 0; index < kDelayCount; index += 1) {
+    initializeDelay(state.delays[index], index * 137 + 7 + seed * 9973, state.sampleRate);
+  }
+}
+
 void applyParams(SabrinaState& state) {
   const double maxDelaySize = state.sampleRate * 4.0;
   const double lfoSpeed = ((1.0 - state.lfoBaseSpeed) * 1.95 + 0.5) * 0.5;
@@ -183,9 +196,7 @@ void resetState(SabrinaState& state, double sampleRate) {
   state.lfoAmplitude = 0.07;
   state.lfoBaseSpeed = 0.83;
   state.lfoVariation = 0.001;
-  for (int index = 0; index < kDelayCount; index += 1) {
-    initializeDelay(state.delays[index], index * 137 + 7, state.sampleRate);
-  }
+  reseedDelays(state, 0);
   applyParams(state);
 }
 
@@ -233,7 +244,8 @@ extern "C" void soemdsp_sabrina_reverb_set_params(
   double recycle,
   double lfoAmplitude,
   double lfoBaseSpeed,
-  double lfoVariation
+  double lfoVariation,
+  double seed
 ) {
   SabrinaState* state = stateForHandle(handle);
   if (!state) {
@@ -247,6 +259,10 @@ extern "C" void soemdsp_sabrina_reverb_set_params(
   state->lfoAmplitude = clamp(lfoAmplitude, 0.0, 1.0);
   state->lfoBaseSpeed = clamp(lfoBaseSpeed, 0.0, 1.0);
   state->lfoVariation = clamp(lfoVariation, 0.0, 1.0);
+  const int seedInt = static_cast<int>(seed + 0.5);
+  if (seedInt != state->seed) {
+    reseedDelays(*state, seedInt);
+  }
   applyParams(*state);
 }
 
