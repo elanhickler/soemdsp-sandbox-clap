@@ -4432,6 +4432,15 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         runtime,
         nodeId,
       );
+    } else if (node?.type === "papoulisFilter") {
+      const state = runtime.papoulisFilterStates.get(nodeId) || createNodeGraphPapoulisFilterState();
+      runtime.papoulisFilterStates.set(nodeId, state);
+      value = nodeGraphPapoulisFilterSample(
+        state,
+        mixInput(nodeId),
+        readNodeGraphLiveEffectiveParam(runtime, node, "cutoff", 1000, frame, frames, frameValues),
+        sampleRate,
+      );
     } else if (node?.type === "cookbookFilter") {
       const state = runtime.cookbookFilterStates.get(nodeId) || createNodeGraphCookbookFilterState();
       runtime.cookbookFilterStates.set(nodeId, state);

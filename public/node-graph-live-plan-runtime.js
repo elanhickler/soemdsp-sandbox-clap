@@ -235,6 +235,7 @@ function createNodeGraphLiveRuntime(plan) {
   const oscResetStates = new Map();
   const graphLfoStates = new Map();
   const passiveFilterStates = new Map();
+  const papoulisFilterStates = new Map();
   const clockStates = new Map();
   const codeblockFunctions = new Map();
   const cookbookFilterStates = new Map();
@@ -374,6 +375,9 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "passiveFilter") {
       passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
     }
+    if (node.type === "papoulisFilter") {
+      papoulisFilterStates.set(node.id, createNodeGraphPapoulisFilterState());
+    }
     if (node.type === "cookbookFilter") {
       cookbookFilterStates.set(node.id, createNodeGraphCookbookFilterState());
     }
@@ -503,6 +507,7 @@ function createNodeGraphLiveRuntime(plan) {
     inputConnections,
     badNumberCount: 0,
     passiveFilterStates,
+    papoulisFilterStates,
     clockDividerStates,
     clockStates,
     codeblockFunctions,
@@ -661,6 +666,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   }
   if (!runtime.passiveFilterStates) {
     runtime.passiveFilterStates = new Map();
+  }
+  if (!runtime.papoulisFilterStates) {
+    runtime.papoulisFilterStates = new Map();
   }
   if (!runtime.moduleGroupRuntimes) {
     runtime.moduleGroupRuntimes = new Map();
@@ -912,6 +920,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "passiveFilter" && !runtime.passiveFilterStates.has(node.id)) {
       runtime.passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
+    }
+    if (node.type === "papoulisFilter" && !runtime.papoulisFilterStates.has(node.id)) {
+      runtime.papoulisFilterStates.set(node.id, createNodeGraphPapoulisFilterState());
     }
     if (node.type === "cookbookFilter" && !runtime.cookbookFilterStates.has(node.id)) {
       runtime.cookbookFilterStates.set(node.id, createNodeGraphCookbookFilterState());
@@ -1198,6 +1209,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.passiveFilterStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.passiveFilterStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.papoulisFilterStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.papoulisFilterStates.delete(id);
     }
   }
   for (const id of [...runtime.moduleGroupRuntimes.keys()]) {

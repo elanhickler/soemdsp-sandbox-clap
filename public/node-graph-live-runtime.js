@@ -1742,7 +1742,7 @@ async function createNodeGraphLiveWorkletNode(context, plan = null) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=vactrol-series-impulse-button-20260710"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=papoulis-filter-module-20260710"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

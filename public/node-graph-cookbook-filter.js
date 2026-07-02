@@ -324,6 +324,9 @@ function nodeGraphFilterCurveResponseAt(node, frequency, sampleRate) {
       stages: Number(node.params?.stages) || 4,
     }, frequency, sampleRate);
   }
+  if (node.type === "papoulisFilter") {
+    return nodeGraphPapoulisFilterMagnitudeAt(Number(node.params?.cutoff) || 1000, frequency, sampleRate);
+  }
   const mode = Number(node.params?.mode) || 0;
   const cutoff = Number(node.params?.frequency) || 1000;
   const q = Number(node.params?.q) || 1;
@@ -343,6 +346,9 @@ function nodeGraphFilterCurveCutoffFrequencies(node) {
       .map((value) => Number(value) || 0)
       .filter((value) => Number.isFinite(value) && value >= 0);
   }
+  if (node.type === "papoulisFilter") {
+    return [Number(node.params?.cutoff) || 0].filter((value) => Number.isFinite(value) && value >= 0);
+  }
   return [Number(node.params?.frequency) || 0].filter((value) => Number.isFinite(value) && value >= 0);
 }
 
@@ -353,6 +359,9 @@ function nodeGraphFilterCurveLabel(node) {
   }
   if (node.type === "ladderFilter") {
     return nodeGraphLadderFilterModes[Math.round(Number(node.params?.mode) || 0)] || "Ladder";
+  }
+  if (node.type === "papoulisFilter") {
+    return "Papoulis LP";
   }
   return nodeGraphCookbookFilterModes[Math.round(Number(node.params?.mode) || 0)] || "Filter";
 }

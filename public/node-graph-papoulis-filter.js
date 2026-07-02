@@ -70,3 +70,56 @@ function papoulisLowpass3Process(state, coeffs, input) {
 
   return biquadOut;
 }
+
+// Module-facing API for the standalone Papoulis Filter node — mirrors the
+// createNodeGraphXState()/nodeGraphXSample() naming convention used by
+// passiveFilter/cookbookFilter/ladderFilter so it plugs into the same
+// per-node state-map dispatch pattern in the live evaluator and worklet.
+
+function createNodeGraphPapoulisFilterState() {
+  return {
+    filter: createPapoulisLowpass3State(),
+    coeffs: null,
+    cutoffHz: NaN,
+    sampleRate: NaN,
+  };
+}
+
+function nodeGraphPapoulisFilterSample(state, input, cutoffHz, sampleRate) {
+  const safeCutoff = Math.max(0.01, Math.min(sampleRate * 0.49, Number(cutoffHz) || 0));
+  if (state.cutoffHz !== safeCutoff || state.sampleRate !== sampleRate) {
+    state.coeffs = designPapoulisLowpass3(safeCutoff, sampleRate);
+    state.cutoffHz = safeCutoff;
+    state.sampleRate = sampleRate;
+  }
+  return papoulisLowpass3Process(state.filter, state.coeffs, Number(input) || 0);
+}
+
+function nodeGraphPapoulisFilterMagnitudeAt(cutoffHz, frequency, sampleRate) {
+  const safeCutoff = Math.max(0.01, Math.min(sampleRate * 0.49, Number(cutoffHz) || 0));
+  const coeffs = designPapoulisLowpass3(safeCutoff, sampleRate);
+  const omega = (2 * Math.PI * Math.max(0, frequency)) / Math.max(1, sampleRate);
+  const zRe = Math.cos(omega);
+  const zIm = -Math.sin(omega);
+
+  const poleNumRe = coeffs.pole.b0 + coeffs.pole.b1 * zRe;
+  const poleNumIm = coeffs.pole.b1 * zIm;
+  const poleDenRe = 1 + coeffs.pole.a1 * zRe;
+  const poleDenIm = coeffs.pole.a1 * zIm;
+  const poleDenMagSq = poleDenRe * poleDenRe + poleDenIm * poleDenIm;
+  const poleMag = Math.sqrt((poleNumRe * poleNumRe + poleNumIm * poleNumIm) / Math.max(1e-12, poleDenMagSq));
+
+  const z2Re = zRe * zRe - zIm * zIm;
+  const z2Im = 2 * zRe * zIm;
+  const { b0, b1, b2, a1, a2 } = coeffs.biquad;
+  const biquadNumRe = b0 + b1 * zRe + b2 * z2Re;
+  const biquadNumIm = b1 * zIm + b2 * z2Im;
+  const biquadDenRe = 1 + a1 * zRe + a2 * z2Re;
+  const biquadDenIm = a1 * zIm + a2 * z2Im;
+  const biquadDenMagSq = biquadDenRe * biquadDenRe + biquadDenIm * biquadDenIm;
+  const biquadMag = Math.sqrt(
+    (biquadNumRe * biquadNumRe + biquadNumIm * biquadNumIm) / Math.max(1e-12, biquadDenMagSq),
+  );
+
+  return poleMag * biquadMag;
+}

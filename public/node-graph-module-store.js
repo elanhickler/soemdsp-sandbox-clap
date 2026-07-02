@@ -100,6 +100,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "flowerChildFilter",
   "ladderFilter",
   "tb303Filter",
+  "papoulisFilter",
   "slewLimiter",
   "delayEffect",
   "pingPongDelay",
@@ -845,6 +846,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Filter",
     description: "1-pole RC filter with LP, HP, and BP modes. Low Cut is the HP edge; High Cut is the LP edge. BP chains HP then LP.",
     notes: ["lowpass", "highpass", "bandpass", "1-pole"],
+  },
+  papoulisFilter: {
+    category: "Filter",
+    description: "3rd-order Papoulis (Optimum-L) lowpass: monotonic, ripple-free passband like Butterworth but with a faster roll-off for the same order.",
+    label: "Papoulis Filter",
+    notes: ["lowpass", "optimum-l", "legendre", "monotonic", "3-pole"],
   },
   cookbookFilter: {
     category: "Filter",

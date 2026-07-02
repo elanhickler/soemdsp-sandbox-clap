@@ -157,6 +157,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.raptEllipticDecimatorRight = this.createRaptEllipticDecimatorState();
     this.raptEllipticDecimatorRatio = 1;
     this.passiveFilterStates = new Map();
+    this.papoulisFilterStates = new Map();
     this.clockDividerStates = new Map();
     this.clockStates = new Map();
     this.codeblockFunctions = new Map();
@@ -1349,6 +1350,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.destroyPassiveFilterNativeState(state);
     }
     this.passiveFilterStates = new Map();
+    this.papoulisFilterStates = new Map();
     this.clockDividerStates = new Map();
     this.clockStates = new Map();
     this.codeblockFunctions = new Map();
@@ -1709,6 +1711,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createPassiveFilterState());
       }
+      if (node?.type === "papoulisFilter" && !this.papoulisFilterStates.has(id)) {
+        this.papoulisFilterStates.set(id, this.createPapoulisFilterState());
+      }
       if (node?.type === "cookbookFilter" && !this.cookbookFilterStates.has(id)) {
         this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       }
@@ -2030,6 +2035,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyPassiveFilterNativeState(this.passiveFilterStates.get(id));
         this.passiveFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.papoulisFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.papoulisFilterStates.delete(id);
       }
     }
     for (const id of [...this.linearEnvelopeStates.keys()]) {
@@ -4710,6 +4720,65 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     );
   }
 
+  // Papoulis (Optimum-L) order-3 lowpass. Normalized (cutoff = 1 rad/s) prototype:
+  //   D(s) = (s + 0.6203) * (s^2 + 0.6904s + 0.9308)
+  // Each factor is unity-DC-gain individually, frequency-scaled to cutoff, and
+  // bilinear-transformed to digital per stage (1-pole cascaded with a biquad).
+  createPapoulisFilterState() {
+    return {
+      poleX1: 0,
+      poleY1: 0,
+      biquadX1: 0,
+      biquadX2: 0,
+      biquadY1: 0,
+      biquadY2: 0,
+      coeffs: null,
+      cutoffHz: NaN,
+      sampleRate: NaN,
+    };
+  }
+
+  papoulisFilterDesign(cutoffHz, rate) {
+    const wc = 2 * Math.PI * Math.max(0, cutoffHz);
+    const k = 2 * rate;
+    const p = 0.6203 * wc;
+    const poleA0 = k + p;
+    const a1s = 0.6904 * wc;
+    const a0s = 0.9308 * wc * wc;
+    const biquadA0 = k * k + a1s * k + a0s;
+    return {
+      pole: { b0: p / poleA0, b1: p / poleA0, a1: (p - k) / poleA0 },
+      biquad: {
+        b0: a0s / biquadA0,
+        b1: (2 * a0s) / biquadA0,
+        b2: a0s / biquadA0,
+        a1: (2 * a0s - 2 * k * k) / biquadA0,
+        a2: (k * k - a1s * k + a0s) / biquadA0,
+      },
+    };
+  }
+
+  papoulisFilterSample(state, input, cutoffHz, rate) {
+    const safeCutoff = Math.max(0.01, Math.min(rate * 0.49, Number(cutoffHz) || 0));
+    if (state.cutoffHz !== safeCutoff || state.sampleRate !== rate) {
+      state.coeffs = this.papoulisFilterDesign(safeCutoff, rate);
+      state.cutoffHz = safeCutoff;
+      state.sampleRate = rate;
+    }
+    const x = Number(input) || 0;
+    const { pole, biquad } = state.coeffs;
+    const poleOut = pole.b0 * x + pole.b1 * state.poleX1 - pole.a1 * state.poleY1;
+    state.poleX1 = x;
+    state.poleY1 = poleOut;
+    const biquadOut = biquad.b0 * poleOut + biquad.b1 * state.biquadX1 + biquad.b2 * state.biquadX2
+      - biquad.a1 * state.biquadY1 - biquad.a2 * state.biquadY2;
+    state.biquadX2 = state.biquadX1;
+    state.biquadX1 = poleOut;
+    state.biquadY2 = state.biquadY1;
+    state.biquadY1 = biquadOut;
+    return biquadOut;
+  }
+
   createRandomWalkState() {
     return {
       lowpass: this.createLowpassState(),
@@ -5029,6 +5098,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.hostSampleRate = this.hostSampleRate;
     runtime.oversamplingRatio = this.oversamplingRatio;
     runtime.passiveFilterStates = new Map();
+    runtime.papoulisFilterStates = new Map();
     runtime.clockDividerStates = new Map();
     runtime.clockStates = new Map();
     runtime.codeblockFunctions = new Map();
@@ -5152,6 +5222,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "dsfOscillator") this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
       if (node?.type === "robinSupersaw") this.robinSupersawStates.set(id, this.createRobinSupersawState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
+      if (node?.type === "papoulisFilter") this.papoulisFilterStates.set(id, this.createPapoulisFilterState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
       if (node?.type === "flowerChildFilter") this.flowerChildFilterStates.set(id, this.createFlowerChildFilterState());
@@ -12614,6 +12685,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
           this.readEffectiveParameter(node, "lowFrequency", 200, frame, frames, frameValues),
           this.readEffectiveParameter(node, "highFrequency", 1000, frame, frames, frameValues),
+          safeRate,
+        );
+      } else if (node?.type === "papoulisFilter") {
+        const state = this.papoulisFilterStates.get(nodeId) || this.createPapoulisFilterState();
+        this.papoulisFilterStates.set(nodeId, state);
+        value = this.papoulisFilterSample(
+          state,
+          mixInput(nodeId),
+          this.readEffectiveParameter(node, "cutoff", 1000, frame, frames, frameValues),
           safeRate,
         );
       } else if (node?.type === "cookbookFilter") {
