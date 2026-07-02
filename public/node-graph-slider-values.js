@@ -118,6 +118,14 @@ function denormalizeNodeGraphSmootherSignal(signal, metadata = {}) {
 }
 
 function nodeGraphParameterSmoothingSecondsFromMetadata(metadata = {}) {
+  // metadata.smoothingSeconds is already normalized to null (unset -> defer to
+  // the global auto-smoothing time) or a finite number by
+  // normalizeNodeGraphMetadataSmoothingSeconds. Number(null) === 0 in JS, so
+  // coercing a literal null here would silently turn "unset" into "0 seconds"
+  // (instant, no smoothing) instead of preserving the fallback.
+  if (metadata.smoothingSeconds === null || metadata.smoothingSeconds === undefined) {
+    return null;
+  }
   const value = Number(metadata.smoothingSeconds);
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
@@ -442,7 +450,8 @@ function setNodeSliderMetadata(slider, metadata) {
   slider.dataset.displayChoices = metadata.displayChoices ? "true" : "false";
   slider.dataset.divideChoicesVisibly = metadata.divideChoicesVisibly ? "true" : "false";
   slider.dataset.linearSmoothing = metadata.linearSmoothing ? "true" : "false";
-  slider.dataset.smoothingSeconds = Number.isFinite(Number(metadata.smoothingSeconds)) && Number(metadata.smoothingSeconds) >= 0
+  slider.dataset.smoothingSeconds = metadata.smoothingSeconds !== null && metadata.smoothingSeconds !== undefined
+    && Number.isFinite(Number(metadata.smoothingSeconds)) && Number(metadata.smoothingSeconds) >= 0
     ? String(metadata.smoothingSeconds)
     : "";
   slider.dataset.sliderCurve = normalizeNodeSliderCurve(metadata.sliderCurve, metadata.nonlinearSlider);

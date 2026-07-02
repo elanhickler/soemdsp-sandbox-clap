@@ -2391,7 +2391,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   smoothingSecondsFromMetadata(metadata = {}) {
-    const value = Number(metadata?.smoothingSeconds);
+    // metadata.smoothingSeconds is already normalized to null (unset -> defer
+    // to the global auto-smoothing time) or a finite number. Number(null) is
+    // 0 in JS, so coercing a literal null here would silently turn "unset"
+    // into "0 seconds" (instant, no smoothing) instead of preserving the
+    // fallback to this.autoSmoothingSeconds.
+    if (metadata?.smoothingSeconds === null || metadata?.smoothingSeconds === undefined) {
+      return null;
+    }
+    const value = Number(metadata.smoothingSeconds);
     return Number.isFinite(value) && value >= 0 ? value : null;
   }
 

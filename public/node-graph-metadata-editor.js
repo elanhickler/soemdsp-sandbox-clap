@@ -960,7 +960,7 @@ function nodeMetadataScriptEffectiveRows(metadata) {
     ["step", nodeMetadataScriptPreviewValueText(metadata.step, "step")],
     ["unit", metadata.unit || "none"],
     ["digits", normalizeNodeGraphMetadataMaxDigits(metadata.maxDigits, metadata.kind)],
-    ["smoothing time", Number.isFinite(Number(metadata.smoothingSeconds)) ? `${metadata.smoothingSeconds}s` : "auto"],
+    ["smoothing time", metadata.smoothingSeconds !== null && metadata.smoothingSeconds !== undefined && Number.isFinite(Number(metadata.smoothingSeconds)) ? `${metadata.smoothingSeconds}s` : "auto"],
     ["choices", choices],
     ["flags", flags.length ? flags.join(", ") : "none"],
   ];
@@ -1305,7 +1305,9 @@ function writeNodeMetadataEditorValues(metadata) {
   document.getElementById("metadataLinearSmoothingValue").checked = metadata.linearSmoothing;
   document.getElementById("metadataNonlinearSliderValue").checked = metadata.nonlinearSlider;
   document.getElementById("metadataSmoothingSecondsValue").value =
-    Number.isFinite(Number(metadata.smoothingSeconds)) ? formatNodeSliderCompactNumber(metadata.smoothingSeconds) : "";
+    metadata.smoothingSeconds !== null && metadata.smoothingSeconds !== undefined && Number.isFinite(Number(metadata.smoothingSeconds))
+      ? formatNodeSliderCompactNumber(metadata.smoothingSeconds)
+      : "";
   document.getElementById("metadataSliderCurveValue").value = normalizeNodeSliderCurve(metadata.sliderCurve, metadata.nonlinearSlider);
   document.getElementById("metadataCurveSensitivityValue").value = formatNodeSliderCompactNumber(metadata.curveAmount);
   document.getElementById("metadataShowSignValue").checked = metadata.showSign;
