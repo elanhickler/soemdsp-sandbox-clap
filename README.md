@@ -1320,6 +1320,9 @@ use requires a separate written commercial license from Soundemote. See
 
 ## 📚 Guides
 
+- [`VACTROLS.md`](VACTROLS.md) -- vactrol field guide: how a VTL5C3/VTL5C4
+  actually works, the datasheet numbers behind the Vactrol Envelope module's
+  knob readouts, diagrams, and cited sources.
 - [`docs/ADDING_HARDCODED_SANDBOX_MODULE.md`](docs/ADDING_HARDCODED_SANDBOX_MODULE.md)
 - [`docs/OSC_MODULE_NON_UI_REFERENCE.md`](docs/OSC_MODULE_NON_UI_REFERENCE.md)
 - [`docs/WEBUI_CLAP_HOST_PLAN.md`](docs/WEBUI_CLAP_HOST_PLAN.md)
