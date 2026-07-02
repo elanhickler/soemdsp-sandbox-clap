@@ -1096,7 +1096,11 @@ function saveNodeGraphWorkspaceViewToUserSettings(options = {}) {
   }
   const text = serializeNodeUiDevSettings();
   const saved = saveNodeUiDevLocalDefaultSettings(text);
-  if (options.file !== false && typeof postNodeUiDevSettingsPreset === "function") {
+  // Ambient autosave (pan/zoom/smoothing-drag/etc.) only persists to this
+  // browser's localStorage so a refresh doesn't lose progress. It must never
+  // silently overwrite the shipped default preset on the server -- that only
+  // happens when the user explicitly clicks Save/Update Default UI Settings.
+  if (options.file === true && typeof postNodeUiDevSettingsPreset === "function") {
     if (nodeGraphWorkspaceViewAutosaveTimer) {
       window.clearTimeout(nodeGraphWorkspaceViewAutosaveTimer);
     }
