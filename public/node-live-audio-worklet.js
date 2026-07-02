@@ -2409,6 +2409,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Mirrors soemdsp::filter::SmootherBase::needsSmoothing() -- once a
+  // parameter has settled within epsilon of its target (no live modulation
+  // moving it), skip the one-pole recompute entirely rather than running it
+  // every sample forever for a value that isn't changing.
+  smootherNeedsWork(smoother) {
+    return Math.abs((smoother.outputBuffer ?? 0) - (smoother.targetSignal ?? 0)) > 1e-7;
+  }
+
   updateSmoother(smoother, targetValue, metadata = {}) {
     const value = Number(targetValue);
     smoother.target = Number.isFinite(value) ? value : smoother.target;
@@ -2437,6 +2445,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     if (smoother.lastFrame === frame) {
       return smoother.lastValue;
+    }
+    if (!this.smootherNeedsWork(smoother)) {
+      smoother.current = smoother.target;
+      smoother.lastFrame = frame;
+      smoother.lastValue = smoother.target;
+      return smoother.target;
     }
     const smoothingSeconds = this.clampAutoSmoothingSeconds(
       smoother.smoothingSeconds ?? this.autoSmoothingSeconds,

@@ -223,9 +223,31 @@ void applyDelayGeometry(SabrinaState& state) {
   }
 }
 
+// Mirrors soemdsp::filter::SmootherBase::needsSmoothing(): true only while at
+// least one ramped copy is still meaningfully short of its target. Once a
+// patch settles (no param changes, no modulation), every smoothed* field
+// sits within epsilon of its target and this goes false -- letting
+// advanceSabrinaSmoothing skip applyDelayGeometry's 14-delay-line recompute
+// entirely instead of redoing it, unchanged, every single sample forever.
+bool sabrinaSmoothingNeedsWork(const SabrinaState& state) {
+  constexpr double kEpsilon = 1e-6;
+  auto near = [](double a, double b) { return __builtin_fabs(a - b) < kEpsilon; };
+  return !(
+    near(state.smoothedDiffusionSize, state.diffusionSize) &&
+    near(state.smoothedDelaySize, state.delaySize) &&
+    near(state.smoothedLfoAmplitude, state.lfoAmplitude) &&
+    near(state.smoothedLfoBaseSpeed, state.lfoBaseSpeed) &&
+    near(state.smoothedLfoVariation, state.lfoVariation)
+  );
+}
+
 // Advances the smoothed* fields one step toward their targets and reapplies
-// delay geometry. Call once per sample.
+// delay geometry. Call once per sample. No-ops once converged (see
+// sabrinaSmoothingNeedsWork) so a settled/unmodulated instance costs nothing.
 void advanceSabrinaSmoothing(SabrinaState& state) {
+  if (!sabrinaSmoothingNeedsWork(state)) {
+    return;
+  }
   state.smoothedDiffusionSize = smoothStep(state.smoothedDiffusionSize, state.diffusionSize, state.paramSmoothAlpha);
   state.smoothedDelaySize = smoothStep(state.smoothedDelaySize, state.delaySize, state.paramSmoothAlpha);
   state.smoothedLfoAmplitude = smoothStep(state.smoothedLfoAmplitude, state.lfoAmplitude, state.paramSmoothAlpha);

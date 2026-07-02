@@ -83,6 +83,16 @@ function shortestNodeGraphWrapDelta(from, to, min, max) {
   return delta;
 }
 
+const nodeGraphSmootherConvergenceEpsilon = 1e-7;
+
+// Mirrors soemdsp::filter::SmootherBase::needsSmoothing() -- a settled/
+// unmodulated parameter has outputBuffer already within epsilon of
+// targetSignal, so the one-pole recompute can be skipped entirely instead
+// of running (and reaching the same answer) every single sample forever.
+function nodeGraphSmootherNeedsWork(smoother) {
+  return Math.abs((smoother.outputBuffer ?? 0) - (smoother.targetSignal ?? 0)) > nodeGraphSmootherConvergenceEpsilon;
+}
+
 function nodeGraphOnePoleParameterLowpassSample(state, input, frequency, rate) {
   const safeRate = Math.max(1, Number(rate) || nodeGraphMvp?.sampleRate || 44100);
   const safeInput = Number.isFinite(Number(input)) ? Number(input) : state.outputBuffer || 0;
@@ -165,6 +175,12 @@ function readNodeGraphSmoothedParameter(smoother, frame, frames) {
   }
   if (smoother.lastFrame === frame) {
     return smoother.lastValue;
+  }
+  if (!nodeGraphSmootherNeedsWork(smoother)) {
+    smoother.current = smoother.target;
+    smoother.lastFrame = frame;
+    smoother.lastValue = smoother.target;
+    return smoother.target;
   }
   const smoothingSeconds = clampNodeGraphAutoSmoothingSeconds(
     smoother.smoothingSeconds ?? nodeGraphMvp?.live?.autoSmoothingSeconds,
