@@ -7,6 +7,51 @@ const nodeGraphExternalSandboxEventNames = Object.freeze(new Set([
   "shootingStarExplosion",
 ]));
 
+// When embedded with ?autoframe=1, zoom-to-fit the whole patch after it loads.
+function nodeGraphExternalAutoFrameRequested() {
+  try {
+    return new URLSearchParams(window.location.search).get("autoframe") === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+// When embedded with ?hideui=1, drop all chrome: force modular-only view and
+// hide the back button, resize handle, and workspace border for a clean,
+// full-screen "no nonsense" frame. Handled via a root class + CSS.
+function nodeGraphExternalHideUiRequested() {
+  try {
+    const raw = String(new URLSearchParams(window.location.search).get("hideui") || "")
+      .trim()
+      .toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes";
+  } catch (error) {
+    return false;
+  }
+}
+
+if (nodeGraphExternalHideUiRequested()) {
+  document.documentElement.classList.add("soemdsp-hide-ui");
+}
+
+function nodeGraphExternalScheduleAutoFrame(options = {}) {
+  if (typeof window.nodeGraphAutoFrame !== "function") {
+    return;
+  }
+  // Two rAFs so node DOM has laid out (offsetWidth/height) before measuring.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      window.nodeGraphAutoFrame(options);
+    });
+  });
+}
+
+function nodeGraphExternalAutoFrameAfterLoad(options = {}) {
+  if (nodeGraphExternalAutoFrameRequested() || options.force) {
+    nodeGraphExternalScheduleAutoFrame(options);
+  }
+}
+
 function normalizeNodeGraphExternalButtonEventName(name) {
   const key = String(name || "").trim().toLowerCase();
   if (key === "mousedown" || key === "pointerdown") return "down";
@@ -417,12 +462,17 @@ window.addEventListener("message", (event) => {
             ? cloneNodeGraphPatch(loadedPatch)
             : loadedPatch;
         commitNodeGraphPatch(clonedPatch, { status: "shared patch loaded" });
+        nodeGraphExternalAutoFrameAfterLoad();
       }
     } catch (error) {
       if (typeof setNodeGraphScriptStatus === "function") {
         setNodeGraphScriptStatus(`shared patch load failed: ${error?.message || error}`, false);
       }
     }
+  } else if (message.type === "soundemote:autoframe") {
+    nodeGraphExternalScheduleAutoFrame(
+      message.padding != null ? { padding: message.padding, force: true } : { force: true },
+    );
   } else if (message.type === "soundemote:request-current-patch") {
     let projectData = null;
     try {
@@ -442,3 +492,12 @@ window.addEventListener("message", (event) => {
     );
   }
 });
+
+// Autoframe the initial patch on load when embedded with ?autoframe=1.
+if (nodeGraphExternalAutoFrameRequested()) {
+  if (document.readyState === "complete") {
+    nodeGraphExternalScheduleAutoFrame();
+  } else {
+    window.addEventListener("load", () => nodeGraphExternalScheduleAutoFrame(), { once: true });
+  }
+}

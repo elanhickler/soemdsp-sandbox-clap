@@ -831,9 +831,18 @@ function toggleNodeGraphVisibilityMenu() {
 function nodeGraphStartupViewModeFromUrl() {
   const params = new URLSearchParams(window.location.search || "");
   const value = String(params.get("sandboxView") || params.get("view") || "").trim().toLowerCase();
-  return value === "modular-only" || value === "modularonly" || value === "modular-only-view"
-    ? "modular-only"
-    : "modular";
+  const truthy = (name) => {
+    const raw = String(params.get(name) || "").trim().toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes" || raw === "only";
+  };
+  // `hideui` (full-screen no-chrome) and `modular` both force modular-only view.
+  if (
+    value === "modular-only" || value === "modularonly" || value === "modular-only-view" ||
+    truthy("modular") || truthy("hideui")
+  ) {
+    return "modular-only";
+  }
+  return "modular";
 }
 
 function resetNodeGraphStartupView() {

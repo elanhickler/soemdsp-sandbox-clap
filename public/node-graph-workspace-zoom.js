@@ -100,6 +100,61 @@ function preserveNodeGraphEditorZoomOnPatch(patch = nodeGraphMvp.patch) {
   patch.view = { ...view, zoom: clampNodeGraphZoom(nodeGraphMvp.zoom) };
 }
 
+// Zoom + pan so the entire patch fits the workspace with a little elbow room.
+// `padding` is the fraction of margin to leave (0.12 == ~12% breathing space).
+function nodeGraphAutoFrame(options = {}) {
+  const workspace = document.getElementById("nodeGraphWorkspace");
+  const surface = typeof nodeGraphZoomSurface === "function" ? nodeGraphZoomSurface() : null;
+  const host = surface || workspace;
+  if (!workspace || !host) {
+    return false;
+  }
+  const nodes = [...host.querySelectorAll(".dsp-node:not(.removed):not([hidden])")];
+  if (!nodes.length) {
+    return false;
+  }
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const node of nodes) {
+    const b = nodeGraphNodeBounds(node);
+    if (b.right - b.left <= 0 || b.bottom - b.top <= 0) {
+      continue;
+    }
+    left = Math.min(left, b.left);
+    top = Math.min(top, b.top);
+    right = Math.max(right, b.right);
+    bottom = Math.max(bottom, b.bottom);
+  }
+  const contentWidth = right - left;
+  const contentHeight = bottom - top;
+  if (!Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) || contentWidth <= 0 || contentHeight <= 0) {
+    return false;
+  }
+  const rect = workspace.getBoundingClientRect();
+  const style = getComputedStyle(workspace);
+  const borderX = (Number.parseFloat(style.borderLeftWidth) || 0) + (Number.parseFloat(style.borderRightWidth) || 0);
+  const borderY = (Number.parseFloat(style.borderTopWidth) || 0) + (Number.parseFloat(style.borderBottomWidth) || 0);
+  const availWidth = Math.max(1, rect.width - borderX);
+  const availHeight = Math.max(1, rect.height - borderY);
+  const pad = Math.max(0, Math.min(0.4, Number.isFinite(Number(options.padding)) ? Number(options.padding) : 0.06));
+  const usableWidth = availWidth * (1 - pad);
+  const usableHeight = availHeight * (1 - pad);
+  const zoom = clampNodeGraphZoom(Math.min(usableWidth / contentWidth, usableHeight / contentHeight));
+  const centerX = (left + right) / 2;
+  const centerY = (top + bottom) / 2;
+  nodeGraphMvp.zoom = zoom;
+  syncNodeGraphPatchViewZoom(zoom);
+  applyNodeGraphZoom();
+  setNodeGraphPan(-centerX * zoom, -centerY * zoom, { persist: false });
+  return true;
+}
+
+if (typeof window !== "undefined") {
+  window.nodeGraphAutoFrame = nodeGraphAutoFrame;
+}
+
 function nodeGraphZoomRatioBySteps(steps, baseRatio = nodeGraphZoomLimits.wheelRatio) {
   const stepCount = Number(steps) || 0;
   const ratio = Number(baseRatio);
