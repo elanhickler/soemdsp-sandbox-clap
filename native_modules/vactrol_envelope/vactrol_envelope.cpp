@@ -10,6 +10,14 @@
 // attack/release/curve/sensitivity/lightOffset/darkCurrent values a given
 // node instance passes in, exactly like passive_filter's single WASM serving
 // LP/BP/HP via a mode param.
+//
+// "VTL5C1" through "VTL5C10" are PerkinElmer/Excelitas part numbers used here
+// only as descriptive labels (nominative fair use) so the attack/release/
+// resistance defaults mean something to someone who knows those datasheets.
+// No PerkinElmer code, schematics, or datasheet text is reproduced -- this is
+// an independent envelope-follower model built from publicly published
+// timing/resistance figures, and this project is not affiliated with or
+// endorsed by PerkinElmer or Excelitas.
 
 namespace {
 
