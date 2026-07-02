@@ -354,6 +354,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "lut_cell",
+      "label": "LUT Cell",
+      "targetType": "lutCell",
+      "kind": "logic",
+      "source": "native_modules/lut_cell/lut_cell.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/lut_cell/lut_cell.cpp",
+      "wasm": "native_modules/lut_cell/lut_cell.wasm",
+      "wasmUrl": "native_modules/lut_cell/lut_cell.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "noise_generator",
       "label": "Noise Generator",
       "targetType": "noiseGenerator",

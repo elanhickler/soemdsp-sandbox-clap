@@ -1003,3 +1003,19 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\chord_sequencer\chord_sequencer.wasm" `
   "$root\native_modules\chord_sequencer\chord_sequencer.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_lut_cell_create" `
+  "-Wl,--export=soemdsp_lut_cell_destroy" `
+  "-Wl,--export=soemdsp_lut_cell_sample" `
+  "-Wl,--export=soemdsp_lut_cell_q" `
+  "-Wl,--export=soemdsp_lut_cell_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\lut_cell\lut_cell.wasm" `
+  "$root\native_modules\lut_cell\lut_cell.cpp"

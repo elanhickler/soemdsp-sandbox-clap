@@ -4446,6 +4446,18 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         progression: read("progression", 0),
         reset: mixInput(nodeId, "Reset"),
       });
+    } else if (node?.type === "lutCell") {
+      const state = runtime.lutCellStates.get(nodeId) || createNodeGraphLutCellState();
+      runtime.lutCellStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphLutCellSample(state, {
+        a: mixInput(nodeId, "A"),
+        b: mixInput(nodeId, "B"),
+        c: mixInput(nodeId, "C"),
+        d: mixInput(nodeId, "D"),
+        clock: mixInput(nodeId, "Clock"),
+        truthTable: read("truthTable", 27030),
+      });
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);

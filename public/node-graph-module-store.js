@@ -25,6 +25,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "stepSequencer",
   "melodySequencer",
   "chordSequencer",
+  "lutCell",
   "chordMemory",
   "turingMachine",
   "pitchQuantizer",
@@ -417,6 +418,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Steps through a built-in diatonic chord progression on each Clock. Scale outputs the current chord as a 12-bit pitch-class mask (feed it straight into Pitch Quantizer), Root outputs the chord's root as 0.1V/Oct.",
     label: "Chord Sequencer",
     notes: ["chord progression", "digital signal", "scale mask output", "root output"],
+  },
+  lutCell: {
+    category: "Logic",
+    description: "An FPGA logic slice, modeled directly: a 4-input lookup table (A/B/C/D) feeding a clocked D flip-flop. Truth Table is a 16-bit digital signal -- bit i is the cell's output for input combination i. Out is the combinational result, Q is the registered result that only updates on a Clock rising edge.",
+    label: "LUT Cell",
+    notes: ["FPGA logic slice", "lookup table", "flip-flop", "digital signal"],
   },
   chordMemory: {
     category: "Sequence",
