@@ -3376,6 +3376,7 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "logisticMap",
     "henonMap",
     "chuaAttractor",
+    "lutCell",
     "ellipsoid",
     "macroKnob",
     "macroControls",
