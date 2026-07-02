@@ -250,6 +250,7 @@ function createNodeGraphLiveRuntime(plan) {
   const logisticMapStates = new Map();
   const henonMapStates = new Map();
   const chuaAttractorStates = new Map();
+  const wirdoSpiralStates = new Map();
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
   const pitchQuantizerStates = new Map();
@@ -300,6 +301,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "chuaAttractor") {
       chuaAttractorStates.set(node.id, createNodeGraphChuaAttractorState());
+    }
+    if (node.type === "wirdoSpiral") {
+      wirdoSpiralStates.set(node.id, createNodeGraphWirdoSpiralState());
     }
     if (node.type === "chordMemory") {
       chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -432,6 +436,7 @@ function createNodeGraphLiveRuntime(plan) {
     logisticMapStates,
     henonMapStates,
     chuaAttractorStates,
+    wirdoSpiralStates,
     chordMemoryStates,
     turingMachineStates,
     pitchQuantizerStates,
@@ -570,6 +575,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.chuaAttractorStates) {
     runtime.chuaAttractorStates = new Map();
   }
+  if (!runtime.wirdoSpiralStates) {
+    runtime.wirdoSpiralStates = new Map();
+  }
   if (!runtime.chordMemoryStates) {
     runtime.chordMemoryStates = new Map();
   }
@@ -685,6 +693,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "chuaAttractor" && !runtime.chuaAttractorStates.has(node.id)) {
       runtime.chuaAttractorStates.set(node.id, createNodeGraphChuaAttractorState());
+    }
+    if (node.type === "wirdoSpiral" && !runtime.wirdoSpiralStates.has(node.id)) {
+      runtime.wirdoSpiralStates.set(node.id, createNodeGraphWirdoSpiralState());
     }
     if (node.type === "chordMemory" && !runtime.chordMemoryStates.has(node.id)) {
       runtime.chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -871,6 +882,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.chuaAttractorStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.chuaAttractorStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.wirdoSpiralStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.wirdoSpiralStates.delete(id);
     }
   }
   for (const id of [...runtime.chordMemoryStates.keys()]) {

@@ -668,6 +668,37 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },
+  wirdoSpiral: {
+    displayType: "scope2d",
+    displaySignals: [
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+    ],
+    defaultDisplayMode: "xyBurn",
+    inputs: ["Reset"],
+    outputs: ["X", "Y"],
+    parameters: [
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "8", min: "0", mid: "20", max: "2000", maxDigits: 5, step: "any" },
+      { key: "sharp", label: "Sharp", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "cross", label: "Cross", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "density", label: "Density", defaultValue: "0.8", min: "0", mid: "1", max: "8", step: "0.01" },
+      { key: "length", label: "Length", defaultValue: "1", min: "0", mid: "1", max: "2", step: "0.01" },
+      { key: "rotate", label: "Rotate", defaultValue: "0", min: "-1", mid: "0", max: "1", step: "0.01" },
+      { key: "splashDepth", label: "Splash", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "splashDensity", label: "Splash Density", defaultValue: "0", min: "0", mid: "4", max: "16", step: "0.01" },
+      { key: "cut", label: "Cut", defaultValue: "1000", min: "2", mid: "500", max: "1000", step: "1" },
+      { key: "scrap", label: "Scrap", defaultValue: "1", min: "0.0001", mid: "0.5", max: "1", step: "0.0001" },
+      { key: "ringCut", label: "Ring Cut", defaultValue: "10", min: "1", mid: "5", max: "10", step: "0.01" },
+      { key: "splashSpeed", label: "Splash Speed", defaultValue: "0", min: "-20", mid: "0", max: "20", step: "0.01" },
+      { key: "syncCut", label: "Sync Cut", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
   chuaAttractor: {
     displayType: "scope2d",
     displaySignals: [

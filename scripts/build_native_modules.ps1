@@ -308,3 +308,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\chua_attractor\chua_attractor.wasm" `
   "$root\native_modules\chua_attractor\chua_attractor.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbwirdo_create" `
+  "-Wl,--export=soemdsp_jbwirdo_destroy" `
+  "-Wl,--export=soemdsp_jbwirdo_reset" `
+  "-Wl,--export=soemdsp_jbwirdo_sample" `
+  "-Wl,--export=soemdsp_jbwirdo_x" `
+  "-Wl,--export=soemdsp_jbwirdo_y" `
+  "-Wl,--export=soemdsp_jbwirdo_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_wirdo_spiral\jerobeam_wirdo_spiral.wasm" `
+  "$root\native_modules\jerobeam_wirdo_spiral\jerobeam_wirdo_spiral.cpp"
