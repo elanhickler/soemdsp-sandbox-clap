@@ -61,11 +61,22 @@ hard-sync sweep with two knobs and zero patch cables. Patch something into
 `Sync` and it takes over completely; the internal oscillator is a
 convenience default, not an extra mandatory step.
 
-## Alias-free oscillator study: the DSF technique
+## 🎛️ Alias-free oscillator study: the DSF technique
 
 Studied `C:\Users\argit\Documents\_PROGRAMMING\soemdsp\include\soemdsp\oscillator\DSFOscillator.hpp`
 (Walter Hackett's alias-free oscillator) as a second angle on the aliasing
 mission, distinct from PolyBLEP.
+
+> 🔍 **A note on attribution, found while researching this section.** I
+> searched for a public record connecting a "Walter Hackett" to DSF synthesis
+> or alias-free oscillator design and found nothing verifiable. The
+> technique itself is well-documented and traces to **James A. Moorer's**
+> 1975/76 Stanford CCRMA work, *"The Synthesis of Complex Audio Spectra by
+> Means of Discrete Summation Formulas."* The derivation below is Moorer's,
+> sourced honestly rather than invented. "Walter Hackett" may simply be
+> whoever wrote or adapted *this particular implementation* inside
+> `soemdsp` — worth confirming internally — but I'm not attributing the
+> underlying math to that name without a source for it.
 
 **The core idea is fundamentally different from PolyBLEP.** PolyBLEP starts
 from a naive discontinuous waveform (a hard saw/square edge) and *corrects*
@@ -92,6 +103,45 @@ something being suppressed after the fact.
 - `DSFOscillatorSineSquare` — same idea, sine → square, with its own
   coefficient derivation and partial-count halving (`/ 2.0`).
 
+### 🧮 How the equation was derived
+
+<div align="center">
+<img src="docs/assets/dsf-derivation.svg" alt="Four-step derivation: an infinite geometrically-decaying harmonic sum is rewritten as a complex exponential, collapsed by the geometric series identity, and reduced to one closed-form trig equation" width="90%"/>
+</div>
+
+The derivation is genuinely elegant, and the trick is one line of algebra
+doing all the work:
+
+1. 🎵 **Start with the sound you actually want** — infinitely many harmonics,
+   each quieter than the last by a fixed ratio `a` (0 ≤ a < 1):
+   `y(θ) = Σ aⁿ·sin((n+1)θ)` for `n = 0…∞`. This is a real, audible,
+   band-unlimited signal — completely impractical to compute directly,
+   since it's an infinite sum.
+2. 🌀 **Rewrite it with complex exponentials.** Euler's formula
+   (`e^{ix} = cos x + i·sin x`) turns each `sin` term into the imaginary
+   part of a complex exponential, and — this is the useful part — turns the
+   whole sum into `Σ aⁿ e^{i(n+1)θ}`, which factors into
+   `e^{iθ} · Σ (a·e^{iθ})ⁿ`.
+3. 💥 **The geometric series identity collapses it.** `Σ rⁿ = 1/(1−r)` for
+   any `|r| < 1`, summed to infinity — one of the oldest identities in
+   algebra. Substituting `r = a·e^{iθ}` turns the *infinite sum* into *a
+   single fraction*, no loop, no series, nothing left to add up.
+4. ✅ **Take the imaginary part and you have your closed-form oscillator.**
+   What comes out is one trigonometric expression in `θ`, `a`, and the
+   partial count — exactly the shape of the `DSF()` function in the code
+   (`k_` is `a`, `numPartials_` is the harmonic count, `dsfState_` is `θ`).
+   Every sample, the oscillator evaluates that one closed-form line instead
+   of summing any harmonics at all — which is *also* why it's fast: the
+   "summation" in Discrete Summation Formula happened once, on paper, in
+   1976, not once per sample at runtime.
+
+The alias-free property falls out of the same math: because the harmonic
+count feeding the closed form is derived from `Nyquist / frequency`, the
+formula only ever represents harmonics that fit under Nyquist. There's
+nothing above the limit to alias in the first place — the geometric series
+identity that makes the equation *fast* is the same one that makes it
+*clean*.
+
 **The file is honest about its own problems** — the header comment block
 lists them directly: attack causes an amplitude spike, volume is
 inconsistent across `morph_` and across frequency, harmonics visibly "click"
@@ -111,6 +161,9 @@ needs a correction at every phase discontinuity, natural or sync-forced,
 which is what `surge_oscillator.cpp` already does. A DSF-based module here
 would be a genuinely different oscillator, not a redundant one — noted as
 a real option for future work, not built in this pass.
+
+📚 **Source:** Moorer, J. A. (1976). *The Synthesis of Complex Audio Spectra
+by Means of Discrete Summation Formulas.* Stanford CCRMA (STAN-M-5).
 
 ## License
 
