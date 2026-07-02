@@ -131,7 +131,7 @@
     "moduleOscilloscopesVisible": true,
     "moduleSlidersVisible": true,
     "moduleScopeBackgroundColor": "#000000",
-    "globalSmoothingSeconds": 0.1,
+    "globalSmoothingSeconds": 1,
     "globalSmoothingManual": true,
     "moduleScopeDotCore1Enabled": true,
     "moduleScopeDotCore1Size": 1.94,
@@ -263,6 +263,18 @@
         "developer": true,
         "home": false
       },
+      "chordMemory": {
+        "developer": true,
+        "home": false
+      },
+      "turingMachine": {
+        "developer": true,
+        "home": false
+      },
+      "pitchQuantizer": {
+        "developer": true,
+        "home": false
+      },
       "arpeggiator": {
         "developer": true,
         "home": false
@@ -271,7 +283,47 @@
         "developer": true,
         "home": false
       },
+      "blubb": {
+        "developer": true,
+        "home": false
+      },
+      "boing": {
+        "developer": true,
+        "home": false
+      },
+      "keplerBoukamp": {
+        "developer": true,
+        "home": false
+      },
+      "mushroom": {
+        "developer": true,
+        "home": false
+      },
+      "nyquistShannon": {
+        "developer": true,
+        "home": false
+      },
+      "radar": {
+        "developer": true,
+        "home": false
+      },
+      "torus": {
+        "developer": true,
+        "home": false
+      },
+      "wirdoSpiral": {
+        "developer": true,
+        "home": false
+      },
       "lorenzAttractor": {
+        "developer": true,
+        "home": false
+      },
+      "logisticMap": {
+        "developer": true,
+        "home": false
+      },
+      "henonMap": {
         "developer": true,
         "home": false
       },
@@ -340,6 +392,10 @@
         "home": false
       },
       "output": {
+        "developer": true,
+        "home": false
+      },
+      "audioInput": {
         "developer": true,
         "home": false
       },
@@ -471,6 +527,10 @@
         "developer": true,
         "home": false
       },
+      "helmholtzPitch": {
+        "developer": true,
+        "home": false
+      },
       "distortionEffect": {
         "developer": true,
         "home": false
@@ -500,6 +560,10 @@
         "home": false
       },
       "vactrolEnvelope": {
+        "developer": true,
+        "home": false
+      },
+      "vactrolEnvelopeC4": {
         "developer": true,
         "home": false
       },
@@ -551,6 +615,10 @@
         "developer": true,
         "home": false
       },
+      "numberReadout": {
+        "developer": true,
+        "home": false
+      },
       "lineBurnOscilloscope": {
         "developer": true,
         "home": false
@@ -589,7 +657,7 @@
       }
     },
     "sceneContextWindowSize": {
-      "width": 140
+      "width": 183
     },
     "moduleActionWindowSize": {
       "width": 185,
@@ -600,8 +668,8 @@
       "commandCenter": {
         "open": false,
         "position": {
-          "left": 111,
-          "top": 466
+          "left": 36,
+          "top": 145
         }
       },
       "moduleActions": {
@@ -616,19 +684,19 @@
       "patchExplorer": {
         "open": false,
         "position": {
-          "left": 569,
-          "top": 512
+          "left": 141,
+          "top": 270
         }
       },
       "moduleBrowser": {
         "open": false,
         "position": {
-          "left": 49,
-          "top": 114
+          "left": 735,
+          "top": 94
         },
         "size": {
-          "width": 192,
-          "height": 418
+          "width": 180,
+          "height": 488
         }
       },
       "visibilityMenu": {
@@ -649,22 +717,25 @@
         "open": false
       },
       "traceDisplaySettings": {
-        "open": false
+        "open": false,
+        "targetNode": "fractalBrownianNoise-1"
       }
     },
     "sharedInspectorActive": "",
+    "sharedInspectorWindowState": {},
     "workspaceView": {
       "pan": {
-        "x": -128.64158163265304,
-        "y": 57.1926020408163
+        "x": 257.1600000000001,
+        "y": 113.90750000000003
       },
-      "zoom": 1.2251781006308868
+      "zoom": 1.3721994727065934
     },
-    "moduleStoreDepartment": "",
+    "moduleStoreDepartment": "Noise",
     "savedPatchBankIndex": 0,
     "savedPatchBankName": "chaos",
     "savedPatchGridColumns": 3,
     "savedPatchExplorerView": "banks",
+    "workingPatch": null,
     "currentSavedPatchFilename": "",
     "patchDirtyState": "untouched"
   }

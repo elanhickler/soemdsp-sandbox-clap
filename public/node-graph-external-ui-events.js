@@ -384,6 +384,21 @@ window.addEventListener("message", (event) => {
       source: message.source || "file-grid",
       targetNodeId: message.targetNodeId || "",
     });
+  } else if (message.type === "soundemote:sandbox-load-resource") {
+    if (!nodeGraphExternalMessageOriginAllowed(event)) {
+      return;
+    }
+    const envelope = message.resourceData || message.payload || message.resourceEnvelope || message;
+    const resourceRows = envelope?.kind === "sandbox_resource"
+      ? envelope.resource
+      : (message.rows || message.resources || message.resource || message.row);
+    nodeGraphAcceptFileGridSelection(resourceRows, {
+      audioPlayerNodeId: message.audioPlayerNodeId || "",
+      nodeId: message.nodeId || "",
+      record: message.record !== false,
+      source: message.source || envelope?.source || "soundemote-file-grid",
+      targetNodeId: message.targetNodeId || "",
+    });
   } else if (message.type === "soundemote:sandbox-event") {
     if (!nodeGraphExternalMessageOriginAllowed(event)) {
       return;
