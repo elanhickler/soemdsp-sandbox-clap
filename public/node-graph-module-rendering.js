@@ -479,6 +479,7 @@ function nodeGraphModuleLayoutClassNames(type, definition, layout) {
     led: "led-layout",
     macroControls: "macro-controls-layout",
     patchCommand: "patch-command-layout",
+    phosphorWaveform: "phosphor-waveform-layout",
     pitchModWheel: "pitch-mod-wheel-layout",
     screenSpaceShader: "screen-space-shader-layout",
     sliderWidget: "slider-widget-layout",
@@ -700,6 +701,21 @@ function createNodeGraphModuleElement(type, node) {
   } else if (definition.layout === "filterCurve") {
     if (!patchNodeUi.oscilloscopeHidden) {
       article.append(createNodeGraphFilterCurveDisplay(node, type));
+    }
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
+  } else if (definition.layout === "phosphorWaveform") {
+    if (!patchNodeUi.oscilloscopeHidden) {
+      article.append(createNodeGraphPhosphorWaveformDisplay(node, type));
+    }
+    if (typeof createNodeGraphSampleModuleBody === "function") {
+      article.append(createNodeGraphSampleModuleBody(node));
     }
 
     const ioSection = document.createElement("div");

@@ -2494,7 +2494,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   audioPlayer: {
-    displayType: "trace",
+    layout: "phosphorWaveform",
     inputs: ["Reset", "Speed", "Phase"],
     outputs: ["Mono", "Left", "Right", "Phase", "Trigger"],
     parameters: [

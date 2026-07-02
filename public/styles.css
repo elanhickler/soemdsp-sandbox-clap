@@ -9047,6 +9047,7 @@ html.soemdsp-hide-ui .status-strip {
 .node-module-graph-display,
 .node-module-filter-curve-display,
 .node-filter-curve-display,
+.node-phosphor-waveform-display,
 .node-clap-plugin-body {
   pointer-events: auto;
 }
@@ -9428,6 +9429,31 @@ html.soemdsp-hide-ui .status-strip {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.node-phosphor-waveform-display {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(90, 255, 150, 0.16);
+  border-bottom: 1px solid rgba(90, 255, 150, 0.16);
+  background: #020a06;
+}
+
+.node-phosphor-waveform-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.node-phosphor-waveform-canvas.dragging {
+  cursor: grabbing;
 }
 
 .node-slider-widget-body {
@@ -10494,6 +10520,10 @@ html.soemdsp-hide-ui .status-strip {
 }
 
 .dsp-node.filter-curve-layout.oscilloscope-hidden .node-filter-curve-display {
+  display: none;
+}
+
+.dsp-node.phosphor-waveform-layout.oscilloscope-hidden .node-phosphor-waveform-display {
   display: none;
 }
 
