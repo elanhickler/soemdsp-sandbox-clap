@@ -1430,17 +1430,36 @@ function openNodeScopeContextMenu(event) {
   return true;
 }
 
+const nodeGraphWorkspaceInteractiveDialogSelector =
+  "input, textarea, select, option, [contenteditable='true'], " +
+  "#nodeSceneContextMenu, #nodeParameterMetadataPopover, #nodeGlobalScopeMenu, " +
+  "#nodeModuleActionsWindow, #nodeShaderScriptDialog, #nodeCanvasScriptDialog, #nodeSavedPatchesWindow";
+const nodeGraphWorkspaceOccupiedElementSelector =
+  ".node-wire-hit-path, .node-wire-path, .dsp-node, .node-port, .node-param-port, .node-slider-readout";
+
+// Shared by the right-click scene menu and double-click-to-spawn: true only when
+// the event lands on truly empty canvas, not the toolbar, a dialog/input, a wire,
+// a node, or a port/readout.
+function nodeGraphEventTargetIsEmptyWorkspaceArea(event) {
+  if (event.target.closest?.(".node-view-toolbar")) {
+    return false;
+  }
+  if (event.target.closest?.(nodeGraphWorkspaceInteractiveDialogSelector)) {
+    return false;
+  }
+  if (event.target.closest?.(nodeGraphWorkspaceOccupiedElementSelector)) {
+    return false;
+  }
+  return true;
+}
+
 function openNodeSceneContextMenu(event) {
   if (event.target.closest?.(".node-view-toolbar")) {
     event.preventDefault();
     event.stopPropagation();
     return;
   }
-  if (event.target.closest?.(
-    "input, textarea, select, option, [contenteditable='true'], " +
-    "#nodeSceneContextMenu, #nodeParameterMetadataPopover, #nodeGlobalScopeMenu, " +
-    "#nodeModuleActionsWindow, #nodeShaderScriptDialog, #nodeCanvasScriptDialog, #nodeSavedPatchesWindow",
-  )) {
+  if (event.target.closest?.(nodeGraphWorkspaceInteractiveDialogSelector)) {
     return;
   }
   if (openNodeScopeContextMenu(event)) {

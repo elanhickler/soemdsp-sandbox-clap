@@ -27,6 +27,9 @@ function bindNodeGraphWorkspaceInteractionEvents() {
   document
     .getElementById("nodeGraphWorkspace")
     .addEventListener("click", nodeGraphWireInteractions.handleWorkspaceClick);
+  document
+    .getElementById("nodeGraphWorkspace")
+    .addEventListener("dblclick", handleNodeGraphWorkspaceDoubleClickToAddTextBox);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       nodeGraphWireInteractions.cancelPortConnectionMode();

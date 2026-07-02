@@ -101,6 +101,41 @@ function showPaletteNode(node) {
   showNodeGraphModule(node);
 }
 
+// Double-clicking empty canvas is a fast path to a Text Box: spawn one at the
+// click point, then open its module actions window with the text field
+// focused -- the same edit surface a manual double-click on an existing text
+// box already opens (see .node-text-box-input's dblclick -> openNodeModuleActionMenu).
+function handleNodeGraphWorkspaceDoubleClickToAddTextBox(event) {
+  if (!nodeGraphEventTargetIsEmptyWorkspaceArea(event)) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  const point = nodeGraphClientPoint(event);
+  const nodeId = showNodeGraphModule("textBox", point, { status: "text box added" });
+  if (!nodeId) {
+    return;
+  }
+  setNodeGraphNodeSelection([nodeId]);
+  ensureNodeGraphModuleActionsWindowBody();
+  nodeGraphMvp.sceneContextPoint = null;
+  nodeGraphMvp.sceneContextTargetNode = nodeId;
+  nodeGraphMvp.lastModuleActionTargetNode = nodeId;
+  nodeGraphMvp.sceneContextTargetWire = null;
+  configureNodeSceneContextMenu("module");
+  showNodeModuleActionsWindow({
+    bottom: event.clientY,
+    left: event.clientX,
+    right: event.clientX,
+    top: event.clientY,
+  });
+  const textInput = document.getElementById("nodeSceneTextBoxTextInput");
+  if (textInput) {
+    textInput.focus();
+    textInput.select();
+  }
+}
+
 function addNodeGraphModuleFromContext(event) {
   const type = event.currentTarget.dataset.contextModule;
   beginNodeGraphModulePlacement(type, nodeGraphMvp.sceneContextPoint);
