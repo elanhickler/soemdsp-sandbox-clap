@@ -75,18 +75,7 @@ running.
 
 ---
 
-# soemdsp-sandbox
-
-## Live Demo: http://soundemote.io/sandbox
-
-Browser sandbox for trying `soemdsp` patching, generated artifacts, waveform
-views, Render Sample, and Live Audio.
-
-## License
-
-This repository is source-available for noncommercial use only. Commercial use
-requires a separate written commercial license from Soundemote. See
-[`LICENSE`](LICENSE).
+## Running the sandbox
 
 ```powershell
 # Requirements:
