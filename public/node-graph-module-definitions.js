@@ -753,7 +753,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         nonlinearSlider: false,
         step: "1",
       },
-      { key: "frequency", label: "Frequency", defaultValue: "220", min: "20", mid: "1000", max: "8000", nonlinearSlider: true, step: "any" },
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "220", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },
