@@ -421,7 +421,7 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   lutCell: {
     category: "Logic",
-    description: "An FPGA logic slice, modeled directly: a 4-input lookup table (A/B/C/D) feeding a clocked D flip-flop. Truth Table is a 16-bit digital signal -- bit i is the cell's output for input combination i. Out is the combinational result, Q is the registered result that only updates on a Clock rising edge.",
+    description: "An FPGA logic slice, modeled directly: a 4-input lookup table (A/B/C/D) feeding a clocked D flip-flop. Truth Table is a 16-bit digital signal -- bit i is the cell's output for input combination i. Out is the combinational result, Q is the registered result that only updates on a Clock rising edge. Unwired Clock and A free-run at 220 Hz so a bare cell demonstrates itself immediately -- wire either one for real to take over.",
     label: "LUT Cell",
     notes: ["FPGA logic slice", "lookup table", "flip-flop", "digital signal"],
   },

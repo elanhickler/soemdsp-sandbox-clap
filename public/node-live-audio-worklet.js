@@ -11288,7 +11288,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   createLutCellState() {
-    return { clockWasHigh: false, registeredOut: 0, nativeHandle: 0 };
+    return { clockWasHigh: false, registeredOut: 0, nativeHandle: 0, selfClockPhase: 0, selfClockValue: 0 };
   }
 
   destroyLutCellNativeState(state) {
@@ -11298,11 +11298,28 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // Unwired inputs default to 0, a constant -- silent no matter the truth
+  // table. So an unwired Clock free-runs at a fixed audible rate instead
+  // (220 Hz), and an unwired A tracks that same effective clock, so a
+  // freshly dropped cell audibly demonstrates itself. This lives entirely
+  // in this JS orchestration layer -- the native module itself stays a
+  // faithful, purely reactive LUT+FF with no self-driving of its own.
+  advanceLutCellSelfClock(state) {
+    const rate = Math.max(1, Number(this.engineSampleRate) || 44100);
+    const increment = (2 * 220) / rate;
+    state.selfClockPhase = (state.selfClockPhase || 0) + increment;
+    if (state.selfClockPhase >= 1) {
+      state.selfClockPhase -= Math.floor(state.selfClockPhase);
+      state.selfClockValue = state.selfClockValue ? 0 : 1;
+    }
+    return state.selfClockValue || 0;
+  }
+
   lutCellSampleJs(state, options = {}) {
-    const a = Number(options.a) > 0 ? 1 : 0;
     const b = Number(options.b) > 0 ? 1 : 0;
     const c = Number(options.c) > 0 ? 1 : 0;
     const d = Number(options.d) > 0 ? 1 : 0;
+    const a = Number(options.a) > 0 ? 1 : 0;
     const clockHigh = Number(options.clock) > 0;
     const table = Math.max(0, Math.min(0xFFFF, Math.round(Number(options.truthTable) || 0)));
 
@@ -11321,6 +11338,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   lutCellSample(state, options = {}) {
+    const effectiveClockHigh = options.hasClockInput
+      ? Number(options.clock) > 0
+      : this.advanceLutCellSelfClock(state) > 0;
+    const effectiveA = options.hasAInput
+      ? Number(options.a) || 0
+      : (effectiveClockHigh ? 1 : 0);
+    const effectiveOptions = {
+      ...options,
+      a: effectiveA,
+      clock: effectiveClockHigh ? 1 : 0,
+    };
     if (
       this.nativeLutCellReady &&
       this.nativeLutCell?.soemdsp_lut_cell_create &&
@@ -11332,19 +11360,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           state.nativeHandle = this.nativeLutCell.soemdsp_lut_cell_create();
         }
         if (state.nativeHandle) {
-          const a = Number(options.a) || 0;
-          const b = Number(options.b) || 0;
-          const c = Number(options.c) || 0;
-          const d = Number(options.d) || 0;
-          const clock = Number(options.clock) || 0;
-          const table = Math.max(0, Math.min(0xFFFF, Math.round(Number(options.truthTable) || 0)));
+          const b = Number(effectiveOptions.b) || 0;
+          const c = Number(effectiveOptions.c) || 0;
+          const d = Number(effectiveOptions.d) || 0;
+          const table = Math.max(0, Math.min(0xFFFF, Math.round(Number(effectiveOptions.truthTable) || 0)));
           const combinational = this.nativeLutCell.soemdsp_lut_cell_sample(
             state.nativeHandle,
-            a,
+            effectiveOptions.a,
             b,
             c,
             d,
-            clock,
+            effectiveOptions.clock,
             table,
           );
           const q = this.nativeLutCell.soemdsp_lut_cell_q(state.nativeHandle);
@@ -11363,7 +11389,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
       }
     }
-    return this.lutCellSampleJs(state, options);
+    return this.lutCellSampleJs(state, effectiveOptions);
   }
 
   createSurgeOscillatorState() {
@@ -13276,6 +13302,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           d: mixInput(nodeId, "D"),
           clock: mixInput(nodeId, "Clock"),
           truthTable: read("truthTable", 27030),
+          hasAInput: this.inputConnections.has(this.inputKey(nodeId, "A")),
+          hasClockInput: this.inputConnections.has(this.inputKey(nodeId, "Clock")),
         });
       } else if (node?.type === "surgeOscillator") {
         const state = this.surgeOscillatorStates.get(nodeId) || this.createSurgeOscillatorState();

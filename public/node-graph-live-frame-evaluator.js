@@ -4452,11 +4452,14 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
       value = nodeGraphLutCellSample(state, {
         a: mixInput(nodeId, "A"),
+        hasAInput: hasInput(nodeId, "A"),
         b: mixInput(nodeId, "B"),
         c: mixInput(nodeId, "C"),
         d: mixInput(nodeId, "D"),
         clock: mixInput(nodeId, "Clock"),
+        hasClockInput: hasInput(nodeId, "Clock"),
         truthTable: read("truthTable", 27030),
+        sampleRate,
       });
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
