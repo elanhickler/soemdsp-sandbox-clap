@@ -61,141 +61,59 @@ hard-sync sweep with two knobs and zero patch cables. Patch something into
 `Sync` and it takes over completely; the internal oscillator is a
 convenience default, not an extra mandatory step.
 
+## Alias-free oscillator study: the DSF technique
+
+Studied `C:\Users\argit\Documents\_PROGRAMMING\soemdsp\include\soemdsp\oscillator\DSFOscillator.hpp`
+(Walter Hackett's alias-free oscillator) as a second angle on the aliasing
+mission, distinct from PolyBLEP.
+
+**The core idea is fundamentally different from PolyBLEP.** PolyBLEP starts
+from a naive discontinuous waveform (a hard saw/square edge) and *corrects*
+the discontinuity after the fact with a band-limited step function. DSF
+(Discrete Summation Formula) synthesis never generates the discontinuity in
+the first place — it computes the waveform directly from a **closed-form
+trigonometric sum** of a bounded number of harmonics (`numPartials_ =
+Nyquist / frequency`, recalculated on every frequency change). Because the
+partial count is derived from the Nyquist limit, the waveform is alias-free
+*by construction* — there's nothing above Nyquist to alias, rather than
+something being suppressed after the fact.
+
+**What's in the file:**
+- `DSFOscillatorBase` — shared machinery: a phase accumulator (`calculateState()`),
+  a leaky integrator (`leak_`) that fades in the amplitude-adjusted output
+  over time (looks aimed at taming attack transients), and a `Wire`-based
+  parameter system (`pointTo()`/`slave()`) that lets multiple oscillator
+  instances share phase and morph state — a lightweight master/slave
+  patch-cable primitive, conceptually similar to this sandbox's node wires
+  but scoped to parameter sharing rather than the whole graph.
+- `DSFOscillatorSineSaw` — continuously morphs sine → saw via a single
+  `morph_` parameter (0–1), which reshapes a `k_`/`k2_`/`k42_` coefficient
+  set feeding the closed-form DSF sum.
+- `DSFOscillatorSineSquare` — same idea, sine → square, with its own
+  coefficient derivation and partial-count halving (`/ 2.0`).
+
+**The file is honest about its own problems** — the header comment block
+lists them directly: attack causes an amplitude spike, volume is
+inconsistent across `morph_` and across frequency, harmonics visibly "click"
+in and out as frequency rises (consistent with `numPartials_` changing in
+integer-ish steps with no smoothing between values), the saw/square volumes
+don't match each other, and square gets dull at low frequency. None of these
+are aliasing bugs — DSF's alias-free guarantee holds regardless — they're
+amplitude-normalization and transient issues layered on top of a
+mathematically sound core.
+
+**Takeaway for this mission:** PolyBLEP (what Surge Oscillator uses) and DSF
+solve the same problem from opposite directions — correct the edge vs. never
+create the edge — and the tradeoffs are different too: DSF needs a live
+partial-count recalculation per frequency change (cheap, but is exactly
+where this implementation's harmonic "clicking" comes from), while PolyBLEP
+needs a correction at every phase discontinuity, natural or sync-forced,
+which is what `surge_oscillator.cpp` already does. A DSF-based module here
+would be a genuinely different oscillator, not a redundant one — noted as
+a real option for future work, not built in this pass.
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use
 requires a separate written commercial license from Soundemote. See
 [`LICENSE`](LICENSE).
-
-```powershell
-# Requirements:
-# - Python 3
-# - A modern browser
-# No package install is required for the sandbox server.
-
-# Download:
-git clone https://github.com/soundemote/soemdsp-sandbox.git
-cd soemdsp-sandbox
-
-# Run:
-python server.py
-
-# Open:
-# http://127.0.0.1:8765
-
-# Stop:
-# Ctrl+C
-
-# Test:
-python scripts\smoke_test.py
-```
-
-Optional artifact packet:
-
-```powershell
-# Use this only if the sibling soemdsp repo is built locally.
-C:\Users\argit\Documents\_PROGRAMMING\soemdsp\build-moved\examples\Debug\runtime_dsp_object_bound_wav_resync_demo.exe
-python server.py
-```
-
-Optional CLAP host prototype:
-
-```powershell
-# Localhost companion prototype for CLAP catalog and instance probes.
-# Render Sample has a bounded CLAP bridge.
-# Feedback touching CLAP nodes and Live Audio CLAP plans are blocked for now.
-python tools\webui-clap-host\webui_clap_host.py
-
-# Windows launcher, metadata inspection on by default:
-tools\webui-clap-host\start_webui_clap_host.cmd
-tools\webui-clap-host\start_webui_clap_host.ps1
-
-# Optional alternate bind port:
-python tools\webui-clap-host\webui_clap_host.py --port 48000
-tools\webui-clap-host\start_webui_clap_host.cmd -Port 48000
-tools\webui-clap-host\start_webui_clap_host.ps1 -Port 48000
-
-# Optional explicit catalog entry:
-python tools\webui-clap-host\webui_clap_host.py --plugin "C:\path\to\plugin.clap"
-
-# Optional native descriptor inspection:
-python tools\webui-clap-host\webui_clap_host.py --inspect-metadata
-
-# Optional create/init/destroy probe:
-python tools\webui-clap-host\webui_clap_host.py --test-instantiate
-
-# Optional JSON preflight report without starting the server:
-python tools\webui-clap-host\webui_clap_host.py --doctor --inspect-metadata
-
-# In the sandbox browser:
-# Edit the Host field if the companion is not using http://127.0.0.1:47991.
-# Click Copy Host Command if you need the Windows .cmd launcher command.
-# Click Connect Local Host.
-# Click Diagnostics to read setup counts from the running host.
-# Click Refresh Plugins to read the host catalog.
-# Add a CLAP Plugin module to store a selected catalog entry.
-
-# Prototype instance API:
-# GET /health reports host capabilities.
-# GET /health also reports hostConfig: bind host, port, Python executable, scan dirs, explicit plugins, and probe flags.
-# GET /diagnostics reports hostConfig, catalog counts, metadata errors, instantiation errors, and missing explicit plugin paths.
-# --doctor reports hostConfig, catalog counts, metadata errors, instantiation errors, and missing explicit plugin paths as JSON.
-# Capabilities include maxProcessFrames, processBatch, and offlineRenderSessions.
-# Current maxProcessFrames default is 48000.
-# POST /instances
-# GET /instances
-# GET /instances/<id>/params
-# POST /instances/<id>/param
-# POST /instances/<id>/params
-# GET /instances/<id>/editor
-# POST /instances/<id>/editor/open
-# POST /instances/<id>/editor/close
-# GET /instances/<id>/latency
-# GET /instances/<id>/tail
-# GET /instances/<id>/state
-# POST /instances/<id>/state
-# POST /instances/<id>/render/begin
-# POST /instances/<id>/process
-# POST /instances/<id>/render/end
-# POST /process-batch
-# /process can accept and return bounded planar-f32-base64 audio.
-# /process can apply a parameters array before processing the chunk.
-# CLAP_PROCESS_ERROR fails the process call instead of returning audio.
-# Direct /param and /params writes are blocked while a render session is active.
-# Abandoned render sessions are released by an idle timeout.
-# A second render/begin is rejected while a non-idle render session is active.
-# Render Sample opens one render session per CLAP instance, processes chunks, then closes the session.
-# Render Sample requires audioProcessing: true from the host.
-# Render Sample requires offlineRenderSessions: true from the host.
-# Render Sample uses maxProcessFrames for CLAP process chunk size.
-# WebUI CLAP audio lanes flatten every CLAP audio port in host port order.
-# CLAP editor status can be detected; supported Win32 clap.gui editors can open when the plugin accepts the GUI sequence.
-# CLAP latency is compensated when Render Sample injects returned CLAP output.
-# Finite CLAP tails can extend Render Sample up to the bounded tail limit; infinite tails remain metadata-only.
-# CLAP state can be saved into patch JSON and restored into a new host instance when the plugin exposes clap.state.
-# Reachable CLAP nodes are processed chunk-by-chunk in graph order.
-# Independent CLAP nodes in the same chunk can share one batch request.
-# POST /instances/<id>/safety/reset
-# DELETE /instances/<id>
-```
-
-Guides:
-
-```text
-docs/ADDING_HARDCODED_SANDBOX_MODULE.md
-docs/OSC_MODULE_NON_UI_REFERENCE.md
-docs/WEBUI_CLAP_HOST_PLAN.md
-tools/webui-clap-host/README.md
-```
-
-Boundaries:
-
-```text
-The server only writes through explicit save/settings/audio helper routes.
-Open Path is restricted to Downloads.
-The browser patch graph is demo-scoped state.
-The browser compiler is not the production soemdsp scheduler.
-The WebUI does not instantiate real C++ DSP objects yet.
-Patch files can save current module instances and settings.
-Patch files cannot define new module types by themselves.
-```
