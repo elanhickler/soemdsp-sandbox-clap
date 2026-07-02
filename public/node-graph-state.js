@@ -187,7 +187,7 @@ var nodeGraphMvp = {
     henonMap: 0,
     turingMachine: 0,
     pitchQuantizer: 0,
-    hardSyncOscillator: 0,
+    surgeOscillator: 0,
     delayedTrigger: 0,
     expAdsr: 0,
     flowerChildEnvelopeFollower: 0,

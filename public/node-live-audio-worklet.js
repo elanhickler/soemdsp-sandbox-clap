@@ -166,7 +166,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
-    this.hardSyncOscillatorStates = new Map();
+    this.surgeOscillatorStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -641,19 +641,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
-      if (name === "hard_sync_oscillator" || targetType === "hardSyncOscillator") {
-        for (const state of this.hardSyncOscillatorStates.values()) {
-          this.destroyHardSyncOscillatorNativeState(state);
+      if (name === "surge_oscillator" || targetType === "surgeOscillator") {
+        for (const state of this.surgeOscillatorStates.values()) {
+          this.destroySurgeOscillatorNativeState(state);
         }
-        this.nativeHardSyncOscillator = exports;
-        this.nativeHardSyncOscillatorReady = Boolean(
-          this.nativeHardSyncOscillator?.soemdsp_hard_sync_oscillator_create &&
-          this.nativeHardSyncOscillator?.soemdsp_hard_sync_oscillator_sample,
+        this.nativeSurgeOscillator = exports;
+        this.nativeSurgeOscillatorReady = Boolean(
+          this.nativeSurgeOscillator?.soemdsp_surge_oscillator_create &&
+          this.nativeSurgeOscillator?.soemdsp_surge_oscillator_sample,
         );
         this.port.postMessage({
           type: "nativeModuleStatus",
-          name: "hard_sync_oscillator",
-          status: this.nativeHardSyncOscillatorReady ? "ready" : "missing exports",
+          name: "surge_oscillator",
+          status: this.nativeSurgeOscillatorReady ? "ready" : "missing exports",
         });
         return;
       }
@@ -771,7 +771,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
-    this.hardSyncOscillatorStates = new Map();
+    this.surgeOscillatorStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -1015,8 +1015,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "pitchQuantizer" && !this.pitchQuantizerStates.has(id)) {
         this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
       }
-      if (node?.type === "hardSyncOscillator" && !this.hardSyncOscillatorStates.has(id)) {
-        this.hardSyncOscillatorStates.set(id, this.createHardSyncOscillatorState());
+      if (node?.type === "surgeOscillator" && !this.surgeOscillatorStates.has(id)) {
+        this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
       }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createPassiveFilterState());
@@ -1215,10 +1215,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.pitchQuantizerStates.delete(id);
       }
     }
-    for (const id of [...this.hardSyncOscillatorStates.keys()]) {
+    for (const id of [...this.surgeOscillatorStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyHardSyncOscillatorNativeState(this.hardSyncOscillatorStates.get(id));
-        this.hardSyncOscillatorStates.delete(id);
+        this.destroySurgeOscillatorNativeState(this.surgeOscillatorStates.get(id));
+        this.surgeOscillatorStates.delete(id);
       }
     }
     for (const id of [...this.passiveFilterStates.keys()]) {
@@ -3679,7 +3679,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.chordMemoryStates = new Map();
     runtime.turingMachineStates = new Map();
     runtime.pitchQuantizerStates = new Map();
-    runtime.hardSyncOscillatorStates = new Map();
+    runtime.surgeOscillatorStates = new Map();
     runtime.stepSequencerStates = new Map();
     runtime.triggerCounterStates = new Map();
     runtime.triggerDividerStates = new Map();
@@ -3728,7 +3728,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "chordMemory") this.chordMemoryStates.set(id, this.createChordMemoryState());
       if (node?.type === "turingMachine") this.turingMachineStates.set(id, this.createTuringMachineState());
       if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
-      if (node?.type === "hardSyncOscillator") this.hardSyncOscillatorStates.set(id, this.createHardSyncOscillatorState());
+      if (node?.type === "surgeOscillator") this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
@@ -6214,7 +6214,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.pitchQuantizerSampleJs(state, options);
   }
 
-  createHardSyncOscillatorState() {
+  createSurgeOscillatorState() {
     return {
       phase: 0,
       prevSyncIn: 0,
@@ -6225,14 +6225,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  destroyHardSyncOscillatorNativeState(state) {
-    if (state?.nativeHandle && this.nativeHardSyncOscillator?.soemdsp_hard_sync_oscillator_destroy) {
-      this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_destroy(state.nativeHandle);
+  destroySurgeOscillatorNativeState(state) {
+    if (state?.nativeHandle && this.nativeSurgeOscillator?.soemdsp_surge_oscillator_destroy) {
+      this.nativeSurgeOscillator.soemdsp_surge_oscillator_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }
 
-  hardSyncOscillatorWaveformSampleJs(state, phaseCycle, phaseIncrement, waveform) {
+  surgeOscillatorWaveformSampleJs(state, phaseCycle, phaseIncrement, waveform) {
     switch (waveform) {
       case 1:
         return this.polyBlepSquare(phaseCycle, phaseIncrement);
@@ -6252,7 +6252,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  hardSyncOscillatorSampleJs(state, options = {}) {
+  surgeOscillatorSampleJs(state, options = {}) {
     const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
     const increment = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
     const syncIn = Number(options.syncIn) || 0;
@@ -6271,10 +6271,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     state.hasPrevSyncIn = true;
 
     const phaseCycle = state.phase;
-    const saw = this.hardSyncOscillatorWaveformSampleJs(state, phaseCycle, increment, 0) * level;
-    const square = this.hardSyncOscillatorWaveformSampleJs(state, phaseCycle, increment, 1) * level;
-    const tri = this.hardSyncOscillatorWaveformSampleJs(state, phaseCycle, increment, 2) * level;
-    const sine = this.hardSyncOscillatorWaveformSampleJs(state, phaseCycle, increment, 3) * level;
+    const saw = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 0) * level;
+    const square = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 1) * level;
+    const tri = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 2) * level;
+    const sine = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 3) * level;
 
     const waveform = Math.max(0, Math.min(3, Math.round(Number(options.waveform) || 0)));
     const out = [saw, square, tri, sine][waveform];
@@ -6289,15 +6289,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  hardSyncOscillatorSample(state, options = {}) {
+  surgeOscillatorSample(state, options = {}) {
     if (
-      this.nativeHardSyncOscillatorReady &&
-      this.nativeHardSyncOscillator?.soemdsp_hard_sync_oscillator_create &&
-      this.nativeHardSyncOscillator?.soemdsp_hard_sync_oscillator_sample
+      this.nativeSurgeOscillatorReady &&
+      this.nativeSurgeOscillator?.soemdsp_surge_oscillator_create &&
+      this.nativeSurgeOscillator?.soemdsp_surge_oscillator_sample
     ) {
       try {
         if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_create();
+          state.nativeHandle = this.nativeSurgeOscillator.soemdsp_surge_oscillator_create();
         }
         if (state.nativeHandle) {
           const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
@@ -6305,7 +6305,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           const syncIn = Number(options.syncIn) || 0;
           const waveform = Math.max(0, Math.min(3, Math.round(Number(options.waveform) || 0)));
           const level = Number(options.level) || 0;
-          this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_sample(
+          this.nativeSurgeOscillator.soemdsp_surge_oscillator_sample(
             state.nativeHandle,
             frequencyHz,
             sampleRate,
@@ -6314,25 +6314,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             level,
           );
           return {
-            Out: Number(this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_out(state.nativeHandle)) || 0,
-            Saw: Number(this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_saw(state.nativeHandle)) || 0,
-            Square: Number(this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_square(state.nativeHandle)) || 0,
-            Tri: Number(this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_tri(state.nativeHandle)) || 0,
-            Sine: Number(this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_sine(state.nativeHandle)) || 0,
-            Synced: Number(this.nativeHardSyncOscillator.soemdsp_hard_sync_oscillator_synced(state.nativeHandle)) || 0,
+            Out: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_out(state.nativeHandle)) || 0,
+            Saw: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_saw(state.nativeHandle)) || 0,
+            Square: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_square(state.nativeHandle)) || 0,
+            Tri: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_tri(state.nativeHandle)) || 0,
+            Sine: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_sine(state.nativeHandle)) || 0,
+            Synced: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_synced(state.nativeHandle)) || 0,
           };
         }
       } catch (error) {
-        this.nativeHardSyncOscillatorReady = false;
+        this.nativeSurgeOscillatorReady = false;
         this.port.postMessage({
           type: "nativeModuleStatus",
-          name: "hard_sync_oscillator",
+          name: "surge_oscillator",
           status: "disabled",
-          message: String(error?.message || error || "native Hard Sync Oscillator failed"),
+          message: String(error?.message || error || "native Surge Oscillator failed"),
         });
       }
     }
-    return this.hardSyncOscillatorSampleJs(state, options);
+    return this.surgeOscillatorSampleJs(state, options);
   }
 
   spiralWrap01(value) {
@@ -7105,9 +7105,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             scaleInput: mixInput(nodeId, "Scale"),
           }),
         };
-      } else if (node?.type === "hardSyncOscillator") {
-        const state = this.hardSyncOscillatorStates.get(nodeId) || this.createHardSyncOscillatorState();
-        this.hardSyncOscillatorStates.set(nodeId, state);
+      } else if (node?.type === "surgeOscillator") {
+        const state = this.surgeOscillatorStates.get(nodeId) || this.createSurgeOscillatorState();
+        this.surgeOscillatorStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
         const baseFrequency = Math.max(0, read("frequency", 220));
         const pitchInput = this.clampValue(
@@ -7116,7 +7116,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           10,
         );
         const frequencyHz = Math.max(0, baseFrequency * (2 ** (pitchInput / 0.1)));
-        value = this.hardSyncOscillatorSample(state, {
+        value = this.surgeOscillatorSample(state, {
           frequencyHz,
           sampleRate: this.engineSampleRate || sampleRate,
           syncIn: mixInput(nodeId, "Sync"),

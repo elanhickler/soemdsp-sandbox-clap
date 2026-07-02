@@ -5,10 +5,10 @@
 Browser sandbox for trying `soemdsp` patching, generated artifacts, waveform
 views, Render Sample, and Live Audio.
 
-## Aliasing wars: the Hard Sync Oscillator
+## Aliasing wars: the Surge Oscillator
 
 This branch (`aliasing-wars`) is a dedicated workspace for anti-aliased
-oscillator work, starting with `native_modules/hard_sync_oscillator` — a
+oscillator work, starting with `native_modules/surge_oscillator` — a
 saw/square/tri/sine oscillator with hard sync.
 
 **The problem.** Hard sync forces a slave oscillator's phase back to 0 every
@@ -23,7 +23,7 @@ buzz under a sync sweep.
    `polyblep.cpp` module already band-limits ordinary cycle wraps with a
    PolyBLEP correction. A sync-forced reset and a natural wrap are the same
    kind of event from the waveform function's point of view — phase lands
-   near 0 — so `hard_sync_oscillator.cpp` reuses the identical
+   near 0 — so `surge_oscillator.cpp` reuses the identical
    `polyBlep`/`polyBlepSquare`/triangle-integrator functions unchanged. Every
    reset, sync-forced or natural, gets band-limited for free.
 2. **Sub-sample sync timing.** Sync input is read once per sample, but a real

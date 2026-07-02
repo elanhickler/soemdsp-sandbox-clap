@@ -38,7 +38,7 @@ const nodeGraphNodeLabels = Object.freeze({
   chordMemory: "Chord Memory",
   turingMachine: "Turing Machine",
   pitchQuantizer: "Pitch Quantizer",
-  hardSyncOscillator: "Hard Sync Oscillator",
+  surgeOscillator: "Surge Oscillator",
   noiseGenerator: "Noise Generator",
   randomWalk: "Random Walk",
   fractalBrownianNoise: "Fractal Brownian Noise",
@@ -735,7 +735,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       },
     ],
   },
-  hardSyncOscillator: {
+  surgeOscillator: {
     inputs: ["0.1V/Oct", "Sync"],
     outputs: ["Out", "Saw", "Square", "Tri", "Sine", "Synced"],
     parameters: [

@@ -26,7 +26,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "chordMemory",
   "turingMachine",
   "pitchQuantizer",
-  "hardSyncOscillator",
+  "surgeOscillator",
   "arpeggiator",
   "spiral",
   "blubb",
@@ -401,10 +401,10 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Pitch Quantizer",
     notes: ["quantizer", "scale", "0.1v/oct", "melody from chaos"],
   },
-  hardSyncOscillator: {
+  surgeOscillator: {
     category: "Oscillator",
     description: "Anti-aliased Saw/Square/Tri/Sine oscillator with hard sync: a rising zero-crossing on the Sync input forces the phase back near 0, sub-sample-interpolated and PolyBLEP-corrected so the sync reset doesn't alias like a naive hard sync would. Native C++/WASM.",
-    label: "Hard Sync Oscillator",
+    label: "Surge Oscillator",
     notes: ["oscillator", "hard sync", "polyblep", "anti-aliasing", "native"],
   },
   arpeggiator: {

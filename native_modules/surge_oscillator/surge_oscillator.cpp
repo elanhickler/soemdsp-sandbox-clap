@@ -1,6 +1,6 @@
-// soemdsp-native-module: hard_sync_oscillator
-// soemdsp-native-label: Hard Sync Oscillator
-// soemdsp-native-target: hardSyncOscillator
+// soemdsp-native-module: surge_oscillator
+// soemdsp-native-label: Surge Oscillator
+// soemdsp-native-target: surgeOscillator
 // soemdsp-native-kind: oscillator
 
 // Design notes (the "aliasing wars" mission):
@@ -101,7 +101,7 @@ double waveformSample(WaveformState& w, double phaseCycle, double phaseIncrement
   }
 }
 
-struct HardSyncOscillatorState {
+struct SurgeOscillatorState {
   bool active;
   double phase;            // 0..1, this oscillator's own accumulator
   double phaseIncrement;   // last computed increment, for stopped-phase caching
@@ -116,14 +116,14 @@ struct HardSyncOscillatorState {
   double sineOut;
 };
 
-static HardSyncOscillatorState gPool[kMaxInstances];
+static SurgeOscillatorState gPool[kMaxInstances];
 
 }  // namespace
 
-extern "C" int soemdsp_hard_sync_oscillator_create() {
+extern "C" int soemdsp_surge_oscillator_create() {
   for (int i = 0; i < kMaxInstances; i++) {
     if (!gPool[i].active) {
-      gPool[i] = HardSyncOscillatorState{};
+      gPool[i] = SurgeOscillatorState{};
       gPool[i].active = true;
       return i + 1;
     }
@@ -131,14 +131,14 @@ extern "C" int soemdsp_hard_sync_oscillator_create() {
   return 0;
 }
 
-extern "C" void soemdsp_hard_sync_oscillator_destroy(int handle) {
+extern "C" void soemdsp_surge_oscillator_destroy(int handle) {
   if (handle < 1 || handle > kMaxInstances) return;
   gPool[handle - 1].active = false;
 }
 
-extern "C" void soemdsp_hard_sync_oscillator_reset(int handle) {
+extern "C" void soemdsp_surge_oscillator_reset(int handle) {
   if (handle < 1 || handle > kMaxInstances) return;
-  HardSyncOscillatorState& s = gPool[handle - 1];
+  SurgeOscillatorState& s = gPool[handle - 1];
   s.phase = 0.0;
   s.hasPrevSyncIn = false;
   for (int i = 0; i < 4; i++) s.taps[i] = WaveformState{};
@@ -152,7 +152,7 @@ extern "C" void soemdsp_hard_sync_oscillator_reset(int handle) {
 //   A rising zero-crossing (previous sample <= 0, current sample > 0) forces
 //   this oscillator's phase back toward 0, sub-sample-interpolated.
 // waveform: selects which of the 4 always-computed taps becomes `out`.
-extern "C" void soemdsp_hard_sync_oscillator_sample(
+extern "C" void soemdsp_surge_oscillator_sample(
   int handle,
   double frequencyHz,
   double sampleRate,
@@ -161,7 +161,7 @@ extern "C" void soemdsp_hard_sync_oscillator_sample(
   double level
 ) {
   if (handle < 1 || handle > kMaxInstances) return;
-  HardSyncOscillatorState& s = gPool[handle - 1];
+  SurgeOscillatorState& s = gPool[handle - 1];
 
   const double safeSampleRate = sampleRate > 1.0 ? sampleRate : 48000.0;
   const double increment = clampD(frequencyHz / safeSampleRate, -0.5, 0.5);
@@ -197,36 +197,36 @@ extern "C" void soemdsp_hard_sync_oscillator_sample(
   }
 }
 
-extern "C" double soemdsp_hard_sync_oscillator_out(int handle) {
+extern "C" double soemdsp_surge_oscillator_out(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return gPool[handle - 1].out;
 }
 
-extern "C" double soemdsp_hard_sync_oscillator_saw(int handle) {
+extern "C" double soemdsp_surge_oscillator_saw(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return gPool[handle - 1].sawOut;
 }
 
-extern "C" double soemdsp_hard_sync_oscillator_square(int handle) {
+extern "C" double soemdsp_surge_oscillator_square(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return gPool[handle - 1].squareOut;
 }
 
-extern "C" double soemdsp_hard_sync_oscillator_tri(int handle) {
+extern "C" double soemdsp_surge_oscillator_tri(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return gPool[handle - 1].triOut;
 }
 
-extern "C" double soemdsp_hard_sync_oscillator_sine(int handle) {
+extern "C" double soemdsp_surge_oscillator_sine(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return gPool[handle - 1].sineOut;
 }
 
-extern "C" double soemdsp_hard_sync_oscillator_synced(int handle) {
+extern "C" double soemdsp_surge_oscillator_synced(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return gPool[handle - 1].syncedThisSample ? 1.0 : 0.0;
 }
 
-extern "C" int soemdsp_hard_sync_oscillator_version() {
+extern "C" int soemdsp_surge_oscillator_version() {
   return 1;
 }

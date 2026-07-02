@@ -203,7 +203,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-chord-memory.js",
     "./public/node-graph-turing-machine.js",
     "./public/node-graph-pitch-quantizer.js",
-    "./public/node-graph-hard-sync-oscillator.js",
+    "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-live-runtime.js",
     "./public/node-graph-wire-controller-bootstrap.js",
@@ -17190,10 +17190,10 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_passive_filter_metadata_json",
         ],
         "pitch_quantizer": ["soemdsp_pitch_quantizer_create", "soemdsp_pitch_quantizer_destroy", "soemdsp_pitch_quantizer_sample"],
-        "hard_sync_oscillator": [
-            "soemdsp_hard_sync_oscillator_create",
-            "soemdsp_hard_sync_oscillator_destroy",
-            "soemdsp_hard_sync_oscillator_sample",
+        "surge_oscillator": [
+            "soemdsp_surge_oscillator_create",
+            "soemdsp_surge_oscillator_destroy",
+            "soemdsp_surge_oscillator_sample",
         ],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [
