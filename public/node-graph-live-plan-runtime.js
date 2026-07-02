@@ -282,6 +282,7 @@ function createNodeGraphLiveRuntime(plan) {
   const dsfOscillatorStates = new Map();
   const robinSupersawStates = new Map();
   const hypersawStates = new Map();
+  const chordSequencerStates = new Map();
   const lorenzAttractorStates = new Map();
   const moduleGroupRuntimes = new Map();
   const noiseGeneratorStates = new Map();
@@ -383,6 +384,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "hypersaw") {
       hypersawStates.set(node.id, createNodeGraphHypersawState());
+    }
+    if (node.type === "chordSequencer") {
+      chordSequencerStates.set(node.id, createNodeGraphChordSequencerState());
     }
     if (node.type === "passiveFilter") {
       passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -568,6 +572,7 @@ function createNodeGraphLiveRuntime(plan) {
     dsfOscillatorStates,
     robinSupersawStates,
     hypersawStates,
+    chordSequencerStates,
     lorenzAttractorStates,
     meterCounter: 0,
     meterClipCount: 0,
@@ -787,6 +792,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.hypersawStates) {
     runtime.hypersawStates = new Map();
   }
+  if (!runtime.chordSequencerStates) {
+    runtime.chordSequencerStates = new Map();
+  }
   if (!runtime.clockStates) {
     runtime.clockStates = new Map();
   }
@@ -950,6 +958,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "hypersaw" && !runtime.hypersawStates.has(node.id)) {
       runtime.hypersawStates.set(node.id, createNodeGraphHypersawState());
+    }
+    if (node.type === "chordSequencer" && !runtime.chordSequencerStates.has(node.id)) {
+      runtime.chordSequencerStates.set(node.id, createNodeGraphChordSequencerState());
     }
     if (node.type === "passiveFilter" && !runtime.passiveFilterStates.has(node.id)) {
       runtime.passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -1243,6 +1254,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.robinSupersawStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.robinSupersawStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.chordSequencerStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.chordSequencerStates.delete(id);
     }
   }
   for (const id of [...runtime.passiveFilterStates.keys()]) {

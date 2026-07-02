@@ -189,6 +189,7 @@ var nodeGraphMvp = {
     pitchQuantizer: 0,
     surgeOscillator: 0,
     dsfOscillator: 0,
+    chordSequencer: 0,
     delayedTrigger: 0,
     expAdsr: 0,
     flowerChildEnvelopeFollower: 0,
