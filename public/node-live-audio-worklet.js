@@ -4779,6 +4779,51 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // DspBinding for Sabrina Reverb: resolves clamped native params, checks
+  // whether they've actually changed since the last apply (paramKey dirty
+  // check), and only then syncs them into native DSP memory via
+  // soemdsp_sabrina_reverb_set_params. Pure extraction -- same clamps, same
+  // key construction, same condition, same call args as before.
+  applySabrinaDspBindingIfDirty(native, state, params) {
+    const safeParams = {
+      delaySize: this.clampValue(this.safeFilterNumber(params.delaySize, null), 0, 1),
+      diffusionAmount: this.clampValue(this.safeFilterNumber(params.diffusionAmount, null), 0, 0.98),
+      diffusionSize: this.clampValue(this.safeFilterNumber(params.diffusionSize, null), 0, 1),
+      lfoAmplitude: this.clampValue(this.safeFilterNumber(params.lfoAmplitude, null), 0, 1),
+      lfoBaseSpeed: this.clampValue(this.safeFilterNumber(params.lfoBaseSpeed, null), 0, 1),
+      lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
+      mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
+      recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
+      seed: Math.max(0, Math.min(99999, Math.round(this.safeFilterNumber(params.seed, null) ?? 0))),
+    };
+    const paramKey = [
+      safeParams.mix,
+      safeParams.diffusionSize,
+      safeParams.diffusionAmount,
+      safeParams.delaySize,
+      safeParams.recycle,
+      safeParams.lfoAmplitude,
+      safeParams.lfoBaseSpeed,
+      safeParams.lfoVariation,
+    ].map((value) => Math.round(value * 1000000)).join(":") + `:${safeParams.seed}`;
+    if (paramKey === state.nativeParamKey || !native.soemdsp_sabrina_reverb_set_params) {
+      return;
+    }
+    state.nativeParamKey = paramKey;
+    native.soemdsp_sabrina_reverb_set_params(
+      state.nativeHandle,
+      safeParams.mix,
+      safeParams.diffusionSize,
+      safeParams.diffusionAmount,
+      safeParams.delaySize,
+      safeParams.recycle,
+      safeParams.lfoAmplitude,
+      safeParams.lfoBaseSpeed,
+      safeParams.lfoVariation,
+      safeParams.seed,
+    );
+  }
+
   nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate, frame = 0) {
     const native = this.nativeSabrinaReverb;
     if (
@@ -4803,42 +4848,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!state.nativeHandle) {
         return null;
       }
-      const safeParams = {
-        delaySize: this.clampValue(this.safeFilterNumber(params.delaySize, null), 0, 1),
-        diffusionAmount: this.clampValue(this.safeFilterNumber(params.diffusionAmount, null), 0, 0.98),
-        diffusionSize: this.clampValue(this.safeFilterNumber(params.diffusionSize, null), 0, 1),
-        lfoAmplitude: this.clampValue(this.safeFilterNumber(params.lfoAmplitude, null), 0, 1),
-        lfoBaseSpeed: this.clampValue(this.safeFilterNumber(params.lfoBaseSpeed, null), 0, 1),
-        lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
-        mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
-        recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
-        seed: Math.max(0, Math.min(99999, Math.round(this.safeFilterNumber(params.seed, null) ?? 0))),
-      };
-      const paramKey = [
-        safeParams.mix,
-        safeParams.diffusionSize,
-        safeParams.diffusionAmount,
-        safeParams.delaySize,
-        safeParams.recycle,
-        safeParams.lfoAmplitude,
-        safeParams.lfoBaseSpeed,
-        safeParams.lfoVariation,
-      ].map((value) => Math.round(value * 1000000)).join(":") + `:${safeParams.seed}`;
-      if (paramKey !== state.nativeParamKey && native.soemdsp_sabrina_reverb_set_params) {
-        state.nativeParamKey = paramKey;
-        native.soemdsp_sabrina_reverb_set_params(
-          state.nativeHandle,
-          safeParams.mix,
-          safeParams.diffusionSize,
-          safeParams.diffusionAmount,
-          safeParams.delaySize,
-          safeParams.recycle,
-          safeParams.lfoAmplitude,
-          safeParams.lfoBaseSpeed,
-          safeParams.lfoVariation,
-          safeParams.seed,
-        );
-      }
+      this.applySabrinaDspBindingIfDirty(native, state, params);
       const dryLeft = this.safeFilterNumber(leftInput, null);
       const dryRight = this.safeFilterNumber(rightInput, null);
       const dryMono = (dryLeft + dryRight) * 0.5;
