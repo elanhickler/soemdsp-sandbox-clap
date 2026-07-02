@@ -253,6 +253,7 @@ function createNodeGraphLiveRuntime(plan) {
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
   const pitchQuantizerStates = new Map();
+  const surgeOscillatorStates = new Map();
   const lorenzAttractorStates = new Map();
   const moduleGroupRuntimes = new Map();
   const noiseGeneratorStates = new Map();
@@ -309,6 +310,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "pitchQuantizer") {
       pitchQuantizerStates.set(node.id, createNodeGraphPitchQuantizerState());
+    }
+    if (node.type === "surgeOscillator") {
+      surgeOscillatorStates.set(node.id, createNodeGraphSurgeOscillatorState());
     }
     if (node.type === "passiveFilter") {
       passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -435,6 +439,7 @@ function createNodeGraphLiveRuntime(plan) {
     chordMemoryStates,
     turingMachineStates,
     pitchQuantizerStates,
+    surgeOscillatorStates,
     lorenzAttractorStates,
     meterCounter: 0,
     meterClipCount: 0,
@@ -579,6 +584,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.pitchQuantizerStates) {
     runtime.pitchQuantizerStates = new Map();
   }
+  if (!runtime.surgeOscillatorStates) {
+    runtime.surgeOscillatorStates = new Map();
+  }
   if (!runtime.clockStates) {
     runtime.clockStates = new Map();
   }
@@ -694,6 +702,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "pitchQuantizer" && !runtime.pitchQuantizerStates.has(node.id)) {
       runtime.pitchQuantizerStates.set(node.id, createNodeGraphPitchQuantizerState());
+    }
+    if (node.type === "surgeOscillator" && !runtime.surgeOscillatorStates.has(node.id)) {
+      runtime.surgeOscillatorStates.set(node.id, createNodeGraphSurgeOscillatorState());
     }
     if (node.type === "passiveFilter" && !runtime.passiveFilterStates.has(node.id)) {
       runtime.passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -886,6 +897,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.pitchQuantizerStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.pitchQuantizerStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.surgeOscillatorStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.surgeOscillatorStates.delete(id);
     }
   }
   for (const id of [...runtime.passiveFilterStates.keys()]) {

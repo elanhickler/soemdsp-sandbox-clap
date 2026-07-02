@@ -204,6 +204,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-turing-machine.js",
     "./public/node-graph-pitch-quantizer.js",
     "./public/node-graph-live-frame-evaluator.js",
+    "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-live-runtime.js",
     "./public/node-graph-wire-controller-bootstrap.js",
     "./public/node-graph-workspace-event-bindings.js",
@@ -16523,7 +16524,7 @@ def require_node_graph_mvp_contract() -> None:
         "createSmoother(initialValue, metadata = {})",
         "smoother.smoothingSeconds = this.smoothingSecondsFromMetadata(metadata)",
         "readSmoothedParameter(node, key, fallback, frame, frames)",
-        "smoother.smoothingSeconds ?? this.autoSmoothingSeconds",
+        "resolveSmoothingSecondsForSamples(",
         "this.onePoleLowpassSample(",
         "metadata?.kind === \"frequency\" && metadata.nonlinearSlider",
         "const octaves = (Number(modulationSignal) || 0) / 0.1",
@@ -17189,6 +17190,11 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_passive_filter_metadata_json",
         ],
         "pitch_quantizer": ["soemdsp_pitch_quantizer_create", "soemdsp_pitch_quantizer_destroy", "soemdsp_pitch_quantizer_sample"],
+        "surge_oscillator": [
+            "soemdsp_surge_oscillator_create",
+            "soemdsp_surge_oscillator_destroy",
+            "soemdsp_surge_oscillator_sample",
+        ],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [
             "soemdsp_polyblep_create",

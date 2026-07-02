@@ -308,3 +308,26 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\chua_attractor\chua_attractor.wasm" `
   "$root\native_modules\chua_attractor\chua_attractor.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_surge_oscillator_create" `
+  "-Wl,--export=soemdsp_surge_oscillator_destroy" `
+  "-Wl,--export=soemdsp_surge_oscillator_reset" `
+  "-Wl,--export=soemdsp_surge_oscillator_sample" `
+  "-Wl,--export=soemdsp_surge_oscillator_out" `
+  "-Wl,--export=soemdsp_surge_oscillator_saw" `
+  "-Wl,--export=soemdsp_surge_oscillator_square" `
+  "-Wl,--export=soemdsp_surge_oscillator_tri" `
+  "-Wl,--export=soemdsp_surge_oscillator_sine" `
+  "-Wl,--export=soemdsp_surge_oscillator_synced" `
+  "-Wl,--export=soemdsp_surge_oscillator_internal_sync" `
+  "-Wl,--export=soemdsp_surge_oscillator_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\surge_oscillator\surge_oscillator.wasm" `
+  "$root\native_modules\surge_oscillator\surge_oscillator.cpp"

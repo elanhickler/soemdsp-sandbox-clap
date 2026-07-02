@@ -167,6 +167,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "surge_oscillator",
+      "label": "Surge Oscillator",
+      "targetType": "surgeOscillator",
+      "kind": "oscillator",
+      "source": "native_modules/surge_oscillator/surge_oscillator.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/surge_oscillator/surge_oscillator.cpp",
+      "wasm": "native_modules/surge_oscillator/surge_oscillator.wasm",
+      "wasmUrl": "native_modules/surge_oscillator/surge_oscillator.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "tb303_filter",
       "label": "TB-303 Filter",
       "targetType": "tb303Filter",

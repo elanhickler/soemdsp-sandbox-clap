@@ -2932,6 +2932,28 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           scaleInput: mixInput(nodeId, "Scale"),
         }),
       };
+    } else if (node?.type === "surgeOscillator") {
+      const state = runtime.surgeOscillatorStates.get(nodeId) || createNodeGraphSurgeOscillatorState();
+      runtime.surgeOscillatorStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      const baseFrequency = Math.max(0, read("frequency", 220));
+      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
+        mixInput(nodeId, "0.1V/Oct"),
+        runtime,
+        nodeId,
+        0,
+        "hard sync oscillator 0.1v input",
+      ), -10, 10);
+      const frequencyHz = Math.max(0, baseFrequency * (2 ** (pitchInput / 0.1)));
+      value = nodeGraphSurgeOscillatorSample(state, {
+        frequencyHz,
+        sampleRate,
+        syncIn: mixInput(nodeId, "Sync"),
+        hasExternalSync: hasInput(nodeId, "Sync"),
+        syncFrequencyHz: read("syncFrequency", 50),
+        waveform: read("waveform", 0),
+        level: read("level", 1),
+      });
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);
