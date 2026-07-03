@@ -55,7 +55,18 @@ const nodeGraphModuleScopeState = {
   scopeTracesOffActive: false,
   renderer: null,
   sampleRate: 0,
-  scope2dBurnRenderers: new Map(),
+  // WeakMap, not Map: nodeGraphScope2dBurnCanvasForSlot() replaces this
+  // canvas (old one .remove()'d, a new one created) whenever a node's scope
+  // slot is torn down/rebuilt or the renderer version bumps. A Map would
+  // hold the detached canvas -- and its WebGL context plus two framebuffers
+  // and two textures -- alive forever, since nothing ever called .delete()
+  // on it. That leaked one full WebGL context per node recreation, and
+  // browsers hard-cap live WebGL contexts per page (Chrome: ~16) -- so
+  // editing/reloading patches over a session would eventually exhaust the
+  // budget and hang the whole trace renderer. A WeakMap lets the detached
+  // canvas (and the GL resources tied to it) become collectible once
+  // nothing else references it.
+  scope2dBurnRenderers: new WeakMap(),
   slots: new Map(),
   traceDisplayDrawCache: new Map(),
   traceDisplayScratch: new Map(),
@@ -1049,6 +1060,13 @@ function registerNodeGraphModuleScopeSlot(moduleElement, options = {}) {
 }
 
 function unregisterNodeGraphModuleScopeSlot(nodeId) {
+  const slot = nodeGraphModuleScopeState.slots.get(nodeId);
+  const burnCanvas = slot?.scopeElement?.querySelector?.(
+    ":scope > .node-module-scope-local-fallback-canvas",
+  );
+  if (burnCanvas && typeof disposeNodeGraphScope2dBurnRendererForCanvas === "function") {
+    disposeNodeGraphScope2dBurnRendererForCanvas(burnCanvas);
+  }
   nodeGraphModuleScopeState.slots.delete(nodeId);
   nodeGraphModuleScopeState.lightDisplayStates.delete(nodeId);
   nodeGraphModuleScopeState.modelFrameTimes.delete(nodeId);
@@ -9192,6 +9210,46 @@ function nodeGraphScope2dStrokeSpace(canvas) {
 
 const nodeGraphScope2dBurnRendererVersion = "webgl-retained-burn-screen-space-1";
 
+// Explicit, deterministic teardown of a burn-renderer's GL resources
+// (buffers, programs, framebuffers, textures) instead of waiting on GC.
+// The canvas itself is left to the WeakMap + GC to reclaim -- forcing
+// WEBGL_lose_context here was tried and reliably stalled for multiple
+// seconds per call in some environments, which is worse than the leak it
+// was meant to speed up; freeing the individual resources plus not holding
+// the canvas alive in a strong Map is enough to keep the live-context count
+// bounded.
+function disposeNodeGraphScope2dBurnRendererForCanvas(canvas) {
+  if (!canvas) {
+    return;
+  }
+  const renderer = nodeGraphModuleScopeState.scope2dBurnRenderers.get(canvas);
+  if (!renderer) {
+    return;
+  }
+  nodeGraphModuleScopeState.scope2dBurnRenderers.delete(canvas);
+  const { gl } = renderer;
+  if (!gl) {
+    return;
+  }
+  deleteNodeGraphScope2dBurnSurface(gl, renderer.readSurface);
+  deleteNodeGraphScope2dBurnSurface(gl, renderer.writeSurface);
+  for (const buffer of [renderer.quadBuffer, renderer.beamBuffer]) {
+    if (buffer) {
+      gl.deleteBuffer(buffer);
+    }
+  }
+  for (const program of [
+    renderer.decayProgram,
+    renderer.compositeProgram,
+    renderer.copyProgram,
+    renderer.beamProgram,
+  ]) {
+    if (program) {
+      gl.deleteProgram(program);
+    }
+  }
+}
+
 function nodeGraphScope2dBurnCanvasForSlot(slot) {
   const screenElement = slot?.scopeElement;
   if (!screenElement) {
@@ -9199,6 +9257,7 @@ function nodeGraphScope2dBurnCanvasForSlot(slot) {
   }
   let canvas = screenElement.querySelector(":scope > .node-module-scope-local-fallback-canvas");
   if (canvas && canvas.dataset.scope2dRenderer !== nodeGraphScope2dBurnRendererVersion) {
+    disposeNodeGraphScope2dBurnRendererForCanvas(canvas);
     canvas.remove();
     canvas = null;
   }
