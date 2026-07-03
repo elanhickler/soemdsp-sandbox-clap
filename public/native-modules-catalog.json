@@ -145,6 +145,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "robin_supersaw",
+      "label": "RobinSupersaw",
+      "targetType": "robinSupersaw",
+      "kind": "oscillator",
+      "source": "native_modules/robin_supersaw/robin_supersaw.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/robin_supersaw/robin_supersaw.cpp",
+      "wasm": "native_modules/robin_supersaw/robin_supersaw.wasm",
+      "wasmUrl": "native_modules/robin_supersaw/robin_supersaw.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "sabrina_reverb",
       "label": "Sabrina Reverb",
       "targetType": "reverbEffect",

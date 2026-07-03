@@ -205,6 +205,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-pitch-quantizer.js",
     "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-dsf-oscillator.js",
+    "./public/node-graph-robin-supersaw.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-live-runtime.js",
     "./public/node-graph-wire-controller-bootstrap.js",
@@ -17146,6 +17147,11 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_dsf_oscillator_create",
             "soemdsp_dsf_oscillator_destroy",
             "soemdsp_dsf_oscillator_sample",
+        ],
+        "robin_supersaw": [
+            "soemdsp_robin_supersaw_create",
+            "soemdsp_robin_supersaw_destroy",
+            "soemdsp_robin_supersaw_sample",
         ],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [

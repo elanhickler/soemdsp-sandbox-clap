@@ -321,6 +321,23 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_robin_supersaw_create" `
+  "-Wl,--export=soemdsp_robin_supersaw_destroy" `
+  "-Wl,--export=soemdsp_robin_supersaw_reset" `
+  "-Wl,--export=soemdsp_robin_supersaw_sample" `
+  "-Wl,--export=soemdsp_robin_supersaw_out" `
+  "-Wl,--export=soemdsp_robin_supersaw_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\robin_supersaw\robin_supersaw.wasm" `
+  "$root\native_modules\robin_supersaw\robin_supersaw.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_henon_map_create" `
   "-Wl,--export=soemdsp_henon_map_destroy" `
   "-Wl,--export=soemdsp_henon_map_sample" `

@@ -2961,6 +2961,17 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         blend: read("blend", 0.5),
         level: read("level", 1),
       });
+    } else if (node?.type === "robinSupersaw") {
+      const state = runtime.robinSupersawStates.get(nodeId) || createNodeGraphRobinSupersawState();
+      runtime.robinSupersawStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphRobinSupersawSample(state, {
+        frequencyHz: Math.max(0, read("frequency", 220)),
+        sampleRate,
+        detuneCents: read("detuneCents", 30),
+        voices: read("voices", 7),
+        level: read("level", 1),
+      });
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);

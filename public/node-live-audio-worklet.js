@@ -168,6 +168,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.pitchQuantizerStates = new Map();
     this.surgeOscillatorStates = new Map();
     this.dsfOscillatorStates = new Map();
+    this.robinSupersawStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -674,6 +675,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "robin_supersaw" || targetType === "robinSupersaw") {
+        for (const state of this.robinSupersawStates.values()) {
+          this.destroyRobinSupersawNativeState(state);
+        }
+        this.nativeRobinSupersaw = exports;
+        this.nativeRobinSupersawReady = Boolean(
+          this.nativeRobinSupersaw?.soemdsp_robin_supersaw_create &&
+          this.nativeRobinSupersaw?.soemdsp_robin_supersaw_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "robin_supersaw",
+          status: this.nativeRobinSupersawReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -790,6 +807,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.pitchQuantizerStates = new Map();
     this.surgeOscillatorStates = new Map();
     this.dsfOscillatorStates = new Map();
+    this.robinSupersawStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -1039,6 +1057,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "dsfOscillator" && !this.dsfOscillatorStates.has(id)) {
         this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
       }
+      if (node?.type === "robinSupersaw" && !this.robinSupersawStates.has(id)) {
+        this.robinSupersawStates.set(id, this.createRobinSupersawState());
+      }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createPassiveFilterState());
       }
@@ -1246,6 +1267,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyDsfOscillatorNativeState(this.dsfOscillatorStates.get(id));
         this.dsfOscillatorStates.delete(id);
+      }
+    }
+    for (const id of [...this.robinSupersawStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyRobinSupersawNativeState(this.robinSupersawStates.get(id));
+        this.robinSupersawStates.delete(id);
       }
     }
     for (const id of [...this.passiveFilterStates.keys()]) {
@@ -3716,6 +3743,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.pitchQuantizerStates = new Map();
     runtime.surgeOscillatorStates = new Map();
     runtime.dsfOscillatorStates = new Map();
+    runtime.robinSupersawStates = new Map();
     runtime.stepSequencerStates = new Map();
     runtime.triggerCounterStates = new Map();
     runtime.triggerDividerStates = new Map();
@@ -3766,6 +3794,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
       if (node?.type === "surgeOscillator") this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
       if (node?.type === "dsfOscillator") this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
+      if (node?.type === "robinSupersaw") this.robinSupersawStates.set(id, this.createRobinSupersawState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
@@ -6536,6 +6565,61 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.dsfOscillatorSampleJs(state, options);
   }
 
+  // RobinSupersaw -- see native_modules/robin_supersaw/robin_supersaw.cpp
+  // and public/node-graph-robin-supersaw.js for the full derivation
+  // (Robin Schmidt's pitch dithering, RobinSchmidt/RS-MET).
+  createRobinSupersawState() {
+    return { ...createNodeGraphRobinSupersawState(), nativeHandle: 0 };
+  }
+
+  destroyRobinSupersawNativeState(state) {
+    if (state?.nativeHandle && this.nativeRobinSupersaw?.soemdsp_robin_supersaw_destroy) {
+      this.nativeRobinSupersaw.soemdsp_robin_supersaw_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  robinSupersawSample(state, options = {}) {
+    if (
+      this.nativeRobinSupersawReady &&
+      this.nativeRobinSupersaw?.soemdsp_robin_supersaw_create &&
+      this.nativeRobinSupersaw?.soemdsp_robin_supersaw_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeRobinSupersaw.soemdsp_robin_supersaw_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+          const frequencyHz = Number(options.frequencyHz) || 0;
+          const detuneCents = Number(options.detuneCents) || 0;
+          const voices = Math.round(Number(options.voices) || 1);
+          const level = Number(options.level) || 0;
+          this.nativeRobinSupersaw.soemdsp_robin_supersaw_sample(
+            state.nativeHandle,
+            frequencyHz,
+            sampleRate,
+            detuneCents,
+            voices,
+            level,
+          );
+          return {
+            Out: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_out(state.nativeHandle)) || 0,
+          };
+        }
+      } catch (error) {
+        this.nativeRobinSupersawReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "robin_supersaw",
+          status: "disabled",
+          message: String(error?.message || error || "native RobinSupersaw failed"),
+        });
+      }
+    }
+    return nodeGraphRobinSupersawSample(state, options);
+  }
+
   spiralWrap01(value) {
     return value - Math.floor(value);
   }
@@ -7337,6 +7421,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           morph: read("morph", 1),
           pulseWidth: read("pulseWidth", 0.5),
           blend: read("blend", 0.5),
+          level: read("level", 1),
+        });
+      } else if (node?.type === "robinSupersaw") {
+        const state = this.robinSupersawStates.get(nodeId) || this.createRobinSupersawState();
+        this.robinSupersawStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = this.robinSupersawSample(state, {
+          frequencyHz: Math.max(0, read("frequency", 220)),
+          sampleRate: this.engineSampleRate || sampleRate,
+          detuneCents: read("detuneCents", 30),
+          voices: read("voices", 7),
           level: read("level", 1),
         });
       } else if (node?.type === "midiOut") {

@@ -64,6 +64,12 @@ not the final waveform, any shape you build on top of that phasor (saw,
 square, or an arbitrary waveshaper) inherits the same alias-free property
 for free.
 
+**Proof of concept, native module:** [`native_modules/robin_supersaw`](native_modules/robin_supersaw)
+(`RobinSupersaw` in the module browser) is a direct, faithful transcription
+of `calcCycleDistribution()` / `updateCycleLength()` / `getSamplePhasor()`
+from the reference implementation, stacking up to 9 independently-dithered,
+detuned voices into a classic wall-of-saws supersaw.
+
 This is a genuinely different philosophy from `aliasing-wars`'s other two
 techniques:
 

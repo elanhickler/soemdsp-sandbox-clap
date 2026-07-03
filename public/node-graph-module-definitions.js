@@ -40,6 +40,7 @@ const nodeGraphNodeLabels = Object.freeze({
   pitchQuantizer: "Pitch Quantizer",
   surgeOscillator: "Surge Oscillator",
   dsfOscillator: "DSF Oscillator",
+  robinSupersaw: "RobinSupersaw",
   noiseGenerator: "Noise Generator",
   randomWalk: "Random Walk",
   fractalBrownianNoise: "Fractal Brownian Noise",
@@ -780,6 +781,15 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "morph", label: "Harmonics", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.001" },
       { key: "pulseWidth", label: "PWM", defaultValue: "0.5", min: "0.01", mid: "0.5", max: "0.99", step: "0.01" },
       { key: "blend", label: "SquSaw", defaultValue: "0.5", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
+  robinSupersaw: {
+    outputs: ["Out"],
+    parameters: [
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "220", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
+      { key: "detuneCents", label: "Detune", defaultValue: "30", min: "0", mid: "50", max: "100", step: "0.1", unit: "cents" },
+      { key: "voices", label: "Voices", defaultValue: "7", min: "1", mid: "5", max: "9", step: "1" },
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },
