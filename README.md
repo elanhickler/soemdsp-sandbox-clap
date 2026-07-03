@@ -287,6 +287,89 @@ this whole rewrite, the Nyquist cap at `Harmonics = 64` across three
 frequencies, DC bias after warm-up, and the Formant blend's endpoints
 matching pure Saw and pure Square exactly.
 
+### Round 3: the equal-weighted rewrite passed every test I wrote, and still wasn't right
+
+Round 2's rewrite passed all 45+ automated checks, including the exact
+`Harmonics = 1 → sine` regression that motivated it. Live report anyway:
+**"it's still not working."** Attached this time: three real `.cxx`
+reference files (`Compositional DSF.cxx`, `Elan Square to Sine.cxx`,
+`Extended DSF Oscillators.cxx`, all credited to Walter H. Hackett IV), and
+a pointer straight at `SoEmSawSquareSine.cpp` — a real, shipped Soundemote
+VST2 plugin, with the note **"use soemdsp code, I know it works."**
+
+That file instantiates `DSFOscillatorSineSaw` and `DSFOscillatorSineSquare`
+directly — the exact classes from `DSFOscillator.hpp`, the file studied at
+the very start of this mission, before either rewrite above. The mistake
+common to both Round 1 and Round 2: **inventing a "Harmonics" slider that
+doesn't exist in the real, working design.** In the shipped plugin there is
+no such control at all — `numPartials_` is always
+`Nyquist / frequency`, auto-derived, every sample. The *only* user-facing
+timbre control is **Morph** (0–1), reshaping the closed form's `k_` / `k2_`
+/ `k42_` coefficients — not a harmonic count. Verified numerically before
+writing a line of C++: at `morph = 0` the real closed form collapses to an
+exact sine (peak amplitude 1.0); as morph rises it opens up into the full
+`numPartials_`-harmonic saw, peak amplitude approaching `numPartials_`
+itself at `morph = 1`.
+
+**What shipped this round:** a direct port of `DSFOscillatorSineSaw`'s
+closed form —
+
+```
+DSF(x, xn, k, k2, k42) =
+  (k42·cos(xn) − 8^k2·(cos(xn)·cos(x) − sin(xn)·sin(x)))·2^(−k2·(N+1)) + cos(x)·k42 − 2^k2
+  ──────────────────────────────────────────────────────────────────────────────────────
+                          1 − 2^(1+k2)·cos(x) + k42
+```
+```
+k = (1 − morph^0.14) · 4,   k2 = k²,   k42 = 4^k2,   xn = x·numPartials
+```
+
+with Square derived from Saw at a half-period offset
+(`saw(t) − saw(t + π)`, cancelling even harmonics) rather than guessing at
+a second, independently-sourced closed form the available reference
+excerpt didn't fully specify.
+
+**Three real bugs found and fixed getting this port to actually run, none
+of them in the math above — all in the arithmetic underneath it:**
+1. Freestanding WASM has no libm, so `pow(base, exponent)` needed a
+   hand-rolled implementation. A first hand-rolled Newton-iteration ln/exp
+   diverged for the large exponents `k2` reaches (up to ~16). A second
+   attempt — the one-line Schraudolph/Ankerl bit-manipulation "fastpow"
+   already used elsewhere in this codebase — turned out too imprecise
+   here: the resulting `k`/`k2`/`k42` error was large enough to shift the
+   closed form's own singularity to the wrong point in the cycle,
+   producing spikes nowhere the math predicted. Replaced with a proper
+   log2/exp2-based `pow` (bit-level frexp + atanh-series ln + range-reduced
+   Taylor exp), verified to ~1e-9 relative error against `math.pow` before
+   shipping.
+2. The closed form's removable singularity (numerator and denominator both
+   → 0 together) doesn't sit at a fixed point in the cycle — it moves with
+   `morph` (verified: at `morph = 0.75` it lands near `x ≈ 0.24` rad, not
+   `x = 0`). A guard that only checked near `x = 0` missed it entirely.
+   Replaced with a magnitude-based spike detector that works regardless of
+   where the singularity lands, interpolating from two nearby non-singular
+   evaluations.
+3. The bit-construction step inside the new `pow` (`2^n` via directly
+   writing the IEEE-754 exponent field) silently wrapped into garbage for
+   very large negative exponents instead of underflowing to zero,
+   poisoning every downstream term. Fixed with an explicit range guard.
+
+**Verified, not assumed, again:** FFT confirms `morph = 0` is a clean
+single-peak sine (>98% of energy at the fundamental) for both Saw and
+Square, at every frequency tested; spectral centroid rises monotonically
+with `morph`; a full sweep over every waveform × frequency × morph × mix
+combination produced zero NaN/out-of-range samples.
+
+**What's honestly different from the shipped plugin:** the excerpt of
+`DSFOscillator.hpp` available to this port didn't include the exact
+`leak_`/output-normalization constants the original uses, or
+`DSFOscillatorSineSquare`'s own independent closed form — this port
+substitutes a measured leaky-peak normalizer and a Saw-derived Square
+(see above) rather than guessing at unknown constants or an unverified
+second formula. Everything else — no Harmonics slider, `numPartials_`
+auto-derived from Nyquist, Morph as the sole timbre control, the DSF
+closed form itself — is a direct, verified transcription.
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use

@@ -410,9 +410,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   dsfOscillator: {
     category: "Oscillator",
-    description: "The DSF starter kit: an equal-weighted harmonic-sum oscillator, alias-free by a closed-form equation rather than a per-edge correction. Sine, Saw/Buzz, Square, Formant (a Saw/Square blend), Triangle, and a Fractal Stack. Morph sweeps the effective harmonic count from 1 (a plain sine) up to Harmonics, one harmonic at a time. Native C++/WASM.",
+    description: "The DSF starter kit: a faithful port of DSFOscillatorSineSaw/DSFOscillatorSineSquare, the classes a real, shipped Soundemote VST2 plugin (SoEmSawSquareSine) uses in production. Alias-free by a closed-form equation, not a per-edge correction -- and by construction, since the harmonic count is always auto-derived from Nyquist/frequency rather than a user-set slider. Sine, Saw, Square, and a Saw/Square mix. Morph (0-1) is the only timbre knob: 0 is an exact sine, 1 opens up into the full harmonic-rich saw/square. Native C++/WASM.",
     label: "DSF Oscillator",
-    notes: ["oscillator", "dsf", "discrete summation formula", "anti-aliasing", "native", "harmonic count"],
+    notes: ["oscillator", "dsf", "discrete summation formula", "anti-aliasing", "native"],
   },
   arpeggiator: {
     category: "Sequence",

@@ -16878,6 +16878,13 @@ def require_readme_scheduler_contract() -> None:
         "equal-weighted harmonic sum",
         "L'Hopital",
         "Blend",
+        "Round 3: the equal-weighted rewrite passed every test I wrote, and still wasn't right",
+        "SoEmSawSquareSine.cpp",
+        "use soemdsp code, I know it works",
+        "inventing a \"Harmonics\" slider that doesn't exist in the real, working design",
+        "k42",
+        "log2/exp2-based",
+        "removable singularity",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [

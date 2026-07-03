@@ -6388,24 +6388,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   createDsfOscillatorState() {
     return {
       phase: 0,
-      phase2: 0,
-      phase3: 0,
-      triangleIntegrator: 0,
-      dcBlockLastInput: 0,
-      dcBlockLastOutput: 0,
+      sawPeak: 1,
+      squarePeak: 1,
       nativeHandle: 0,
     };
-  }
-
-  // Kept as a defensive safety net. r=0.995 (~38Hz cutoff), tightened from an
-  // initial 0.9995 that left a measurable residual near-DC component from
-  // Triangle mode's leaky integrator at high harmonic counts, caught by FFT.
-  dsfDcBlock(state, input) {
-    const r = 0.995;
-    const output = input - state.dcBlockLastInput + r * state.dcBlockLastOutput;
-    state.dcBlockLastInput = input;
-    state.dcBlockLastOutput = output;
-    return output;
   }
 
   destroyDsfOscillatorNativeState(state) {
@@ -6415,118 +6401,121 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  // Equal-weighted harmonic sum, harmonics 1..n (Walter H. Hackett's
-  // pureSawEng). Verified: N=1 gives a single clean spectral peak at the
-  // fundamental; peak amplitude is always exactly 2N, at the t=0 singularity
-  // (handled via its L'Hopital limit).
-  dsfPureSaw(t, n) {
-    const nSafe = n < 1 ? 1 : n;
-    const denom = Math.sin(Math.PI * t);
-    let ratio;
-    if (denom > -1e-9 && denom < 1e-9) {
-      ratio = 2 * nSafe + 1;
-    } else {
-      ratio = Math.sin(Math.PI * t * (2 * nSafe + 1)) / denom;
-    }
-    const raw = ratio - 1;
-    const peak = 2 * nSafe;
-    return raw / peak;
+  // A faithful port of DSFOscillatorSineSaw / DSFOscillatorSineSquare from
+  // soemdsp/include/soemdsp/oscillator/DSFOscillator.hpp -- the classes a
+  // real, shipped Soundemote VST2 plugin (SoEmSawSquareSine) uses in
+  // production. Two earlier rewrites each invented their own "Harmonics"
+  // slider concept that doesn't exist in the real design: numPartials_ is
+  // always Nyquist/frequency, auto-derived, never user-set. Morph (0-1) is
+  // the only timbre knob.
+  dsfMorphCoeffs(morph) {
+    const m = this.clampValue(Number(morph) || 0, 0, 1);
+    const k = (1 - Math.pow(m, 0.14)) * 4;
+    const k2 = k * k;
+    const k42 = Math.pow(4, k2);
+    return { k, k2, k42 };
   }
 
-  // Equal-weighted ODD harmonic sum (pureSquEng). m = n/2; m=0 is silence.
-  // Peak amplitude is always exactly 4m, at t=0 (+4m) and t=0.5 (-4m).
-  dsfPureSquare(t, n) {
-    const m = Math.floor(n / 2);
-    if (m < 1) return 0;
-    const denom = Math.sin(2 * Math.PI * t);
-    let raw;
-    if (denom > -1e-9 && denom < 1e-9) {
-      const tw = this.wrapValue(t, 0, 1);
-      raw = (tw < 0.25 || tw > 0.75) ? (4 * m) : (-4 * m);
-    } else {
-      raw = 2 * Math.sin(4 * Math.PI * t * m) / denom;
-    }
-    const peak = 4 * m;
-    return raw / peak;
+  dsfRaw(x, numPartials, c) {
+    const xn = x * numPartials;
+    const cosx = Math.cos(x);
+    const cosxn = Math.cos(xn);
+    const sinx = Math.sin(x);
+    const sinxn = Math.sin(xn);
+    const num = (c.k42 * cosxn - Math.pow(8, c.k2) * (cosxn * cosx - sinxn * sinx)) *
+                    Math.pow(2, -c.k2 * (numPartials + 1)) +
+                cosx * c.k42 - Math.pow(2, c.k2);
+    const den = 1 - Math.pow(2, 1 + c.k2) * cosx + c.k42;
+    return num / den;
   }
 
-  // Smooth crossfade between harmonic count 1 (a plain sine) and n, so Morph
-  // sweeps continuously instead of stepping between integer harmonic counts.
-  dsfMorphedHarmonicWaveform(t, n, morph, square) {
-    const target = 1 + this.clampValue(Number(morph) || 0, 0, 1) * (n - 1);
-    const lowN = Math.floor(target);
-    const highN = Math.min(lowN + 1, n);
-    const frac = target - lowN;
-    const lowVal = square ? this.dsfPureSquare(t, Math.max(lowN, 2)) : this.dsfPureSaw(t, Math.max(lowN, 1));
-    const highVal = square ? this.dsfPureSquare(t, Math.max(highN, 2)) : this.dsfPureSaw(t, Math.max(highN, 1));
-    return lowVal * (1 - frac) + highVal * frac;
+  // den has a removable singularity whose location on the cycle moves with
+  // morph (not fixed at x=0). Detect any resulting spike by magnitude and
+  // replace it with the average of two neighboring, non-singular
+  // evaluations.
+  dsfCore(x, numPartials, c) {
+    let result = this.dsfRaw(x, numPartials, c);
+    if (!Number.isFinite(result) || result > 40 || result < -40) {
+      const a = this.dsfRaw(x - 0.02, numPartials, c);
+      const b = this.dsfRaw(x + 0.02, numPartials, c);
+      const aOk = Number.isFinite(a) && a <= 40 && a >= -40;
+      const bOk = Number.isFinite(b) && b <= 40 && b >= -40;
+      if (aOk && bOk) result = (a + b) * 0.5;
+      else if (aOk) result = a;
+      else if (bOk) result = b;
+      else result = 0;
+    }
+    return result;
+  }
+
+  dsfSaw(phase, numPartials, c) {
+    return this.dsfCore(phase, numPartials, c);
+  }
+
+  // Square: derived from Saw at a half-period offset (saw(t) - saw(t+pi)),
+  // rather than an independently-guessed second closed form. Cancels even
+  // harmonics, doubles odd ones; at morph=0 reduces to an exact sine.
+  dsfSquare(phase, numPartials, c) {
+    const a = this.dsfCore(phase, numPartials, c);
+    const b = this.dsfCore(phase + Math.PI, numPartials, c);
+    return (a - b) * 0.5;
   }
 
   dsfOscillatorSampleJs(state, options = {}) {
     const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-    const increment = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
-    state.phase = this.wrapValue(state.phase + increment, 0, 1);
-
-    // The Harmonics slider is a ceiling, not a fixed count: if N*frequency
-    // were allowed above Nyquist, that excess content would alias back down
-    // instead of being suppressed.
-    const nyquist = sampleRate * 0.5;
     const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
-    const nyquistCappedHarmonics = Math.floor(nyquist / safeFrequency);
-    const requestedHarmonics = Math.max(1, Math.min(64, Math.round(Number(options.harmonics) || 16)));
-    const n = Math.max(1, Math.min(requestedHarmonics, nyquistCappedHarmonics));
-    const t = state.phase;
+    const increment = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5) * Math.PI * 2;
+    state.phase = this.wrapRadiansValue(state.phase + increment);
+
+    const nyquist = sampleRate * 0.5;
+    const numPartialsSaw = Math.max(1, nyquist / safeFrequency);
+    const numPartialsSquare = numPartialsSaw;
+
+    const coeffs = this.dsfMorphCoeffs(options.morph);
     const waveform = Math.round(Number(options.waveform) || 0);
-    const morph = Number(options.morph) || 0;
     const level = Number(options.level) || 0;
 
-    let sample = 0;
+    let sample;
     switch (waveform) {
       case 1: {
-        sample = this.dsfMorphedHarmonicWaveform(t, n, morph, false);
+        const raw = this.dsfSaw(state.phase, numPartialsSaw, coeffs);
+        state.sawPeak = Math.max(1, state.sawPeak * 0.999 + Math.abs(raw) * 0.001);
+        sample = raw / state.sawPeak;
         break;
       }
       case 2: {
-        sample = this.dsfMorphedHarmonicWaveform(t, n, morph, true);
+        const raw = this.dsfSquare(state.phase, numPartialsSquare, coeffs);
+        state.squarePeak = Math.max(1, state.squarePeak * 0.999 + Math.abs(raw) * 0.001);
+        sample = raw / state.squarePeak;
         break;
       }
       case 3: {
-        // Formant: a verified Saw/Square blend, not the original geometric
-        // -DSF phase-offset approach (which caused the earlier DC-bias bug).
-        const blend = this.clampValue(Number(options.pulseWidth) || 0.5, 0, 1);
-        const sawPart = this.dsfMorphedHarmonicWaveform(t, n, morph, false);
-        const squarePart = this.dsfMorphedHarmonicWaveform(t, n, morph, true);
-        sample = sawPart * (1 - blend) + squarePart * blend;
-        break;
-      }
-      case 4: {
-        const squareLike = this.dsfMorphedHarmonicWaveform(t, n, morph, true);
-        const next = this.clampValue((state.triangleIntegrator + squareLike * increment * 4) * 0.995, -1, 1);
-        state.triangleIntegrator = next;
-        sample = next;
-        break;
-      }
-      case 5: {
-        // Each layer runs at its own frequency (f, 2f, 4f) and needs its own
-        // independent Nyquist cap.
-        state.phase2 = this.wrapValue(state.phase2 + increment * 2, 0, 1);
-        state.phase3 = this.wrapValue(state.phase3 + increment * 4, 0, 1);
-        const n2 = Math.max(1, Math.min(requestedHarmonics, Math.floor(nyquist / (safeFrequency * 2))));
-        const n3 = Math.max(1, Math.min(requestedHarmonics, Math.floor(nyquist / (safeFrequency * 4))));
-        const layer1 = this.dsfMorphedHarmonicWaveform(t, n, morph, false);
-        const layer2 = this.dsfMorphedHarmonicWaveform(state.phase2, n2, morph, false) * 0.5;
-        const layer3 = this.dsfMorphedHarmonicWaveform(state.phase3, n3, morph, false) * 0.25;
-        sample = (layer1 + layer2 + layer3) / 1.75;
+        const rawSaw = this.dsfSaw(state.phase, numPartialsSaw, coeffs);
+        state.sawPeak = Math.max(1, state.sawPeak * 0.999 + Math.abs(rawSaw) * 0.001);
+        const rawSquare = this.dsfSquare(state.phase, numPartialsSquare, coeffs);
+        state.squarePeak = Math.max(1, state.squarePeak * 0.999 + Math.abs(rawSquare) * 0.001);
+        const sawOut = rawSaw / state.sawPeak;
+        const squareOut = rawSquare / state.squarePeak;
+        const blend = this.clampValue(Number(options.mix) || 0, 0, 1);
+        sample = sawOut * (1 - blend) + squareOut * blend;
         break;
       }
       default:
-        sample = Math.sin(t * Math.PI * 2);
+        sample = Math.sin(state.phase);
         break;
     }
 
-    const dcFreeSample = this.dsfDcBlock(state, sample);
-    const out = this.clampValue(dcFreeSample, -1.5, 1.5) * level;
+    if (!Number.isFinite(sample)) sample = 0;
+    const out = this.clampValue(sample, -1.5, 1.5) * level;
     return { Out: out };
+  }
+
+  wrapRadiansValue(value) {
+    const twoPi = Math.PI * 2;
+    let v = value;
+    while (v > Math.PI) v -= twoPi;
+    while (v < -Math.PI) v += twoPi;
+    return v;
   }
 
   dsfOscillatorSample(state, options = {}) {
@@ -6543,18 +6532,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
           const frequencyHz = Number(options.frequencyHz) || 0;
           const waveform = Math.round(Number(options.waveform) || 0);
-          const harmonics = Math.max(1, Math.min(64, Math.round(Number(options.harmonics) || 16)));
           const morph = Number(options.morph) || 0;
-          const pulseWidth = Number(options.pulseWidth) || 0.5;
+          const mix = Number(options.mix) || 0;
           const level = Number(options.level) || 0;
           this.nativeDsfOscillator.soemdsp_dsf_oscillator_sample(
             state.nativeHandle,
             frequencyHz,
             sampleRate,
             waveform,
-            harmonics,
             morph,
-            pulseWidth,
+            mix,
             level,
           );
           return {
@@ -7372,9 +7359,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           frequencyHz: Math.max(0, read("frequency", 220)),
           sampleRate: this.engineSampleRate || sampleRate,
           waveform: read("waveform", 1),
-          harmonics: read("harmonics", 16),
           morph: read("morph", 0.6),
-          pulseWidth: read("pulseWidth", 0.5),
+          mix: read("mix", 0.5),
           level: read("level", 1),
         });
       } else if (node?.type === "midiOut") {

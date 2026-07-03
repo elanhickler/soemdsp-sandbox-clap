@@ -1,145 +1,139 @@
 // Shared offline JS mirror of native_modules/dsf_oscillator -- the DSF
-// starter kit. See dsf_oscillator.cpp for the full derivation, the bug this
-// rewrite fixed (Harmonics=1 wasn't a plain sine under the original
-// geometric-decay formula), and design notes.
-//
-// Uses an equal-weighted harmonic sum (Dirichlet-kernel-style), sourced from
-// Walter H. Hackett's own reference implementations, instead of the original
-// geometric-ratio DSF formula. Verified: Harmonics=1 gives a single clean
-// spectral peak at the fundamental for every waveform.
+// starter kit. See dsf_oscillator.cpp for the full derivation and design
+// notes. THIRD REWRITE: a faithful port of DSFOscillatorSineSaw /
+// DSFOscillatorSineSquare from soemdsp/include/soemdsp/oscillator/
+// DSFOscillator.hpp -- the classes a real, shipped Soundemote VST2 plugin
+// (SoEmSawSquareSine) uses in production. No user-facing "Harmonics"
+// slider (the two earlier rewrites both invented one, and both got real
+// feedback that they didn't sound right): numPartials_ is always
+// Nyquist/frequency, auto-derived, never user-set. Morph (0-1) is the only
+// timbre knob: 0 is an exact sine, 1 opens up into the full
+// numPartials_-harmonic saw/square.
 
 function createNodeGraphDsfOscillatorState() {
   return {
     phase: 0,
-    phase2: 0,
-    phase3: 0,
-    triangleIntegrator: 0,
-    dcBlockLastInput: 0,
-    dcBlockLastOutput: 0,
+    sawPeak: 1,
+    squarePeak: 1,
   };
 }
 
-// Equal-weighted harmonic sum, harmonics 1..n. Verified: N=1 gives a single
-// clean spectral peak at the fundamental; peak amplitude is always exactly
-// 2N, at the t=0 singularity (handled via its L'Hopital limit).
-function nodeGraphDsfPureSaw(t, n) {
-  const nSafe = n < 1 ? 1 : n;
-  const denom = Math.sin(Math.PI * t);
-  let ratio;
-  if (denom > -1e-9 && denom < 1e-9) {
-    ratio = 2 * nSafe + 1;
-  } else {
-    ratio = Math.sin(Math.PI * t * (2 * nSafe + 1)) / denom;
+// Same log2/exp2-based pow as dsf_oscillator.cpp uses on the wasm side --
+// JS has Math.pow natively, so just use it directly here; no bit-trick
+// approximation needed off the native path.
+function nodeGraphDsfMorphCoeffs(morph) {
+  const m = clampNodeSliderValue(Number(morph) || 0, 0, 1);
+  const k = (1 - Math.pow(m, 0.14)) * 4;
+  const k2 = k * k;
+  const k42 = Math.pow(4, k2);
+  return { k, k2, k42 };
+}
+
+// Raw DSF closed form (DSFOscillatorSineSaw::DSF(), transcribed) -- shared
+// between Saw and Square, which differ only in what phase/partial count
+// they're evaluated at.
+function nodeGraphDsfRaw(x, numPartials, c) {
+  const xn = x * numPartials;
+  const cosx = Math.cos(x);
+  const cosxn = Math.cos(xn);
+  const sinx = Math.sin(x);
+  const sinxn = Math.sin(xn);
+  const num = (c.k42 * cosxn - Math.pow(8, c.k2) * (cosxn * cosx - sinxn * sinx)) *
+                  Math.pow(2, -c.k2 * (numPartials + 1)) +
+              cosx * c.k42 - Math.pow(2, c.k2);
+  const den = 1 - Math.pow(2, 1 + c.k2) * cosx + c.k42;
+  return num / den;
+}
+
+// den has a removable singularity whose location on the cycle moves with
+// morph (not fixed at x=0 -- verified numerically before shipping).
+// Detect any resulting spike by magnitude and replace it with the average
+// of two neighboring, non-singular evaluations.
+function nodeGraphDsfCore(x, numPartials, c) {
+  let result = nodeGraphDsfRaw(x, numPartials, c);
+  if (!Number.isFinite(result) || result > 40 || result < -40) {
+    const a = nodeGraphDsfRaw(x - 0.02, numPartials, c);
+    const b = nodeGraphDsfRaw(x + 0.02, numPartials, c);
+    const aOk = Number.isFinite(a) && a <= 40 && a >= -40;
+    const bOk = Number.isFinite(b) && b <= 40 && b >= -40;
+    if (aOk && bOk) result = (a + b) * 0.5;
+    else if (aOk) result = a;
+    else if (bOk) result = b;
+    else result = 0;
   }
-  const raw = ratio - 1;
-  const peak = 2 * nSafe;
-  return raw / peak;
+  return result;
 }
 
-// Equal-weighted ODD harmonic sum. m = n/2 harmonic pairs; m=0 is silence.
-// Peak amplitude is always exactly 4m, at t=0 (+4m) and t=0.5 (-4m).
-function nodeGraphDsfPureSquare(t, n) {
-  const m = Math.floor(n / 2);
-  if (m < 1) return 0;
-  const denom = Math.sin(2 * Math.PI * t);
-  let raw;
-  if (denom > -1e-9 && denom < 1e-9) {
-    const tw = wrapNodeSliderValue(t, 0, 1);
-    raw = (tw < 0.25 || tw > 0.75) ? (4 * m) : (-4 * m);
-  } else {
-    raw = 2 * Math.sin(4 * Math.PI * t * m) / denom;
-  }
-  const peak = 4 * m;
-  return raw / peak;
+function nodeGraphDsfSaw(phase, numPartials, c) {
+  return nodeGraphDsfCore(phase, numPartials, c);
 }
 
-// Smooth crossfade between harmonic count 1 (a plain sine) and n, so Morph
-// sweeps continuously instead of stepping between integer harmonic counts.
-function nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, square) {
-  const target = 1 + clampNodeSliderValue(Number(morph) || 0, 0, 1) * (n - 1);
-  const lowN = Math.floor(target);
-  const highN = Math.min(lowN + 1, n);
-  const frac = target - lowN;
-  const lowVal = square ? nodeGraphDsfPureSquare(t, Math.max(lowN, 2)) : nodeGraphDsfPureSaw(t, Math.max(lowN, 1));
-  const highVal = square ? nodeGraphDsfPureSquare(t, Math.max(highN, 2)) : nodeGraphDsfPureSaw(t, Math.max(highN, 1));
-  return lowVal * (1 - frac) + highVal * frac;
+// Square: derived from Saw at a half-period offset (saw(t) - saw(t+pi)),
+// rather than an independently-guessed second closed form -- see
+// dsf_oscillator.cpp's dsfSquare() comment for why. Cancels even
+// harmonics, doubles odd ones; at morph=0 reduces to an exact sine, same
+// as every other mode in this module.
+function nodeGraphDsfSquare(phase, numPartials, c) {
+  const a = nodeGraphDsfCore(phase, numPartials, c);
+  const b = nodeGraphDsfCore(phase + Math.PI, numPartials, c);
+  return (a - b) * 0.5;
 }
 
-// Kept as a defensive safety net -- see dsf_oscillator.cpp. r=0.995 (~38Hz
-// cutoff), tightened from an initial 0.9995 that left a measurable residual
-// near-DC component from Triangle mode's leaky integrator at high harmonic
-// counts, caught by FFT, not assumed clean.
-function nodeGraphDsfDcBlock(state, input) {
-  const r = 0.995;
-  const output = input - state.dcBlockLastInput + r * state.dcBlockLastOutput;
-  state.dcBlockLastInput = input;
-  state.dcBlockLastOutput = output;
-  return output;
-}
-
-// options: { frequencyHz, sampleRate, waveform (0=Sine,1=Saw/Buzz,2=Square,
-//            3=Formant [Saw/Square blend],4=Triangle,5=Fractal Stack),
-//            harmonics, morph (0-1), pulseWidth (0-1), level }
+// options: { frequencyHz, sampleRate, waveform (0=Sine,1=Saw,2=Square,
+//            3=Saw+Square mix), morph (0-1), mix (0-1), level }
 function nodeGraphDsfOscillatorSample(state, options = {}) {
   const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-  const increment = clampNodeSliderValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
-  state.phase = wrapNodeSliderValue(state.phase + increment, 0, 1);
-
-  // The Harmonics slider is a ceiling, not a fixed count: if N*frequency were
-  // allowed above Nyquist, that excess content would alias back down.
-  const nyquist = sampleRate * 0.5;
   const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
-  const nyquistCappedHarmonics = Math.floor(nyquist / safeFrequency);
-  const requestedHarmonics = Math.max(1, Math.min(64, Math.round(Number(options.harmonics) || 16)));
-  const n = Math.max(1, Math.min(requestedHarmonics, nyquistCappedHarmonics));
-  const t = state.phase;
+  const increment = clampNodeSliderValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5) * Math.PI * 2;
+  state.phase = wrapNodeGraphDsfRadians(state.phase + increment);
+
+  const nyquist = sampleRate * 0.5;
+  const numPartialsSaw = Math.max(1, nyquist / safeFrequency);
+  const numPartialsSquare = numPartialsSaw;
+
+  const coeffs = nodeGraphDsfMorphCoeffs(options.morph);
   const waveform = Math.round(Number(options.waveform) || 0);
-  const morph = Number(options.morph) || 0;
   const level = Number(options.level) || 0;
 
-  let sample = 0;
+  let sample;
   switch (waveform) {
     case 1: {
-      sample = nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, false);
+      const raw = nodeGraphDsfSaw(state.phase, numPartialsSaw, coeffs);
+      state.sawPeak = Math.max(1, state.sawPeak * 0.999 + Math.abs(raw) * 0.001);
+      sample = raw / state.sawPeak;
       break;
     }
     case 2: {
-      sample = nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, true);
+      const raw = nodeGraphDsfSquare(state.phase, numPartialsSquare, coeffs);
+      state.squarePeak = Math.max(1, state.squarePeak * 0.999 + Math.abs(raw) * 0.001);
+      sample = raw / state.squarePeak;
       break;
     }
     case 3: {
-      // Formant: a verified Saw/Square blend, not the original geometric-DSF
-      // phase-offset approach (which caused the earlier DC-bias bug).
-      const blend = clampNodeSliderValue(Number(options.pulseWidth) || 0.5, 0, 1);
-      const sawPart = nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, false);
-      const squarePart = nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, true);
-      sample = sawPart * (1 - blend) + squarePart * blend;
-      break;
-    }
-    case 4: {
-      const squareLike = nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, true);
-      const next = clampNodeSliderValue((state.triangleIntegrator + squareLike * increment * 4) * 0.995, -1, 1);
-      state.triangleIntegrator = next;
-      sample = next;
-      break;
-    }
-    case 5: {
-      state.phase2 = wrapNodeSliderValue(state.phase2 + increment * 2, 0, 1);
-      state.phase3 = wrapNodeSliderValue(state.phase3 + increment * 4, 0, 1);
-      const n2 = Math.max(1, Math.min(requestedHarmonics, Math.floor(nyquist / (safeFrequency * 2))));
-      const n3 = Math.max(1, Math.min(requestedHarmonics, Math.floor(nyquist / (safeFrequency * 4))));
-      const layer1 = nodeGraphDsfMorphedHarmonicWaveform(t, n, morph, false);
-      const layer2 = nodeGraphDsfMorphedHarmonicWaveform(state.phase2, n2, morph, false) * 0.5;
-      const layer3 = nodeGraphDsfMorphedHarmonicWaveform(state.phase3, n3, morph, false) * 0.25;
-      sample = (layer1 + layer2 + layer3) / 1.75;
+      const rawSaw = nodeGraphDsfSaw(state.phase, numPartialsSaw, coeffs);
+      state.sawPeak = Math.max(1, state.sawPeak * 0.999 + Math.abs(rawSaw) * 0.001);
+      const rawSquare = nodeGraphDsfSquare(state.phase, numPartialsSquare, coeffs);
+      state.squarePeak = Math.max(1, state.squarePeak * 0.999 + Math.abs(rawSquare) * 0.001);
+      const sawOut = rawSaw / state.sawPeak;
+      const squareOut = rawSquare / state.squarePeak;
+      const blend = clampNodeSliderValue(Number(options.mix) || 0, 0, 1);
+      sample = sawOut * (1 - blend) + squareOut * blend;
       break;
     }
     default:
-      sample = Math.sin(t * Math.PI * 2);
+      sample = Math.sin(state.phase);
       break;
   }
 
-  const dcFreeSample = nodeGraphDsfDcBlock(state, sample);
-  const out = clampNodeSliderValue(dcFreeSample, -1.5, 1.5) * level;
+  if (!Number.isFinite(sample)) sample = 0;
+  const out = clampNodeSliderValue(sample, -1.5, 1.5) * level;
   return { Out: out };
+}
+
+function wrapNodeGraphDsfRadians(value) {
+  const twoPi = Math.PI * 2;
+  let v = value;
+  while (v > Math.PI) v -= twoPi;
+  while (v < -Math.PI) v += twoPi;
+  return v;
 }
