@@ -16863,6 +16863,15 @@ def require_readme_scheduler_contract() -> None:
         "Diode-Controlled LP/HP Pair",
         "Zero-delay feedback",
         "Self-oscillating resonance",
+        "Built: the Flower Child family",
+        "flower_child_filter",
+        "rsmet_filter",
+        "yellowjacket_filter",
+        "superlove_filter",
+        "chaotic_phase_locking_filter",
+        "resonator_filter",
+        "human_filter",
+        "Characterizing behavior empirically",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
 

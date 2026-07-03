@@ -19,6 +19,8 @@
 
 - [Why analog filters](#-why-analog-filters)
 - [What makes them hard to get right in software](#-what-makes-them-hard-to-get-right-in-software)
+- [Built: the Flower Child family](#-built-the-flower-child-family)
+- [Characterizing behavior empirically](#-characterizing-behavior-empirically)
 - [Filters on the list](#-filters-on-the-list)
 - [Listen & watch](#-listen--watch)
 - [Running it](#-running-it)
@@ -67,6 +69,66 @@ being chased here:
   harmonics; without oversampling, those harmonics fold back down as
   aliasing. Getting the nonlinear modeling right and getting the aliasing
   under control are two separate problems that have to be solved together.
+
+---
+
+## 🌸 Built: the Flower Child family
+
+Ported from an older `soemdsp` codebase (`FlowerChildFilterCore.h`) —
+resonant, self-oscillating feedback designs, not passive filters in the
+textbook sense. Each is a native C++/WASM module, verified against the real
+compiled artifact with a Python+wasmtime harness before wiring:
+
+| Module | Modes | Notes |
+|---|---|---|
+| `flower_child_filter` | Clean, Dirty, Rev3, Downsampled | The original two revisions plus an ellipsoid-oscillator variant and a sample-and-hold aliasing variant |
+| `rsmet_filter` | LP6/12/18/24, HP6/12/18/24, BP6, BP12 (10) | A ladder filter with a tanh soft clipper and noise injection stage |
+| `yellowjacket_filter` | — | Feedback ellipse-oscillator filter, grindy, easily produces square-wave-like output |
+| `superlove_filter` | LP18, LP24, HP6, BP6 | Trisaw-oscillator feedback resonator, warm and stably self-oscillating |
+| `chaotic_phase_locking_filter` | — | Direct feedback ellipse-waveshaper resonator (no oscillator phasor) |
+| `resonator_filter` | Sinusoid, Triangle, Sawtooth | Dual-phasor FM feedback resonator |
+| `human_filter` 🚧 | BP6, LP6, LP12 | Dual-phasor feedback network shaped by a bell filter — marked under construction; the original's feedback-filter wrapper (Q, center frequency) wasn't recoverable from the accessible codebase, so a documented Q=1/1kHz default stands in |
+
+Every shaping curve in these (resonance-vs-frequency, FM/PM crossfade, etc.)
+is reproduced from the real `soemdsp::utility::Graph` /
+`soemdsp::curve::Rational` source, not approximated — a generic N-node graph
+evaluator was built once and reused across all of them.
+
+---
+
+## 📈 Characterizing behavior empirically
+
+Here's the thing that makes this whole family hard to reason about from the
+code alone: **they're feedback oscillators, not fixed filters.** A plain
+lowpass has one transfer function you can write down. These don't — the
+"curve" depends on resonance, input level, and the knob position feeds back
+into the oscillator's own pitch. There's no formula to graph.
+
+So instead of guessing, the plan is to *measure*: feed a compiled module a
+swept sine tone through the same Python+wasmtime harness already used to
+verify it, record output RMS per frequency, and plot the result. This turns
+"what does turning this knob actually do" from a guess into a chart.
+
+**First result, `yellowjacket_filter`** (see the module's own naming
+confusion first — `Yellowjacket_BP` in the original code, but the filter
+tap it actually uses is `LP_6`, a lowpass): swept a sine tone from 20Hz to
+14kHz through the compiled `.wasm` at three Frequency-knob settings,
+resonance fixed at 0.3:
+
+- **Knob 0.2** — flat response (~0.616 RMS) across the whole sweep. The
+  self-oscillation is loud enough to drown out whatever's coming in; the
+  input frequency barely matters.
+- **Knob 0.5** — behaves like an actual lowpass: loud below ~100Hz, settling
+  to ~0.046 above ~400Hz.
+- **Knob 0.8** — a genuine resonant peak around 1.2–1.6kHz (~0.21 RMS,
+  roughly double its neighbors), falling off on both sides.
+
+That last point is the answer to "but it sounds like a bandpass in use" —
+it does, and now there's a measurement showing exactly where and how much.
+The lesson generalizes: for this whole family, "what's the filter curve"
+only has an honest answer as a measured, knob-position-dependent chart, not
+a static formula — and that's the method to reach for on the rest of the
+list below as they get built.
 
 ---
 
