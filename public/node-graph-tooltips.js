@@ -1,4 +1,4 @@
-const nodeGraphTooltipSourceUrl = "./public/tooltips.json?v=0030";
+const nodeGraphTooltipSourceUrl = "./public/tooltips.json?v=0031";
 const sandboxNativeTitleStorageAttribute = "data-native-title-disabled";
 
 function sandboxStoreAndRemoveNativeTitle(element) {

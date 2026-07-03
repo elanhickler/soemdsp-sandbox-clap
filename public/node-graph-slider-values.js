@@ -5,6 +5,12 @@ const nodeSliderMinSkewExponent = 0.25;
 const nodeSliderMaxSkewExponent = 4;
 const nodeGraphAutoSmoothingDefaultSeconds = 0.016;
 
+const nodeGraphSmoothingModes = Object.freeze(["global", "blockSize", "internal", "internalGlobal", "off"]);
+
+function nodeGraphSmoothingModeNormalize(value) {
+  return nodeGraphSmoothingModes.includes(value) ? value : "global";
+}
+
 function clampNodeGraphAutoSmoothingSeconds(seconds) {
   const value = Number(seconds);
   if (!Number.isFinite(value)) {
@@ -127,25 +133,32 @@ function denormalizeNodeGraphSmootherSignal(signal, metadata = {}) {
   return Number.isFinite(range) && range > 0 ? min + range * clampNodeSliderValue(signal, 0, 1) : signal;
 }
 
-// smoothingSeconds metadata is now interpreted as a SAMPLE COUNT, not
-// seconds: -1 bypasses smoothing entirely, 0 uses the current block size
-// as the smoothing window, and any N > 0 smooths over exactly N samples.
-// Unset/non-finite values fall back to the global auto-smoothing seconds.
+// smoothingSeconds metadata is a SAMPLE COUNT, not seconds: 0 bypasses
+// smoothing entirely, and any N > 0 smooths over exactly N samples.
 function nodeGraphParameterSmoothingSecondsFromMetadata(metadata = {}) {
   const value = Number(metadata.smoothingSeconds);
-  return Number.isFinite(value) ? Math.round(value) : null;
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
 }
 
-function nodeGraphResolveSmoothingSecondsForSamples(smoothingSamples, frames, rate) {
-  if (smoothingSamples === null) {
-    return nodeGraphMvp?.live?.autoSmoothingSeconds;
-  }
-  if (smoothingSamples === -1) {
-    return -1;
-  }
+// See resolveSmoothingSecondsForMode() in node-live-audio-worklet.js for the
+// per-mode meaning (internal / global / blockSize / internalGlobal / off).
+function nodeGraphResolveSmoothingSecondsForMode(mode, smoothingSamples, frames, rate, globalSeconds) {
   const safeRate = Math.max(1, Number(rate) || nodeGraphMvp?.sampleRate || 44100);
-  const samples = smoothingSamples <= 0 ? Math.max(1, Number(frames) || 1) : smoothingSamples;
-  return samples / safeRate;
+  const safeGlobal = Number.isFinite(Number(globalSeconds)) ? Math.max(0, Number(globalSeconds)) : 0;
+  const internalSeconds = smoothingSamples > 0 ? smoothingSamples / safeRate : 0;
+  switch (mode) {
+    case "off":
+      return 0;
+    case "blockSize":
+      return Math.max(1, Number(frames) || 1) / safeRate;
+    case "global":
+      return safeGlobal;
+    case "internalGlobal":
+      return internalSeconds + safeGlobal;
+    case "internal":
+    default:
+      return internalSeconds;
+  }
 }
 
 function createNodeGraphParameterSmoother(initialValue, metadata = {}) {
@@ -158,6 +171,7 @@ function createNodeGraphParameterSmoother(initialValue, metadata = {}) {
     max: Number.isFinite(Number(metadata.max)) ? Number(metadata.max) : 1,
     metadata,
     min: Number.isFinite(Number(metadata.min)) ? Number(metadata.min) : 0,
+    smoothingMode: nodeGraphSmoothingModeNormalize(metadata.smoothingMode),
     smoothingSeconds: nodeGraphParameterSmoothingSecondsFromMetadata(metadata),
     outputBuffer: signal,
     targetSignal: signal,
@@ -175,6 +189,7 @@ function updateNodeGraphParameterSmoother(smoother, targetValue, metadata = {}) 
   smoother.max = Number.isFinite(Number(metadata.max)) ? Number(metadata.max) : smoother.max;
   smoother.metadata = metadata;
   smoother.min = Number.isFinite(Number(metadata.min)) ? Number(metadata.min) : smoother.min;
+  smoother.smoothingMode = nodeGraphSmoothingModeNormalize(metadata.smoothingMode);
   smoother.smoothingSeconds = nodeGraphParameterSmoothingSecondsFromMetadata(metadata);
   smoother.targetSignal = normalizeNodeGraphSmootherSignal(smoother.target, metadata);
   smoother.wraparound = Boolean(metadata.wraparound);
@@ -198,14 +213,13 @@ function readNodeGraphSmoothedParameter(smoother, frame, frames) {
     smoother.lastValue = smoother.target;
     return smoother.target;
   }
-  const resolvedSmoothingSeconds = nodeGraphResolveSmoothingSecondsForSamples(
-    smoother.smoothingSeconds ?? null,
+  const smoothingSeconds = clampNodeGraphAutoSmoothingSeconds(nodeGraphResolveSmoothingSecondsForMode(
+    smoother.smoothingMode,
+    smoother.smoothingSeconds || 0,
     frames,
     nodeGraphMvp?.sampleRate || 44100,
-  );
-  const smoothingSeconds = resolvedSmoothingSeconds === -1
-    ? -1
-    : clampNodeGraphAutoSmoothingSeconds(resolvedSmoothingSeconds);
+    nodeGraphMvp?.live?.autoSmoothingSeconds,
+  ));
   if (smoothingSeconds <= 0) {
     smoother.current = smoother.target;
     smoother.outputBuffer = smoother.targetSignal;
@@ -479,6 +493,7 @@ function setNodeSliderMetadata(slider, metadata) {
   slider.dataset.displayChoices = metadata.displayChoices ? "true" : "false";
   slider.dataset.divideChoicesVisibly = metadata.divideChoicesVisibly ? "true" : "false";
   slider.dataset.linearSmoothing = metadata.linearSmoothing ? "true" : "false";
+  slider.dataset.smoothingMode = nodeGraphSmoothingModeNormalize(metadata.smoothingMode);
   slider.dataset.smoothingSeconds = Number.isFinite(Number(metadata.smoothingSeconds)) && Number(metadata.smoothingSeconds) >= 0
     ? String(metadata.smoothingSeconds)
     : "";

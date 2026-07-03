@@ -17,7 +17,21 @@ function normalizeNodeSliderCurveAmount(value, fallback = 0) {
 
 function normalizeNodeGraphMetadataSmoothingSeconds(value) {
   const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : null;
+  return Number.isFinite(number) && number >= 0 ? Math.round(number) : 0;
+}
+
+// global          -- always use the global smoothing time (default: matches
+//                    this app's pre-existing behavior for parameters that
+//                    never set an explicit smoothingSeconds)
+// blockSize       -- always smooth over exactly one audio block
+// internal        -- this parameter's own smoothingSeconds sample count
+//                    (0 samples bypasses smoothing for this parameter only)
+// internalGlobal  -- internal samples PLUS the global smoothing time
+// off             -- always instant, ignoring both internal and global
+const nodeGraphMetadataSmoothingModes = Object.freeze(["global", "blockSize", "internal", "internalGlobal", "off"]);
+
+function normalizeNodeGraphMetadataSmoothingMode(value) {
+  return nodeGraphMetadataSmoothingModes.includes(value) ? value : "global";
 }
 
 function nodeGraphDefaultParamsForType(type) {
@@ -417,6 +431,7 @@ function nodeGraphParameterDefinitionMetadata(parameter) {
       ? Boolean(parameter.nonlinearSlider)
       : midInsideRange && Math.abs(safeMid - (safeMin + safeMax) / 2) > Number.EPSILON),
     showSign: Boolean(parameter.showSign),
+    smoothingMode: normalizeNodeGraphMetadataSmoothingMode(parameter.smoothingMode),
     smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(parameter.smoothingSeconds),
     step: Number.isFinite(step) && step > 0 ? step : 0,
     tooltip: String(parameter.tooltip || "").slice(0, 240),
@@ -479,6 +494,7 @@ function nodeGraphClapPatchParameterFallbackMetadata(key, metadata = {}) {
     nonlinearSlider: Boolean(source.nonlinearSlider),
     sliderCurve: normalizeNodeSliderCurve(source.sliderCurve, source.nonlinearSlider),
     showSign: Boolean(source.showSign),
+    smoothingMode: normalizeNodeGraphMetadataSmoothingMode(source.smoothingMode),
     smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(source.smoothingSeconds),
     step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 0,
     tooltip: String(source.tooltip || "").slice(0, 240),
@@ -564,6 +580,9 @@ function normalizeNodeGraphPatchParameterMetadata(type, key, metadata = {}) {
       Object.hasOwn(source, "nonlinearSlider") ? Boolean(source.nonlinearSlider) : fallback.nonlinearSlider,
     ),
     showSign: Object.hasOwn(source, "showSign") ? Boolean(source.showSign) : fallback.showSign,
+    smoothingMode: normalizeNodeGraphMetadataSmoothingMode(
+      Object.hasOwn(source, "smoothingMode") ? source.smoothingMode : fallback.smoothingMode,
+    ),
     smoothingSeconds: normalizeNodeGraphMetadataSmoothingSeconds(
       Object.hasOwn(source, "smoothingSeconds") ? source.smoothingSeconds : fallback.smoothingSeconds,
     ),

@@ -11635,6 +11635,63 @@ audio {
   border-bottom: 0;
 }
 
+.metadata-smoothing-mode-section {
+  padding: 6px;
+  gap: 6px;
+}
+
+.metadata-smoothing-mode-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--accent) 78%, rgba(205, 214, 216, 0.82) 22%);
+}
+
+.metadata-smoothing-mode-group {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(127, 199, 217, 0.24);
+  border-radius: 5px;
+}
+
+.metadata-smoothing-mode-button {
+  min-height: 30px;
+  padding: 2px 0;
+  border: 0;
+  border-right: 1px solid rgba(127, 199, 217, 0.14);
+  border-radius: 0;
+  background: rgba(5, 9, 11, 0.62);
+  color: rgba(205, 214, 216, 0.82);
+  font-size: 0.92rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.metadata-smoothing-mode-button:last-child {
+  border-right: 0;
+}
+
+.metadata-smoothing-mode-button:hover {
+  background: color-mix(in srgb, var(--accent) 14%, rgba(5, 9, 11, 0.62));
+}
+
+.metadata-smoothing-mode-button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 30%, rgba(5, 9, 11, 0.62));
+  color: white;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.metadata-smoothing-mode-status {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 0.62rem;
+  line-height: 1.3;
+  color: rgba(205, 214, 216, 0.72);
+}
+
 .metadata-popover-grid .metadata-checkbox-label {
   grid-template-columns: auto minmax(0, 1fr);
   color: rgba(205, 214, 216, 0.82);

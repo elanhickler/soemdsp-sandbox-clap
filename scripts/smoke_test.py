@@ -16524,7 +16524,7 @@ def require_node_graph_mvp_contract() -> None:
         "createSmoother(initialValue, metadata = {})",
         "smoother.smoothingSeconds = this.smoothingSecondsFromMetadata(metadata)",
         "readSmoothedParameter(node, key, fallback, frame, frames)",
-        "resolveSmoothingSecondsForSamples(",
+        "resolveSmoothingSecondsForMode(",
         "this.onePoleLowpassSample(",
         "metadata?.kind === \"frequency\" && metadata.nonlinearSlider",
         "const octaves = (Number(modulationSignal) || 0) / 0.1",
