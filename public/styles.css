@@ -909,6 +909,9 @@ audio {
 /* Full-screen "no nonsense" embed (?hideui=1): kill remaining chrome. */
 .soemdsp-hide-ui .node-wiring-panel.modular-only-view {
   --node-modular-only-inset: 0px;
+  width: 100dvw;
+  min-height: 100dvh;
+  overflow: hidden;
 }
 
 .soemdsp-hide-ui .node-modular-only-back-button,
@@ -917,8 +920,14 @@ audio {
 }
 
 .soemdsp-hide-ui .node-graph-workspace {
-  border-color: transparent !important;
+  margin: 0 !important;
+  border: 0 !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+html.soemdsp-hide-ui {
+  scrollbar-gutter: auto;
 }
 
 .node-wiring-panel.modular-only-view > :not(.node-graph-workspace):not(.node-view-toolbar):not(.node-scene-context-menu):not(.node-parameter-metadata-popover):not(.node-ui-dev-helper):not(.node-user-ui-settings-panel):not(.node-saved-patches-window):not(.node-module-shop-view) {
