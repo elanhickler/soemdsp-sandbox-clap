@@ -172,6 +172,58 @@ a real option for future work, not built in this pass.
 📚 **Source:** Moorer, J. A. (1976). *The Synthesis of Complex Audio Spectra
 by Means of Discrete Summation Formulas.* Stanford CCRMA (STAN-M-5).
 
+## 🧪 The DSF starter kit
+
+Built the study above into a real module: `native_modules/dsf_oscillator` —
+one closed-form equation, six waveforms, two morph sliders. Native
+C++/WASM with a JS fallback, wired into both the offline evaluator and the
+realtime audio worklet, same as Surge Oscillator.
+
+**One equation, reused for everything:**
+
+```
+DSF(x, a, N, fi) = (1 - a) · [sin(fi) - a·sin(x+fi) - aᴺ·sin(Nx+fi) + aᴺ⁻¹·sin((N-1)x+fi)]
+                    ─────────────────────────────────────────────────────────────────────
+                                        1 - 2a·cos(x) + a²
+```
+
+(the `(1 - a)` factor is an amplitude normalization — see the bug note below.)
+
+**🎛️ The six waveforms:**
+
+| Waveform | How it's built |
+|---|---|
+| 🎵 Sine | The trivial case — `sin(x)` directly, DSF not involved. |
+| 🪚 Saw / Buzz | `DSF(x, a, N, 0)` — Moorer's original case, unmodified. |
+| ⬛ Square | `DSF(x,a,N,0) − DSF(x+offset,a,N,0)`. Subtracting a phase-shifted copy of a saw cancels every even harmonic — the **PWM slider** *is* that offset, continuously swept. |
+| 🎤 Formant | `DSF(x, a, N, fi)` — same equation, but the offset (also the PWM slider, reused) shifts *where* the harmonic emphasis sits instead of cancelling anything. This was DSF's original 1976 use case: vocal-formant-like spectra, not subtractive-synth shapes at all. |
+| 📐 Triangle | A leaky integrator run over the Square case — same idea Surge Oscillator's PolyBLEP triangle tap uses. |
+| 🌀 Fractal Stack | Three DSF saws at octave-spaced frequencies (`f, 2f, 4f`) with geometrically falling amplitude, summed. **Not** a real mathematical fractal (see the fractal-waveform discussion in this repo's chat history — DSF's closed form can't do genuine geometric-frequency self-similarity, since the whole trick depends on integer-multiple harmonics) — a cheap, *finite* self-similar cascade instead, same idea as this sandbox's `fractalBrownianNoise` module, built from oscillators instead of noise layers. |
+
+**🎚️ The two morph sliders:**
+- **Morph** sweeps the ratio `a` from near-0 (collapses toward a plain sine)
+  up toward the harmonically rich end — "sine to full-harmonic oscillator"
+  in one knob.
+- **PWM** does double duty: pulse width / duty cycle for Square and
+  Triangle, formant shift for Formant. Same offset parameter, different
+  meaning depending on which waveform it's feeding.
+
+**🐛 A real bug this build caught, not just theorized:** the very first
+version had no amplitude normalization, and Formant mode measurably
+clipped — the raw closed-form output peaked at **~2.44** against a
+`±1.5` safety clamp, meaning ~18% of every cycle was flat-topped digital
+clipping, not signal. Multiplying the whole equation by `(1 − a)` — the
+standard DSF amplitude normalization — brought the peak down to **~1.0**,
+verified by literally counting clamped samples before (39/220) and after
+(0/220) the fix, in both the compiled `.wasm` and the JS mirror.
+
+**Verified, not assumed:** 33 assertions against the real compiled `.wasm`
+via Python + `wasmtime`, including actual FFT spectral proofs, not just
+bounds-checking — Sine really is a single spectral peak, Square really
+does suppress even harmonics by more than 5×, Morph really does add
+measurable harmonic energy as it increases, PWM really does change duty
+cycle, and the Fractal Stack really does put energy at its octave layers.
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use

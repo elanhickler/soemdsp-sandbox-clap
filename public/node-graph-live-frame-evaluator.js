@@ -2948,6 +2948,19 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         waveform: read("waveform", 0),
         level: read("level", 1),
       });
+    } else if (node?.type === "dsfOscillator") {
+      const state = runtime.dsfOscillatorStates.get(nodeId) || createNodeGraphDsfOscillatorState();
+      runtime.dsfOscillatorStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphDsfOscillatorSample(state, {
+        frequencyHz: Math.max(0, read("frequency", 220)),
+        sampleRate,
+        waveform: read("waveform", 1),
+        harmonics: read("harmonics", 16),
+        morph: read("morph", 0.6),
+        pulseWidth: read("pulseWidth", 0.5),
+        level: read("level", 1),
+      });
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);

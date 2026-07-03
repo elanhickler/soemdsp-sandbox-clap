@@ -560,6 +560,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type === "henonMap" ||
       type === "chuaAttractor" ||
       type === "surgeOscillator" ||
+      type === "dsfOscillator" ||
       type === "ellipsoid" ||
       type === "macroKnob" ||
       type === "macroControls" ||

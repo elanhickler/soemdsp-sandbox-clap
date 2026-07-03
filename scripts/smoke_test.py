@@ -204,6 +204,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-turing-machine.js",
     "./public/node-graph-pitch-quantizer.js",
     "./public/node-graph-surge-oscillator.js",
+    "./public/node-graph-dsf-oscillator.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-live-runtime.js",
     "./public/node-graph-wire-controller-bootstrap.js",
@@ -16860,6 +16861,10 @@ def require_readme_scheduler_contract() -> None:
         "numPartials_",
         "DSFOscillatorSineSaw",
         "DSFOscillatorSineSquare",
+        "The DSF starter kit",
+        "native_modules/dsf_oscillator",
+        "Fractal Stack",
+        "amplitude normalization",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [
@@ -17141,6 +17146,11 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_surge_oscillator_create",
             "soemdsp_surge_oscillator_destroy",
             "soemdsp_surge_oscillator_sample",
+        ],
+        "dsf_oscillator": [
+            "soemdsp_dsf_oscillator_create",
+            "soemdsp_dsf_oscillator_destroy",
+            "soemdsp_dsf_oscillator_sample",
         ],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [

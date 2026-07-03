@@ -27,6 +27,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "turingMachine",
   "pitchQuantizer",
   "surgeOscillator",
+  "dsfOscillator",
   "arpeggiator",
   "spiral",
   "blubb",
@@ -406,6 +407,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Anti-aliased Saw/Square/Tri/Sine oscillator with hard sync: a rising zero-crossing on the Sync input forces the phase back near 0, sub-sample-interpolated and PolyBLEP-corrected so the sync reset doesn't alias like a naive hard sync would. Native C++/WASM.",
     label: "Surge Oscillator",
     notes: ["oscillator", "hard sync", "polyblep", "anti-aliasing", "native"],
+  },
+  dsfOscillator: {
+    category: "Oscillator",
+    description: "The DSF starter kit: a Discrete Summation Formula oscillator, alias-free by a closed-form equation rather than a per-edge correction. Sine, Saw/Buzz, Square, Formant, Triangle, and a Fractal Stack, with a Morph slider (sine to full-harmonic) and a PWM slider (duty cycle for Square, formant shift for Formant). Native C++/WASM.",
+    label: "DSF Oscillator",
+    notes: ["oscillator", "dsf", "discrete summation formula", "anti-aliasing", "native", "pwm", "formant"],
   },
   arpeggiator: {
     category: "Sequence",

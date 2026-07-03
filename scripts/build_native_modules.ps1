@@ -304,6 +304,23 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_dsf_oscillator_create" `
+  "-Wl,--export=soemdsp_dsf_oscillator_destroy" `
+  "-Wl,--export=soemdsp_dsf_oscillator_reset" `
+  "-Wl,--export=soemdsp_dsf_oscillator_sample" `
+  "-Wl,--export=soemdsp_dsf_oscillator_out" `
+  "-Wl,--export=soemdsp_dsf_oscillator_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\dsf_oscillator\dsf_oscillator.wasm" `
+  "$root\native_modules\dsf_oscillator\dsf_oscillator.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_henon_map_create" `
   "-Wl,--export=soemdsp_henon_map_destroy" `
   "-Wl,--export=soemdsp_henon_map_sample" `

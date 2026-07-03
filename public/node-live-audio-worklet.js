@@ -167,6 +167,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
     this.surgeOscillatorStates = new Map();
+    this.dsfOscillatorStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -657,6 +658,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "dsf_oscillator" || targetType === "dsfOscillator") {
+        for (const state of this.dsfOscillatorStates.values()) {
+          this.destroyDsfOscillatorNativeState(state);
+        }
+        this.nativeDsfOscillator = exports;
+        this.nativeDsfOscillatorReady = Boolean(
+          this.nativeDsfOscillator?.soemdsp_dsf_oscillator_create &&
+          this.nativeDsfOscillator?.soemdsp_dsf_oscillator_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "dsf_oscillator",
+          status: this.nativeDsfOscillatorReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -772,6 +789,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
     this.surgeOscillatorStates = new Map();
+    this.dsfOscillatorStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -1018,6 +1036,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "surgeOscillator" && !this.surgeOscillatorStates.has(id)) {
         this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
       }
+      if (node?.type === "dsfOscillator" && !this.dsfOscillatorStates.has(id)) {
+        this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
+      }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createPassiveFilterState());
       }
@@ -1219,6 +1240,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroySurgeOscillatorNativeState(this.surgeOscillatorStates.get(id));
         this.surgeOscillatorStates.delete(id);
+      }
+    }
+    for (const id of [...this.dsfOscillatorStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyDsfOscillatorNativeState(this.dsfOscillatorStates.get(id));
+        this.dsfOscillatorStates.delete(id);
       }
     }
     for (const id of [...this.passiveFilterStates.keys()]) {
@@ -3688,6 +3715,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.turingMachineStates = new Map();
     runtime.pitchQuantizerStates = new Map();
     runtime.surgeOscillatorStates = new Map();
+    runtime.dsfOscillatorStates = new Map();
     runtime.stepSequencerStates = new Map();
     runtime.triggerCounterStates = new Map();
     runtime.triggerDividerStates = new Map();
@@ -3737,6 +3765,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "turingMachine") this.turingMachineStates.set(id, this.createTuringMachineState());
       if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
       if (node?.type === "surgeOscillator") this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
+      if (node?.type === "dsfOscillator") this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
@@ -6356,6 +6385,144 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.surgeOscillatorSampleJs(state, options);
   }
 
+  createDsfOscillatorState() {
+    return {
+      phase: 0,
+      phase2: 0,
+      phase3: 0,
+      triangleIntegrator: 0,
+      nativeHandle: 0,
+    };
+  }
+
+  destroyDsfOscillatorNativeState(state) {
+    if (state?.nativeHandle && this.nativeDsfOscillator?.soemdsp_dsf_oscillator_destroy) {
+      this.nativeDsfOscillator.soemdsp_dsf_oscillator_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  dsfPow(base, exponent) {
+    let result = 1;
+    let b = base;
+    let e = exponent;
+    while (e > 0) {
+      if (e & 1) result *= b;
+      b *= b;
+      e >>= 1;
+    }
+    return result;
+  }
+
+  // The one closed-form DSF equation everything else is built from.
+  dsf(x, a, n, fi) {
+    const s3 = a * Math.sin(x + fi);
+    const s2 = this.dsfPow(a, n) * Math.sin(n * x + fi);
+    const s1 = this.dsfPow(a, n - 1) * Math.sin((n - 1) * x + fi);
+    const s4 = 1 - 2 * a * Math.cos(x) + a * a;
+    if (s4 > -1e-9 && s4 < 1e-9) return 0;
+    // (1 - a) tames peak amplitude -- see dsf_oscillator.cpp for the measured numbers.
+    return (1 - a) * (Math.sin(fi) - s3 - s2 + s1) / s4;
+  }
+
+  dsfOscillatorSampleJs(state, options = {}) {
+    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+    const increment = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
+    state.phase = this.wrapValue(state.phase + increment, 0, 1);
+
+    const n = Math.max(1, Math.min(64, Math.round(Number(options.harmonics) || 16)));
+    const a = this.clampValue(0.02 + this.clampValue(Number(options.morph) || 0, 0, 1) * 0.95, 0.02, 0.97);
+    const x = state.phase * Math.PI * 2;
+    const waveform = Math.round(Number(options.waveform) || 0);
+    const level = Number(options.level) || 0;
+
+    let sample = 0;
+    switch (waveform) {
+      case 1: {
+        sample = this.dsf(x, a, n, 0);
+        break;
+      }
+      case 2: {
+        const offset = this.clampValue(Number(options.pulseWidth) || 0.5, 0.001, 0.999) * Math.PI * 2;
+        sample = this.dsf(x, a, n, 0) - this.dsf(x + offset, a, n, 0);
+        break;
+      }
+      case 3: {
+        const fi = this.clampValue(Number(options.pulseWidth) || 0.5, 0, 1) * Math.PI;
+        sample = this.dsf(x, a, n, fi);
+        break;
+      }
+      case 4: {
+        const offset = this.clampValue(Number(options.pulseWidth) || 0.5, 0.001, 0.999) * Math.PI * 2;
+        const squareLike = this.dsf(x, a, n, 0) - this.dsf(x + offset, a, n, 0);
+        const next = this.clampValue((state.triangleIntegrator + squareLike * increment * 4) * 0.995, -1, 1);
+        state.triangleIntegrator = next;
+        sample = next;
+        break;
+      }
+      case 5: {
+        state.phase2 = this.wrapValue(state.phase2 + increment * 2, 0, 1);
+        state.phase3 = this.wrapValue(state.phase3 + increment * 4, 0, 1);
+        const layer1 = this.dsf(state.phase * Math.PI * 2, a, n, 0);
+        const layer2 = this.dsf(state.phase2 * Math.PI * 2, a, n, 0) * 0.5;
+        const layer3 = this.dsf(state.phase3 * Math.PI * 2, a, n, 0) * 0.25;
+        sample = (layer1 + layer2 + layer3) / 1.75;
+        break;
+      }
+      default:
+        sample = Math.sin(x);
+        break;
+    }
+
+    const out = this.clampValue(sample, -1.5, 1.5) * level;
+    return { Out: out };
+  }
+
+  dsfOscillatorSample(state, options = {}) {
+    if (
+      this.nativeDsfOscillatorReady &&
+      this.nativeDsfOscillator?.soemdsp_dsf_oscillator_create &&
+      this.nativeDsfOscillator?.soemdsp_dsf_oscillator_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeDsfOscillator.soemdsp_dsf_oscillator_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+          const frequencyHz = Number(options.frequencyHz) || 0;
+          const waveform = Math.round(Number(options.waveform) || 0);
+          const harmonics = Math.max(1, Math.min(64, Math.round(Number(options.harmonics) || 16)));
+          const morph = Number(options.morph) || 0;
+          const pulseWidth = Number(options.pulseWidth) || 0.5;
+          const level = Number(options.level) || 0;
+          this.nativeDsfOscillator.soemdsp_dsf_oscillator_sample(
+            state.nativeHandle,
+            frequencyHz,
+            sampleRate,
+            waveform,
+            harmonics,
+            morph,
+            pulseWidth,
+            level,
+          );
+          return {
+            Out: Number(this.nativeDsfOscillator.soemdsp_dsf_oscillator_out(state.nativeHandle)) || 0,
+          };
+        }
+      } catch (error) {
+        this.nativeDsfOscillatorReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "dsf_oscillator",
+          status: "disabled",
+          message: String(error?.message || error || "native DSF Oscillator failed"),
+        });
+      }
+    }
+    return this.dsfOscillatorSampleJs(state, options);
+  }
+
   spiralWrap01(value) {
     return value - Math.floor(value);
   }
@@ -7144,6 +7311,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           hasExternalSync: hasInput(nodeId, "Sync"),
           syncFrequencyHz: read("syncFrequency", 50),
           waveform: read("waveform", 0),
+          level: read("level", 1),
+        });
+      } else if (node?.type === "dsfOscillator") {
+        const state = this.dsfOscillatorStates.get(nodeId) || this.createDsfOscillatorState();
+        this.dsfOscillatorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = this.dsfOscillatorSample(state, {
+          frequencyHz: Math.max(0, read("frequency", 220)),
+          sampleRate: this.engineSampleRate || sampleRate,
+          waveform: read("waveform", 1),
+          harmonics: read("harmonics", 16),
+          morph: read("morph", 0.6),
+          pulseWidth: read("pulseWidth", 0.5),
           level: read("level", 1),
         });
       } else if (node?.type === "midiOut") {
