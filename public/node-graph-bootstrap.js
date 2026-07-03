@@ -31,13 +31,18 @@ async function initNodeGraphMvp() {
       }
     }, 0);
   }
-  commitNodeGraphPatch(cloneNodeGraphPatch(startupPatch), {
-    autosaveWorkingPatch: false,
-    markPending: false,
-    patchDirtyState: startupPatchDirtyState,
-    record: false,
-    status: "script synced",
-  });
+  // An embedding page can push a patch (e.g. "soundemote:sandbox-project-data")
+  // before this async boot sequence reaches here -- don't clobber it with the
+  // internal default/working patch in that case.
+  if (!nodeGraphMvp.externalStartupPatchApplied) {
+    commitNodeGraphPatch(cloneNodeGraphPatch(startupPatch), {
+      autosaveWorkingPatch: false,
+      markPending: false,
+      patchDirtyState: startupPatchDirtyState,
+      record: false,
+      status: "script synced",
+    });
+  }
   resetNodeGraphStartupView();
   recordNodeGraphHistory();
   markNodeGraphRenderPending();

@@ -16,6 +16,40 @@ function nodeGraphExternalAutoFrameRequested() {
   }
 }
 
+// When embedded with ?autostart=1, turn Live Audio output on as soon as the
+// sandbox interface is ready -- skips needing to press the output power
+// button by hand for embeds that want sound playing immediately on load.
+function nodeGraphExternalAutostartRequested() {
+  try {
+    const raw = String(new URLSearchParams(window.location.search).get("autostart") || "")
+      .trim()
+      .toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes";
+  } catch (error) {
+    return false;
+  }
+}
+
+function nodeGraphExternalStartLiveOutput() {
+  if (typeof setNodeGraphLiveOutputEnabled !== "function") {
+    return;
+  }
+  if (nodeGraphMvp?.live?.outputEnabled) {
+    return;
+  }
+  setNodeGraphLiveOutputEnabled(true);
+}
+
+// Autostart Live Audio once the sandbox interface has finished booting (patch
+// committed, DOM built) when embedded with ?autostart=1.
+if (nodeGraphExternalAutostartRequested()) {
+  if (document.documentElement.dataset.nodeSandboxInterfaceReady === "true") {
+    nodeGraphExternalStartLiveOutput();
+  } else {
+    window.addEventListener("nodeSandboxInterfaceReady", () => nodeGraphExternalStartLiveOutput(), { once: true });
+  }
+}
+
 // When embedded with ?hideui=1, drop all chrome: force modular-only view and
 // hide the back button, resize handle, and workspace border for a clean,
 // full-screen "no nonsense" frame. Handled via a root class + CSS.
@@ -462,6 +496,11 @@ window.addEventListener("message", (event) => {
             ? cloneNodeGraphPatch(loadedPatch)
             : loadedPatch;
         commitNodeGraphPatch(clonedPatch, { status: "shared patch loaded" });
+        // Flag that an external patch was applied so the boot sequence's own
+        // startup-patch commit (which can still be in flight -- it awaits an
+        // async default-preset fetch) doesn't unconditionally overwrite it
+        // if this message arrives mid-boot.
+        nodeGraphMvp.externalStartupPatchApplied = true;
         nodeGraphExternalAutoFrameAfterLoad();
       }
     } catch (error) {
