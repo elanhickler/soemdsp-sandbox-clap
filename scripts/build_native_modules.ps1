@@ -434,3 +434,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\jerobeam_nyquist_shannon\jerobeam_nyquist_shannon.wasm" `
   "$root\native_modules\jerobeam_nyquist_shannon\jerobeam_nyquist_shannon.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbradar_create" `
+  "-Wl,--export=soemdsp_jbradar_destroy" `
+  "-Wl,--export=soemdsp_jbradar_reset" `
+  "-Wl,--export=soemdsp_jbradar_sample" `
+  "-Wl,--export=soemdsp_jbradar_x" `
+  "-Wl,--export=soemdsp_jbradar_y" `
+  "-Wl,--export=soemdsp_jbradar_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_radar\jerobeam_radar.wasm" `
+  "$root\native_modules\jerobeam_radar\jerobeam_radar.cpp"

@@ -112,6 +112,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "jerobeam_radar",
+      "label": "Jerobeam Radar",
+      "targetType": "radar",
+      "kind": "jerobeam",
+      "source": "native_modules/jerobeam_radar/jerobeam_radar.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_radar/jerobeam_radar.cpp",
+      "wasm": "native_modules/jerobeam_radar/jerobeam_radar.wasm",
+      "wasmUrl": "native_modules/jerobeam_radar/jerobeam_radar.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "jerobeam_torus",
       "label": "Jerobeam Torus",
       "targetType": "torus",

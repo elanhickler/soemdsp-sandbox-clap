@@ -257,6 +257,7 @@ function createNodeGraphLiveRuntime(plan) {
   const torusStates = new Map();
   const keplerBouwkampStates = new Map();
   const nyquistShannonStates = new Map();
+  const radarStates = new Map();
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
   const pitchQuantizerStates = new Map();
@@ -328,6 +329,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "nyquistShannon") {
       nyquistShannonStates.set(node.id, createNodeGraphNyquistShannonState());
+    }
+    if (node.type === "radar") {
+      radarStates.set(node.id, createNodeGraphRadarState());
     }
     if (node.type === "chordMemory") {
       chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -467,6 +471,7 @@ function createNodeGraphLiveRuntime(plan) {
     torusStates,
     keplerBouwkampStates,
     nyquistShannonStates,
+    radarStates,
     chordMemoryStates,
     turingMachineStates,
     pitchQuantizerStates,
@@ -626,6 +631,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.nyquistShannonStates) {
     runtime.nyquistShannonStates = new Map();
   }
+  if (!runtime.radarStates) {
+    runtime.radarStates = new Map();
+  }
   if (!runtime.chordMemoryStates) {
     runtime.chordMemoryStates = new Map();
   }
@@ -762,6 +770,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "nyquistShannon" && !runtime.nyquistShannonStates.has(node.id)) {
       runtime.nyquistShannonStates.set(node.id, createNodeGraphNyquistShannonState());
+    }
+    if (node.type === "radar" && !runtime.radarStates.has(node.id)) {
+      runtime.radarStates.set(node.id, createNodeGraphRadarState());
     }
     if (node.type === "chordMemory" && !runtime.chordMemoryStates.has(node.id)) {
       runtime.chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -983,6 +994,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.nyquistShannonStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.nyquistShannonStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.radarStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.radarStates.delete(id);
     }
   }
   for (const id of [...runtime.chordMemoryStates.keys()]) {

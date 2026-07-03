@@ -207,6 +207,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-jerobeam-torus.js",
     "./public/node-graph-jerobeam-kepler-bouwkamp.js",
     "./public/node-graph-jerobeam-nyquist-shannon.js",
+    "./public/node-graph-jerobeam-radar.js",
     "./public/node-graph-chord-memory.js",
     "./public/node-graph-turing-machine.js",
     "./public/node-graph-pitch-quantizer.js",
@@ -17101,6 +17102,7 @@ def require_native_module_contract(base_url: str) -> None:
         "jerobeam_torus": ["soemdsp_jbtorus_create", "soemdsp_jbtorus_destroy", "soemdsp_jbtorus_sample", "soemdsp_jbtorus_x", "soemdsp_jbtorus_y"],
         "jerobeam_kepler_bouwkamp": ["soemdsp_jbkepler_create", "soemdsp_jbkepler_destroy", "soemdsp_jbkepler_sample", "soemdsp_jbkepler_x", "soemdsp_jbkepler_y"],
         "jerobeam_nyquist_shannon": ["soemdsp_jbnyquist_create", "soemdsp_jbnyquist_destroy", "soemdsp_jbnyquist_sample", "soemdsp_jbnyquist_x", "soemdsp_jbnyquist_y"],
+        "jerobeam_radar": ["soemdsp_jbradar_create", "soemdsp_jbradar_destroy", "soemdsp_jbradar_sample", "soemdsp_jbradar_x", "soemdsp_jbradar_y"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",
