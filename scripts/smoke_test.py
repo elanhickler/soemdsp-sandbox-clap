@@ -100,6 +100,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-default-buttons.js",
     "./public/node-graph-cookbook-filter.js",
     "./public/node-graph-papoulis-filter.js",
+    "./public/node-graph-phosphor-draw-sample.js",
     "./public/node-graph-color-standards.js",
     "./public/node-graph-module-definitions.js",
     "./public/node-graph-module-store.js",
