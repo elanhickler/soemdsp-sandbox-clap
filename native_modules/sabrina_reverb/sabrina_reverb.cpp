@@ -3,6 +3,8 @@
 // soemdsp-native-target: reverbEffect
 // soemdsp-native-kind: effect
 
+#include <wasm_simd128.h>
+
 namespace {
 constexpr int kDelayCount = 14;
 constexpr int kDiffusionCount = 12;
@@ -201,6 +203,48 @@ void reseedDelays(SabrinaState& state, int seed) {
   }
 }
 
+// SIMD kernel: computes offset + modSpeed for a pair of diffusion delay
+// lines at once via WASM SIMD128 f64x2 lanes. Mirrors setOffsetSize +
+// initializeMod exactly (same formula, same operation order) -- the two
+// lines differ only in their per-lane rndOffset/rndMod data, while
+// maxDelaySize/sizeFactor/lfoSpeed/lfoVariation/sampleRate are the same
+// scalar broadcast to both lanes, which is what makes this batchable.
+// WASM SIMD128 has no f64x4 (only 2 lanes for doubles), so 12 diffusion
+// lines batch into 6 pairs rather than 3 groups of 4 -- f32x4 would allow
+// groups of 4, but would require narrowing offset/modSpeed to float,
+// touching a type used throughout the rest of the file for no measured
+// benefit here, so this stays in double precision to match scalar exactly.
+void applyDiffusionGeometryPairSimd(
+  SabrinaDelay& delayA,
+  SabrinaDelay& delayB,
+  double maxDelaySize,
+  double sizeFactor,
+  double lfoSpeed,
+  double lfoVariation,
+  double sampleRate
+) {
+  const v128_t rndOffset = wasm_f64x2_make(delayA.rndOffset, delayB.rndOffset);
+  const v128_t rndMod = wasm_f64x2_make(delayA.rndMod, delayB.rndMod);
+
+  const v128_t offset = wasm_f64x2_add(
+    wasm_f64x2_mul(wasm_f64x2_splat(maxDelaySize * sizeFactor), rndOffset),
+    wasm_f64x2_splat(1.0)
+  );
+
+  const v128_t seconds = wasm_f64x2_add(wasm_f64x2_splat(lfoSpeed), wasm_f64x2_mul(rndMod, wasm_f64x2_splat(lfoVariation)));
+  const v128_t safeSeconds = wasm_f64x2_pmax(seconds, wasm_f64x2_splat(0.000001));
+  const v128_t modSpeed = wasm_f64x2_div(wasm_f64x2_div(wasm_f64x2_splat(1.0), safeSeconds), wasm_f64x2_splat(sampleRate));
+
+  double offsetLanes[2];
+  double modSpeedLanes[2];
+  wasm_v128_store(offsetLanes, offset);
+  wasm_v128_store(modSpeedLanes, modSpeed);
+  delayA.offset = offsetLanes[0];
+  delayB.offset = offsetLanes[1];
+  delayA.modSpeed = modSpeedLanes[0];
+  delayB.modSpeed = modSpeedLanes[1];
+}
+
 // Derives delay-line offsets/LFO speed from the ramped (smoothed*) copies of
 // the params, never the raw target values -- called every sample so tap
 // length changes glide instead of snapping.
@@ -208,12 +252,18 @@ void applyDelayGeometry(SabrinaState& state) {
   const double maxDelaySize = state.sampleRate * 4.0;
   const double lfoSpeed = ((1.0 - state.smoothedLfoBaseSpeed) * 1.95 + 0.5) * 0.5;
   const double lfoVariation = (1.0 - state.smoothedLfoVariation) * 0.25;
-  for (int index = 0; index < kDiffusionCount; index += 1) {
-    SabrinaDelay& delay = state.delays[index];
-    setOffsetSize(delay, state.smoothedDiffusionSize, maxDelaySize);
-    delay.feedback = state.diffusionAmount;
-    delay.lfopercent = state.smoothedLfoAmplitude * 0.1;
-    initializeMod(delay, lfoSpeed, lfoVariation, state.sampleRate);
+  const double diffusionSizeFactor = state.smoothedDiffusionSize * 0.1 + 0.0000001;
+  const double sharedFeedback = state.diffusionAmount;
+  const double sharedLfopercent = state.smoothedLfoAmplitude * 0.1;
+  static_assert(kDiffusionCount % 2 == 0, "diffusion geometry SIMD kernel processes delay lines in pairs");
+  for (int index = 0; index < kDiffusionCount; index += 2) {
+    SabrinaDelay& delayA = state.delays[index];
+    SabrinaDelay& delayB = state.delays[index + 1];
+    applyDiffusionGeometryPairSimd(delayA, delayB, maxDelaySize, diffusionSizeFactor, lfoSpeed, lfoVariation, state.sampleRate);
+    delayA.feedback = sharedFeedback;
+    delayB.feedback = sharedFeedback;
+    delayA.lfopercent = sharedLfopercent;
+    delayB.lfopercent = sharedLfopercent;
   }
   for (int index = kDiffusionCount; index < kDelayCount; index += 1) {
     SabrinaDelay& delay = state.delays[index];

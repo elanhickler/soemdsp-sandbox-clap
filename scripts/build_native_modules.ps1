@@ -27,6 +27,7 @@ if (!(Test-Path -LiteralPath $clang)) {
 & $clang `
   --target=wasm32 `
   -O3 `
+  -msimd128 `
   -nostdlib `
   -fno-exceptions `
   -fno-rtti `
