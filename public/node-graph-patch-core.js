@@ -196,6 +196,12 @@ function validateNodeGraphPatch(patch) {
     ) {
       normalizedNode.sample = { id: normalizeNodeGraphSampleId(node.sample?.id) };
     }
+    if (type === "phosphillator") {
+      const drawnPath = normalizeNodeGraphPhosphillatorDrawnPath(node.drawnPath);
+      if (drawnPath) {
+        normalizedNode.drawnPath = drawnPath;
+      }
+    }
     const ui = nodeGraphModuleDefinitions[type].layout === "textBox" && !Object.hasOwn(node, "ui")
       ? { buttonsHidden: true }
       : normalizeNodeGraphPatchNodeUi(node.ui);

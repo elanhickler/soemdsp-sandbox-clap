@@ -87,6 +87,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "groupInput",
   "groupOutput",
   "audioPlayer",
+  "phosphillator",
   "samplePlayer",
   "sampleLooper",
   "passiveFilter",
@@ -835,6 +836,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Patch-local music file player with stereo outputs and a phasor-driven scrub input for sample-accurate playback head control.",
     label: "Music Player",
     notes: ["music playback", "scrubbable", "phasor", "audio source"],
+  },
+  phosphillator: {
+    category: "Generate",
+    description: "Draw a shape freehand with the mouse (smoothed live with a Papoulis lowpass) and it becomes a closed-loop X/Y drawing you can play back.",
+    label: "Phosphillator",
+    notes: ["freehand draw", "phosphor", "xy oscillator", "papoulis smoothing"],
   },
   sampleLooper: {
     category: "Audio",

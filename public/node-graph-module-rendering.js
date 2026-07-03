@@ -479,6 +479,7 @@ function nodeGraphModuleLayoutClassNames(type, definition, layout) {
     led: "led-layout",
     macroControls: "macro-controls-layout",
     patchCommand: "patch-command-layout",
+    phosphillatorDraw: "phosphillator-draw-layout",
     phosphorWaveform: "phosphor-waveform-layout",
     pitchModWheel: "pitch-mod-wheel-layout",
     screenSpaceShader: "screen-space-shader-layout",
@@ -702,6 +703,16 @@ function createNodeGraphModuleElement(type, node) {
     if (!patchNodeUi.oscilloscopeHidden) {
       article.append(createNodeGraphFilterCurveDisplay(node, type));
     }
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
+  } else if (definition.layout === "phosphillatorDraw") {
+    article.append(createNodeGraphPhosphillatorDrawDisplay(node, type));
 
     const ioSection = document.createElement("div");
     ioSection.className = "dsp-node-io-section";

@@ -113,6 +113,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-graph-utils.js",
     "./public/node-graph-samples.js",
     "./public/node-graph-phosphor-waveform.js",
+    "./public/node-graph-phosphillator.js",
     "./public/node-graph-embed-config.js",
     "./public/node-graph-resources.js",
     "./public/node-graph-text-box-rendering.js",

@@ -67,6 +67,7 @@ const nodeGraphNodeLabels = Object.freeze({
   ladderFilter: "Ladder Filter",
   tb303Filter: "TB-303 Filter",
   papoulisFilter: "Papoulis Filter",
+  phosphillator: "Phosphillator",
   delayEffect: "Delay",
   pingPongDelay: "Ping Pong Delay",
   reverbEffect: "Sabrina Reverb",
@@ -2491,6 +2492,16 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "1", key: "loopEnd", label: "Loop End", max: "1", mid: "1", min: "0", step: "any" },
       { defaultValue: "0.005", key: "crossfade", kind: "time", label: "Crossfade", max: "0.25", maxDigits: 5, mid: "0.005", min: "0", step: "any", unit: "s" },
       { choices: ["Forward", "One Shot"], defaultValue: "0", displayChoices: true, divideChoicesVisibly: true, key: "mode", label: "Mode", linearSmoothing: false, max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "1" },
+    ],
+  },
+  phosphillator: {
+    layout: "phosphillatorDraw",
+    inputs: ["0.1V/Oct", "Reset"],
+    outputs: ["X", "Y"],
+    parameters: [
+      { defaultValue: "2", key: "frequency", kind: "frequency", label: "Frequency", max: "2000", maxDigits: 5, mid: "2", min: "0", step: "any", unit: "Hz" },
+      { defaultValue: "0", key: "phase", kind: "phase", label: "Phase", max: "1", mid: "0.5", min: "0", step: "0.01", unit: "cycle", wraparound: true },
+      { defaultValue: "0.5", key: "smoothing", label: "Smoothing", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
   audioPlayer: {
