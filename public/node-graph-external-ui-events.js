@@ -80,9 +80,61 @@ function nodeGraphExternalScheduleAutoFrame(options = {}) {
   });
 }
 
+function nodeGraphExternalViewNumber(value, fallback = null) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function nodeGraphExternalApplyView(options = {}) {
+  const zoom = nodeGraphExternalViewNumber(options.zoom ?? options.z, null);
+  if (zoom != null && typeof setNodeGraphZoom === "function") {
+    setNodeGraphZoom(zoom);
+  }
+  const x = nodeGraphExternalViewNumber(options.x ?? options.worldX, null);
+  const y = nodeGraphExternalViewNumber(options.y ?? options.worldY, null);
+  if ((x != null || y != null) && typeof setNodeGraphPan === "function") {
+    const safeZoom = Math.max(0.0001, typeof nodeGraphZoom === "function" ? nodeGraphZoom() : 1);
+    const gridWidth = typeof nodeGraphGridWidth === "function" ? nodeGraphGridWidth() : 20;
+    const gridHeight = typeof nodeGraphGridHeight === "function" ? nodeGraphGridHeight() : 20;
+    const currentPan = nodeGraphMvp?.pan || { x: 0, y: 0 };
+    setNodeGraphPan(
+      x != null ? -x * gridWidth * safeZoom : currentPan.x,
+      y != null ? -y * gridHeight * safeZoom : currentPan.y,
+      { persist: false },
+    );
+  }
+  if (typeof drawNodeGraphWires === "function") {
+    drawNodeGraphWires();
+  }
+}
+
+function nodeGraphExternalViewOptionsFromSearch() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const zoom = params.get("sandboxZoom") ?? params.get("viewZoom") ?? params.get("zoom");
+    const x = params.get("sandboxX") ?? params.get("viewX") ?? params.get("x");
+    const y = params.get("sandboxY") ?? params.get("viewY") ?? params.get("y");
+    const hasView = zoom != null || x != null || y != null;
+    return hasView ? { zoom, x, y } : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function nodeGraphExternalScheduleViewApply(options = {}) {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => nodeGraphExternalApplyView(options));
+  });
+}
+
 function nodeGraphExternalAutoFrameAfterLoad(options = {}) {
   if (nodeGraphExternalAutoFrameRequested() || options.force) {
     nodeGraphExternalScheduleAutoFrame(options);
+  } else {
+    const urlViewOptions = nodeGraphExternalViewOptionsFromSearch();
+    if (urlViewOptions) {
+      nodeGraphExternalScheduleViewApply(urlViewOptions);
+    }
   }
 }
 
@@ -512,6 +564,11 @@ window.addEventListener("message", (event) => {
     nodeGraphExternalScheduleAutoFrame(
       message.padding != null ? { padding: message.padding, force: true } : { force: true },
     );
+  } else if (message.type === "soundemote:set-view") {
+    if (!nodeGraphExternalMessageOriginAllowed(event)) {
+      return;
+    }
+    nodeGraphExternalScheduleViewApply(message.view || message);
   } else if (message.type === "soundemote:request-current-patch") {
     let projectData = null;
     try {
@@ -538,5 +595,14 @@ if (nodeGraphExternalAutoFrameRequested()) {
     nodeGraphExternalScheduleAutoFrame();
   } else {
     window.addEventListener("load", () => nodeGraphExternalScheduleAutoFrame(), { once: true });
+  }
+} else {
+  const urlViewOptions = nodeGraphExternalViewOptionsFromSearch();
+  if (urlViewOptions) {
+    if (document.readyState === "complete") {
+      nodeGraphExternalScheduleViewApply(urlViewOptions);
+    } else {
+      window.addEventListener("load", () => nodeGraphExternalScheduleViewApply(urlViewOptions), { once: true });
+    }
   }
 }

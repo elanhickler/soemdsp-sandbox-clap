@@ -931,6 +931,11 @@ html.soemdsp-hide-ui {
   scrollbar-gutter: auto;
 }
 
+html.soemdsp-hide-ui .node-boot-sysinfo {
+  /* Embeds (hero iframe) hide the boot sysinfo line for a clean frame. */
+  display: none;
+}
+
 html.soemdsp-hide-ui .status-strip {
   display: none;
 }

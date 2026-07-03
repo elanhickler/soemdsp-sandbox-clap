@@ -17162,9 +17162,22 @@ def require_native_module_contract(base_url: str) -> None:
     external_ui_events_source = (PUBLIC / "node-graph-external-ui-events.js").read_text(encoding="utf-8")
     require(
         'message.type === "soundemote:sandbox-project-data"' in external_ui_events_source
+        and 'message.type === "soundemote:sandbox-load-resource"' in external_ui_events_source
+        and 'envelope?.kind === "sandbox_resource"' in external_ui_events_source
+        and 'message.type === "soundemote:set-view"' in external_ui_events_source
+        and "function nodeGraphExternalApplyView" in external_ui_events_source
+        and "nodeGraphExternalViewOptionsFromSearch" in external_ui_events_source
         and 'message.type === "soundemote:request-current-patch"' in external_ui_events_source
         and 'type: "soundemote:current-patch"' in external_ui_events_source,
-        "external UI events should support the soundemote-site postMessage bridge for loading/requesting the current patch",
+        "external UI events should support the soundemote-site postMessage bridge for resources, view framing, and patch loading/requesting",
+    )
+    styles_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
+    require(
+        ".soemdsp-hide-ui .node-wiring-panel.modular-only-view" in styles_source
+        and "--node-modular-only-inset: 0px" in styles_source
+        and "width: 100dvw" in styles_source
+        and "box-shadow: none !important" in styles_source,
+        "hideui modular embeds should remove sandbox chrome and fill the iframe",
     )
 
     expected_native_exports = {
