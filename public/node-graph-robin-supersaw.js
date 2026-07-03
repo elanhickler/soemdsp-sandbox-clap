@@ -3,6 +3,14 @@
 // technique. See native_modules/robin_supersaw/robin_supersaw.cpp for the
 // full derivation and links to the reference implementation
 // (RobinSchmidt/RS-MET's rsPitchDitherOsc).
+//
+// Stereo: runs two full, independent copies of the detuned voice stack --
+// one feeding Left, one feeding Right -- each with its own RNG stream so
+// their dithering noise is decorrelated between channels, giving real
+// stereo width. Mono is (Left + Right) * 0.5 -- an arithmetic average, not
+// a raw sum, matching this sandbox's own Output module convention, so a
+// mono fold-down of two full-amplitude channels doesn't come out twice as
+// loud as either channel alone.
 
 function nodeGraphRobinSupersawCalcCycleDistribution(c) {
   const ci = Math.floor(c);
@@ -43,9 +51,13 @@ function nodeGraphRobinSupersawCreateVoice() {
 }
 
 function createNodeGraphRobinSupersawState() {
-  const voices = [];
-  for (let i = 0; i < 9; i++) voices.push(nodeGraphRobinSupersawCreateVoice());
-  return { voices };
+  const left = [];
+  const right = [];
+  for (let i = 0; i < 9; i++) {
+    left.push(nodeGraphRobinSupersawCreateVoice());
+    right.push(nodeGraphRobinSupersawCreateVoice());
+  }
+  return { left, right };
 }
 
 // rsPitchDitherOsc<T>::updateCycleLength(), transcribed.
@@ -77,14 +89,10 @@ function nodeGraphRobinSupersawSawFromPhasor(phasor) {
   return 2 * phasor - 1;
 }
 
-// options: { frequencyHz, sampleRate, detuneCents (0-100), voices (1-9), level }
-function nodeGraphRobinSupersawSample(state, options = {}) {
-  const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-  const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
-  const numVoices = clampNodeSliderValue(Math.round(Number(options.voices) || 1), 1, 9);
-  const spreadCents = clampNodeSliderValue(Number(options.detuneCents) || 0, 0, 100);
-  const level = Number(options.level) || 0;
-
+// Sums numVoices detuned, pitch-dithered saws from one voice bank. Voice 0
+// is always centered (0 cents) as the tonal anchor; the rest spread
+// symmetrically across +/- spreadCents/2.
+function nodeGraphRobinSupersawSumVoiceBank(bank, numVoices, safeFrequency, sampleRate, spreadCents) {
   let sum = 0;
   for (let i = 0; i < numVoices; i++) {
     let centsOffset = 0;
@@ -96,16 +104,32 @@ function nodeGraphRobinSupersawSample(state, options = {}) {
     const voiceFreq = safeFrequency * ratio;
     const meanCycleLength = sampleRate / Math.max(1, voiceFreq);
 
-    const voice = state.voices[i];
+    const voice = bank[i];
     const dist = nodeGraphRobinSupersawCalcCycleDistribution(meanCycleLength);
     voice.lenMid = dist.lenMid;
     voice.probShort = dist.probShort;
     voice.probMid = dist.probMid;
     sum += nodeGraphRobinSupersawSawFromPhasor(nodeGraphRobinSupersawGetSamplePhasor(voice));
   }
+  return sum / numVoices;
+}
 
-  let sample = sum / numVoices;
-  if (!Number.isFinite(sample)) sample = 0;
-  const out = clampNodeSliderValue(sample, -1.5, 1.5) * level;
-  return { Out: out };
+// options: { frequencyHz, sampleRate, detuneCents (0-100), voices (1-9), level }
+// returns: { Mono, Left, Right }
+function nodeGraphRobinSupersawSample(state, options = {}) {
+  const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+  const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
+  const numVoices = clampNodeSliderValue(Math.round(Number(options.voices) || 1), 1, 9);
+  const spreadCents = clampNodeSliderValue(Number(options.detuneCents) || 0, 0, 100);
+  const level = Number(options.level) || 0;
+
+  let left = nodeGraphRobinSupersawSumVoiceBank(state.left, numVoices, safeFrequency, sampleRate, spreadCents);
+  let right = nodeGraphRobinSupersawSumVoiceBank(state.right, numVoices, safeFrequency, sampleRate, spreadCents);
+  if (!Number.isFinite(left)) left = 0;
+  if (!Number.isFinite(right)) right = 0;
+
+  const outLeft = clampNodeSliderValue(left, -1.5, 1.5) * level;
+  const outRight = clampNodeSliderValue(right, -1.5, 1.5) * level;
+  const outMono = (outLeft + outRight) * 0.5;
+  return { Mono: outMono, Left: outLeft, Right: outRight };
 }

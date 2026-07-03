@@ -23,11 +23,18 @@
 // sample count, which is genuinely alias-free (no correction needed) --
 // the "cost" is a small amount of pitch-jitter noise instead of aliasing.
 //
-// This module stacks several of these voices (detuned in frequency, each
-// with its own independent RNG stream so their dithering noise is
-// decorrelated) and sums them, the way a classic "wall of detuned saws"
-// supersaw does -- proof of concept only, no attempt yet at Soundemote's
-// full Supersaw.hpp feature set (drift, vibrato, envelopes, portamento).
+// SECOND REWRITE: stereo. Rather than one shared voice bank feeding a
+// single Out, this now runs two full, independent copies of the detuned
+// voice stack -- one feeding Left, one feeding Right -- each with its own
+// distinct RNG seeds so their dithering noise (and hence their exact
+// per-sample output) is decorrelated between channels, giving real
+// stereo width instead of a mono signal duplicated to both sides. Mono is
+// exposed as its own output, computed as (Left + Right) * 0.5 -- the
+// same averaging convention this sandbox's Output module itself uses
+// (see node-live-audio-worklet.js's "output" case: `Out = MonoIn +
+// (LeftIn + RightIn) * 0.5`) -- an arithmetic average, not a raw sum, so
+// that a mono fold-down of two full-amplitude channels doesn't come out
+// twice as loud as either channel alone.
 
 namespace {
 
@@ -141,13 +148,57 @@ double sawFromPhasor(double phasor) {
   return 2.0 * phasor - 1.0;
 }
 
+// Sums numVoices detuned, pitch-dithered saws from one voice bank. Voice 0
+// is always centered (0 cents) as the tonal anchor; the rest spread
+// symmetrically across +/- spreadCents/2.
+double sumVoiceBank(DitherVoiceState* bank, int numVoices, double safeFrequency, double safeSampleRate, double spreadCents) {
+  double sum = 0.0;
+  for (int i = 0; i < numVoices; i++) {
+    double centsOffset = 0.0;
+    if (numVoices > 1) {
+      const double t = static_cast<double>(i) / static_cast<double>(numVoices - 1);  // 0..1
+      centsOffset = (t - 0.5) * spreadCents;
+    }
+    const double ratio = pow2Small(centsOffset / 1200.0);  // cents -> frequency ratio
+    const double voiceFreq = safeFrequency * ratio;
+    const double meanCycleLength = safeSampleRate / (voiceFreq > 1.0 ? voiceFreq : 1.0);
+
+    DitherVoiceState& voice = bank[i];
+    calcCycleDistribution(meanCycleLength, &voice.lenMid, &voice.probShort, &voice.probMid);
+    sum += sawFromPhasor(getSamplePhasor(voice));
+  }
+  return sum / static_cast<double>(numVoices);
+}
+
 struct RobinSupersawState {
   bool active;
-  DitherVoiceState voices[kMaxVoices];
-  double out;
+  DitherVoiceState left[kMaxVoices];
+  DitherVoiceState right[kMaxVoices];
+  double outLeft;
+  double outRight;
+  double outMono;
 };
 
 static RobinSupersawState gPool[kMaxInstances];
+
+void seedBank(DitherVoiceState* bank, int instanceIndex, int channelSalt) {
+  for (int v = 0; v < kMaxVoices; v++) {
+    DitherVoiceState& voice = bank[v];
+    // Each voice, channel, and instance gets a distinct seed so their
+    // dithering noise streams are decorrelated -- correlated noise across
+    // voices (or between Left/Right) would just sound like duplicated
+    // mono, not a chorus or real stereo width.
+    voice.rngState = static_cast<unsigned int>(
+      1469598103u + (instanceIndex + 1) * 747796405u + (v + 1) * 2891336453u + channelSalt * 40503u
+    );
+    voice.lenMid = 100.0;
+    voice.probShort = 0.0;
+    voice.probMid = 1.0;
+    voice.lenNow = 100.0;
+    voice.phaseSlope = 1.0 / 99.0;
+    voice.sampleCount = 0.0;
+  }
+}
 
 }  // namespace
 
@@ -156,19 +207,8 @@ extern "C" int soemdsp_robin_supersaw_create() {
     if (!gPool[i].active) {
       gPool[i] = RobinSupersawState{};
       gPool[i].active = true;
-      for (int v = 0; v < kMaxVoices; v++) {
-        DitherVoiceState& voice = gPool[i].voices[v];
-        // Each voice (and each instance) gets a distinct seed so their
-        // dithering noise streams are decorrelated -- correlated noise
-        // across voices would just sound like one voice, not a chorus.
-        voice.rngState = static_cast<unsigned int>(1469598103u + (i + 1) * 747796405u + (v + 1) * 2891336453u);
-        voice.lenMid = 100.0;
-        voice.probShort = 0.0;
-        voice.probMid = 1.0;
-        voice.lenNow = 100.0;
-        voice.phaseSlope = 1.0 / 99.0;
-        voice.sampleCount = 0.0;
-      }
+      seedBank(gPool[i].left, i, 1);
+      seedBank(gPool[i].right, i, 2);
       return i + 1;
     }
   }
@@ -184,7 +224,8 @@ extern "C" void soemdsp_robin_supersaw_reset(int handle) {
   if (handle < 1 || handle > kMaxInstances) return;
   RobinSupersawState& s = gPool[handle - 1];
   for (int v = 0; v < kMaxVoices; v++) {
-    s.voices[v].sampleCount = 0.0;
+    s.left[v].sampleCount = 0.0;
+    s.right[v].sampleCount = 0.0;
   }
 }
 
@@ -193,9 +234,9 @@ extern "C" void soemdsp_robin_supersaw_reset(int handle) {
 //   symmetric around the center voice (voice 0 always has zero detune,
 //   matching the reference implementation's supersaw notes: keep one
 //   voice exactly on pitch as the tonal anchor).
-// voices: 1..9 -- how many detuned saws are summed (1 = just the pitch-
-//   dithered center voice, useful on its own to hear pitch dithering in
-//   isolation before stacking it into a supersaw).
+// voices: 1..9 -- how many detuned saws are summed per channel (1 = just
+//   the pitch-dithered center voice, useful on its own to hear pitch
+//   dithering in isolation before stacking it into a supersaw).
 // level: output gain.
 extern "C" void soemdsp_robin_supersaw_sample(
   int handle,
@@ -210,39 +251,39 @@ extern "C" void soemdsp_robin_supersaw_sample(
 
   const double safeSampleRate = sampleRate > 1.0 ? sampleRate : 48000.0;
   const double safeFrequency = frequencyHz > 1.0 ? frequencyHz : 1.0;
-  int numVoices = voices < 1 ? 1 : (voices > kMaxVoices ? kMaxVoices : voices);
+  const int numVoices = voices < 1 ? 1 : (voices > kMaxVoices ? kMaxVoices : voices);
   const double spreadCents = clampD(detuneCents, 0.0, 100.0);
 
-  double sum = 0.0;
-  for (int i = 0; i < numVoices; i++) {
-    // Symmetric detune spread: voice 0 is centered (0 cents); remaining
-    // voices spread evenly across +/- spreadCents/2.
-    double centsOffset = 0.0;
-    if (numVoices > 1) {
-      const double t = static_cast<double>(i) / static_cast<double>(numVoices - 1);  // 0..1
-      centsOffset = (t - 0.5) * spreadCents;
-    }
-    // cents -> frequency ratio: 2^(cents/1200)
-    const double ratio = pow2Small(centsOffset / 1200.0);
-    const double voiceFreq = safeFrequency * ratio;
-    const double meanCycleLength = safeSampleRate / (voiceFreq > 1.0 ? voiceFreq : 1.0);
+  double left = sumVoiceBank(s.left, numVoices, safeFrequency, safeSampleRate, spreadCents);
+  double right = sumVoiceBank(s.right, numVoices, safeFrequency, safeSampleRate, spreadCents);
 
-    DitherVoiceState& voice = s.voices[i];
-    calcCycleDistribution(meanCycleLength, &voice.lenMid, &voice.probShort, &voice.probMid);
-    sum += sawFromPhasor(getSamplePhasor(voice));
-  }
+  if (!(left * 0.0 == 0.0)) left = 0.0;
+  if (!(right * 0.0 == 0.0)) right = 0.0;
 
-  double sample = sum / static_cast<double>(numVoices);
-  const bool finite = sample * 0.0 == 0.0;
-  if (!finite) sample = 0.0;
-  s.out = clampD(sample, -1.5, 1.5) * level;
+  s.outLeft = clampD(left, -1.5, 1.5) * level;
+  s.outRight = clampD(right, -1.5, 1.5) * level;
+  // Arithmetic average, not a raw sum -- matches this sandbox's own
+  // Output module convention (see node-live-audio-worklet.js's "output"
+  // case), so a mono fold-down of two full-amplitude channels doesn't
+  // come out twice as loud as either channel alone.
+  s.outMono = (s.outLeft + s.outRight) * 0.5;
 }
 
-extern "C" double soemdsp_robin_supersaw_out(int handle) {
+extern "C" double soemdsp_robin_supersaw_left(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
-  return gPool[handle - 1].out;
+  return gPool[handle - 1].outLeft;
+}
+
+extern "C" double soemdsp_robin_supersaw_right(int handle) {
+  if (handle < 1 || handle > kMaxInstances) return 0.0;
+  return gPool[handle - 1].outRight;
+}
+
+extern "C" double soemdsp_robin_supersaw_mono(int handle) {
+  if (handle < 1 || handle > kMaxInstances) return 0.0;
+  return gPool[handle - 1].outMono;
 }
 
 extern "C" int soemdsp_robin_supersaw_version() {
-  return 1;
+  return 2;
 }

@@ -325,7 +325,9 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_robin_supersaw_destroy" `
   "-Wl,--export=soemdsp_robin_supersaw_reset" `
   "-Wl,--export=soemdsp_robin_supersaw_sample" `
-  "-Wl,--export=soemdsp_robin_supersaw_out" `
+  "-Wl,--export=soemdsp_robin_supersaw_left" `
+  "-Wl,--export=soemdsp_robin_supersaw_right" `
+  "-Wl,--export=soemdsp_robin_supersaw_mono" `
   "-Wl,--export=soemdsp_robin_supersaw_version" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\robin_supersaw\robin_supersaw.wasm" `

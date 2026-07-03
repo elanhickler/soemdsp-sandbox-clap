@@ -785,7 +785,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
   robinSupersaw: {
-    outputs: ["Out"],
+    outputs: ["Mono", "Left", "Right"],
     parameters: [
       { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "220", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
       { key: "detuneCents", label: "Detune", defaultValue: "30", min: "0", mid: "50", max: "100", step: "0.1", unit: "cents" },
