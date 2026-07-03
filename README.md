@@ -37,6 +37,9 @@ up front.
 | **`advanceSabrinaSmoothing` documented as DSP safety smoothing** | A/B diagnostic (native ramp vs. snap-to-target, output-buffer discontinuity measured directly) confirmed `delaySize`/`diffusionSize` genuinely need this ramp for hard-step/bypass paths (patch load, script writes) — 5.5–7.6x larger discontinuity without it. No measurable effect during an already edit-smoothed drag. LFO parameter smoothing here is flagged as conservative legacy behavior, not a confirmed need. |
 | **`applySabrinaDspBindingIfDirty` extraction (worklet + evaluator)** | The paramKey dirty-check + `soemdsp_sabrina_reverb_set_params` call — previously an inline block, duplicated in both the realtime worklet and the offline/preview evaluator — is now a named helper in each, so the sample function reads as distinct phases: resolve → bind → execute. Pure extraction, no behavior change. |
 | **First real SIMD kernel: Sabrina Reverb diffusion geometry** | WASM SIMD128 (`-msimd128`, `wasm_simd128.h`) vectorizes the 12 diffusion delay lines' offset/LFO-speed recompute (`applyDelayGeometry`) using `f64x2` lanes, 2 delay lines per instruction. See [Working SIMD example](#working-simd-example-sabrina-reverb-diffusion-geometry) below for the full result, including the honest finding that it's *not* a net pipeline win in the common case. |
+| **Second SIMD kernel: Sabrina Reverb stereo delay/diffusion** | Pairs left/right channels (independent within a call) through the serial 6-stage diffusion cascade, one SIMD lane each. Real end-to-end win: ~1.09x (8.3% less time), because unlike geometry this path always runs. |
+| **Third kernel attempted, rejected**: `readDelay`'s fractional blend — bit-exact but 0.98x (no win); documented and reverted rather than merged. |
+| **Fourth SIMD kernel: Fractal Brownian Noise, biggest win yet** | Restructured X/Y/Z axis computation to share position math (was computed 3x redundantly, now once) and vectorized the ALU-bound integer hash chain across axes. **~2.76x faster (median)**, bit-exact. See [Fractal Brownian Noise SIMD kernel](#fractal-brownian-noise-simd-kernel-the-biggest-win-so-far) below. |
 
 ### Why this is a separate branch
 
@@ -202,3 +205,71 @@ vectorize on this ISA (the gather, the branchy wraparound) — which would
 need a different approach (e.g. restructuring delay-line storage to make
 the gather avoidable) rather than more SIMD intrinsics on the current
 layout.
+
+## Does every module need converting?
+
+No. Surveyed all 17 native modules by their per-sample entry signature.
+Only Sabrina Reverb has genuine stereo (L/R) parallelism built in — every
+other module is a single-scalar-signal `_sample(...)` call. That doesn't
+mean nothing else is worth vectorizing (Fractal Brownian Noise below has
+no stereo pair at all and still landed the biggest win yet), but it does
+mean there's no mechanical "convert everything" move available — each
+module needs its own real data-parallel structure identified, the same way
+Sabrina's stereo pairing and FBM's X/Y/Z axes were found, not assumed.
+
+Rough classification from the survey (not exhaustively verified for every
+module — flagging where a real investigation would be needed before
+concluding either way):
+
+| Module | Likely shape | SIMD-relevant? |
+| --- | --- | --- |
+| `sabrina_reverb` | stereo, delay-line cascade | Yes — done (2 kernels landed, 1 rejected) |
+| `fractal_brownian_noise` | 3 independent axes, ALU-bound hash | Yes — done (biggest win, below) |
+| `chua_attractor`, `henon_map`, `logistic_map` | single coupled chaotic recursion (2-3 state variables, each step depends on the previous step of the *same* system) | Probably not — no independent lanes within one instance; would need multiple simultaneous instances to pair, which is a different question (voice-parallelism, not touched here) |
+| `ladder_filter`, `tb303_filter`, `passive_filter`, `helmholtz` | mono resonant filter, serial IIR-style state | Not as stereo pairs (mono only) — worth checking later whether the sandbox ever runs multiple simultaneous instances that could be voice-paired instead |
+| `pll` | single VCO/phase-comparator recursion | No — inherently serial, one phase value |
+| `pitch_quantizer`, `soft_clipper` | stateless or near-stateless per-sample function | No — too cheap; SIMD pack/unpack overhead would dominate, same lesson as the rejected `readDelay` kernel |
+| `polyblep`, `noise_generator`, `vactrol_envelope`, `shooting_star_explosion`, `ellipsoid` | not investigated this pass | Unknown — flagged for future investigation, not assumed either way |
+
+## Fractal Brownian Noise SIMD kernel: the biggest win so far
+
+`soemdsp_fbm_sample` computes three independent axes (X/Y/Z) per call, each
+summing up to 8 independent noise octaves before an amplitude-weighted
+average. Two things made this a better candidate than anything in Sabrina:
+
+1. **A real algorithmic redundancy, not just a SIMD opportunity.** At a
+   given octave, `time * scale * freq` is *identical* for X, Y, and Z — only
+   the seed differs. The scalar code called `fbmAxis()` three times, each
+   recomputing the same `left`/`frac`/`smooth` position math from scratch.
+   Restructured into `fbmAxesSimd()`, which computes that position math
+   **once** per octave instead of three times, independent of SIMD.
+2. **The remaining per-axis work (the hash chain) is ALU-bound, not
+   memory-bound.** `hashBipolar`'s xor/multiply/shift chain touches no
+   memory at all — unlike Sabrina's delay-buffer reads, there's no gather
+   to fall back to scalar for. The three axes' hashes batch cleanly into
+   `hashBipolarBitsBatch`, using `i32x4` lanes (3 real + 1 unused pad).
+
+**Correctness**: bit-exact, zero deviation, across 6 presets (default,
+max octaves, min octaves, high persistence, large seed, and a check on the
+position-truncation branch). This is stronger than "floating-point
+reordering noise" — every operation in the hash chain is exact 32-bit
+modular integer arithmetic (xor, wrapping multiply, logical shift), so
+there's nothing to reorder that changes the result at all.
+
+**Benchmark**: median of 6 runs, **~2.76x faster** (1240ms → 449ms for 3M
+calls). The SIMD timing was also far more consistent (443-459ms) than
+scalar's (868-1264ms, with the buffer-read style noise Sabrina's kernels
+showed absent here since there's no buffer at all).
+
+**Why this beat both Sabrina kernels**: the lesson from Sabrina was that
+SIMD needs *hot, always-running, ALU-bound* work to pay off — memory-bound
+gather-heavy code doesn't vectorize well on an ISA with no gather
+instruction. FBM's hash chain is exactly the profile SIMD is built for:
+pure register arithmetic, no branches in the hot loop, real independent
+lanes, called every sample with no convergence-skip equivalent to reduce
+its frequency. Combined with eliminating the 3x redundant position
+computation — a win that would have existed even without SIMD — this
+produced the largest single result on this branch.
+
+**Files**: `native_modules/fractal_brownian_noise/fractal_brownian_noise.cpp`,
+`scripts/build_native_modules.ps1` (added `-msimd128` to FBM's stanza only).

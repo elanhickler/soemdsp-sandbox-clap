@@ -3,6 +3,8 @@
 // soemdsp-native-target: fractalBrownianNoise
 // soemdsp-native-kind: noise
 
+#include <wasm_simd128.h>
+
 namespace {
 
 static const int kMaxInstances = 16;
@@ -63,6 +65,95 @@ static double fbmAxis(double time, int octaves, double persistence, double scale
   return maxValue > 0.0 ? total / maxValue : 0.0;
 }
 
+// SIMD kernel: runs hashBipolar's integer chain for up to 4 lanes at once.
+// Bit-exact vs the scalar version -- every op here (xor, wrapping i32 mul,
+// logical shift) is exact 32-bit modular arithmetic, not floating point, so
+// there is no reordering-induced deviation the way there is in the Sabrina
+// kernels. Only 3 of the 4 lanes are ever real (X/Y/Z); the 4th is unused
+// padding, never read back.
+static v128_t hashBipolarBitsBatch(v128_t indexXorSeed) {
+  v128_t value = indexXorSeed;
+  value = wasm_v128_xor(value, wasm_u32x4_shr(value, 16));
+  value = wasm_i32x4_mul(value, wasm_i32x4_splat(static_cast<int>(2246822507u)));
+  value = wasm_v128_xor(value, wasm_u32x4_shr(value, 13));
+  value = wasm_i32x4_mul(value, wasm_i32x4_splat(static_cast<int>(3266489909u)));
+  value = wasm_v128_xor(value, wasm_u32x4_shr(value, 16));
+  return value;
+}
+
+static void unpackBipolar3(v128_t bits, double out[3]) {
+  unsigned int lanes[4];
+  wasm_v128_store(lanes, bits);
+  for (int lane = 0; lane < 3; lane += 1) {
+    out[lane] = static_cast<double>(lanes[lane]) / 4294967295.0 * 2.0 - 1.0;
+  }
+}
+
+// Computes all three FBM axes together instead of calling fbmAxis three
+// times. The key structural fact this exploits: time*scale*freq is IDENTICAL
+// for X/Y/Z at a given octave (only the seed differs), so `left`/`frac`/
+// `smooth` -- the noise-position math -- only needs computing ONCE per
+// octave instead of three times. What's left to vary per axis is just the
+// hash lookups, which batch into hashBipolarBitsBatch across X/Y/Z lanes.
+// This is a real algorithmic reduction (2/3 less position math) plus a
+// genuine SIMD win on ALU-bound integer hashing, unlike the earlier
+// Sabrina Reverb attempt where the vectorized portion was too thin to
+// outrun its own pack/unpack overhead.
+static void fbmAxesSimd(
+  double time,
+  int octaves,
+  double persistence,
+  double scale,
+  unsigned int baseX,
+  unsigned int baseY,
+  unsigned int baseZ,
+  double& outX,
+  double& outY,
+  double& outZ
+) {
+  double totalX = 0.0;
+  double totalY = 0.0;
+  double totalZ = 0.0;
+  double amplitude = 1.0;
+  double freq = 1.0;
+  double maxValue = 0.0;
+  for (int i = 0; i < octaves; i += 1) {
+    const double x = time * scale * freq;
+    int left = static_cast<int>(x);
+    if (x < 0.0 && x != static_cast<double>(left)) {
+      left -= 1;
+    }
+    const double frac = x - static_cast<double>(left);
+    const double smooth = frac * frac * (3.0 - 2.0 * frac);
+    const int leftPlus1 = left + 1;
+    const unsigned int seedOffset = static_cast<unsigned int>(i * 1013);
+    const v128_t seeds = wasm_i32x4_make(
+      static_cast<int>(baseX + seedOffset),
+      static_cast<int>(baseY + seedOffset),
+      static_cast<int>(baseZ + seedOffset),
+      0
+    );
+
+    const v128_t aBits = hashBipolarBitsBatch(wasm_v128_xor(wasm_i32x4_splat(left), seeds));
+    const v128_t bBits = hashBipolarBitsBatch(wasm_v128_xor(wasm_i32x4_splat(leftPlus1), seeds));
+    double aVals[3];
+    double bVals[3];
+    unpackBipolar3(aBits, aVals);
+    unpackBipolar3(bBits, bVals);
+
+    totalX += (aVals[0] + (bVals[0] - aVals[0]) * smooth) * amplitude;
+    totalY += (aVals[1] + (bVals[1] - aVals[1]) * smooth) * amplitude;
+    totalZ += (aVals[2] + (bVals[2] - aVals[2]) * smooth) * amplitude;
+
+    maxValue += amplitude;
+    amplitude *= persistence;
+    freq *= 2.0;
+  }
+  outX = maxValue > 0.0 ? totalX / maxValue : 0.0;
+  outY = maxValue > 0.0 ? totalY / maxValue : 0.0;
+  outZ = maxValue > 0.0 ? totalZ / maxValue : 0.0;
+}
+
 }  // namespace
 
 extern "C" int soemdsp_fbm_create() {
@@ -116,9 +207,7 @@ extern "C" void soemdsp_fbm_sample(
   const unsigned int baseY = seedHash(safeSeed, 1);
   const unsigned int baseZ = seedHash(safeSeed, 2);
 
-  s.lastRawX = fbmAxis(s.time, safeOctaves, safePers, safeScale, baseX);
-  s.lastRawY = fbmAxis(s.time, safeOctaves, safePers, safeScale, baseY);
-  s.lastRawZ = fbmAxis(s.time, safeOctaves, safePers, safeScale, baseZ);
+  fbmAxesSimd(s.time, safeOctaves, safePers, safeScale, baseX, baseY, baseZ, s.lastRawX, s.lastRawY, s.lastRawZ);
   s.lastX = s.lastRawX * level;
   s.lastY = s.lastRawY * level;
   s.lastZ = s.lastRawZ * level;
