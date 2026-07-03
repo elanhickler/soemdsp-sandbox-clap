@@ -329,3 +329,24 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\chua_attractor\chua_attractor.wasm" `
   "$root\native_modules\chua_attractor\chua_attractor.cpp"
+
+# video_synth_raster: proof-of-concept video synthesis module (not part of
+# the node graph / audio worklet pipeline -- see public/video-synth-poc.html).
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_video_synth_raster_create" `
+  "-Wl,--export=soemdsp_video_synth_raster_destroy" `
+  "-Wl,--export=soemdsp_video_synth_raster_reset" `
+  "-Wl,--export=soemdsp_video_synth_raster_process_block" `
+  "-Wl,--export=soemdsp_video_synth_raster_output_ptr" `
+  "-Wl,--export=soemdsp_video_synth_raster_max_width" `
+  "-Wl,--export=soemdsp_video_synth_raster_max_height" `
+  "-Wl,--export=soemdsp_video_synth_raster_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\video_synth_raster\video_synth_raster.wasm" `
+  "$root\native_modules\video_synth_raster\video_synth_raster.cpp"

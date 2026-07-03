@@ -664,3 +664,71 @@ integrations, invisible to any single module's own equivalence/benchmark
 tests (which only exercise steady-state calls, not the reload edge), only
 found by comparing all `process_block` wiring side by side after there
 were enough of them to compare.
+
+## Proof of concept: pointing the block-processing boundary at video instead of audio
+
+Separate from the audio SIMD work above — a proof that the exact same
+`process_block(state, output, frameCount)` shape generalizes past audio
+entirely, following from the idea that a raster video signal is just
+another signal a DSP-style pipeline can drive, the same premise real
+analog video synthesizers (Rutt-Etra scan processor, Sandin Image
+Processor) are built on.
+
+**What it is**: `native_modules/video_synth_raster/video_synth_raster.cpp`
+— a Lorenz attractor whose `(x, y, z)` state is walked one step per output
+pixel in row-major raster order, `z` mapped to 0-1 brightness. Brightness
+is blended with the previous frame using the one-pole decay model the
+`soemdsp-sandbox-phosphor` fork documents (`brightness = brightness *
+decay + newHit * (1 - decay)`) — the same envelope-follower math already
+used all over this sandbox's audio DSP, just pointed at light instead of
+sound.
+
+**Same boundary, different clock**: `soemdsp_video_synth_raster_process_block(handle,
+width, height, speed, decay, sigma, rho, beta)` is structurally identical
+to the audio `process_block` APIs above — state in, output buffer out,
+`frameCount` implicit as `width * height` — but it's driven by
+`requestAnimationFrame` in `public/video-synth-poc.html`, not the
+44.1kHz audio render quantum. There's no reason for a video raster to be
+gated by the audio clock, so it isn't; this is the same lesson from
+`Findings so far` (block-processing generalizes) applied to a case where
+"one call per output" doesn't mean "one call per audio sample" at all.
+
+**Verified**: loaded the module standalone (`fetch` + `WebAssembly.instantiate`,
+same pattern used for every correctness check above), ran 30 blocks at
+256×256 and confirmed per-pixel brightness varies meaningfully frame to
+frame (mean climbing from 0.20 to ~0.49 as the trajectory settles onto the
+attractor, real min/max spread throughout — not a flat or static image),
+then rendered a frame to a real `<canvas>` and confirmed all 65,536 pixels
+populated with varied grayscale values via direct pixel inspection.
+(Automated screenshot capture in this session's preview tooling hit a
+`document.hidden`-driven `requestAnimationFrame` pause specific to
+backgrounded automation tabs — browsers pause rAF in hidden tabs by spec —
+so the visual proof here is via direct canvas pixel-data inspection
+instead of a screenshot; a normal foreground browser tab runs the
+animation loop with no special handling needed.)
+
+**Deliberately not wired into anything**: no node-graph module definition,
+no AudioWorklet integration, no SIMD (the per-pixel Lorenz recursion is a
+single coupled 3-variable system — same "no independent lanes within one
+instance" non-candidate profile as `chua_attractor`/`henon_map`/
+`logistic_map` in the survey table above, so it wasn't forced into a SIMD
+shape it doesn't have). This is a standalone proof that the
+block-processing boundary and phosphor-decay model both transfer to video
+cleanly, not a shipped feature. `scripts/generate_native_modules_catalog.py`
+was re-run so it shows up in the native module catalog and passes the
+smoke suite's completeness check, same as any other native module addition.
+
+**Files**: `native_modules/video_synth_raster/video_synth_raster.cpp`,
+`scripts/build_native_modules.ps1` (new build stanza), `public/video-synth-poc.html`
+(standalone demo, not linked from the main sandbox UI), `public/native-modules-catalog.json`
+(regenerated), `scripts/smoke_test.py` (added expected-exports entry).
+
+**What a real next step would look like, if this direction is pursued**:
+a node-graph module definition + worklet wiring so a patch can actually
+route parameters into this (or a similar) video raster generator, and a
+second pass evaluating whether per-pixel-independent effects (not this
+single-coupled-attractor case, but something like a stateless waveshaper
+applied per pixel) are the real SIMD-video candidate the video-synthesis
+discussion identified — same ALU-bound-vs-memory-bound test already
+proven for audio, just not yet applied to any pixel-shader-shaped
+candidate.
