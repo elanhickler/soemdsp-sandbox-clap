@@ -9,7 +9,9 @@
 // WebGL scope compositor used by every other module's display.
 
 const nodeGraphPhosphorWaveformViewStates = new Map();
-const nodeGraphPhosphorWaveformMinWindowFrames = 32;
+// Low enough that even a narrow node canvas can zoom past the per-sample
+// grid threshold below — "zoomed all the way in" should reliably reach it.
+const nodeGraphPhosphorWaveformMinWindowFrames = 6;
 
 function nodeGraphPhosphorWaveformViewState(nodeId, frames) {
   const safeFrames = Math.max(1, Math.round(Number(frames) || 1));
@@ -250,6 +252,25 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   context.lineTo(width, midY);
   context.stroke();
 
+  // Per-sample grid, once zoomed in enough that individual frames are
+  // legible (roughly 6+ pixels per sample) — makes the discrete nature of
+  // the buffer visible instead of implying a continuous signal.
+  const pixelsPerFrame = width / Math.max(1, state.endFrame - state.startFrame);
+  const showSampleGrid = pixelsPerFrame >= 6;
+  if (showSampleGrid) {
+    context.strokeStyle = "rgba(90, 255, 150, 0.14)";
+    context.lineWidth = 1;
+    context.beginPath();
+    const firstFrame = Math.ceil(state.startFrame);
+    const lastFrame = Math.floor(state.endFrame);
+    for (let frame = firstFrame; frame <= lastFrame; frame += 1) {
+      const x = Math.round(frameToX(frame)) + 0.5;
+      context.moveTo(x, 0);
+      context.lineTo(x, height);
+    }
+    context.stroke();
+  }
+
   // Phosphor glow: a wide blurred pass beneath a sharp core pass.
   const drawEnvelope = (glow) => {
     context.beginPath();
@@ -276,6 +297,20 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   drawEnvelope(true);
   drawEnvelope(false);
   context.shadowBlur = 0;
+
+  // Discrete sample points, once the grid itself is showing.
+  if (showSampleGrid) {
+    context.fillStyle = "rgba(220, 255, 230, 0.95)";
+    const firstFrame = Math.max(0, Math.ceil(state.startFrame));
+    const lastFrame = Math.min(entry.samples.length - 1, Math.floor(state.endFrame));
+    for (let frame = firstFrame; frame <= lastFrame; frame += 1) {
+      const x = frameToX(frame);
+      const y = midY - entry.samples[frame] * amplitude;
+      context.beginPath();
+      context.arc(x, y, 2, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
 
   // Playhead.
   const phase = typeof nodeGraphSamplePhaseForNode === "function" ? nodeGraphSamplePhaseForNode(nodeId) : 0;
