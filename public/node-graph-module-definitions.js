@@ -850,6 +850,38 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },
+  nyquistShannon: {
+    displayType: "scope2d",
+    displaySignals: [
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+    ],
+    defaultDisplayMode: "xyBurn",
+    inputs: ["Reset"],
+    outputs: ["X", "Y"],
+    parameters: [
+      { key: "frequencyA", label: "Frequency A", kind: "frequency", defaultValue: "440", min: "0", mid: "440", max: "2000", maxDigits: 5, step: "any" },
+      { key: "midiNoteRaw", label: "Midi Note", defaultValue: "48", min: "0", mid: "64", max: "127", step: "1" },
+      { key: "rate", label: "Rate", defaultValue: "20", min: "0.000001", mid: "20", max: "100", step: "0.01" },
+      { key: "sampleDots", label: "Sample Dots", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "phaseOffset", label: "Phase", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "frequencyB", label: "Frequency B", defaultValue: "5", min: "0", mid: "50", max: "100", step: "0.01" },
+      { key: "subPhase", label: "Sub Phase", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "subPhaseRotationSpeed", label: "Sub Phase Rotation Speed", defaultValue: "0", min: "-20", mid: "0", max: "20", step: "0.01" },
+      { key: "tone", label: "Tone", defaultValue: "0", min: "-100", mid: "0", max: "100", step: "0.1" },
+      { key: "toneSmoothTime", label: "Tone Smooth Time", defaultValue: "0.01", min: "0", mid: "0.5", max: "2", step: "0.01" },
+      { key: "artifact", label: "Artifact", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "enableToneModPitch", label: "Tone Mod: Pitch", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "1" },
+      { key: "enableToneModFreq", label: "Tone Mod: Freq", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "1" },
+      { key: "enableToneModNote", label: "Tone Mod: Note", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "1" },
+      { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
   chuaAttractor: {
     displayType: "scope2d",
     displaySignals: [

@@ -206,6 +206,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-jerobeam-boing.js",
     "./public/node-graph-jerobeam-torus.js",
     "./public/node-graph-jerobeam-kepler-bouwkamp.js",
+    "./public/node-graph-jerobeam-nyquist-shannon.js",
     "./public/node-graph-chord-memory.js",
     "./public/node-graph-turing-machine.js",
     "./public/node-graph-pitch-quantizer.js",
@@ -17099,6 +17100,7 @@ def require_native_module_contract(base_url: str) -> None:
         "jerobeam_boing": ["soemdsp_jbboing_create", "soemdsp_jbboing_destroy", "soemdsp_jbboing_sample", "soemdsp_jbboing_x", "soemdsp_jbboing_y"],
         "jerobeam_torus": ["soemdsp_jbtorus_create", "soemdsp_jbtorus_destroy", "soemdsp_jbtorus_sample", "soemdsp_jbtorus_x", "soemdsp_jbtorus_y"],
         "jerobeam_kepler_bouwkamp": ["soemdsp_jbkepler_create", "soemdsp_jbkepler_destroy", "soemdsp_jbkepler_sample", "soemdsp_jbkepler_x", "soemdsp_jbkepler_y"],
+        "jerobeam_nyquist_shannon": ["soemdsp_jbnyquist_create", "soemdsp_jbnyquist_destroy", "soemdsp_jbnyquist_sample", "soemdsp_jbnyquist_x", "soemdsp_jbnyquist_y"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",

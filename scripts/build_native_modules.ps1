@@ -416,3 +416,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\jerobeam_kepler_bouwkamp\jerobeam_kepler_bouwkamp.wasm" `
   "$root\native_modules\jerobeam_kepler_bouwkamp\jerobeam_kepler_bouwkamp.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbnyquist_create" `
+  "-Wl,--export=soemdsp_jbnyquist_destroy" `
+  "-Wl,--export=soemdsp_jbnyquist_reset" `
+  "-Wl,--export=soemdsp_jbnyquist_sample" `
+  "-Wl,--export=soemdsp_jbnyquist_x" `
+  "-Wl,--export=soemdsp_jbnyquist_y" `
+  "-Wl,--export=soemdsp_jbnyquist_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_nyquist_shannon\jerobeam_nyquist_shannon.wasm" `
+  "$root\native_modules\jerobeam_nyquist_shannon\jerobeam_nyquist_shannon.cpp"

@@ -256,6 +256,7 @@ function createNodeGraphLiveRuntime(plan) {
   const boingStates = new Map();
   const torusStates = new Map();
   const keplerBouwkampStates = new Map();
+  const nyquistShannonStates = new Map();
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
   const pitchQuantizerStates = new Map();
@@ -324,6 +325,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "keplerBouwkamp") {
       keplerBouwkampStates.set(node.id, createNodeGraphKeplerBouwkampState());
+    }
+    if (node.type === "nyquistShannon") {
+      nyquistShannonStates.set(node.id, createNodeGraphNyquistShannonState());
     }
     if (node.type === "chordMemory") {
       chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -462,6 +466,7 @@ function createNodeGraphLiveRuntime(plan) {
     boingStates,
     torusStates,
     keplerBouwkampStates,
+    nyquistShannonStates,
     chordMemoryStates,
     turingMachineStates,
     pitchQuantizerStates,
@@ -618,6 +623,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.keplerBouwkampStates) {
     runtime.keplerBouwkampStates = new Map();
   }
+  if (!runtime.nyquistShannonStates) {
+    runtime.nyquistShannonStates = new Map();
+  }
   if (!runtime.chordMemoryStates) {
     runtime.chordMemoryStates = new Map();
   }
@@ -751,6 +759,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "keplerBouwkamp" && !runtime.keplerBouwkampStates.has(node.id)) {
       runtime.keplerBouwkampStates.set(node.id, createNodeGraphKeplerBouwkampState());
+    }
+    if (node.type === "nyquistShannon" && !runtime.nyquistShannonStates.has(node.id)) {
+      runtime.nyquistShannonStates.set(node.id, createNodeGraphNyquistShannonState());
     }
     if (node.type === "chordMemory" && !runtime.chordMemoryStates.has(node.id)) {
       runtime.chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -967,6 +978,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.keplerBouwkampStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.keplerBouwkampStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.nyquistShannonStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.nyquistShannonStates.delete(id);
     }
   }
   for (const id of [...runtime.chordMemoryStates.keys()]) {

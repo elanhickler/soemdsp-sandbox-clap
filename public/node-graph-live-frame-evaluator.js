@@ -3052,6 +3052,34 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         X: kepler.x * keplerLevel,
         Y: kepler.y * keplerLevel,
       };
+    } else if (node?.type === "nyquistShannon") {
+      const state = runtime.nyquistShannonStates.get(nodeId) || createNodeGraphNyquistShannonState();
+      runtime.nyquistShannonStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      const nyquist = nodeGraphNyquistShannonSample({
+        artifact: read("artifact", 0),
+        enableToneModFreq: read("enableToneModFreq", 0),
+        enableToneModNote: read("enableToneModNote", 0),
+        enableToneModPitch: read("enableToneModPitch", 1),
+        frequencyA: read("frequencyA", 440),
+        frequencyB: read("frequencyB", 5),
+        midiNoteRaw: read("midiNoteRaw", 48),
+        phaseOffset: read("phaseOffset", 0),
+        rate: read("rate", 20),
+        reset: mixInput(nodeId, "Reset"),
+        sampleDots: read("sampleDots", 0),
+        sampleRate,
+        state,
+        subPhase: read("subPhase", 0),
+        subPhaseRotationSpeed: read("subPhaseRotationSpeed", 0),
+        tone: read("tone", 0),
+        toneSmoothTime: read("toneSmoothTime", 0.01),
+      });
+      const nyquistLevel = read("level", 1);
+      value = {
+        X: nyquist.x * nyquistLevel,
+        Y: nyquist.y * nyquistLevel,
+      };
     } else if (node?.type === "chordMemory") {
       const state = runtime.chordMemoryStates.get(nodeId) || createNodeGraphChordMemoryState();
       runtime.chordMemoryStates.set(nodeId, state);
