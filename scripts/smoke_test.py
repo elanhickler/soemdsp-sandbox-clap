@@ -16867,9 +16867,17 @@ def require_readme_scheduler_contract() -> None:
         "amplitude normalization",
         "Harmonics slider itself could alias",
         "numPartials_",
-        "independent cap too",
-        "DC bias, not aliasing",
         "DC-blocking highpass",
+        "Round 1: the geometric-decay equation",
+        "Round 2: a live report that broke the premise of round 1",
+        "pureSquEng",
+        "Walter H. Hackett",
+        "Extended DSF Oscillators.cxx",
+        "Harmonics = 1 doesn't make a sine wave",
+        "phase-inverted, denominator-shaped distortion",
+        "equal-weighted harmonic sum",
+        "L'Hopital",
+        "Blend",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [

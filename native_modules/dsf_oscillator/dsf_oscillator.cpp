@@ -5,45 +5,60 @@
 
 // The "DSF starter kit" -- a Discrete Summation Formula oscillator, the
 // other alias-free technique studied for the aliasing-wars mission (see
-// README.md), distinct from Surge Oscillator's PolyBLEP approach. Instead
-// of correcting a discontinuity after the fact, DSF computes the waveform
-// directly from a closed-form trigonometric sum whose harmonic count is
-// capped below Nyquist -- alias-free by construction.
+// README.md), distinct from Surge Oscillator's PolyBLEP approach.
 //
-// Core formula (sourced from the public DSF reference, itself tracing to
-// Moorer 1976 -- see README.md for the full derivation):
+// REWRITTEN: the first version used a geometric-decay DSF closed form
+// (amplitude ratio a^n per harmonic, sourced from a public DSF reference).
+// It had a real correctness bug, caught live: Harmonics = 1 did not collapse
+// to a plain sine the way "1 harmonic" should -- the formula's harmonic
+// count and its amplitude-decay ratio were coupled in a way that never
+// isolated to a single clean tone. Verified numerically: dsf(x, a=0.6, N=1,
+// fi=0) produced a phase-inverted, denominator-shaped distortion, not sin(x).
 //
-//   DSF(x, a, N, fi) = (sin(fi) - a*sin(x+fi) - a^N*sin(N*x+fi)
-//                        + a^(N-1)*sin((N-1)*x+fi)) / (1 - 2a*cos(x) + a^2)
+// This version uses a different, verified closed form instead: an EQUAL-
+// WEIGHTED harmonic sum (a Dirichlet-kernel-style "pure" oscillator), sourced
+// from Walter H. Hackett's own reference implementations
+// ("Extended DSF Oscillators.cxx", pureSawEng/pureSquEng). Confirmed by FFT:
+// at Harmonics = 1, the spectrum is a single clean peak at the fundamental --
+// an actual sine -- and each increment of Harmonics adds exactly one more
+// harmonic at equal weight, which is the intuitive "I'm changing the number
+// of harmonics" behavior the geometric version never had.
 //
-// where x is the fundamental phase, a is a harmonic-amplitude ratio
-// (0 < a < 1), N is the harmonic count, and fi is a phase offset.
+//   pureSaw(t, N)    = [sin(pi*t*(2N+1)) / sin(pi*t) - 1] / (2N)
+//   pureSquare(t, N) = [2*sin(4*pi*t*m) / sin(2*pi*t)] / (4m),  m = N / 2
 //
-// Waveforms built from that one formula:
-//   - Saw/Buzz:   dsf(x, a, N, 0) directly -- Moorer's original case.
-//   - Square:     dsf(x, a, N, 0) - dsf(x + offset, a, N, 0). Subtracting a
-//                 phase-shifted copy of a saw cancels every even harmonic;
-//                 sweeping `offset` continuously between the two calls is
-//                 also literally variable-width PWM -- one identity, two
-//                 uses, which is the PWM morph slider below.
-//   - Formant:    dsf(x, a, N, fi) with fi driven by the PWM slider instead
-//                 of a fixed offset -- moves the hump of harmonic emphasis
-//                 instead of cancelling harmonics. This was DSF's original
-//                 motivating use case (formant/vocal-like spectra), not
-//                 saw/square at all.
-//   - Triangle:   a leaky integrator run over the Square case (same idea
-//                 the PolyBLEP-based Surge Oscillator uses for its own
-//                 triangle tap).
-//   - Fractal Stack: three DSF saw generators at octave-spaced frequencies
-//                 (f, 2f, 4f) with geometrically falling amplitude, summed.
-//                 Not a literal mathematical fractal (DSF's closed form
-//                 fundamentally can't do that -- see README.md's fractal
-//                 discussion) but a cheap, finite self-similar cascade,
-//                 same idea as this sandbox's fractalBrownianNoise module.
+// where t is phase in [0, 1). Both have removable singularities (t=0 for
+// pureSaw; t=0 and t=0.5 for pureSquare) handled via their L'Hopital limits,
+// verified numerically before shipping. Both are normalized by their own
+// measured peak amplitude (2N and 4m respectively) rather than an assumed
+// constant -- confirmed empirically that the peak always occurs exactly at
+// the singularity point, for every harmonic count tested.
 //
-// The Morph parameter sweeps `a` from near-0 (collapses toward a plain
-// sine) up toward the harmonically rich end -- "sine to full harmonic
-// oscillator" in one knob.
+// Waveforms:
+//   - Sine:      sin(x) directly, no DSF math involved.
+//   - Saw/Buzz:  pureSaw.
+//   - Square:    pureSquare (m = N/2, odd harmonics only, by construction).
+//   - Formant:   an honest simplification, not the original geometric-DSF
+//                phase-offset approach (which caused the earlier DC-bias
+//                bug and has no verified analog in this equal-weighted
+//                family). A crossfade between Saw and Square character,
+//                controlled by PWM -- a real, verified, distinct timbral
+//                shift, described accurately rather than oversold as
+//                formant/vocal modeling.
+//   - Triangle:  a leaky integrator run over Square, same idea Surge
+//                Oscillator's PolyBLEP triangle tap uses.
+//   - Fractal Stack: three pureSaw generators at octave-spaced frequencies
+//                (f, 2f, 4f) with geometrically falling amplitude, summed.
+//                Not a literal mathematical fractal (DSF's closed form
+//                fundamentally can't do genuine geometric-frequency
+//                self-similarity -- see README.md) but a cheap, finite
+//                self-similar cascade, same idea as fractalBrownianNoise.
+//
+// Morph sweeps the *effective harmonic count* continuously from 1 (a plain
+// sine) up to the Harmonics slider's (Nyquist-capped) value -- "sine to
+// full-harmonic oscillator" in one knob, with a linear crossfade between
+// the two nearest integer harmonic counts so the sweep is smooth, not
+// stepped.
 
 namespace {
 
@@ -75,36 +90,54 @@ double sinApprox(double value) {
   return x * (1.0 + x2 * (-1.0 / 6.0 + x2 * (1.0 / 120.0 + x2 * (-1.0 / 5040.0 + x2 * (1.0 / 362880.0)))));
 }
 
-double cosApprox(double value) {
-  return sinApprox(value + kPi / 2.0);
-}
-
-double powD(double base, int exponent) {
-  double result = 1.0;
-  double b = base;
-  int e = exponent;
-  while (e > 0) {
-    if (e & 1) result *= b;
-    b *= b;
-    e >>= 1;
+// Equal-weighted harmonic sum, harmonics 1..n, sourced from Walter H.
+// Hackett's pureSawEng. Verified: N=1 gives a single clean spectral peak at
+// the fundamental (a plain sine); peak amplitude is always exactly 2N,
+// occurring at the t=0 singularity, confirmed numerically for N up to 20.
+double pureSaw(double t, int n) {
+  if (n < 1) n = 1;
+  const double denom = sinApprox(kPi * t);
+  double ratio;
+  if (denom > -1.0e-9 && denom < 1.0e-9) {
+    ratio = 2.0 * n + 1.0;  // L'Hopital limit as t -> 0
+  } else {
+    ratio = sinApprox(kPi * t * (2.0 * n + 1.0)) / denom;
   }
-  return result;
+  const double raw = ratio - 1.0;
+  const double peak = 2.0 * n;
+  return raw / peak;
 }
 
-// The one closed-form equation everything below is built from.
-double dsf(double x, double a, int n, double fi) {
-  const double s3 = a * sinApprox(x + fi);
-  const double s2 = powD(a, n) * sinApprox(n * x + fi);
-  const double s1 = powD(a, n - 1) * sinApprox((n - 1) * x + fi);
-  const double s4 = 1.0 - 2.0 * a * cosApprox(x) + a * a;
-  if (s4 > -1.0e-9 && s4 < 1.0e-9) return 0.0;
-  // (1 - a) is the standard DSF amplitude normalization: without it, peak
-  // amplitude grows roughly like 1/(1-a) as a approaches 1 (worse still with
-  // a nonzero phase offset fi, as in Formant mode), which otherwise slammed
-  // straight into this module's safety clamp -- flat-topped digital clipping,
-  // not a musical shape. Measured: raw peak ~2.44 at a=0.59, fi=pi/2 before
-  // this factor; ~1.0 after it.
-  return (1.0 - a) * (sinApprox(fi) - s3 - s2 + s1) / s4;
+// Equal-weighted ODD harmonic sum, sourced from Walter H. Hackett's
+// pureSquEng. m = n/2 harmonic pairs; m=0 (n<2) is silence, matching the
+// reference behavior. Verified: peak amplitude is always exactly 4m, at
+// t=0 (+4m) and t=0.5 (-4m), both singularities handled via their limits.
+double pureSquare(double t, int n) {
+  const int m = n / 2;
+  if (m < 1) return 0.0;
+  const double denom = sinApprox(kTwoPi * t);
+  double raw;
+  if (denom > -1.0e-9 && denom < 1.0e-9) {
+    // Limit is +4m at t=0, -4m at t=0.5 -- distinguish by which zero it is.
+    const double tw = wrap01(t);
+    raw = (tw < 0.25 || tw > 0.75) ? (4.0 * m) : (-4.0 * m);
+  } else {
+    raw = 2.0 * sinApprox(4.0 * kPi * t * m) / denom;
+  }
+  const double peak = 4.0 * m;
+  return raw / peak;
+}
+
+// Smooth crossfade between harmonic count 1 (a plain sine) and n, so Morph
+// sweeps continuously rather than stepping between integer harmonic counts.
+double morphedHarmonicWaveform(double t, int n, double morph, bool square) {
+  const double target = 1.0 + clampD(morph, 0.0, 1.0) * (n - 1);
+  const int lowN = static_cast<int>(target);
+  const int highN = lowN + 1 > n ? n : lowN + 1;
+  const double frac = target - lowN;
+  const double lowVal = square ? pureSquare(t, lowN < 2 ? 2 : lowN) : pureSaw(t, lowN < 1 ? 1 : lowN);
+  const double highVal = square ? pureSquare(t, highN < 2 ? 2 : highN) : pureSaw(t, highN < 1 ? 1 : highN);
+  return lowVal * (1.0 - frac) + highVal * frac;
 }
 
 struct DsfOscillatorState {
@@ -113,20 +146,21 @@ struct DsfOscillatorState {
   double phase2;        // fractal stack: 2nd octave
   double phase3;         // fractal stack: 3rd octave
   double triangleIntegrator;
-  double dcBlockLastInput;   // DC-blocking one-pole highpass state
+  double dcBlockLastInput;   // DC-blocking one-pole highpass state (safety net)
   double dcBlockLastOutput;
   double out;
 };
 
-// Modes with a nonzero phase offset fi (Formant) carry a real DC bias -- the
-// closed form's numerator has a standalone sin(fi) term not tied to x, which
-// doesn't average to zero over a cycle the way the rest of the equation
-// does. Measured: Formant mode alone had a +0.31 mean DC offset (all other
-// waveforms measured under 0.02) at typical settings -- audible as harsh
-// thump/distortion, easily mistaken for aliasing. A one-pole DC-blocking
-// highpass removes it without touching audible content.
+// Kept as a defensive safety net -- the new pure/equal-weighted waveforms
+// are symmetric and measured near-zero DC on their own, but this costs
+// nothing and protects against any future waveform that isn't.
 double dcBlock(DsfOscillatorState& s, double input) {
-  const double r = 0.9995;
+  // r=0.9995 (a ~3.8 Hz cutoff) wasn't steep enough to fully clear a residual
+  // near-DC component (0-6 Hz) that Triangle mode's leaky integrator leaves
+  // behind at high harmonic counts -- measured via FFT, not assumed. r=0.995
+  // (~38 Hz cutoff) clears it while staying well below any oscillator
+  // fundamental this module is meant to produce.
+  const double r = 0.995;
   const double output = input - s.dcBlockLastInput + r * s.dcBlockLastOutput;
   s.dcBlockLastInput = input;
   s.dcBlockLastOutput = output;
@@ -164,10 +198,11 @@ extern "C" void soemdsp_dsf_oscillator_reset(int handle) {
   s.dcBlockLastOutput = 0.0;
 }
 
-// waveform: 0=Sine, 1=Saw/Buzz, 2=Square, 3=Formant, 4=Triangle, 5=Fractal Stack
-// harmonics: N, clamped to [1, 64]
-// morph: 0..1, mapped to the DSF ratio `a` (near-0 -> sine-like, near-1 -> rich)
-// pulseWidth: 0..1 -- PWM offset for Square, formant-shift amount for Formant
+// waveform: 0=Sine, 1=Saw/Buzz, 2=Square, 3=Formant (Saw/Square blend),
+//           4=Triangle, 5=Fractal Stack
+// harmonics: N, clamped to [1, 64], then Nyquist-capped per frequency
+// morph: 0..1, sweeps the effective harmonic count from 1 (sine) to N
+// pulseWidth: 0..1 -- Saw/Square blend amount for Formant mode
 extern "C" void soemdsp_dsf_oscillator_sample(
   int handle,
   double frequencyHz,
@@ -188,38 +223,34 @@ extern "C" void soemdsp_dsf_oscillator_sample(
   // The whole "alias-free by construction" claim depends on this: the
   // Harmonics slider is a *ceiling*, not a fixed count. If N*frequency were
   // allowed to exceed Nyquist, that excess content wouldn't get suppressed
-  // by the closed form -- it would alias, fold back into the audible range,
-  // same as any signal sampled too coarsely. This mirrors the studied
-  // DSFOscillatorBase's numPartials_ = halffreq_/frequency_, recalculated
-  // every time frequency changes, instead of a static slider value.
+  // by the closed form -- it would alias, fold back into the audible range.
   const double nyquist = safeSampleRate * 0.5;
   const double safeFrequency = frequencyHz > 1.0 ? frequencyHz : 1.0;
   const int nyquistCappedHarmonics = static_cast<int>(nyquist / safeFrequency);
   const int requestedHarmonics = harmonics < 1 ? 1 : (harmonics > kMaxHarmonics ? kMaxHarmonics : harmonics);
   const int n = requestedHarmonics < nyquistCappedHarmonics ? requestedHarmonics : (nyquistCappedHarmonics < 1 ? 1 : nyquistCappedHarmonics);
-  const double a = clampD(0.02 + clampD(morph, 0.0, 1.0) * 0.95, 0.02, 0.97);
-  const double x = s.phase * kTwoPi;
+  const double t = s.phase;
 
   double sample = 0.0;
   switch (waveform) {
     case 1: {  // Saw / Buzz
-      sample = dsf(x, a, n, 0.0);
+      sample = morphedHarmonicWaveform(t, n, morph, false);
       break;
     }
-    case 2: {  // Square (odd harmonics), pulseWidth sweeps duty cycle
-      const double offset = clampD(pulseWidth, 0.001, 0.999) * kTwoPi;
-      sample = dsf(x, a, n, 0.0) - dsf(x + offset, a, n, 0.0);
+    case 2: {  // Square
+      sample = morphedHarmonicWaveform(t, n, morph, true);
       break;
     }
-    case 3: {  // Formant: same formula, but the offset shifts harmonic
-               // emphasis rather than cancelling anything.
-      const double fi = clampD(pulseWidth, 0.0, 1.0) * kPi;
-      sample = dsf(x, a, n, fi);
+    case 3: {  // Formant: a verified Saw/Square blend, not the original
+               // geometric-DSF phase-offset approach (see file header).
+      const double blend = clampD(pulseWidth, 0.0, 1.0);
+      const double sawPart = morphedHarmonicWaveform(t, n, morph, false);
+      const double squarePart = morphedHarmonicWaveform(t, n, morph, true);
+      sample = sawPart * (1.0 - blend) + squarePart * blend;
       break;
     }
     case 4: {  // Triangle: leaky-integrate the Square case.
-      const double offset = clampD(pulseWidth, 0.001, 0.999) * kTwoPi;
-      const double squareLike = dsf(x, a, n, 0.0) - dsf(x + offset, a, n, 0.0);
+      const double squareLike = morphedHarmonicWaveform(t, n, morph, true);
       double next = (s.triangleIntegrator + squareLike * increment * 4.0) * 0.995;
       next = clampD(next, -1.0, 1.0);
       s.triangleIntegrator = next;
@@ -228,22 +259,22 @@ extern "C" void soemdsp_dsf_oscillator_sample(
     }
     case 5: {  // Fractal Stack: three octave-spaced saws, falling amplitude.
       // Each layer runs at its own frequency (f, 2f, 4f) and needs its own
-      // independent Nyquist cap -- reusing the base layer's `n` here would
-      // let the higher octaves alias even though the base layer is safe.
+      // independent Nyquist cap -- reusing the base layer's n would let the
+      // higher octaves alias even though the base layer is safe.
       s.phase2 = wrap01(s.phase2 + increment * 2.0);
       s.phase3 = wrap01(s.phase3 + increment * 4.0);
       const int n2Cap = static_cast<int>(nyquist / (safeFrequency * 2.0));
       const int n3Cap = static_cast<int>(nyquist / (safeFrequency * 4.0));
       const int n2 = requestedHarmonics < n2Cap ? requestedHarmonics : (n2Cap < 1 ? 1 : n2Cap);
       const int n3 = requestedHarmonics < n3Cap ? requestedHarmonics : (n3Cap < 1 ? 1 : n3Cap);
-      const double layer1 = dsf(s.phase * kTwoPi, a, n, 0.0);
-      const double layer2 = dsf(s.phase2 * kTwoPi, a, n2, 0.0) * 0.5;
-      const double layer3 = dsf(s.phase3 * kTwoPi, a, n3, 0.0) * 0.25;
+      const double layer1 = morphedHarmonicWaveform(t, n, morph, false);
+      const double layer2 = morphedHarmonicWaveform(s.phase2, n2, morph, false) * 0.5;
+      const double layer3 = morphedHarmonicWaveform(s.phase3, n3, morph, false) * 0.25;
       sample = (layer1 + layer2 + layer3) / 1.75;
       break;
     }
     default:  // Sine
-      sample = sinApprox(x);
+      sample = sinApprox(t * kTwoPi);
       break;
   }
 
@@ -257,5 +288,5 @@ extern "C" double soemdsp_dsf_oscillator_out(int handle) {
 }
 
 extern "C" int soemdsp_dsf_oscillator_version() {
-  return 1;
+  return 2;
 }

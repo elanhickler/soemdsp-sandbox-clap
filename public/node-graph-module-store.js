@@ -410,9 +410,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   dsfOscillator: {
     category: "Oscillator",
-    description: "The DSF starter kit: a Discrete Summation Formula oscillator, alias-free by a closed-form equation rather than a per-edge correction. Sine, Saw/Buzz, Square, Formant, Triangle, and a Fractal Stack, with a Morph slider (sine to full-harmonic) and a PWM slider (duty cycle for Square, formant shift for Formant). Native C++/WASM.",
+    description: "The DSF starter kit: an equal-weighted harmonic-sum oscillator, alias-free by a closed-form equation rather than a per-edge correction. Sine, Saw/Buzz, Square, Formant (a Saw/Square blend), Triangle, and a Fractal Stack. Morph sweeps the effective harmonic count from 1 (a plain sine) up to Harmonics, one harmonic at a time. Native C++/WASM.",
     label: "DSF Oscillator",
-    notes: ["oscillator", "dsf", "discrete summation formula", "anti-aliasing", "native", "pwm", "formant"],
+    notes: ["oscillator", "dsf", "discrete summation formula", "anti-aliasing", "native", "harmonic count"],
   },
   arpeggiator: {
     category: "Sequence",

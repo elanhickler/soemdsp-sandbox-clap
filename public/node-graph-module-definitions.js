@@ -779,7 +779,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "220", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
       { key: "harmonics", label: "Harmonics", defaultValue: "16", min: "1", mid: "16", max: "64", step: "1" },
       { key: "morph", label: "Morph", defaultValue: "0.6", min: "0", mid: "0.5", max: "1", step: "0.01" },
-      { key: "pulseWidth", label: "PWM", defaultValue: "0.5", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "pulseWidth", label: "Blend", defaultValue: "0.5", min: "0", mid: "0.5", max: "1", step: "0.01" },
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },

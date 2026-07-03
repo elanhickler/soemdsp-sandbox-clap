@@ -174,12 +174,21 @@ by Means of Discrete Summation Formulas.* Stanford CCRMA (STAN-M-5).
 
 ## 🧪 The DSF starter kit
 
-Built the study above into a real module: `native_modules/dsf_oscillator` —
-one closed-form equation, six waveforms, two morph sliders. Native
-C++/WASM with a JS fallback, wired into both the offline evaluator and the
-realtime audio worklet, same as Surge Oscillator.
+Built the study above into a real module: `native_modules/dsf_oscillator`.
+Native C++/WASM with a JS fallback, wired into both the offline evaluator
+and the realtime audio worklet, same as Surge Oscillator.
 
-**One equation, reused for everything:**
+**⚠️ This module went through two genuinely different closed-form
+equations, not just bug fixes to one.** The honest version of events, in
+order, is below — three real fixes to the first equation, then a live
+report that turned out to mean the first equation itself was wrong at a
+foundational level, which led to a full rewrite on a second, verified
+equation. Read it in order; it's the actual debugging history, not a
+cleaned-up summary.
+
+### Round 1: the geometric-decay equation (Moorer's classic DSF)
+
+The first version used the textbook closed form:
 
 ```
 DSF(x, a, N, fi) = (1 - a) · [sin(fi) - a·sin(x+fi) - aᴺ·sin(Nx+fi) + aᴺ⁻¹·sin((N-1)x+fi)]
@@ -187,83 +196,96 @@ DSF(x, a, N, fi) = (1 - a) · [sin(fi) - a·sin(x+fi) - aᴺ·sin(Nx+fi) + aᴺ�
                                         1 - 2a·cos(x) + a²
 ```
 
-(the `(1 - a)` factor is an amplitude normalization — see the bug note below.)
+Three real bugs were found and fixed in this equation, each verified before
+moving to the next:
 
-**🎛️ The six waveforms:**
+1. **No amplitude normalization** — raw peak measured **~2.44** against a
+   `±1.5` clamp (~18% of every cycle flat-topped). Fixed with the `(1 - a)`
+   factor shown above; peak dropped to ~1.0.
+2. **The Harmonics slider itself could alias** — "alias-free by
+   construction" only holds if the harmonic count stays under Nyquist. At
+   2000 Hz with `Harmonics = 64`, the formula was generating content up to
+   128 kHz against a 24 kHz Nyquist limit; only 99.46% of energy sat on the
+   12 harmonics that actually fit. Fixed by capping `Harmonics` to
+   `⌊Nyquist / frequency⌋`, recomputed every sample.
+3. **Formant mode had a real DC bias**, reported live as "a ton of
+   aliasing" after fix #2 shipped. The FFT's biggest peak was at **0 Hz**,
+   not folded high-frequency content — the equation's standalone `sin(fi)`
+   term doesn't average to zero over a cycle. Measured **+0.31 mean DC
+   offset**. Fixed with a one-pole DC-blocking highpass on the output.
+
+### Round 2: a live report that broke the premise of round 1
+
+After all three fixes shipped and were individually verified, a live report
+came back: **"all of them alias except sine," and "Harmonics = 1 doesn't
+make a sine wave."** That second sentence is the important one — it's not
+a symptom, it's a direct test of the equation's correctness, and the
+geometric-decay formula fails it. Verified numerically:
+`DSF(x, a=0.6, N=1, fi=0)` does **not** reduce to `sin(x)` — it produces a
+phase-inverted, denominator-shaped distortion. All three earlier fixes were
+real and correctly verified *for the equation as built*, but the equation
+itself never correctly represented "N harmonics" the way this module's own
+UI claimed. No amount of Nyquist-capping or DC-blocking fixes that.
+
+**The rewrite:** rather than keep patching a formula whose own foundational
+claim didn't hold, this module now uses a *different*, verified closed
+form — an **equal-weighted harmonic sum** (Dirichlet-kernel-style), sourced
+from Walter H. Hackett's own reference code
+(`Extended DSF Oscillators.cxx`, `pureSawEng`/`pureSquEng`) rather than the
+public geometric-decay reference used the first time:
+
+```
+pureSaw(t, N)    = [sin(π·t·(2N+1)) / sin(π·t) - 1] / (2N)
+pureSquare(t, N) = [2·sin(4π·t·m) / sin(2π·t)] / (4m),   m = N / 2
+```
+
+Both have removable singularities (`t=0` for `pureSaw`; `t=0` and `t=0.5`
+for `pureSquare`), handled via their L'Hopital limits and both are
+normalized by their own *measured* peak amplitude (`2N` and `4m`), not an
+assumed constant — confirmed numerically that the peak always occurs
+exactly at the singularity, for every harmonic count tested.
+
+**Verified against the exact reported complaint:** at `Harmonics = 1`,
+every waveform now shows **>99% of its spectral energy on a single peak at
+the fundamental** — an actual sine — versus the old equation's confirmed
+failure at the same test.
+
+**🎛️ The six waveforms, rebuilt on the new equation:**
 
 | Waveform | How it's built |
 |---|---|
-| 🎵 Sine | The trivial case — `sin(x)` directly, DSF not involved. |
-| 🪚 Saw / Buzz | `DSF(x, a, N, 0)` — Moorer's original case, unmodified. |
-| ⬛ Square | `DSF(x,a,N,0) − DSF(x+offset,a,N,0)`. Subtracting a phase-shifted copy of a saw cancels every even harmonic — the **PWM slider** *is* that offset, continuously swept. |
-| 🎤 Formant | `DSF(x, a, N, fi)` — same equation, but the offset (also the PWM slider, reused) shifts *where* the harmonic emphasis sits instead of cancelling anything. This was DSF's original 1976 use case: vocal-formant-like spectra, not subtractive-synth shapes at all. |
-| 📐 Triangle | A leaky integrator run over the Square case — same idea Surge Oscillator's PolyBLEP triangle tap uses. |
-| 🌀 Fractal Stack | Three DSF saws at octave-spaced frequencies (`f, 2f, 4f`) with geometrically falling amplitude, summed. **Not** a real mathematical fractal (see the fractal-waveform discussion in this repo's chat history — DSF's closed form can't do genuine geometric-frequency self-similarity, since the whole trick depends on integer-multiple harmonics) — a cheap, *finite* self-similar cascade instead, same idea as this sandbox's `fractalBrownianNoise` module, built from oscillators instead of noise layers. |
+| 🎵 Sine | `sin(x)` directly, no DSF math. |
+| 🪚 Saw / Buzz | `pureSaw(t, N)` directly. |
+| ⬛ Square | `pureSquare(t, N)` — odd harmonics only, by construction (`m = N/2`). |
+| 🎤 Formant | **Rebuilt honestly, not the original phase-offset approach** (which is what caused bug #3 above, and has no verified equivalent in this new equal-weighted family). Now a Saw/Square crossfade, controlled by the **Blend** slider — a real, verified, distinct timbral shift, described accurately as a blend rather than oversold as formant/vocal modeling. |
+| 📐 Triangle | A leaky integrator run over Square — same idea Surge Oscillator's PolyBLEP triangle tap uses. |
+| 🌀 Fractal Stack | Three `pureSaw` generators at octave-spaced frequencies (`f, 2f, 4f`), falling amplitude, summed. Still not a real mathematical fractal (see the fractal-waveform discussion in this repo's chat history) — a cheap, finite self-similar cascade. |
 
-**🎚️ The two morph sliders:**
-- **Morph** sweeps the ratio `a` from near-0 (collapses toward a plain sine)
-  up toward the harmonically rich end — "sine to full-harmonic oscillator"
-  in one knob.
-- **PWM** does double duty: pulse width / duty cycle for Square and
-  Triangle, formant shift for Formant. Same offset parameter, different
-  meaning depending on which waveform it's feeding.
+**🎚️ The controls:**
+- **Morph** now sweeps the *effective harmonic count* continuously from 1
+  (a plain sine) up to `Harmonics`, with a linear crossfade between the two
+  nearest integer counts so the sweep is smooth. Verified: each step of
+  Morph unlocks exactly one more harmonic, monotonically, all the way to
+  full richness at `Morph = 1` — the literal "I'm changing the number of
+  harmonics" behavior that was the whole point and the original equation
+  never delivered.
+- **Blend** (renamed from PWM, honestly — it no longer does pulse-width
+  modulation at all, since `pureSquare` is fixed by construction) mixes
+  Saw and Square character for Formant mode only.
 
-**🐛 A real bug this build caught, not just theorized:** the very first
-version had no amplitude normalization, and Formant mode measurably
-clipped — the raw closed-form output peaked at **~2.44** against a
-`±1.5` safety clamp, meaning ~18% of every cycle was flat-topped digital
-clipping, not signal. Multiplying the whole equation by `(1 − a)` — the
-standard DSF amplitude normalization — brought the peak down to **~1.0**,
-verified by literally counting clamped samples before (39/220) and after
-(0/220) the fix, in both the compiled `.wasm` and the JS mirror.
+**One more bug caught during the rewrite itself, before shipping:**
+Triangle mode's leaky integrator left a small residual near-DC component
+(0–6 Hz) at high harmonic counts, which the existing DC blocker's cutoff
+(~3.8 Hz) wasn't quite steep enough to fully clear — found via FFT
+(the "aliasing" bin was sitting at 0–6 Hz, not a folded harmonic), not
+assumed. Tightened the blocker to a ~38 Hz cutoff; confirmed clean.
 
-**Verified, not assumed:** 33 assertions against the real compiled `.wasm`
-via Python + `wasmtime`, including actual FFT spectral proofs, not just
-bounds-checking — Sine really is a single spectral peak, Square really
-does suppress even harmonics by more than 5×, Morph really does add
-measurable harmonic energy as it increases, PWM really does change duty
-cycle, and the Fractal Stack really does put energy at its octave layers.
-
-**🐛 A second real bug: the Harmonics slider itself could alias.** "Alias-free
-by construction" only holds if the harmonic count actually stays under
-Nyquist — the studied `DSFOscillatorBase` recalculates `numPartials_ =
-halffreq_ / frequency_` every time frequency changes for exactly this
-reason. This module's first version left `Harmonics` as a free 1–64 slider
-with no such cap, so cranking it up at a moderately high pitch generated
-real content above Nyquist, which folded back down as audible aliasing —
-the exact thing this whole branch exists to fight. Measured directly: at
-2000 Hz with `Harmonics = 64`, the formula was generating content up to
-128 kHz against a 24 kHz Nyquist limit (48 kHz sample rate); only 99.46% of
-the resulting spectral energy sat on the 12 harmonics that actually fit
-under Nyquist before the fix. The fix: `Harmonics` is now a *ceiling*,
-silently capped to `⌊Nyquist / frequency⌋` — same idea as the studied
-file, just applied per-sample instead of only on frequency change. The
-Fractal Stack's three octave layers each get their **own** independent cap
-too (its `2f`/`4f` layers need a tighter cap than the base `f` layer, not
-the same one). Added as a permanent regression test, not just a one-off
-check: FFT-verified that Harmonics = 64 at 2000 Hz now stays alias-free.
-
-**🐛 A third real bug, reported live: Formant mode had a genuine DC bias, not
-aliasing.** After the Harmonics fix shipped, a live report came in of "a ton
-of aliasing" — re-measured every waveform's spectrum directly instead of
-assuming the earlier fix was incomplete, and found the Harmonics cap was
-working correctly everywhere except Formant, which showed only 31–49% of
-its spectral energy on true harmonics. The actual FFT told the real story:
-the single largest peak in Formant's spectrum was at **0 Hz** — a DC
-offset, not folded high-frequency content. The closed-form equation's
-numerator has a standalone `sin(fi)` term that isn't tied to phase `x`, so
-a nonzero `fi` (which only Formant mode uses) doesn't average to zero over
-a cycle the way the rest of the equation does. Measured: **+0.31 mean DC
-offset** for Formant, versus under 0.02 for every other waveform — audible
-as harsh thump/distortion, which is exactly what "a ton of aliasing" sounds
-like even though the actual cause was unrelated to Nyquist at all.
-
-The fix: a standard one-pole DC-blocking highpass (`y[n] = x[n] − x[n−1] +
-R·y[n−1]`, `R = 0.9995`) on the final output stage, the same idea the
-studied file's own `leak_` integrator uses for a related purpose. Verified
-the DC mean settles to **~0.0008** after warm-up (was 0.31), added as a
-permanent regression test across all six waveforms, and reconfirmed live in
-the browser with the exact reported scenario.
+**Verified, not assumed:** 45+ assertions against the real compiled
+`.wasm` via Python + `wasmtime`, including real FFT spectral proofs for
+every waveform — the exact `Harmonics = 1 → sine` regression that started
+this whole rewrite, the Nyquist cap at `Harmonics = 64` across three
+frequencies, DC bias after warm-up, and the Formant blend's endpoints
+matching pure Saw and pure Square exactly.
 
 ## License
 
