@@ -181,12 +181,12 @@ function nodeGraphPhosphorWaveformMinMaxColumns(samples, startFrame, endFrame, c
   return values;
 }
 
-function drawNodeGraphPhosphorWaveformPlaceholder(context, width, height, message) {
+function drawNodeGraphPhosphorWaveformPlaceholder(context, width, height, message, pixelRatio = 1) {
   context.fillStyle = "rgba(70, 220, 140, 0.55)";
-  context.font = "600 11px system-ui, sans-serif";
+  context.font = `600 ${Math.round(11 * pixelRatio)}px system-ui, sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.fillText(message, width / 2, height / 2);
+  context.fillText(message, Math.round(width / 2), Math.round(height / 2));
   context.textAlign = "start";
   context.textBaseline = "alphabetic";
 }
@@ -201,10 +201,10 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   const rect = section.getBoundingClientRect();
   const pixelRatio = window.devicePixelRatio || 1;
   const zoom = Math.max(0.01, Number(nodeGraphMvp?.zoom) || 1);
-  const width = Math.max(1, Number(section.clientWidth || section.offsetWidth || 0) || rect.width / zoom);
-  const height = Math.max(1, Number(section.clientHeight || section.offsetHeight || 0) || rect.height / zoom);
-  const canvasWidth = Math.max(1, Math.round(width * pixelRatio));
-  const canvasHeight = Math.max(1, Math.round(height * pixelRatio));
+  const cssWidth = Math.max(1, Number(section.clientWidth || section.offsetWidth || 0) || rect.width / zoom);
+  const cssHeight = Math.max(1, Number(section.clientHeight || section.offsetHeight || 0) || rect.height / zoom);
+  const canvasWidth = Math.max(1, Math.round(cssWidth * pixelRatio));
+  const canvasHeight = Math.max(1, Math.round(cssHeight * pixelRatio));
   if (canvas.width !== canvasWidth) {
     canvas.width = canvasWidth;
   }
@@ -215,20 +215,30 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   if (!context) {
     return;
   }
-  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  // Draw entirely in device-pixel space (no CSS-pixel transform) so every
+  // coordinate can be snapped to a real physical pixel — a fractional
+  // devicePixelRatio (1.25x/1.5x are common on Windows) would otherwise put
+  // "half pixel" offsets at non-integer physical positions, forcing the
+  // renderer to antialias/blur lines that should be crisp.
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  const width = canvasWidth;
+  const height = canvasHeight;
+  const snap = (value) => Math.round(value);
+  const crisp = (value) => Math.round(value) + 0.5;
+
   context.clearRect(0, 0, width, height);
   context.fillStyle = "#020a06";
   context.fillRect(0, 0, width, height);
 
   const entry = nodeGraphPhosphorWaveformSampleEntry(nodeId);
   if (!entry) {
-    drawNodeGraphPhosphorWaveformPlaceholder(context, width, height, "No sample loaded");
+    drawNodeGraphPhosphorWaveformPlaceholder(context, width, height, "No sample loaded", pixelRatio);
     return;
   }
 
   const state = nodeGraphPhosphorWaveformViewState(nodeId, entry.frames);
   nodeGraphPhosphorWaveformClampWindow(state);
-  const columns = Math.max(1, Math.round(width));
+  const columns = width;
   const minMax = nodeGraphPhosphorWaveformMinMaxColumns(entry.samples, state.startFrame, state.endFrame, columns);
   const midY = height / 2;
   const amplitude = midY * 0.92;
@@ -237,18 +247,18 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   const loopStart = clampNodeSliderValue(Number(node.params?.start) || 0, 0, 1) * entry.frames;
   const loopEnd = clampNodeSliderValue(Number(node.params?.end) || 1, 0, 1) * entry.frames;
   const frameToX = (frame) => ((frame - state.startFrame) / Math.max(1, state.endFrame - state.startFrame)) * width;
-  const regionX0 = clampNodeSliderValue(frameToX(loopStart), 0, width);
-  const regionX1 = clampNodeSliderValue(frameToX(loopEnd), 0, width);
+  const regionX0 = snap(clampNodeSliderValue(frameToX(loopStart), 0, width));
+  const regionX1 = snap(clampNodeSliderValue(frameToX(loopEnd), 0, width));
   if (regionX1 > regionX0) {
     context.fillStyle = "rgba(70, 220, 140, 0.08)";
     context.fillRect(regionX0, 0, regionX1 - regionX0, height);
   }
 
   // Per-sample grid, once zoomed in enough that individual frames are
-  // legible (roughly 6+ pixels per sample) — makes the discrete nature of
-  // the buffer visible instead of implying a continuous signal.
+  // legible (roughly 6+ device pixels per sample) — makes the discrete
+  // nature of the buffer visible instead of implying a continuous signal.
   const pixelsPerFrame = width / Math.max(1, state.endFrame - state.startFrame);
-  const showSampleGrid = pixelsPerFrame >= 6;
+  const showSampleGrid = pixelsPerFrame >= 6 * pixelRatio;
   if (showSampleGrid) {
     context.strokeStyle = "rgba(90, 255, 150, 0.14)";
     context.lineWidth = 1;
@@ -256,29 +266,31 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
     const firstFrame = Math.ceil(state.startFrame);
     const lastFrame = Math.floor(state.endFrame);
     for (let frame = firstFrame; frame <= lastFrame; frame += 1) {
-      const x = Math.round(frameToX(frame)) + 0.5;
+      const x = crisp(frameToX(frame));
       context.moveTo(x, 0);
       context.lineTo(x, height);
     }
     context.stroke();
   }
 
-  // Phosphor glow: a wide blurred pass beneath a sharp core pass.
+  // Phosphor glow: a wide blurred pass beneath a sharp core pass. Every
+  // column is one exact device pixel, so the core stroke lands crisp.
   const drawEnvelope = (glow) => {
     context.beginPath();
     for (let x = 0; x < columns; x += 1) {
       const min = minMax[x * 2];
       const max = minMax[x * 2 + 1];
-      const yTop = midY - max * amplitude;
-      const yBottom = midY - min * amplitude;
-      context.moveTo(x + 0.5, yTop);
-      context.lineTo(x + 0.5, Math.max(yTop + 1, yBottom));
+      const yTop = snap(midY - max * amplitude);
+      const yBottom = snap(midY - min * amplitude);
+      const lineX = x + 0.5;
+      context.moveTo(lineX, yTop);
+      context.lineTo(lineX, Math.max(yTop + 1, yBottom));
     }
     if (glow) {
-      context.shadowBlur = 8;
+      context.shadowBlur = 8 * pixelRatio;
       context.shadowColor = "rgba(90, 255, 150, 0.85)";
       context.strokeStyle = "rgba(90, 255, 150, 0.35)";
-      context.lineWidth = 2.5;
+      context.lineWidth = 2.5 * pixelRatio;
     } else {
       context.shadowBlur = 0;
       context.strokeStyle = "rgba(180, 255, 210, 0.95)";
@@ -294,11 +306,11 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   const phase = typeof nodeGraphSamplePhaseForNode === "function" ? nodeGraphSamplePhaseForNode(nodeId) : 0;
   const playheadFrame = phase * entry.frames;
   if (playheadFrame >= state.startFrame && playheadFrame <= state.endFrame) {
-    const x = frameToX(playheadFrame);
-    context.shadowBlur = 6;
+    const x = crisp(frameToX(playheadFrame));
+    context.shadowBlur = 6 * pixelRatio;
     context.shadowColor = "rgba(255, 255, 255, 0.9)";
     context.strokeStyle = "rgba(255, 255, 255, 0.85)";
-    context.lineWidth = 1.5;
+    context.lineWidth = 1.5 * pixelRatio;
     context.beginPath();
     context.moveTo(x, 0);
     context.lineTo(x, height);
@@ -308,8 +320,8 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
 
   const zoomRatio = (state.endFrame - state.startFrame) / Math.max(1, state.totalFrames);
   context.fillStyle = "rgba(180, 255, 210, 0.7)";
-  context.font = "600 10px system-ui, sans-serif";
-  context.fillText(`${(zoomRatio * 100).toFixed(zoomRatio < 0.1 ? 1 : 0)}%`, 6, 13);
+  context.font = `600 ${Math.round(10 * pixelRatio)}px system-ui, sans-serif`;
+  context.fillText(`${(zoomRatio * 100).toFixed(zoomRatio < 0.1 ? 1 : 0)}%`, snap(6 * pixelRatio), snap(13 * pixelRatio));
 }
 
 function drawNodeGraphPhosphorWaveformDisplays() {
