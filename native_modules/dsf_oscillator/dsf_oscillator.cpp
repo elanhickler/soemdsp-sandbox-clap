@@ -284,10 +284,27 @@ extern "C" void soemdsp_dsf_oscillator_sample(
         sample = s.sqAcc;
       } else {  // waveform == 3: Triangle
         s.triAcc = s.triAcc * retention + s.sqAcc * dt * 4.0;
-        const double absTri = s.triAcc < 0.0 ? -s.triAcc : s.triAcc;
+        // Triangle is a second integration on top of Square, which makes
+        // it track mostly the square's fundamental harmonic -- and that
+        // fundamental's own amplitude genuinely shrinks toward 0 as
+        // pulseWidth approaches 0 or 1 (a real property of PWM pulse
+        // trains: fundamental amplitude ~ sin(pi*dutyCycle)), reported
+        // live as "gets quieter until silence" at extreme PWM. Square
+        // itself doesn't have this problem since its many higher
+        // harmonics keep its peak swing roughly constant as duty cycle
+        // narrows -- only Triangle, which discards most of that via its
+        // second integration, needs the compensation. Verified
+        // numerically (Python) that dividing by sin(pi*pulseWidth)
+        // (floor to cap the gain right at the pulseWidth clamp's edges)
+        // keeps Triangle's loudness roughly constant across the full PWM
+        // range instead of collapsing to silence at the extremes.
+        const double sinPw = sinApprox(kPi * pw);
+        const double compensation = 1.0 / clampD(sinPw < 0.0 ? -sinPw : sinPw, 0.05, 1.0);
+        const double compensatedTri = s.triAcc * compensation;
+        const double absTri = compensatedTri < 0.0 ? -compensatedTri : compensatedTri;
         s.triPeak = s.triPeak * 0.999 + absTri * 0.001;
         if (s.triPeak < 1.0) s.triPeak = 1.0;
-        sample = s.triAcc / s.triPeak;
+        sample = compensatedTri / s.triPeak;
       }
     }
   }
@@ -303,5 +320,5 @@ extern "C" double soemdsp_dsf_oscillator_out(int handle) {
 }
 
 extern "C" int soemdsp_dsf_oscillator_version() {
-  return 9;
+  return 10;
 }

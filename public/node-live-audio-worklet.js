@@ -6475,8 +6475,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           sample = state.sqAcc;
         } else {
           state.triAcc = state.triAcc * retention + state.sqAcc * dt * 4;
-          state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(state.triAcc) * 0.001);
-          sample = state.triAcc / state.triPeak;
+          // Compensate for the fundamental's own amplitude shrinking
+          // toward 0 as pulseWidth approaches 0 or 1 -- reported live as
+          // Triangle going quiet toward silence at extreme PWM.
+          const compensation = 1 / this.clampValue(Math.abs(Math.sin(Math.PI * pw)), 0.05, 1);
+          const compensatedTri = state.triAcc * compensation;
+          state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(compensatedTri) * 0.001);
+          sample = compensatedTri / state.triPeak;
         }
       }
     }

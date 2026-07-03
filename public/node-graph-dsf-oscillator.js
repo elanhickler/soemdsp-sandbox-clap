@@ -96,8 +96,16 @@ function nodeGraphDsfOscillatorSample(state, options = {}) {
         sample = state.sqAcc;
       } else {
         state.triAcc = state.triAcc * retention + state.sqAcc * dt * 4;
-        state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(state.triAcc) * 0.001);
-        sample = state.triAcc / state.triPeak;
+        // Compensate for the fundamental's own amplitude shrinking toward
+        // 0 as pulseWidth approaches 0 or 1 (Triangle mostly tracks
+        // Square's fundamental, whose amplitude ~ sin(pi*pulseWidth)) --
+        // reported live as Triangle going quiet toward silence at extreme
+        // PWM. Square itself doesn't need this (its higher harmonics keep
+        // its peak swing roughly constant as duty cycle narrows).
+        const compensation = 1 / clampNodeSliderValue(Math.abs(Math.sin(Math.PI * pw)), 0.05, 1);
+        const compensatedTri = state.triAcc * compensation;
+        state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(compensatedTri) * 0.001);
+        sample = compensatedTri / state.triPeak;
       }
     }
   }

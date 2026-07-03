@@ -582,6 +582,33 @@ a saw-to-triangle-like character, not a saw-to-square one. No behavior
 change, label only (`waveform` choice, the `blend` parameter's display
 label, and module description).
 
+### Round 10: Triangle went silent at extreme PWM
+
+Live report: "the triangle PWM fails because as the waveform morphs to
+one side or the other it gets quieter until silence." Confirmed
+numerically: Triangle's raw accumulator amplitude shrank from ±0.5 at
+`pulseWidth = 0.5` down to ±0.02 at `pulseWidth = 0.01`/`0.99` — a ~25x
+drop. This is a real, expected property of the underlying math, not a
+random artifact: Triangle is a second integration on top of Square,
+which makes it track mostly Square's fundamental harmonic, and a PWM
+pulse train's fundamental amplitude genuinely scales with
+`sin(pi * dutyCycle)` — it really does vanish as duty cycle approaches
+0% or 100%. Square itself doesn't have this problem (confirmed
+separately): its many higher harmonics keep its peak swing roughly
+constant as duty cycle narrows, since a narrower pulse just shifts
+energy into those harmonics rather than losing it. Triangle's second
+integration discards most of that higher-harmonic content, so only the
+shrinking fundamental is left.
+
+**Fix:** divide Triangle's accumulator by `sin(pi * pulseWidth)` (floored
+to cap the gain right at the `pulseWidth` clamp's edges, to avoid
+amplifying noise into a blow-up exactly at the extremes) before the
+existing peak-follower normalizer. Verified numerically that this keeps
+Triangle's loudness in a consistent ~0.4–0.66 range across the entire
+practical PWM sweep (0.01–0.99), instead of collapsing toward silence at
+the extremes — confirmed in wasmtime with zero NaN across a full
+frequency × PWM sweep.
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use
