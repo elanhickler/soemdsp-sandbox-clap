@@ -5,6 +5,10 @@ function applyNodeGraphZoom() {
   }
   workspace.style.setProperty("--node-graph-zoom", String(nodeGraphZoom()));
   workspace.dataset.zoom = nodeGraphZoom().toFixed(2);
+  // Only show raw/blocky pixels on custom canvases once genuinely zoomed
+  // in far enough that smoothing would just be mush -- keep normal
+  // (near-1:1 or zoomed-out) views smooth like everything else.
+  workspace.classList.toggle("pixelated-canvas-zoom", nodeGraphZoom() >= 2.5);
   applyNodeGraphWorkspaceView();
   updateNodeGraphGridHeatmap();
   if (typeof syncNodeGraphSliderReadouts === "function") {
