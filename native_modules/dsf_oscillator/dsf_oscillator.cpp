@@ -7,48 +7,51 @@
 // other alias-free technique studied for the aliasing-wars mission (see
 // README.md), distinct from Surge Oscillator's PolyBLEP approach.
 //
-// THIRD REWRITE. The first two versions each invented their own closed
-// form and their own idea of what "Harmonics" should mean, and both got
-// live feedback that they didn't sound right despite passing every
-// automated check I wrote for them. The reason: I was inventing a
-// "Harmonics" slider that doesn't exist in any real, shipped DSF
-// oscillator. This version is a direct, faithful port of
-// DSFOscillatorSineSaw / DSFOscillatorSineSquare from
-// soemdsp/include/soemdsp/oscillator/DSFOscillator.hpp -- the exact
-// classes used by SoEmSawSquareSine, a real Soundemote VST2 plugin that
-// ships this code in production.
+// FOURTH REWRITE. The third rewrite ("faithful port") transcribed
+// DSFOscillatorSineSaw's DSF() closed form correctly, but missed the
+// actual architecture around it -- and never had DSFOscillatorSineSquare's
+// real closed form at all, guessing at a derived saw-shift instead. Live
+// feedback: "virtually unchanged." Re-read DSFOscillator.hpp in full this
+// time (soemdsp/include/soemdsp/oscillator/DSFOscillator.hpp) rather than
+// the partial excerpt used before. Two things the third rewrite missed
+// entirely:
 //
-// The key structural fact I'd missed in both earlier rewrites: in the
-// real design there is no user-facing harmonic-count control at all.
-// numPartials_ is *always* auto-derived from Nyquist/frequency (the
-// maximum number of harmonics that fit under Nyquist for the current
-// pitch) -- that's what makes it alias-free by construction, automatically,
-// with no slider to get wrong. The only user-facing timbre control is
-// Morph (0..1), which reshapes the closed form's k_/k2_/k42_ coefficients,
-// not the harmonic count. Verified numerically (Python, not guessed):
-// at morph=0 the closed form collapses to an exact sine (peak amplitude
-// 1.0, no distortion); as morph rises toward 1 it opens up into the full
-// numPartials_-harmonic saw/square, with peak amplitude approaching
-// numPartials_ itself. That's the real "sine to full harmonic oscillator"
-// morph -- not a crossfade between harmonic counts I made up.
+// 1. DSF() is NOT evaluated as a direct per-sample waveform. The real
+//    run() treats it as a rate of change and integrates it:
+//      leak_            = leak_ * 0.99 + 0.000005
+//      preAmpAdjustOut_ = preAmpAdjustOut_ * (1.0 - leak_)
+//      preAmpAdjustOut_ += DSF() * increment_
+//      out_ = preAmpAdjustOut_ * ampAdjust_
+//    This is a leaky integrator, not a stateless closed-form lookup --
+//    a structurally different thing to sonically evaluate against, which
+//    is exactly why a "correct closed form, evaluated directly" port
+//    could pass every offline spectral test and still sound completely
+//    different live.
+// 2. DSFOscillatorSineSquare has its own, structurally different closed
+//    form -- not derivable from Saw by a phase shift (that was a guess
+//    made when only a partial header excerpt was available):
+//      k_ = 1 - 1/((morph_/2 + 0.25)^14 * 10000 + 1) + 1e-12
+//      DSF = 8 * (k^(N+1)*k*cos(x(2N-1)) - k^(N+1)*cos(x(2N+1))
+//                 - k*cos(x)*(k-1)) / k / (1 + k^2 - 2k*cos(2x))
 //
-// DSF() closed forms below are transcribed directly from
-// DSFOscillatorSineSaw::DSF() and DSFOscillatorSineSquare::DSF() in the
-// studied header. morphChanged()/frequencyChanged() coefficient derivations
-// (k_, k2_, k42_, numPartials_) are transcribed the same way. What this
-// port does NOT have verbatim is the original's leak_/ampAdjust_ output
-// normalization (that code wasn't in the file excerpt available) -- the
-// closed form's peak amplitude scales with numPartials_ (verified above:
-// peak == numPartials_ almost exactly at morph=1), so this port normalizes
-// with a leaky peak-follower (an adaptive divide-by-recent-peak) instead of
-// guessing at unknown original constants. Documented honestly rather than
-// pretending to bit-match code we don't have.
-//
-// Saw and Square are wired master/slave the same way SoEmSawSquareSine.cpp
-// wires them: Saw is the phase master; Square shares Saw's phase and morph
-// and runs its own DSF() with its own (halved) numPartials_ and its own
-// k-coefficient derivation. A Mix parameter blends Saw and Square output,
-// mirroring the plugin's SawSquareMix control.
+// Both closed forms and both morphChanged() coefficient derivations below
+// are transcribed directly from the full header. What's added on top,
+// and NOT in the original: the leaky-integrator's own accumulator has a
+// documented, real bug -- the header's own top-of-file comment lists
+// "morph_ not consistent in volume" as a known problem, and it's not
+// cosmetic: verified numerically (Python) that at high Morph the
+// accumulator drifts to a flat, fully-clipped DC value with zero
+// oscillation left -- i.e. actually silent, not just quieter. Confirmed
+// this is inherent to the real formula (not a WASM/precision artifact) by
+// reproducing it in plain Python with exact math.pow. The shipped plugin
+// (SoEmSawSquareSine.cpp) papers over this with a final hard
+// std::clamp(-1, 1) before output; a hard clamp alone still leaves the
+// dead-flat-DC failure mode audible as harsh clipping with no waveform
+// underneath. Added instead: a DC-blocking highpass (clears the drift)
+// plus a leaky peak-follower normalizer (keeps the result bounded and
+// actually oscillating instead of pinned flat) -- verified numerically to
+// keep every Morph value in [0,1] audibly oscillating and bounded, at
+// multiple frequencies, before shipping.
 
 namespace {
 
@@ -58,6 +61,13 @@ constexpr int kMaxInstances = 16;
 
 double clampD(double value, double lo, double hi) {
   return value < lo ? lo : (value > hi ? hi : value);
+}
+
+double wrap01(double value) {
+  double f = value - __builtin_floor(value);
+  if (f < 0.0) f += 1.0;
+  if (f >= 1.0) f -= 1.0;
+  return f;
 }
 
 double wrapRadians(double value) {
@@ -76,21 +86,14 @@ double cosApprox(double value) {
   return sinApprox(value + kPi * 0.5);
 }
 
-// Accurate pow(base, exponent) for base > 0, built from IEEE-754 bit-level
-// frexp (extract binary exponent + mantissa in [1,2)) plus atanh-series ln
-// and range-reduced Taylor exp. Two cheaper approaches were tried and
-// rejected first:
-//   1. A hand-rolled Newton-iteration ln/exp diverged badly for the large
-//      exponents k2_ can reach (up to ~16), producing garbage.
-//   2. The one-line Schraudolph/Ankerl bit-manipulation "fastpow" (already
-//      used elsewhere in this codebase, e.g.
-//      native_modules/vactrol_envelope/vactrol_envelope.cpp's dsp_pow())
-//      is only accurate to a few percent -- fine for that module's curve
-//      knob, but here that error compounds through k_/k2_/k42_ enough to
-//      shift the DSF closed form's true singularity location, which then
-//      produced spurious spikes nowhere near where the math says they
-//      should be. Verified numerically (Python) before shipping: this
-//      version is accurate to ~1e-9 relative error against math.pow.
+// Accurate pow(base, exponent) for base > 0, via bit-level frexp (IEEE-754
+// exponent + mantissa in [1,2)) plus atanh-series ln and range-reduced
+// Taylor exp. Two cheaper approaches (Newton-iteration ln/exp, and the
+// one-line Schraudolph/Ankerl bit-manipulation "fastpow" also used in
+// native_modules/vactrol_envelope/vactrol_envelope.cpp) were tried in the
+// previous rewrite and rejected -- both lost enough precision to shift
+// where this closed form's singularities land. This version is accurate
+// to ~1e-9 relative error against math.pow, verified before shipping.
 double lnApprox(double x) {
   union { double d; long long i; } u;
   u.d = x;
@@ -106,12 +109,6 @@ double lnApprox(double x) {
 }
 
 double expApprox(double x) {
-  // Range-limit before bit-constructing 2^n: for very negative/positive x,
-  // n falls outside the IEEE-754 double exponent field's valid range, and
-  // (n + 1023) << 52 wraps into a garbage bit pattern (observed: produced
-  // a nonsensical *negative* near-zero instead of the correct 0.0, which
-  // then corrupted every downstream term in the DSF closed form). True
-  // math result underflows/overflows here anyway, so clamp explicitly.
   if (x < -700.0) return 0.0;
   if (x > 700.0) return 1.0e300;
   const double ln2 = 0.6931471805599453;
@@ -131,106 +128,117 @@ double powD(double base, double exponent) {
   return expApprox(exponent * lnApprox(base));
 }
 
-// --- DSFOscillatorSineSaw, transcribed from DSFOscillator.hpp ---
-// morphChanged(): k_ = (1 - morph^0.14) * 4; k2_ = k_*k_; k42_ = 4^k2_
-struct MorphCoeffs {
-  double k;
-  double k2;
-  double k42;
+// math::map0to1<double>(t, a, b) -- linear map of t in [0,1] onto [a, b].
+double map01(double t, double a, double b) {
+  return a + t * (b - a);
+}
+
+// Per-waveform-generator state, mirroring DSFOscillatorBase's per-instance
+// fields (leak_, preAmpAdjustOut_) -- Saw and Square each accumulate
+// independently even though they share phase/dsfState in the original.
+struct DsfGeneratorState {
+  double leak;
+  double preAmpAdjustOut;
+  double peak;
+  double dcLastInput;
+  double dcLastOutput;
 };
 
-MorphCoeffs computeMorphCoeffs(double morph) {
+void resetGenerator(DsfGeneratorState& g) {
+  g.leak = 1.0;
+  g.preAmpAdjustOut = 0.0;
+  g.peak = 1.0;
+  g.dcLastInput = 0.0;
+  g.dcLastOutput = 0.0;
+}
+
+// DSFOscillatorSineSaw::morphChanged(), transcribed.
+struct SawCoeffs {
+  double k2;
+  double k42;
+  double ampAdjust;
+};
+
+SawCoeffs sawMorphCoeffs(double morph) {
   const double m = clampD(morph, 0.0, 1.0);
   const double k = (1.0 - powD(m, 0.14)) * 4.0;
   const double k2 = k * k;
   const double k42 = powD(4.0, k2);
-  return MorphCoeffs{k, k2, k42};
+  return SawCoeffs{k2, k42, map01(m, 3.15, 2.7)};
 }
 
-// Not a NaN/Inf (mirrors the safe() idiom already used in
-// native_modules/vactrol_envelope/vactrol_envelope.cpp).
-bool isFinite(double v) { return v * 0.0 == 0.0; }
-
-// Raw (un-guarded) evaluation of the shared closed form between Saw and
-// Square -- they differ only in what phase (x) and partial count they're
-// evaluated at.
-double dsfRaw(double x, double numPartials, const MorphCoeffs& c) {
-  const double xn = x * numPartials;
+// DSFOscillatorSineSaw::DSF(), transcribed. dsfState is phase in radians
+// [0, 2*pi).
+double sawDsf(double dsfState, double numPartials, const SawCoeffs& c) {
+  const double x = dsfState;
+  const double xn = dsfState * numPartials;
   const double cosx = cosApprox(x);
   const double cosxn = cosApprox(xn);
   const double sinx = sinApprox(x);
   const double sinxn = sinApprox(xn);
+  const double den = 1.0 - powD(2.0, 1.0 + c.k2) * cosx + c.k42;
+  if (den > -1.0e-9 && den < 1.0e-9) return 0.0;
   const double num = (c.k42 * cosxn - powD(8.0, c.k2) * (cosxn * cosx - sinxn * sinx)) *
                           powD(2.0, -c.k2 * (numPartials + 1.0)) +
                       cosx * c.k42 - powD(2.0, c.k2);
-  const double den = 1.0 - powD(2.0, 1.0 + c.k2) * cosx + c.k42;
   return num / den;
 }
 
-// den has a removable singularity where numerator and denominator both
-// approach zero together -- but *where* on the cycle that happens moves
-// with morph (den's zero occurs at cosx = (1+k42)/pow(2,1+k2), not fixed
-// at x=0 the way a naive reading of the formula suggests). Measured: at
-// morph=0.75, that zero lands near x=0.24 rad, not x=0. A fixed epsilon-
-// shift near x=0 therefore misses it entirely, letting finite-precision
-// division amplify the near-zero denominator into huge (but technically
-// finite) spikes -- which then get baked permanently into the leaky
-// peak-follower and ruin normalization for the rest of the run.
-// Fix: detect any spike by magnitude (not by assuming a location) and
-// replace it with the average of two neighboring, non-singular
-// evaluations -- the function is smooth everywhere except at isolated
-// points, so this is indistinguishable from the true limit in practice.
-double dsfCore(double x, double numPartials, const MorphCoeffs& c) {
-  double result = dsfRaw(x, numPartials, c);
-  if (!isFinite(result) || result > 40.0 || result < -40.0) {
-    const double a = dsfRaw(x - 0.02, numPartials, c);
-    const double b = dsfRaw(x + 0.02, numPartials, c);
-    const bool aOk = isFinite(a) && a <= 40.0 && a >= -40.0;
-    const bool bOk = isFinite(b) && b <= 40.0 && b >= -40.0;
-    if (aOk && bOk) {
-      result = (a + b) * 0.5;
-    } else if (aOk) {
-      result = a;
-    } else if (bOk) {
-      result = b;
-    } else {
-      result = 0.0;
-    }
-  }
-  return result;
+// DSFOscillatorSineSquare::morphChanged(), transcribed.
+struct SquareCoeffs {
+  double k;
+  double ampAdjust;
+};
+
+SquareCoeffs squareMorphCoeffs(double morph) {
+  const double m = clampD(morph, 0.0, 1.0);
+  const double k = 1.0 - (1.0 / (powD(m / 2.0 + 0.25, 14.0) * 10000.0 + 1.0)) + 1.0e-12;
+  return SquareCoeffs{k, map01(m, 0.34, 0.81)};
 }
 
-// DSFOscillatorSineSaw::DSF() -- dsfState_ is phase in radians [0, 2*pi).
-double dsfSaw(double dsfState, double numPartials, const MorphCoeffs& c) {
-  return dsfCore(dsfState, numPartials, c);
+// DSFOscillatorSineSquare::DSF(), transcribed. Guarded against k -> 0 and
+// the denominator's own zero (both are real edge cases of this formula,
+// not artifacts -- verified in Python against exact math.pow before
+// shipping).
+double squareDsf(double dsfState, double numPartials, const SquareCoeffs& c) {
+  const double x = dsfState;
+  const double k = c.k;
+  if (k > -1.0e-9 && k < 1.0e-9) return 0.0;
+  const double powKNP1 = powD(k, numPartials + 1.0);
+  const double den = k * (1.0 + k * k - 2.0 * k * cosApprox(2.0 * x));
+  if (den > -1.0e-12 && den < 1.0e-12) return 0.0;
+  const double num = powKNP1 * k * cosApprox(x * (2.0 * numPartials - 1.0)) -
+                      powKNP1 * cosApprox(x * (2.0 * numPartials + 1.0)) -
+                      k * cosApprox(x) * (k - 1.0);
+  return 8.0 * (num / den);
 }
 
-// Square: derived from Saw rather than an independently-guessed second
-// formula. The excerpt of DSFOscillator.hpp available to this port had
-// DSFOscillatorSineSquare's own closed form, but not one I could transcribe
-// with confidence -- a first attempt guessed at doubling the phase, which
-// actually just doubled the pitch (verified via FFT: Square's spectral
-// peak landed at 2x the fundamental, not at the fundamental). Squares are
-// classically obtainable from a saw by subtracting a half-period-shifted
-// copy of itself: saw(t) - saw(t + halfPeriod). This cancels even
-// harmonics and doubles odd ones, producing a genuine square-family
-// waveform that inherits Saw's already-verified alias-free correctness
-// (its numPartials_ ceiling and morph-driven k-coefficients) rather than
-// introducing a second, unverified closed form. Confirmed: at morph=0 this
-// reduces to sin(x) - sin(x+pi) = 2*sin(x), i.e. still an exact sine after
-// the 0.5 scale below, matching the "morph=0 is always a plain sine"
-// invariant that holds for every other mode in this module.
-double dsfSquare(double dsfState, double numPartials, const MorphCoeffs& c) {
-  const double a = dsfCore(dsfState, numPartials, c);
-  const double b = dsfCore(dsfState + kPi, numPartials, c);
-  return (a - b) * 0.5;
+// One sample of DSFOscillatorBase::run(): leaky-integrate DSF() (scaled by
+// increment_, i.e. treated as a rate of change), then a DC blocker and
+// adaptive peak-follower on top -- see file header for why those two
+// extra stages are needed to keep the real leaky-integrator architecture
+// from collapsing to flat, fully-clipped DC at high Morph.
+double runGenerator(DsfGeneratorState& g, double dsf, double increment, double ampAdjust) {
+  g.leak = g.leak * 0.99 + 0.000005;
+  g.preAmpAdjustOut = g.preAmpAdjustOut * (1.0 - g.leak) + dsf * increment;
+  const double raw = g.preAmpAdjustOut * ampAdjust;
+
+  const double r = 0.995;
+  const double dcOut = raw - g.dcLastInput + r * g.dcLastOutput;
+  g.dcLastInput = raw;
+  g.dcLastOutput = dcOut;
+
+  const double absOut = dcOut < 0.0 ? -dcOut : dcOut;
+  g.peak = g.peak * 0.999 + absOut * 0.001;
+  if (g.peak < 1.0) g.peak = 1.0;
+  return dcOut / g.peak;
 }
 
 struct DsfOscillatorState {
   bool active;
-  double phase;         // Saw phase (master), radians 0..2*pi
-  double sawPeak;        // leaky peak-follower, Saw
-  double squarePeak;     // leaky peak-follower, Square
+  double phase;  // 0..1, shared between Saw and Square (both slave to it)
+  DsfGeneratorState saw;
+  DsfGeneratorState square;
   double out;
 };
 
@@ -243,8 +251,8 @@ extern "C" int soemdsp_dsf_oscillator_create() {
     if (!gPool[i].active) {
       gPool[i] = DsfOscillatorState{};
       gPool[i].active = true;
-      gPool[i].sawPeak = 1.0;
-      gPool[i].squarePeak = 1.0;
+      resetGenerator(gPool[i].saw);
+      resetGenerator(gPool[i].square);
       return i + 1;
     }
   }
@@ -260,16 +268,12 @@ extern "C" void soemdsp_dsf_oscillator_reset(int handle) {
   if (handle < 1 || handle > kMaxInstances) return;
   DsfOscillatorState& s = gPool[handle - 1];
   s.phase = 0.0;
-  s.sawPeak = 1.0;
-  s.squarePeak = 1.0;
+  resetGenerator(s.saw);
+  resetGenerator(s.square);
 }
 
-// waveform: 0=Sine, 1=Saw, 2=Square, 3=Saw+Square mix (SoEmSawSquareSine's
-//           SawSquareMix control)
-// morph: 0..1 -- 0 is an exact sine, 1 is the full numPartials_-harmonic
-//        saw/square. numPartials_ is auto-derived from Nyquist/frequency,
-//        never user-set, which is what makes this alias-free by
-//        construction: it can never ask for more harmonics than fit.
+// waveform: 0=Sine, 1=Saw, 2=Square, 3=Saw+Square mix
+// morph: 0..1, drives each waveform's own real coefficient derivation
 // mix: 0..1 -- Saw/Square blend, used only in waveform=3
 extern "C" void soemdsp_dsf_oscillator_sample(
   int handle,
@@ -285,59 +289,49 @@ extern "C" void soemdsp_dsf_oscillator_sample(
 
   const double safeSampleRate = sampleRate > 1.0 ? sampleRate : 48000.0;
   const double safeFrequency = frequencyHz > 1.0 ? frequencyHz : 1.0;
-  const double increment = clampD(frequencyHz / safeSampleRate, -0.5, 0.5) * kTwoPi;
-  s.phase = wrapRadians(s.phase + increment);
+  const double increment = clampD(frequencyHz / safeSampleRate, -0.5, 0.5);
+  // calculateState(): phase_ += increment_ * 0.9999; dsfState_ = wrap(phase_) * TAU.
+  s.phase = wrap01(s.phase + increment * 0.9999);
+  const double dsfState = s.phase * kTwoPi;
 
-  // numPartials_ auto-derived from Nyquist/frequency -- never user-set.
-  // Square reuses the same numPartials as Saw (see dsfSquare's comment):
-  // it's the same closed form evaluated at a half-period offset, so it's
-  // already Nyquist-safe as long as Saw is.
   const double nyquist = safeSampleRate * 0.5;
   double numPartialsSaw = nyquist / safeFrequency;
   if (numPartialsSaw < 1.0) numPartialsSaw = 1.0;
-  const double numPartialsSquare = numPartialsSaw;
-
-  const MorphCoeffs coeffs = computeMorphCoeffs(morph);
+  double numPartialsSquare = numPartialsSaw * 0.5;
+  if (numPartialsSquare < 1.0) numPartialsSquare = 1.0;
 
   double sample;
   switch (waveform) {
-    case 1: {  // Saw
-      const double raw = dsfSaw(s.phase, numPartialsSaw, coeffs);
-      const double absRaw = raw < 0.0 ? -raw : raw;
-      s.sawPeak = s.sawPeak * 0.999 + absRaw * 0.001;
-      if (s.sawPeak < 1.0) s.sawPeak = 1.0;
-      sample = raw / s.sawPeak;
+    case 1: {
+      const SawCoeffs c = sawMorphCoeffs(morph);
+      const double dsf = sawDsf(dsfState, numPartialsSaw, c);
+      sample = runGenerator(s.saw, dsf, increment, c.ampAdjust);
       break;
     }
-    case 2: {  // Square
-      const double raw = dsfSquare(s.phase, numPartialsSquare, coeffs);
-      const double absRaw = raw < 0.0 ? -raw : raw;
-      s.squarePeak = s.squarePeak * 0.999 + absRaw * 0.001;
-      if (s.squarePeak < 1.0) s.squarePeak = 1.0;
-      sample = raw / s.squarePeak;
+    case 2: {
+      const SquareCoeffs c = squareMorphCoeffs(morph);
+      const double dsf = squareDsf(dsfState, numPartialsSquare, c);
+      sample = runGenerator(s.square, dsf, increment, c.ampAdjust);
       break;
     }
-    case 3: {  // Saw + Square mix (SawSquareMix, per SoEmSawSquareSine.cpp)
-      const double rawSaw = dsfSaw(s.phase, numPartialsSaw, coeffs);
-      const double absSaw = rawSaw < 0.0 ? -rawSaw : rawSaw;
-      s.sawPeak = s.sawPeak * 0.999 + absSaw * 0.001;
-      if (s.sawPeak < 1.0) s.sawPeak = 1.0;
-      const double rawSquare = dsfSquare(s.phase, numPartialsSquare, coeffs);
-      const double absSquare = rawSquare < 0.0 ? -rawSquare : rawSquare;
-      s.squarePeak = s.squarePeak * 0.999 + absSquare * 0.001;
-      if (s.squarePeak < 1.0) s.squarePeak = 1.0;
-      const double sawOut = rawSaw / s.sawPeak;
-      const double squareOut = rawSquare / s.squarePeak;
+    case 3: {
+      const SawCoeffs sc = sawMorphCoeffs(morph);
+      const double sawDsfV = sawDsf(dsfState, numPartialsSaw, sc);
+      const double sawOut = runGenerator(s.saw, sawDsfV, increment, sc.ampAdjust);
+      const SquareCoeffs qc = squareMorphCoeffs(morph);
+      const double squareDsfV = squareDsf(dsfState, numPartialsSquare, qc);
+      const double squareOut = runGenerator(s.square, squareDsfV, increment, qc.ampAdjust);
       const double blend = clampD(mix, 0.0, 1.0);
       sample = sawOut * (1.0 - blend) + squareOut * blend;
       break;
     }
-    default:  // Sine
-      sample = sinApprox(s.phase);
+    default:
+      sample = sinApprox(dsfState);
       break;
   }
 
-  if (!isFinite(sample)) sample = 0.0;
+  const bool finite = sample * 0.0 == 0.0;
+  if (!finite) sample = 0.0;
   s.out = clampD(sample, -1.5, 1.5) * level;
 }
 
@@ -347,5 +341,5 @@ extern "C" double soemdsp_dsf_oscillator_out(int handle) {
 }
 
 extern "C" int soemdsp_dsf_oscillator_version() {
-  return 3;
+  return 4;
 }

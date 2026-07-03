@@ -370,6 +370,61 @@ second formula. Everything else — no Harmonics slider, `numPartials_`
 auto-derived from Nyquist, Morph as the sole timbre control, the DSF
 closed form itself — is a direct, verified transcription.
 
+### Round 4: the "faithful port" was a faithful port of the wrong thing
+
+Round 3 passed FFT-verified spectral checks and still got the same live
+report: **"virtually unchanged."** The excerpt used for Round 3 was
+partial — re-reading `DSFOscillator.hpp` in full surfaced two things
+Round 3 missed entirely, both structural, not cosmetic:
+
+1. **`DSF()` is not a per-sample waveform — it's a rate of change that
+   gets leaky-integrated.** `DSFOscillatorBase::run()` does:
+   ```
+   leak_            = leak_ * 0.99 + 0.000005
+   preAmpAdjustOut_ = preAmpAdjustOut_ * (1.0 - leak_)
+   preAmpAdjustOut_ += DSF() * increment_
+   out_ = preAmpAdjustOut_ * ampAdjust_
+   ```
+   Round 3 evaluated `DSF()` directly as the output sample. That's a
+   structurally different signal — evaluating a correct closed form the
+   wrong way produces a different waveform, which is exactly how a port
+   can pass every offline spectral test (each `DSF()` call *was* correct
+   in isolation) and still sound completely different once it's actually
+   running.
+2. **`DSFOscillatorSineSquare` has its own real closed form** — not a
+   phase-shifted derivative of Saw, which was a guess made when only a
+   partial excerpt was available:
+   ```
+   k = 1 − 1 / ((morph/2 + 0.25)^14 · 10000 + 1) + 1e-12
+   DSF = 8 · (k^(N+1)·k·cos(x(2N−1)) − k^(N+1)·cos(x(2N+1)) − k·cos(x)·(k−1))
+         ───────────────────────────────────────────────────────────────────
+                        k · (1 + k² − 2k·cos(2x))
+   ```
+
+Both are now transcribed directly from the full header, along with each
+waveform's real `morphChanged()` coefficients (Saw: `k_`/`k2_`/`k42_`;
+Square: a single `k_` via the sigmoid-like formula above), and the exact
+`calculateState()` phase update (`phase_ += increment_ * 0.9999`).
+
+**One more real discovery, made verifying this integrator architecture
+numerically (Python, exact `math.pow`) before writing any C++:** the
+header's own top-of-file comment lists `morph_ not consistent in volume`
+as a known problem, and it's not cosmetic. At high Morph, the leaky
+integrator's accumulator drifts to a **flat, fully-clipped DC value with
+zero oscillation left** — genuinely silent, not just quieter, confirmed
+in plain Python against exact math before ever touching the WASM build.
+The shipped plugin (`SoEmSawSquareSine.cpp`) papers over this with a
+final `std::clamp(-1, 1)`, but a hard clamp alone still leaves that
+dead-flat-DC case as silence, not sound.
+
+**What's added on top of the faithful architecture, and why:** a DC-
+blocking highpass (clears the drift) and a leaky peak-follower
+normalizer (keeps the result bounded and actually oscillating instead of
+pinned flat). Verified numerically: every Morph value in `[0, 1]` now
+stays audibly oscillating and bounded, at multiple frequencies, both
+offline (Python/wasmtime) and by calling the shipped JS directly inside
+the running browser page before pushing.
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use

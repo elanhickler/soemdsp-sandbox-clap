@@ -16885,6 +16885,12 @@ def require_readme_scheduler_contract() -> None:
         "k42",
         "log2/exp2-based",
         "removable singularity",
+        "Round 4: the \"faithful port\" was a faithful port of the wrong thing",
+        "is not a per-sample waveform",
+        "leaky-integrated",
+        "morph_ not consistent in volume",
+        "flat, fully-clipped DC value",
+        "has its own real closed form",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [
