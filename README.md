@@ -528,6 +528,51 @@ Verified Blend's output is now identical across PWM values 0.1 and 0.9
 (confirming the decoupling), bounded across the full Blend range, and
 zero NaN across the full waveform sweep.
 
+### Round 9: fixed-retention accumulators were distorting at low/mid frequencies
+
+Two more live reports: **"triangle is square waves"**, and separately,
+DC offset and waveform distortion "all over the place" at some
+frequencies, on Saw/Square/Blend too.
+
+Root cause, found by looking at actual per-sample values across a cycle
+rather than just bounds/NaN checks: every accumulator in this module
+(Saw, Square, Blend, and Triangle's second stage) used a **fixed**
+retention constant (0.999, ~1000-sample memory; 0.995 for Triangle,
+~200-sample memory). That's far shorter than the oscillation *period*
+at low frequencies — 2400 samples at 20 Hz, 960 at 50 Hz. An accumulator
+whose memory is shorter than the period it's supposed to be ramping
+across doesn't complete the ramp — it saturates to a flat plateau
+mid-cycle, then snaps back. For Triangle specifically, that's exactly a
+rounded square-wave shape, not a triangle. Confirmed in plain Python
+(rendering full-cycle values, not just checking bounds) that this
+persists even after full settling — a structural bug, not a transient.
+
+**Fix:** every accumulator's retention is now computed from the current
+frequency (`exp(-0.23026 * dt)`, giving ~20 periods of memory decayed to
+~1%) instead of a fixed per-sample constant, so an accumulator's memory
+always scales with the period it needs to span.
+
+**A second, subtler bug surfaced getting this to actually work in the
+native build (not the JS mirror, which uses exact `Math.sin`):** the
+higher retention this fix requires at low frequencies (~0.9999 at 20 Hz)
+raises the leaky integrator's steady-state gain into the tens of
+thousands. At that gain, the hand-rolled `sinApprox`'s existing ~2e-5
+error (fine under the old, lower-gain retention) amplified into visible
+DC drift and hard clipping. Reproduced this exactly in plain Python
+(swapping only the sin implementation, otherwise identical code) before
+touching the WASM build, confirming it wasn't a precision artifact
+specific to WASM. Fixed by extending the Taylor series to 10 terms
+(error ~5e-10) and switching the range reduction from an iterative
+while-loop to a single-shot `round-and-subtract`, for both accuracy and
+robustness at the very large arguments low-frequency, high-harmonic-
+count Saw evaluations produce.
+
+**Verified, not assumed:** rendered full-cycle waveform shapes (not just
+bounds) at 50, 220, and 2000 Hz for Triangle, confirming clean symmetric
+ramps at every frequency; bounds/DC-mean check across Saw, Square,
+Triangle, and Blend from 20 Hz to 18 kHz, zero flagged issues (previously
+6 failures, all at 20 Hz, including hard clipping).
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use

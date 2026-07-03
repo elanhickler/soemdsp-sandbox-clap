@@ -14,9 +14,22 @@
 // deliberately decoupled from the PWM slider -- reported live as sounding
 // "triangle-like" when it inherited PWM's variable duty cycle; simplified
 // back to always crossfading two cleanly-shaped waveforms instead.
+//
+// EIGHTH REWRITE: every accumulator's retention now scales with the
+// oscillation period (~20 periods of memory) instead of a fixed per-
+// sample constant -- a fixed retention was far shorter than the period
+// at low frequencies, so accumulators forgot mid-ramp and produced
+// distorted, asymmetric shapes (Triangle sounding like a square wave;
+// DC asymmetry in Saw/Square/Blend). See dsf_oscillator.cpp for the full
+// story.
 
 function createNodeGraphDsfOscillatorState() {
   return { t: 0, sawAcc: 0, sqAcc: 0, blendSqAcc: 0, triAcc: 0, triPeak: 1 };
+}
+
+// ~20 periods of memory, decayed to ~1%.
+function nodeGraphDsfAdaptiveRetention(dt) {
+  return Math.exp(-0.23026 * dt);
 }
 
 // pureSawEng(t, n), transcribed and simplified directly from "Extended DSF
@@ -62,26 +75,27 @@ function nodeGraphDsfOscillatorSample(state, options = {}) {
     const nMax = Math.max(1, Math.floor(nyquist / safeFrequency));
     state.t = nodeGraphDsfWrap01(state.t + dt * 0.9999);
 
+    const retention = nodeGraphDsfAdaptiveRetention(dt);
     const rawSaw = nodeGraphDsfPureSawEngMorphed(state.t, nMax, options.morph);
-    state.sawAcc = state.sawAcc * 0.999 + rawSaw * dt;
+    state.sawAcc = state.sawAcc * retention + rawSaw * dt;
 
     if (waveform === 1) {
       sample = state.sawAcc;
     } else if (waveform === 4) {
       const rawBlendSquare = rawSaw - nodeGraphDsfPureSawEngMorphed(nodeGraphDsfWrap01(state.t - 0.5), nMax, options.morph);
-      state.blendSqAcc = state.blendSqAcc * 0.999 + rawBlendSquare * dt;
+      state.blendSqAcc = state.blendSqAcc * retention + rawBlendSquare * dt;
       const blend = clampNodeSliderValue(Number(options.blend) ?? 0.5, 0, 1);
       sample = state.sawAcc * (1 - blend) + state.blendSqAcc * blend;
     } else {
       const pw = clampNodeSliderValue(Number(options.pulseWidth) ?? 0.5, 0.01, 0.99);
       const rawShiftedSaw = nodeGraphDsfPureSawEngMorphed(nodeGraphDsfWrap01(state.t - pw), nMax, options.morph);
       const rawSquare = rawSaw - rawShiftedSaw;
-      state.sqAcc = state.sqAcc * 0.999 + rawSquare * dt;
+      state.sqAcc = state.sqAcc * retention + rawSquare * dt;
 
       if (waveform === 2) {
         sample = state.sqAcc;
       } else {
-        state.triAcc = state.triAcc * 0.995 + state.sqAcc * dt * 4;
+        state.triAcc = state.triAcc * retention + state.sqAcc * dt * 4;
         state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(state.triAcc) * 0.001);
         sample = state.triAcc / state.triPeak;
       }

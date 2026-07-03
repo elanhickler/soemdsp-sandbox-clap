@@ -6416,6 +6416,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.dsfPureSawEng(t, lowN) * (1 - frac) + this.dsfPureSawEng(t, highN) * frac;
   }
 
+  // ~20 periods of memory, decayed to ~1%. Every accumulator's retention
+  // scales with the oscillation period instead of a fixed per-sample
+  // constant -- a fixed retention was far shorter than the period at low
+  // frequencies, so accumulators forgot mid-ramp and produced distorted,
+  // asymmetric shapes (Triangle sounding like a square wave; DC
+  // asymmetry in Saw/Square/Blend). See dsf_oscillator.cpp for the full
+  // story.
+  dsfAdaptiveRetention(dt) {
+    return Math.exp(-0.23026 * dt);
+  }
+
   // waveform: 0=Sine, 1=Saw, 2=Square (PWM), 3=Triangle, 4=Saw/Square Blend.
   // Square: saw(t) - saw(t - pulseWidth) -- alias-free since it's a
   // subtraction of phase-shifted copies of an already-verified Saw.
@@ -6438,8 +6449,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       const nMax = Math.max(1, Math.floor(nyquist / safeFrequency));
       state.t = this.wrapValue(state.t + dt * 0.9999, 0, 1);
 
+      const retention = this.dsfAdaptiveRetention(dt);
       const rawSaw = this.dsfPureSawEngMorphed(state.t, nMax, options.morph);
-      state.sawAcc = state.sawAcc * 0.999 + rawSaw * dt;
+      state.sawAcc = state.sawAcc * retention + rawSaw * dt;
 
       if (waveform === 1) {
         sample = state.sawAcc;
@@ -6450,19 +6462,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         // cycle; simplified back to always crossfading two cleanly-
         // shaped waveforms instead.
         const rawBlendSquare = rawSaw - this.dsfPureSawEngMorphed(this.wrapValue(state.t - 0.5, 0, 1), nMax, options.morph);
-        state.blendSqAcc = state.blendSqAcc * 0.999 + rawBlendSquare * dt;
+        state.blendSqAcc = state.blendSqAcc * retention + rawBlendSquare * dt;
         const blend = this.clampValue(Number(options.blend) ?? 0.5, 0, 1);
         sample = state.sawAcc * (1 - blend) + state.blendSqAcc * blend;
       } else {
         const pw = this.clampValue(Number(options.pulseWidth) ?? 0.5, 0.01, 0.99);
         const rawShiftedSaw = this.dsfPureSawEngMorphed(this.wrapValue(state.t - pw, 0, 1), nMax, options.morph);
         const rawSquare = rawSaw - rawShiftedSaw;
-        state.sqAcc = state.sqAcc * 0.999 + rawSquare * dt;
+        state.sqAcc = state.sqAcc * retention + rawSquare * dt;
 
         if (waveform === 2) {
           sample = state.sqAcc;
         } else {
-          state.triAcc = state.triAcc * 0.995 + state.sqAcc * dt * 4;
+          state.triAcc = state.triAcc * retention + state.sqAcc * dt * 4;
           state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(state.triAcc) * 0.001);
           sample = state.triAcc / state.triPeak;
         }

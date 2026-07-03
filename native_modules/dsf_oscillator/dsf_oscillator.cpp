@@ -50,6 +50,27 @@
 //
 // Blend: a plain crossfade between the (already correct, independently
 // verified) Saw and Square outputs -- no new synthesis math needed.
+//
+// EIGHTH REWRITE: two real bugs reported live, both fixed by re-examining
+// actual signal shapes rather than just bounds/NaN checks:
+// 1. Triangle sounded like a square wave. Its second-stage leaky
+//    integrator used a fixed retention (0.995, ~200-sample memory) far
+//    shorter than the oscillation period at low/mid frequencies (e.g.
+//    960 samples at 50 Hz), so the accumulator saturated to a flat
+//    plateau mid-ramp instead of completing a linear ramp -- literally a
+//    rounded square shape, not a triangle. Same root cause as bug 2.
+// 2. Blend and Saw/Square showed real DC asymmetry and shape distortion
+//    at some frequencies ("all over the place"). Root cause: every
+//    accumulator (Saw, Square, Blend) used a fixed retention (0.999,
+//    ~1000-sample memory), also too short relative to the period at low
+//    frequencies (2400+ samples at 20 Hz) -- confirmed in plain Python
+//    that the distortion persists even after full settling, so it's a
+//    structural bug, not a startup transient.
+// Fix: every accumulator's retention now scales with the oscillation
+// period (~20 periods of memory, decayed to ~1%), instead of a fixed
+// per-sample constant. Verified numerically (Python) that this keeps
+// every waveform's shape and DC symmetry consistent from 20 Hz to
+// 18 kHz, where the fixed-retention version was measurably distorted.
 
 namespace {
 
@@ -66,24 +87,44 @@ double wrap01(double value) {
   return f;
 }
 
+// Single-shot range reduction (round to nearest multiple of 2*pi and
+// subtract) instead of a while-loop of repeated subtraction -- avoids
+// hundreds of sequential float subtractions (needed at N in the
+// thousands, i.e. very low frequencies) that could otherwise accumulate
+// rounding error. Verified numerically (Python) this matches the
+// while-loop version to ~6e-11 -- not itself the source of the low-
+// frequency bug below, but a more robust way to reduce a huge argument
+// in one step rather than many.
 double wrapRadians(double value) {
   const double twoPi = kPi * 2.0;
-  while (value > kPi) value -= twoPi;
-  while (value < -kPi) value += twoPi;
-  return value;
+  return value - twoPi * __builtin_floor(value / twoPi + 0.5);
 }
 
-// A truncated-at-x^8 Taylor series (5 terms) has ~7e-3 absolute error near
-// x=pi -- fine in isolation, but this oscillator's leaky integrator has
-// near-unity gain (retention 0.999, steady-state gain ~1000), so that
-// small a bias compounds into visible drift over a few thousand samples.
-// Verified numerically (Python) before shipping: this 8-term series holds
-// error under ~2e-5 across the full range this formula needs, which
-// keeps the integrator's output bounded instead of drifting.
+// A truncated-at-x^12 Taylor series (7 terms) has ~2e-5 absolute error
+// near x=pi. That was fine for the previous fixed-retention (0.999,
+// ~1000-sample memory, gain ~1000) integrator, but the new frequency-
+// adaptive retention (see adaptiveRetention() below) needs retention
+// values much closer to 1 at low frequencies -- e.g. ~0.9999 at 20 Hz,
+// gain ~10000+ -- and at that gain, the same ~2e-5 sin error amplified
+// into visible DC drift and hard clipping. Reproduced this exactly in
+// plain Python (approximate sin vs. exact math.sin, otherwise identical
+// code) before touching this file, confirming it wasn't a WASM-only
+// artifact. Extended to a 10-term series (error ~5e-10) to give enough
+// headroom for the higher gain the adaptive retention now requires.
 double sinApprox(double value) {
   const double x = wrapRadians(value);
   const double x2 = x * x;
-  return x * (1.0 + x2 * (-1.0 / 6.0 + x2 * (1.0 / 120.0 + x2 * (-1.0 / 5040.0 + x2 * (1.0 / 362880.0 + x2 * (-1.0 / 39916800.0 + x2 * (1.0 / 6227020800.0)))))));
+  double result = -1.0 / 121645100408832000.0;
+  result = 1.0 / 355687428096000.0 + x2 * result;
+  result = -1.0 / 1307674368000.0 + x2 * result;
+  result = 1.0 / 6227020800.0 + x2 * result;
+  result = -1.0 / 39916800.0 + x2 * result;
+  result = 1.0 / 362880.0 + x2 * result;
+  result = -1.0 / 5040.0 + x2 * result;
+  result = 1.0 / 120.0 + x2 * result;
+  result = -1.0 / 6.0 + x2 * result;
+  result = 1.0 + x2 * result;
+  return x * result;
 }
 
 // pureSawEng(t, n), transcribed and simplified directly from "Extended DSF
@@ -96,6 +137,27 @@ double pureSawEng(double t, int n) {
     return static_cast<double>(2 * n + 1) - 1.0;
   }
   return sinApprox(kPi * t * static_cast<double>(2 * n + 1)) / denom - 1.0;
+}
+
+// exp(x) for small negative x (here always in roughly [-0.12, 0], since
+// dt = frequency/sampleRate is bounded and scaled down before use) -- a
+// short Taylor series around 0 is accurate to ~4e-9 over that range, no
+// range reduction needed. Freestanding WASM has no libm exp().
+double expSmallApprox(double x) {
+  return 1.0 + x * (1.0 + x * (0.5 + x * (1.0 / 6.0 + x * (1.0 / 24.0 + x * (1.0 / 120.0)))));
+}
+
+// Every leaky-integrator accumulator below needs its retention scaled to
+// the oscillation period, not a fixed per-sample constant. A fixed
+// retention of 0.999 (~1000-sample memory) is far shorter than the
+// period at low frequencies (2400+ samples at 20 Hz), so the accumulator
+// forgets mid-ramp and produces a distorted, asymmetric shape instead of
+// a clean waveform -- verified numerically (Python) as the real cause of
+// reported low-frequency distortion, not a WASM-only artifact. This gives
+// ~20 periods of memory (decayed to ~1%) at any frequency, keeping every
+// waveform's shape and DC symmetry consistent across the audible range.
+double adaptiveRetention(double dt) {
+  return expSmallApprox(-0.23026 * dt);
 }
 
 // Harmonics (0..1): crossfades the harmonic count n from 1 (a single
@@ -196,8 +258,9 @@ extern "C" void soemdsp_dsf_oscillator_sample(
     if (nMax < 1) nMax = 1;
     s.t = wrap01(s.t + dt * 0.9999);
 
+    const double retention = adaptiveRetention(dt);
     const double rawSaw = pureSawEngMorphed(s.t, nMax, morph);
-    s.sawAcc = s.sawAcc * 0.999 + rawSaw * dt;
+    s.sawAcc = s.sawAcc * retention + rawSaw * dt;
 
     if (waveform == 1) {
       sample = s.sawAcc;
@@ -208,19 +271,19 @@ extern "C" void soemdsp_dsf_oscillator_sample(
       // just mixed two cleanly-shaped waveforms rather than inheriting
       // PWM's variable-duty shape.
       const double rawBlendSquare = rawSaw - pureSawEngMorphed(wrap01(s.t - 0.5), nMax, morph);
-      s.blendSqAcc = s.blendSqAcc * 0.999 + rawBlendSquare * dt;
+      s.blendSqAcc = s.blendSqAcc * retention + rawBlendSquare * dt;
       const double b = clampD(blend, 0.0, 1.0);
       sample = s.sawAcc * (1.0 - b) + s.blendSqAcc * b;
     } else {
       const double pw = clampD(pulseWidth, 0.01, 0.99);
       const double rawShiftedSaw = pureSawEngMorphed(wrap01(s.t - pw), nMax, morph);
       const double rawSquare = rawSaw - rawShiftedSaw;
-      s.sqAcc = s.sqAcc * 0.999 + rawSquare * dt;
+      s.sqAcc = s.sqAcc * retention + rawSquare * dt;
 
       if (waveform == 2) {
         sample = s.sqAcc;
       } else {  // waveform == 3: Triangle
-        s.triAcc = s.triAcc * 0.995 + s.sqAcc * dt * 4.0;
+        s.triAcc = s.triAcc * retention + s.sqAcc * dt * 4.0;
         const double absTri = s.triAcc < 0.0 ? -s.triAcc : s.triAcc;
         s.triPeak = s.triPeak * 0.999 + absTri * 0.001;
         if (s.triPeak < 1.0) s.triPeak = 1.0;
@@ -240,5 +303,5 @@ extern "C" double soemdsp_dsf_oscillator_out(int handle) {
 }
 
 extern "C" int soemdsp_dsf_oscillator_version() {
-  return 8;
+  return 9;
 }
