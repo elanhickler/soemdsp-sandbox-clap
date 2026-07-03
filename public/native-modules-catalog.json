@@ -79,6 +79,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "jerobeam_kepler_bouwkamp",
+      "label": "Jerobeam Kepler-Bouwkamp",
+      "targetType": "keplerBouwkamp",
+      "kind": "jerobeam",
+      "source": "native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.cpp",
+      "wasm": "native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.wasm",
+      "wasmUrl": "native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "jerobeam_mushroom",
       "label": "Jerobeam Mushroom",
       "targetType": "mushroom",

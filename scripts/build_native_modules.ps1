@@ -398,3 +398,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\jerobeam_torus\jerobeam_torus.wasm" `
   "$root\native_modules\jerobeam_torus\jerobeam_torus.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbkepler_create" `
+  "-Wl,--export=soemdsp_jbkepler_destroy" `
+  "-Wl,--export=soemdsp_jbkepler_reset" `
+  "-Wl,--export=soemdsp_jbkepler_sample" `
+  "-Wl,--export=soemdsp_jbkepler_x" `
+  "-Wl,--export=soemdsp_jbkepler_y" `
+  "-Wl,--export=soemdsp_jbkepler_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_kepler_bouwkamp\jerobeam_kepler_bouwkamp.wasm" `
+  "$root\native_modules\jerobeam_kepler_bouwkamp\jerobeam_kepler_bouwkamp.cpp"

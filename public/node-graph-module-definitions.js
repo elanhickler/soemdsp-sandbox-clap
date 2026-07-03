@@ -825,6 +825,31 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },
+  keplerBouwkamp: {
+    displayType: "scope2d",
+    displaySignals: [
+      { key: "X", kind: "scalar" },
+      { key: "Y", kind: "scalar" },
+      { key: "X/Y", kind: "xy" },
+    ],
+    displayModes: [
+      { key: "xyBurn", label: "X/Y Burn", renderer: "scope2d", settingsSchema: "scope2d", source: { x: "X", y: "Y" } },
+      { key: "xyTrace", label: "X/Y Trace", renderer: "scope2dTrace", settingsSchema: "scope2dTrace", source: { x: "X", y: "Y" } },
+    ],
+    defaultDisplayMode: "xyBurn",
+    inputs: ["Reset"],
+    outputs: ["X", "Y"],
+    parameters: [
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "8", min: "0", mid: "20", max: "2000", maxDigits: 5, step: "any" },
+      { key: "start", label: "Start", defaultValue: "3", min: "3", mid: "10", max: "20", step: "1" },
+      { key: "length", label: "Length", defaultValue: "1", min: "1", mid: "10", max: "20", step: "1" },
+      { key: "circles", label: "Circles", defaultValue: "0.5", min: "0.0001", mid: "0.5", max: "0.9999", step: "0.0001" },
+      { key: "zoom", label: "Zoom", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "rotation", label: "Rotation", defaultValue: "0", min: "-1", mid: "0", max: "1", step: "0.01" },
+      { key: "tri", label: "Tri", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
   chuaAttractor: {
     displayType: "scope2d",
     displaySignals: [
