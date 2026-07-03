@@ -9430,6 +9430,7 @@ html.soemdsp-hide-ui .status-strip {
   display: block;
   width: 100%;
   height: 100%;
+  image-rendering: pixelated;
 }
 
 .node-phosphor-waveform-display {
@@ -9451,6 +9452,7 @@ html.soemdsp-hide-ui .status-strip {
   height: 100%;
   cursor: grab;
   touch-action: none;
+  image-rendering: pixelated;
 }
 
 .node-phosphor-waveform-canvas.dragging {
@@ -9476,6 +9478,7 @@ html.soemdsp-hide-ui .status-strip {
   height: 100%;
   cursor: crosshair;
   touch-action: none;
+  image-rendering: pixelated;
 }
 
 .node-slider-widget-body {
