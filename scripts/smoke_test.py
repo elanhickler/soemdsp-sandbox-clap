@@ -9748,7 +9748,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphModuleOutputPorts(type)",
         "function nodeGraphParameterOutputPort(typeOrNode, port)",
         "function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch)",
-        "const passthroughTypes = new Set([\"badvalMonitor\", \"bias\", \"chaoticPhaseLockingFilter\", \"cookbookFilter\", \"flowerChildFilter\", \"gain\", \"humanFilter\", \"ladderFilter\", \"passiveFilter\", \"pll\", \"resonatorFilter\", \"reverbEffect\", \"rsmetFilter\", \"sampleHold\", \"slewLimiter\", \"softClipper\", \"speakerProtection\", \"superloveFilter\", \"yellowjacketFilter\"])",
+        "const passthroughTypes = new Set([\"badvalMonitor\", \"bias\", \"chaoticPhaseLockingFilter\", \"cookbookFilter\", \"flowerChildFilter\", \"gain\", \"humanFilter\", \"ladderFilter\", \"papoulisFilter\", \"passiveFilter\", \"pll\", \"resonatorFilter\", \"reverbEffect\", \"rsmetFilter\", \"sampleHold\", \"slewLimiter\", \"softClipper\", \"speakerProtection\", \"superloveFilter\", \"yellowjacketFilter\"])",
         "nodeGraphModuleDefinitions[node?.type]?.visualSink",
         "function nodeGraphVisualSinkActiveInPlan(node, options = {})",
         "return true;",
