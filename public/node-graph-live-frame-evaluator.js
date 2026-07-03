@@ -2940,6 +2940,37 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         X: blubb.x * blubbLevel,
         Y: blubb.y * blubbLevel,
       };
+    } else if (node?.type === "mushroom") {
+      const state = runtime.mushroomStates.get(nodeId) || createNodeGraphMushroomState();
+      runtime.mushroomStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      const mushroom = nodeGraphMushroomSample({
+        apart: read("apart", 0),
+        capRotation: read("capRotation", 0),
+        capStemTransition: read("capStemTransition", 0.1),
+        clusterRotation: read("clusterRotation", 0),
+        clusterRotationSpeed: read("clusterRotationSpeed", 0),
+        density: read("density", 3),
+        frequency: read("frequency", 8),
+        grow: read("grow", 1),
+        head: read("head", 0.6667),
+        numMushrooms: read("numMushrooms", 1),
+        phaseOffset: read("phaseOffset", 0),
+        reset: mixInput(nodeId, "Reset"),
+        sampleRate,
+        sharp: read("sharp", 0),
+        spread: read("spread", 0.5),
+        state,
+        stem: read("stem", 0),
+        stemRotationSpeed: read("stemRotationSpeed", 0),
+        width: read("width", 1),
+        wobble: read("wobble", 0.0625),
+      });
+      const mushroomLevel = read("level", 1);
+      value = {
+        X: mushroom.x * mushroomLevel,
+        Y: mushroom.y * mushroomLevel,
+      };
     } else if (node?.type === "chordMemory") {
       const state = runtime.chordMemoryStates.get(nodeId) || createNodeGraphChordMemoryState();
       runtime.chordMemoryStates.set(nodeId, state);

@@ -68,6 +68,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "jerobeam_mushroom",
+      "label": "Jerobeam Mushroom",
+      "targetType": "mushroom",
+      "kind": "jerobeam",
+      "source": "native_modules/jerobeam_mushroom/jerobeam_mushroom.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_mushroom/jerobeam_mushroom.cpp",
+      "wasm": "native_modules/jerobeam_mushroom/jerobeam_mushroom.wasm",
+      "wasmUrl": "native_modules/jerobeam_mushroom/jerobeam_mushroom.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "jerobeam_wirdo_spiral",
       "label": "Jerobeam WirdoSpiral",
       "targetType": "wirdoSpiral",

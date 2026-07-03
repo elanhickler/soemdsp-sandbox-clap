@@ -165,6 +165,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chuaAttractorStates = new Map();
     this.wirdoSpiralStates = new Map();
     this.blubbStates = new Map();
+    this.mushroomStates = new Map();
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
@@ -662,6 +663,24 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "jerobeam_mushroom" || targetType === "mushroom") {
+        for (const state of this.mushroomStates.values()) {
+          this.destroyMushroomNativeState(state);
+        }
+        this.nativeMushroom = exports;
+        this.nativeMushroomReady = Boolean(
+          this.nativeMushroom?.soemdsp_jbmushroom_create &&
+          this.nativeMushroom?.soemdsp_jbmushroom_sample &&
+          this.nativeMushroom?.soemdsp_jbmushroom_x &&
+          this.nativeMushroom?.soemdsp_jbmushroom_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_mushroom",
+          status: this.nativeMushroomReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "pitch_quantizer" || targetType === "pitchQuantizer") {
         for (const state of this.pitchQuantizerStates.values()) {
           this.destroyPitchQuantizerNativeState(state);
@@ -791,6 +810,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chuaAttractorStates = new Map();
     this.wirdoSpiralStates = new Map();
     this.blubbStates = new Map();
+    this.mushroomStates = new Map();
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
@@ -1034,6 +1054,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "blubb" && !this.blubbStates.has(id)) {
         this.blubbStates.set(id, this.createBlubbState());
       }
+      if (node?.type === "mushroom" && !this.mushroomStates.has(id)) {
+        this.mushroomStates.set(id, this.createMushroomState());
+      }
       if (node?.type === "chordMemory" && !this.chordMemoryStates.has(id)) {
         this.chordMemoryStates.set(id, this.createChordMemoryState());
       }
@@ -1234,6 +1257,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyBlubbNativeState(this.blubbStates.get(id));
         this.blubbStates.delete(id);
+      }
+    }
+    for (const id of [...this.mushroomStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyMushroomNativeState(this.mushroomStates.get(id));
+        this.mushroomStates.delete(id);
       }
     }
     for (const id of [...this.chordMemoryStates.keys()]) {
@@ -3709,6 +3738,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.chuaAttractorStates = new Map();
     runtime.wirdoSpiralStates = new Map();
     runtime.blubbStates = new Map();
+    runtime.mushroomStates = new Map();
     runtime.chordMemoryStates = new Map();
     runtime.turingMachineStates = new Map();
     runtime.pitchQuantizerStates = new Map();
@@ -3759,6 +3789,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "chuaAttractor") this.chuaAttractorStates.set(id, this.createChuaAttractorState());
       if (node?.type === "wirdoSpiral") this.wirdoSpiralStates.set(id, this.createWirdoSpiralState());
       if (node?.type === "blubb") this.blubbStates.set(id, this.createBlubbState());
+      if (node?.type === "mushroom") this.mushroomStates.set(id, this.createMushroomState());
       if (node?.type === "chordMemory") this.chordMemoryStates.set(id, this.createChordMemoryState());
       if (node?.type === "turingMachine") this.turingMachineStates.set(id, this.createTuringMachineState());
       if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
@@ -6210,6 +6241,167 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.blubbSampleJs(state, options);
   }
 
+  createMushroomState() {
+    return { phase: 0, capRotRamp: 0, clusterRotRamp: 0, resetWasHigh: false, nativeHandle: 0 };
+  }
+
+  destroyMushroomNativeState(state) {
+    if (state?.nativeHandle && this.nativeMushroom?.soemdsp_jbmushroom_destroy) {
+      this.nativeMushroom.soemdsp_jbmushroom_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  mushroomTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  mushroomSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const phaseOffset = Number(options.phaseOffset) || 0;
+    const numMushroomsRaw = Number(options.numMushrooms) || 0;
+    const grow = Number(options.grow) || 0;
+    const density = Number(options.density) || 0;
+    const capRotation = Number(options.capRotation) || 0;
+    const stemRotationSpeed = Number(options.stemRotationSpeed) || 0;
+    const head = Number(options.head) || 0;
+    const spread = Number(options.spread) || 0;
+    const wobble = Number(options.wobble) || 0;
+    const clusterRotation = Number(options.clusterRotation) || 0;
+    const clusterRotationSpeed = Number(options.clusterRotationSpeed) || 0;
+    const sharp = Number(options.sharp) || 0;
+    const width = Number(options.width) || 0;
+    const stem = Number(options.stem) || 0;
+    const apart = Number(options.apart) || 0;
+    const capStemTransition = Number(options.capStemTransition) || 0;
+
+    const nom = this.clampValue(numMushroomsRaw, -5, 5) || 1;
+    const nomTrunc = nom === 0 ? 1 : Math.trunc(nom);
+    const phasorFreq = nomTrunc < 0 ? (frequency / nomTrunc * 0.5) : (frequency * 0.5);
+    const safeSharp = sharp * 0.5 + 0.5;
+    const safeSpread = spread * 4;
+
+    const phas = (state.phase + phaseOffset * 0.5) - Math.floor(state.phase + phaseOffset * 0.5);
+    const caprot = (state.capRotRamp + capRotation) - Math.floor(state.capRotRamp + capRotation);
+    const stemrot = (state.clusterRotRamp + clusterRotation) - Math.floor(state.clusterRotRamp + clusterRotation);
+
+    const phasXNomX2 = phas * nomTrunc * 2;
+    const ph = this.mushroomTrisaw(phasXNomX2, safeSharp) * grow;
+    const stair = Math.floor(phasXNomX2) / nomTrunc;
+    const phukRaw = ph * wobble + stair;
+    const phuk = phukRaw - Math.floor(phukRaw);
+
+    const formulaSin = Math.sin((ph - caprot) * density * Math.PI * 2);
+    const formulaCos = Math.cos((ph - caprot) * density * Math.PI * 2);
+
+    let shroomX = formulaSin * width;
+    let shroomY = -formulaCos * width;
+
+    const sinPhTau = Math.sin(ph * Math.PI * 2);
+    const shroomHeadX = shroomX * sinPhTau * 0.5;
+    const densClamped = this.clampValue(density, 0, 10);
+    const shroomHeadY = shroomY * 0.1 * sinPhTau * densClamped / 10;
+
+    const shroomStemX = shroomX * -0.4 * stem;
+    const shroomStemY = shroomY * -0.1 * stem;
+
+    if (ph > head) {
+      shroomX = shroomHeadX;
+      shroomY = shroomHeadY;
+    } else if (ph > (1 - capStemTransition) * head) {
+      const oneMTransXHead = (1 - capStemTransition) * head;
+      const formula2 = (ph - oneMTransXHead) / (head - oneMTransXHead);
+      shroomX = shroomHeadX * formula2 + shroomStemX * (1 - formula2);
+      shroomY = shroomHeadY * formula2 + shroomStemY * (1 - formula2);
+    } else {
+      shroomX = shroomStemX;
+      shroomY = shroomStemY;
+    }
+
+    shroomX += ph * Math.cos((phuk + stemrot - 0.25) * Math.PI * 2) * 0.5 * safeSpread;
+    shroomY += ph * 2 - 1;
+
+    const dual = ((phas >= 0.5 ? 1 : 0) * 2 - 1) * apart;
+    shroomX += shroomX + dual;
+
+    if (nomTrunc > 0) {
+      shroomX = -shroomX;
+    }
+
+    const nextPhase = state.phase + phasorFreq / safeRate;
+    state.phase = nextPhase - Math.floor(nextPhase);
+    const nextCapRot = state.capRotRamp + stemRotationSpeed / safeRate;
+    state.capRotRamp = nextCapRot - Math.floor(nextCapRot);
+    const nextClusterRot = state.clusterRotRamp + clusterRotationSpeed / safeRate;
+    state.clusterRotRamp = nextClusterRot - Math.floor(nextClusterRot);
+
+    return { x: shroomX, y: shroomY };
+  }
+
+  mushroomSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.capRotRamp = 0;
+      state.clusterRotRamp = 0;
+      if (state.nativeHandle && this.nativeMushroom?.soemdsp_jbmushroom_reset) {
+        this.nativeMushroom.soemdsp_jbmushroom_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeMushroomReady &&
+      this.nativeMushroom?.soemdsp_jbmushroom_create &&
+      this.nativeMushroom?.soemdsp_jbmushroom_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeMushroom.soemdsp_jbmushroom_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeMushroom.soemdsp_jbmushroom_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.phaseOffset) || 0,
+            Number(options.numMushrooms) || 0,
+            Number(options.grow) || 0,
+            Number(options.density) || 0,
+            Number(options.capRotation) || 0,
+            Number(options.stemRotationSpeed) || 0,
+            Number(options.head) || 0,
+            Number(options.spread) || 0,
+            Number(options.wobble) || 0,
+            Number(options.clusterRotation) || 0,
+            Number(options.clusterRotationSpeed) || 0,
+            Number(options.sharp) || 0,
+            Number(options.width) || 0,
+            Number(options.stem) || 0,
+            Number(options.apart) || 0,
+            Number(options.capStemTransition) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeMushroom.soemdsp_jbmushroom_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeMushroom.soemdsp_jbmushroom_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeMushroomReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_mushroom",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Mushroom failed"),
+        });
+      }
+    }
+    return this.mushroomSampleJs(state, options);
+  }
+
   createChuaAttractorState() {
     return { resetWasHigh: false, x: 0.1, y: 0, z: 0, nativeHandle: 0 };
   }
@@ -7251,6 +7443,36 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = {
           X: blubb.x * blubbLevel,
           Y: blubb.y * blubbLevel,
+        };
+      } else if (node?.type === "mushroom") {
+        const state = this.mushroomStates.get(nodeId) || this.createMushroomState();
+        this.mushroomStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const mushroom = this.mushroomSample(state, {
+          apart: read("apart", 0),
+          capRotation: read("capRotation", 0),
+          capStemTransition: read("capStemTransition", 0.1),
+          clusterRotation: read("clusterRotation", 0),
+          clusterRotationSpeed: read("clusterRotationSpeed", 0),
+          density: read("density", 3),
+          frequency: read("frequency", 8),
+          grow: read("grow", 1),
+          head: read("head", 0.6667),
+          numMushrooms: read("numMushrooms", 1),
+          phaseOffset: read("phaseOffset", 0),
+          reset: mixInput(nodeId, "Reset"),
+          sampleRate: safeRate,
+          sharp: read("sharp", 0),
+          spread: read("spread", 0.5),
+          stem: read("stem", 0),
+          stemRotationSpeed: read("stemRotationSpeed", 0),
+          width: read("width", 1),
+          wobble: read("wobble", 0.0625),
+        });
+        const mushroomLevel = read("level", 1);
+        value = {
+          X: mushroom.x * mushroomLevel,
+          Y: mushroom.y * mushroomLevel,
         };
       } else if (node?.type === "chuaAttractor") {
         const state = this.chuaAttractorStates.get(nodeId) || this.createChuaAttractorState();

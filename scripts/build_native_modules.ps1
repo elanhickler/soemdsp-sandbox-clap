@@ -344,3 +344,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\jerobeam_blubb\jerobeam_blubb.wasm" `
   "$root\native_modules\jerobeam_blubb\jerobeam_blubb.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbmushroom_create" `
+  "-Wl,--export=soemdsp_jbmushroom_destroy" `
+  "-Wl,--export=soemdsp_jbmushroom_reset" `
+  "-Wl,--export=soemdsp_jbmushroom_sample" `
+  "-Wl,--export=soemdsp_jbmushroom_x" `
+  "-Wl,--export=soemdsp_jbmushroom_y" `
+  "-Wl,--export=soemdsp_jbmushroom_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_mushroom\jerobeam_mushroom.wasm" `
+  "$root\native_modules\jerobeam_mushroom\jerobeam_mushroom.cpp"

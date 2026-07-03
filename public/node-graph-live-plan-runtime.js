@@ -252,6 +252,7 @@ function createNodeGraphLiveRuntime(plan) {
   const chuaAttractorStates = new Map();
   const wirdoSpiralStates = new Map();
   const blubbStates = new Map();
+  const mushroomStates = new Map();
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
   const pitchQuantizerStates = new Map();
@@ -308,6 +309,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "blubb") {
       blubbStates.set(node.id, createNodeGraphBlubbState());
+    }
+    if (node.type === "mushroom") {
+      mushroomStates.set(node.id, createNodeGraphMushroomState());
     }
     if (node.type === "chordMemory") {
       chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -442,6 +446,7 @@ function createNodeGraphLiveRuntime(plan) {
     chuaAttractorStates,
     wirdoSpiralStates,
     blubbStates,
+    mushroomStates,
     chordMemoryStates,
     turingMachineStates,
     pitchQuantizerStates,
@@ -586,6 +591,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.blubbStates) {
     runtime.blubbStates = new Map();
   }
+  if (!runtime.mushroomStates) {
+    runtime.mushroomStates = new Map();
+  }
   if (!runtime.chordMemoryStates) {
     runtime.chordMemoryStates = new Map();
   }
@@ -707,6 +715,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "blubb" && !runtime.blubbStates.has(node.id)) {
       runtime.blubbStates.set(node.id, createNodeGraphBlubbState());
+    }
+    if (node.type === "mushroom" && !runtime.mushroomStates.has(node.id)) {
+      runtime.mushroomStates.set(node.id, createNodeGraphMushroomState());
     }
     if (node.type === "chordMemory" && !runtime.chordMemoryStates.has(node.id)) {
       runtime.chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -903,6 +914,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.blubbStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.blubbStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.mushroomStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.mushroomStates.delete(id);
     }
   }
   for (const id of [...runtime.chordMemoryStates.keys()]) {
