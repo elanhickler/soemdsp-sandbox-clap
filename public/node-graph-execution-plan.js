@@ -403,7 +403,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
   const outputNode = "output";
   const reachableNodes = new Set();
   const bypassedNodes = new Set(graph.bypassedNodes || []);
-  const passthroughTypes = new Set(["badvalMonitor", "bias", "cookbookFilter", "flowerChildFilter", "gain", "ladderFilter", "passiveFilter", "pll", "reverbEffect", "sampleHold", "slewLimiter", "softClipper", "speakerProtection"]);
+  const passthroughTypes = new Set(["badvalMonitor", "bias", "chaoticPhaseLockingFilter", "cookbookFilter", "flowerChildFilter", "gain", "humanFilter", "ladderFilter", "passiveFilter", "pll", "resonatorFilter", "reverbEffect", "rsmetFilter", "sampleHold", "slewLimiter", "softClipper", "speakerProtection", "superloveFilter", "yellowjacketFilter"]);
 
   function markReachable(nodeId) {
     if (reachableNodes.has(nodeId) || !graph.nodeMap.has(nodeId)) {

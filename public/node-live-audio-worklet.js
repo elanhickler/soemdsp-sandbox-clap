@@ -140,6 +140,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeLadderFilterReady = false;
     this.nativeFlowerChildFilter = null;
     this.nativeFlowerChildFilterReady = false;
+    this.nativeRsmetFilter = null;
+    this.nativeRsmetFilterReady = false;
+    this.nativeYellowjacketFilter = null;
+    this.nativeYellowjacketFilterReady = false;
+    this.nativeSuperloveFilter = null;
+    this.nativeSuperloveFilterReady = false;
+    this.nativeChaoticPhaseLockingFilter = null;
+    this.nativeChaoticPhaseLockingFilterReady = false;
+    this.nativeResonatorFilter = null;
+    this.nativeResonatorFilterReady = false;
+    this.nativeHumanFilter = null;
+    this.nativeHumanFilterReady = false;
     this.nativeTb303Filter = null;
     this.nativeTb303FilterReady = false;
     this.nativePassiveFilter = null;
@@ -159,6 +171,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.gpuAdditiveUnderruns = 0;
     this.flowerChildEnvelopeFollowerStates = new Map();
     this.flowerChildFilterStates = new Map();
+    this.rsmetFilterStates = new Map();
+    this.yellowjacketFilterStates = new Map();
+    this.superloveFilterStates = new Map();
+    this.chaoticPhaseLockingFilterStates = new Map();
+    this.resonatorFilterStates = new Map();
+    this.humanFilterStates = new Map();
     this.ladderFilterStates = new Map();
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
@@ -542,6 +560,102 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "rsmet_filter" || targetType === "rsmetFilter") {
+        for (const state of this.rsmetFilterStates.values()) {
+          this.destroyRsmetFilterNativeState(state);
+        }
+        this.nativeRsmetFilter = exports;
+        this.nativeRsmetFilterReady = Boolean(
+          this.nativeRsmetFilter?.soemdsp_rsmet_filter_create &&
+          this.nativeRsmetFilter?.soemdsp_rsmet_filter_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "rsmet_filter",
+          status: this.nativeRsmetFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "yellowjacket_filter" || targetType === "yellowjacketFilter") {
+        for (const state of this.yellowjacketFilterStates.values()) {
+          this.destroyYellowjacketFilterNativeState(state);
+        }
+        this.nativeYellowjacketFilter = exports;
+        this.nativeYellowjacketFilterReady = Boolean(
+          this.nativeYellowjacketFilter?.soemdsp_yellowjacket_filter_create &&
+          this.nativeYellowjacketFilter?.soemdsp_yellowjacket_filter_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "yellowjacket_filter",
+          status: this.nativeYellowjacketFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "superlove_filter" || targetType === "superloveFilter") {
+        for (const state of this.superloveFilterStates.values()) {
+          this.destroySuperloveFilterNativeState(state);
+        }
+        this.nativeSuperloveFilter = exports;
+        this.nativeSuperloveFilterReady = Boolean(
+          this.nativeSuperloveFilter?.soemdsp_superlove_filter_create &&
+          this.nativeSuperloveFilter?.soemdsp_superlove_filter_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "superlove_filter",
+          status: this.nativeSuperloveFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "chaotic_phase_locking_filter" || targetType === "chaoticPhaseLockingFilter") {
+        for (const state of this.chaoticPhaseLockingFilterStates.values()) {
+          this.destroyChaoticPhaseLockingFilterNativeState(state);
+        }
+        this.nativeChaoticPhaseLockingFilter = exports;
+        this.nativeChaoticPhaseLockingFilterReady = Boolean(
+          this.nativeChaoticPhaseLockingFilter?.soemdsp_chaotic_phase_locking_filter_create &&
+          this.nativeChaoticPhaseLockingFilter?.soemdsp_chaotic_phase_locking_filter_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "chaotic_phase_locking_filter",
+          status: this.nativeChaoticPhaseLockingFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "resonator_filter" || targetType === "resonatorFilter") {
+        for (const state of this.resonatorFilterStates.values()) {
+          this.destroyResonatorFilterNativeState(state);
+        }
+        this.nativeResonatorFilter = exports;
+        this.nativeResonatorFilterReady = Boolean(
+          this.nativeResonatorFilter?.soemdsp_resonator_filter_create &&
+          this.nativeResonatorFilter?.soemdsp_resonator_filter_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "resonator_filter",
+          status: this.nativeResonatorFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "human_filter" || targetType === "humanFilter") {
+        for (const state of this.humanFilterStates.values()) {
+          this.destroyHumanFilterNativeState(state);
+        }
+        this.nativeHumanFilter = exports;
+        this.nativeHumanFilterReady = Boolean(
+          this.nativeHumanFilter?.soemdsp_human_filter_create &&
+          this.nativeHumanFilter?.soemdsp_human_filter_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "human_filter",
+          status: this.nativeHumanFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "tb303_filter" || targetType === "tb303Filter") {
         for (const state of this.tb303FilterStates.values()) {
           this.destroyTb303FilterNativeState(state);
@@ -765,6 +879,30 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.destroyFlowerChildFilterNativeState(state);
     }
     this.flowerChildFilterStates = new Map();
+    for (const state of this.rsmetFilterStates.values()) {
+      this.destroyRsmetFilterNativeState(state);
+    }
+    this.rsmetFilterStates = new Map();
+    for (const state of this.yellowjacketFilterStates.values()) {
+      this.destroyYellowjacketFilterNativeState(state);
+    }
+    this.yellowjacketFilterStates = new Map();
+    for (const state of this.superloveFilterStates.values()) {
+      this.destroySuperloveFilterNativeState(state);
+    }
+    this.superloveFilterStates = new Map();
+    for (const state of this.chaoticPhaseLockingFilterStates.values()) {
+      this.destroyChaoticPhaseLockingFilterNativeState(state);
+    }
+    this.chaoticPhaseLockingFilterStates = new Map();
+    for (const state of this.resonatorFilterStates.values()) {
+      this.destroyResonatorFilterNativeState(state);
+    }
+    this.resonatorFilterStates = new Map();
+    for (const state of this.humanFilterStates.values()) {
+      this.destroyHumanFilterNativeState(state);
+    }
+    this.humanFilterStates = new Map();
     for (const state of this.tb303FilterStates.values()) {
       this.destroyTb303FilterNativeState(state);
     }
@@ -1032,6 +1170,24 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "flowerChildFilter" && !this.flowerChildFilterStates.has(id)) {
         this.flowerChildFilterStates.set(id, this.createFlowerChildFilterState());
       }
+      if (node?.type === "rsmetFilter" && !this.rsmetFilterStates.has(id)) {
+        this.rsmetFilterStates.set(id, this.createRsmetFilterState());
+      }
+      if (node?.type === "yellowjacketFilter" && !this.yellowjacketFilterStates.has(id)) {
+        this.yellowjacketFilterStates.set(id, this.createYellowjacketFilterState());
+      }
+      if (node?.type === "superloveFilter" && !this.superloveFilterStates.has(id)) {
+        this.superloveFilterStates.set(id, this.createSuperloveFilterState());
+      }
+      if (node?.type === "chaoticPhaseLockingFilter" && !this.chaoticPhaseLockingFilterStates.has(id)) {
+        this.chaoticPhaseLockingFilterStates.set(id, this.createChaoticPhaseLockingFilterState());
+      }
+      if (node?.type === "resonatorFilter" && !this.resonatorFilterStates.has(id)) {
+        this.resonatorFilterStates.set(id, this.createResonatorFilterState());
+      }
+      if (node?.type === "humanFilter" && !this.humanFilterStates.has(id)) {
+        this.humanFilterStates.set(id, this.createHumanFilterState());
+      }
       if (node?.type === "tb303Filter" && !this.tb303FilterStates.has(id)) {
         this.tb303FilterStates.set(id, this.createTb303FilterState());
       }
@@ -1256,6 +1412,42 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyFlowerChildFilterNativeState(this.flowerChildFilterStates.get(id));
         this.flowerChildFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.rsmetFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyRsmetFilterNativeState(this.rsmetFilterStates.get(id));
+        this.rsmetFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.yellowjacketFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyYellowjacketFilterNativeState(this.yellowjacketFilterStates.get(id));
+        this.yellowjacketFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.superloveFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroySuperloveFilterNativeState(this.superloveFilterStates.get(id));
+        this.superloveFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.chaoticPhaseLockingFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyChaoticPhaseLockingFilterNativeState(this.chaoticPhaseLockingFilterStates.get(id));
+        this.chaoticPhaseLockingFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.resonatorFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyResonatorFilterNativeState(this.resonatorFilterStates.get(id));
+        this.resonatorFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.humanFilterStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyHumanFilterNativeState(this.humanFilterStates.get(id));
+        this.humanFilterStates.delete(id);
       }
     }
     for (const id of [...this.tb303FilterStates.keys()]) {
@@ -3091,7 +3283,43 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   createFlowerChildFilterState() {
-    return { phase: 0, phaseOffset: 0, stage1: 0, stage2: 0, selfMod: 0, nativeHandle: 0 };
+    return {
+      phase: 0, phaseOffset: 0, stage1: 0, stage2: 0, selfMod: 0,
+      rev3Feedback: 0, rev3Lpf1Y1: 0, rev3Lpf2Y1: 0, dsPhase: 0, dsHeld: 0,
+      nativeHandle: 0,
+    };
+  }
+
+  createRsmetFilterState() {
+    return { y: [0, 0, 0, 0, 0], nativeHandle: 0 };
+  }
+
+  createYellowjacketFilterState() {
+    return { phase: 0, filterY1: 0, oscSelfMod: 0, lastOutValue: 0, nativeHandle: 0 };
+  }
+
+  createSuperloveFilterState() {
+    return { feedbackSignal: 0, filterY: [0,0,0,0,0], dcY: [0,0,0,0,0], nativeHandle: 0 };
+  }
+
+  createChaoticPhaseLockingFilterState() {
+    return { feedbackSignal: 0, filterY: [0,0,0,0,0], dcY: [0,0,0,0,0], nativeHandle: 0 };
+  }
+
+  createResonatorFilterState() {
+    return {
+      phase1: 0, phase2: 0, filterY: [0,0,0,0,0], dcY: [0,0,0,0,0],
+      osc1Value: 0, osc2Value: 0, osc1SelfMod: 0, osc2SelfMod: 0, sawFeedback: 0,
+      nativeHandle: 0,
+    };
+  }
+
+  createHumanFilterState() {
+    return {
+      phase1: 0, phase2: 0, osc1Value: 0, osc2Value: 0, lastOutValue: 0,
+      osc1ModSelf: 0, osc2ModSelf: 0, fbZ1: 0, fbZ2: 0, dcY: [0,0,0,0,0],
+      nativeHandle: 0,
+    };
   }
 
   resetCookbookFilterState(state) {
@@ -3302,6 +3530,48 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyFlowerChildFilterNativeState(state) {
     if (state.nativeHandle && this.nativeFlowerChildFilter?.soemdsp_flower_child_filter_destroy) {
       this.nativeFlowerChildFilter.soemdsp_flower_child_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyRsmetFilterNativeState(state) {
+    if (state.nativeHandle && this.nativeRsmetFilter?.soemdsp_rsmet_filter_destroy) {
+      this.nativeRsmetFilter.soemdsp_rsmet_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyYellowjacketFilterNativeState(state) {
+    if (state.nativeHandle && this.nativeYellowjacketFilter?.soemdsp_yellowjacket_filter_destroy) {
+      this.nativeYellowjacketFilter.soemdsp_yellowjacket_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroySuperloveFilterNativeState(state) {
+    if (state.nativeHandle && this.nativeSuperloveFilter?.soemdsp_superlove_filter_destroy) {
+      this.nativeSuperloveFilter.soemdsp_superlove_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyChaoticPhaseLockingFilterNativeState(state) {
+    if (state.nativeHandle && this.nativeChaoticPhaseLockingFilter?.soemdsp_chaotic_phase_locking_filter_destroy) {
+      this.nativeChaoticPhaseLockingFilter.soemdsp_chaotic_phase_locking_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyResonatorFilterNativeState(state) {
+    if (state.nativeHandle && this.nativeResonatorFilter?.soemdsp_resonator_filter_destroy) {
+      this.nativeResonatorFilter.soemdsp_resonator_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyHumanFilterNativeState(state) {
+    if (state.nativeHandle && this.nativeHumanFilter?.soemdsp_human_filter_destroy) {
+      this.nativeHumanFilter.soemdsp_human_filter_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }
@@ -3667,6 +3937,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.graphInputConnections = new Map();
     runtime.ladderFilterStates = new Map();
     runtime.flowerChildFilterStates = new Map();
+    runtime.rsmetFilterStates = new Map();
+    runtime.yellowjacketFilterStates = new Map();
+    runtime.superloveFilterStates = new Map();
+    runtime.chaoticPhaseLockingFilterStates = new Map();
+    runtime.resonatorFilterStates = new Map();
+    runtime.humanFilterStates = new Map();
     runtime.linearEnvelopeStates = new Map();
     runtime.noiseGeneratorStates = new Map();
     runtime.oscResetStates = new Map();
@@ -3748,6 +4024,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
       if (node?.type === "flowerChildFilter") this.flowerChildFilterStates.set(id, this.createFlowerChildFilterState());
+      if (node?.type === "rsmetFilter") this.rsmetFilterStates.set(id, this.createRsmetFilterState());
+      if (node?.type === "yellowjacketFilter") this.yellowjacketFilterStates.set(id, this.createYellowjacketFilterState());
+      if (node?.type === "superloveFilter") this.superloveFilterStates.set(id, this.createSuperloveFilterState());
+      if (node?.type === "chaoticPhaseLockingFilter") this.chaoticPhaseLockingFilterStates.set(id, this.createChaoticPhaseLockingFilterState());
+      if (node?.type === "resonatorFilter") this.resonatorFilterStates.set(id, this.createResonatorFilterState());
+      if (node?.type === "humanFilter") this.humanFilterStates.set(id, this.createHumanFilterState());
       if (node?.type === "tb303Filter") this.tb303FilterStates.set(id, this.createTb303FilterState());
       if (node?.type === "clock") this.clockStates.set(id, this.createClockState());
       if (node?.type === "graph" || node?.type === "graph2") this.graphLfoStates.set(id, this.createGraphLfoState());
@@ -4428,12 +4710,138 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return cosX / sqrtVal;
   }
 
+  flowerChildFilterEvalGraph(nodes, x) {
+    if (nodes.length === 0) return 0;
+    if (x < nodes[0].x) return nodes[0].y;
+    let i = -1;
+    for (let k = 0; k < nodes.length; k++) {
+      if (nodes[k].x > x) { i = k; break; }
+    }
+    if (i < 0) return nodes[nodes.length - 1].y;
+    if (i === 0) return nodes[0].y;
+    const n1 = nodes[i - 1];
+    const n2 = nodes[i];
+    if (n2.x - n1.x < 1e-9) return 0.5 * (n1.y + n2.y);
+    const p = (x - n1.x) / (n2.x - n1.x);
+    if (n2.shape === 1) return n1.y + (n2.y - n1.y) * this.flowerChildFilterRationalCurve(p, n2.skew);
+    if (n2.shape === 2) {
+      const c = 0.5 * (n2.skew + 1);
+      const a = 2 * Math.log((1 - c) / c);
+      return n1.y + (n2.y - n1.y) * (1 - Math.exp(p * a)) / (1 - Math.exp(a));
+    }
+    return n1.y + (n2.y - n1.y) * p;
+  }
+
+  flowerChildFilterOnePoleIitCoefficient(cutoffHz, sampleRateValue) {
+    const w = Math.max(1e-9, Math.min(Math.PI * 0.98, 2 * Math.PI * cutoffHz / sampleRateValue));
+    return Math.exp(-w);
+  }
+
+  flowerChildFilterOnePoleIitStep(prevY1, input, a1) {
+    const b0 = 1 - a1;
+    return b0 * input + a1 * prevY1;
+  }
+
+  flowerChildFilterSampleAndHold(state, incoming, samplingFreq, sampleRateValue) {
+    state.dsPhase += samplingFreq / sampleRateValue;
+    if (state.dsPhase >= 1) {
+      state.dsPhase -= Math.floor(state.dsPhase);
+      state.dsHeld = incoming;
+    }
+    return state.dsHeld;
+  }
+
   flowerChildFilterSampleJs(state, input, params, rate) {
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
     const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
     const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
     const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
-    const dirty = Math.round(Number(params.mode) || 0) !== 0;
+    const modeNum = Math.round(Number(params.mode) || 0);
+
+    if (modeNum === 2) {
+      const masterPitch = -120 + (105 - -120) * freqNorm;
+      const masterFrequency = 440 * Math.pow(2, (masterPitch - 69) / 12);
+      const fmAmount = 440 * Math.pow(2, (-48.377 - 69) / 12);
+      const lpf1Cutoff = 440 * Math.pow(2, ((90 + (180 - 90) * (masterPitch - -120) / (120 - -120)) - 69) / 12);
+      const lpf2Cutoff = 440 * Math.pow(2, ((80 + (130 - 80) * (masterPitch - -120) / (120 - -120)) - 69) / 12);
+      const lpf1A = this.flowerChildFilterOnePoleIitCoefficient(lpf1Cutoff, safeRate);
+      const lpf2A = this.flowerChildFilterOnePoleIitCoefficient(lpf2Cutoff, safeRate);
+
+      const phaseModGraph = [{x:0,y:0.0,skew:0,shape:0},{x:0.5,y:-0.017446,skew:0.9,shape:1},{x:0.6,y:-0.017575,skew:0.0,shape:1},{x:1.0,y:-0.0147,skew:0.6,shape:1}];
+      const sineAmpGraph = [{x:0,y:4.44777,skew:0,shape:0},{x:0.5,y:8.6687,skew:0.9,shape:1},{x:0.6,y:8.6687,skew:0.0,shape:1},{x:1.0,y:2.0,skew:0.6,shape:1}];
+      const sineToSquareGraph = [{x:0,y:0.6792,skew:0,shape:0},{x:0.5,y:0.9552,skew:0.9,shape:1},{x:0.6,y:0.9552,skew:0.0,shape:1},{x:1.0,y:0.001,skew:0.6,shape:1}];
+      const clipLevelGraph = [{x:0.0,y:7.0,skew:0,shape:0},{x:0.7,y:7.0,skew:0.0,shape:1},{x:1.0,y:2.0,skew:0.6,shape:1}];
+      const noiseGraph = [{x:0.0,y:0.0,skew:0,shape:0},{x:0.8,y:0.1,skew:0,shape:0},{x:1.0,y:1.0,skew:0.0,shape:1}];
+
+      const pmAmount = this.flowerChildFilterEvalGraph(phaseModGraph, reso);
+      const sineAmp = this.flowerChildFilterEvalGraph(sineAmpGraph, reso);
+      const sineToSquare = this.flowerChildFilterEvalGraph(sineToSquareGraph, reso);
+      const clipLevelRaw = this.flowerChildFilterEvalGraph(clipLevelGraph, reso);
+      const clipLevel = Math.min(sineAmp, clipLevelRaw);
+      const noiseReduction = this.flowerChildFilterEvalGraph(noiseGraph, reso);
+      const chaosAmount4x = chaos * 4;
+
+      const safeInput = this.safeFilterNumber(input, state);
+      const inSig = state.rev3Feedback + this.clampValue(-1 * safeInput, -clipLevel, clipLevel);
+      const f = masterFrequency * inSig * fmAmount;
+      const noiseTerm = masterFrequency * (Math.random() * 2 - 1) * chaosAmount4x * noiseReduction;
+
+      state.phase = state.phase + (f + noiseTerm) / safeRate;
+      state.phase = state.phase - Math.floor(state.phase);
+      const bipolarPhasor = 2 * state.phase - 1;
+      const phasorOut = bipolarPhasor + pmAmount * state.rev3Feedback;
+
+      const ellipseOut = sineAmp * this.flowerChildFilterEllipse(phasorOut, sineToSquare);
+
+      let feedback = this.flowerChildFilterOnePoleIitStep(state.rev3Lpf1Y1, ellipseOut, lpf1A);
+      state.rev3Lpf1Y1 = feedback;
+      feedback = this.flowerChildFilterOnePoleIitStep(state.rev3Lpf2Y1, feedback, lpf2A);
+      state.rev3Lpf2Y1 = feedback;
+      state.rev3Feedback = feedback;
+
+      return this.safeFilterNumber(feedback * 0.15, state);
+    }
+
+    if (modeNum === 3) {
+      const maxNormFreq3 = safeRate <= 44100 ? 0.928 : 1;
+      const normalizedFreqInUse3 = Math.min(freqNorm, maxNormFreq3) * (161 - 3) + 3;
+      const frequencyHz3 = 440 * Math.pow(2, (normalizedFreqInUse3 - 69) / 12);
+
+      const cutoff1 = frequencyHz3 * 0.4;
+      const a1 = this.flowerChildFilterOnePoleCoefficient(cutoff1, safeRate);
+
+      let breakpoint, cap;
+      if (safeRate <= 44100) { breakpoint = 0.732441; cap = 0.649123; }
+      else if (safeRate <= 88200) { breakpoint = 0.816054; cap = 0.818713; }
+      else { breakpoint = 0.879599; cap = 0.807018; }
+      const cappedTarget = Math.min(reso, cap);
+      const graphValue = this.flowerChildFilterEvalResonanceGraph(reso, reso, breakpoint, cappedTarget, -0.38);
+      const selfModAmp = 0.0368 + (0.6333 - 0.0368) * this.flowerChildFilterCurveShape(graphValue, 0.4);
+
+      const safeInput = this.safeFilterNumber(input, state);
+      let inputSignal = this.clampValue(-safeInput, -1, 1) * 0.036;
+      inputSignal += state.selfMod;
+
+      const mod = 1.4 * inputSignal;
+      const fm = mod;
+
+      state.phase = state.phase + (frequencyHz3 * fm * 6.0) / safeRate;
+      state.phase = state.phase - Math.floor(state.phase);
+
+      const dsf = [{x:0,y:0,skew:0,shape:0},{x:1,y:0.025*safeRate,skew:-0.09,shape:2}];
+      const samplingFreq = frequencyHz3 * 2.0 + this.flowerChildFilterEvalGraph(dsf, 10.0 * Math.abs(mod));
+
+      const downsampledPhase = this.flowerChildFilterSampleAndHold(state, state.phase, samplingFreq, safeRate);
+      const current_osc_value = Math.sin(downsampledPhase * 2 * Math.PI) * 1.3;
+
+      const filtered = this.flowerChildFilterOnePoleStep(state.stage1, current_osc_value, a1);
+      state.stage1 = filtered;
+      state.selfMod = filtered * selfModAmp;
+
+      return this.safeFilterNumber(filtered * 1.4, state);
+    }
+
+    const dirty = modeNum !== 0;
 
     const maxNormFreq = safeRate <= 44100 ? 0.928 : 1;
     const normalizedFreqInUse = Math.min(freqNorm, maxNormFreq) * (161 - 3) + 3;
@@ -4518,7 +4926,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
               this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
               this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
               this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.round(Number(params.mode) || 0) !== 0 ? 1 : 0,
+              Math.max(0, Math.min(3, Math.round(Number(params.mode) || 0))),
               Math.max(1, Number(rate) || sampleRate || 44100),
             ),
             state,
@@ -4536,6 +4944,714 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
     }
     return this.flowerChildFilterSampleJs(state, input, params, rate);
+  }
+
+  // Shared helpers for the RSMET/Yellowjacket/SuperLove/ChaoticPhaseLocking/
+  // Resonator/Human filter family below.
+
+  analogLadderTapStep(y, input, a, mode, stages) {
+    const c = [0, 0, 0, 0, 0];
+    if (mode === 1) {
+      c[stages] = 1;
+    } else if (mode === 2) {
+      const hp = [[1, -1, 0, 0, 0], [1, -2, 1, 0, 0], [1, -3, 3, -1, 0], [1, -4, 6, -4, 1]];
+      for (let i = 0; i <= stages; i++) c[i] = hp[stages - 1][i];
+    } else if (mode === 3) {
+      const bp = [[0, 2, -2, 0, 0], [0, 2, -2, 0, 0], [0, 0, 3, -3, 0], [0, 0, 4, -8, 4]];
+      for (let i = 0; i < 5; i++) c[i] = bp[stages - 1][i];
+    }
+    let y0 = input;
+    y0 = y0 / (1 + y0 * y0);
+    y[1] = y0 + a * (y0 - y[1]);
+    y[2] = y[1] + a * (y[1] - y[2]);
+    y[3] = y[2] + a * (y[2] - y[3]);
+    y[4] = y[3] + a * (y[3] - y[4]);
+    y[0] = y0;
+    return c[0] * y[0] + c[1] * y[1] + c[2] * y[2] + c[3] * y[3] + c[4] * y[4];
+  }
+
+  analogLadderCoefficient(cutoffHz, sampleRateValue) {
+    const wc = Math.max(1e-9, Math.min(Math.PI * 0.98, 2 * Math.PI * cutoffHz / sampleRateValue));
+    const s = Math.sin(wc);
+    const c = Math.cos(wc);
+    const t = Math.tan(0.25 * (wc - Math.PI));
+    let denom = s - c * t;
+    if (denom > -1e-12 && denom < 1e-12) denom = denom >= 0 ? 1e-12 : -1e-12;
+    return t / denom;
+  }
+
+  analogRationalCurve(p, skew) {
+    return ((1 + skew) * p) / (1 - skew + 2 * skew * p);
+  }
+
+  analogEvalGraph(nodes, x) {
+    if (nodes.length === 0) return 0;
+    if (x < nodes[0].x) return nodes[0].y;
+    let i = -1;
+    for (let k = 0; k < nodes.length; k++) {
+      if (nodes[k].x > x) { i = k; break; }
+    }
+    if (i < 0) return nodes[nodes.length - 1].y;
+    if (i === 0) return nodes[0].y;
+    const n1 = nodes[i - 1];
+    const n2 = nodes[i];
+    if (n2.x - n1.x < 1e-9) return 0.5 * (n1.y + n2.y);
+    const p = (x - n1.x) / (n2.x - n1.x);
+    if (n2.shape === 1) return n1.y + (n2.y - n1.y) * this.analogRationalCurve(p, n2.skew);
+    if (n2.shape === 2) {
+      const c = 0.5 * (n2.skew + 1);
+      const a = 2 * Math.log((1 - c) / c);
+      return n1.y + (n2.y - n1.y) * (1 - Math.exp(p * a)) / (1 - Math.exp(a));
+    }
+    return n1.y + (n2.y - n1.y) * p;
+  }
+
+  analogWaveEllipseFull(phaseCycles, A, bSin, bCos, C) {
+    const sinX = Math.sin(phaseCycles * 2 * Math.PI);
+    const cosX = Math.cos(phaseCycles * 2 * Math.PI);
+    const apc = A + cosX;
+    let sqrtVal = Math.sqrt(apc * apc + (C * sinX) * (C * sinX));
+    if (sqrtVal < 1e-12) sqrtVal = 1e-12;
+    return (apc * bCos + (C * sinX) * bSin) / sqrtVal;
+  }
+
+  analogWaveEllipse(phaseCycles, ellipseC) {
+    return this.analogWaveEllipseFull(phaseCycles, 0, 0, 1, ellipseC);
+  }
+
+  analogWaveTrisaw(phaseCycles, morph) {
+    let phaseRad = phaseCycles * 2 * Math.PI;
+    phaseRad = phaseRad - 2 * Math.PI * Math.floor(phaseRad / (2 * Math.PI));
+    const morphRad = morph * 2 * Math.PI;
+    let sourceMin, sourceMax, targetMin, targetRange;
+    if (phaseRad > morphRad) {
+      sourceMin = morphRad; sourceMax = 2 * Math.PI; targetMin = 1; targetRange = -1;
+    } else {
+      sourceMin = 0; sourceMax = morphRad; targetMin = 0; targetRange = 1;
+    }
+    const sourceRange = sourceMax - sourceMin;
+    let uni;
+    if (sourceMin === sourceMax) uni = sourceMin;
+    else uni = targetMin + (targetRange * (phaseRad - sourceMin)) / sourceRange;
+    return 2 * uni - 1;
+  }
+
+  analogPitchToFreq(pitch) {
+    return 440 * Math.pow(2, (pitch - 69) / 12);
+  }
+
+  // --- RSMET Filter ---
+
+  rsmetFilterModeToLadder(rsmetMode) {
+    const table = [[1,1],[1,2],[1,3],[1,4],[2,1],[2,2],[2,3],[2,4],[3,1],[3,4]];
+    const idx = Math.max(0, Math.min(9, Math.round(rsmetMode)));
+    return table[idx];
+  }
+
+  rsmetFilterSampleJs(state, input, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
+    const resoNorm = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
+    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
+
+    const freqGraph = [{x:0,y:3.0,skew:0,shape:0},{x:1,y:20000,skew:-0.95,shape:2}];
+    const resoGraph = [{x:0,y:0.0,skew:0,shape:0},{x:1,y:1.0,skew:0.5,shape:2}];
+    const cutoffHz = Math.max(0.000001, Math.min(safeRate * 0.49, this.analogEvalGraph(freqGraph, freqNorm)));
+    const feedback = Math.max(0, Math.min(0.999, this.analogEvalGraph(resoGraph, resoNorm)));
+
+    const [ladderMode, stages] = this.rsmetFilterModeToLadder(Number(params.mode) || 0);
+
+    const wc = Math.max(1e-9, Math.min(Math.PI * 0.98, 2 * Math.PI * cutoffHz / safeRate));
+    const sine = Math.sin(wc), cosine = Math.cos(wc), tangent = Math.tan(0.25 * (wc - Math.PI));
+    let a = sine - cosine * tangent;
+    a = (a > -1e-12 && a < 1e-12) ? (a >= 0 ? 1e-12 : -1e-12) : a;
+    a = tangent / a;
+
+    let mixS;
+    const c = [0, 0, 0, 0, 0];
+    if (ladderMode === 1) { c[stages] = 1; mixS = stages * 0.25; }
+    else if (ladderMode === 2) {
+      const hp = [[1,-1,0,0,0],[1,-2,1,0,0],[1,-3,3,-1,0],[1,-4,6,-4,1]];
+      for (let i = 0; i <= stages; i++) c[i] = hp[stages-1][i];
+      mixS = stages * 0.25;
+    } else {
+      const bp = [[0,2,-2,0,0],[0,2,-2,0,0],[0,0,3,-3,0],[0,0,4,-8,4]];
+      for (let i = 0; i < 5; i++) c[i] = bp[stages-1][i];
+      mixS = 0.125;
+    }
+
+    const b = 1 + a;
+    const denom = Math.max(1e-12, 1 + a * a + 2 * a * cosine);
+    const g2 = (b * b) / denom;
+    const k = feedback / Math.max(1e-12, g2 * g2);
+    const g = 1 + mixS * k;
+
+    const safeInput = this.safeFilterNumber(input, state);
+    let inputSignal = Math.tanh(safeInput * 2);
+    if (chaos > 0) inputSignal += (Math.random() * 2 - 1) * chaos;
+
+    const y = state.y;
+    y[0] = (g * inputSignal - k * y[4]);
+    y[0] = y[0] / (1 + y[0] * y[0]);
+    y[1] = y[0] + a * (y[0] - y[1]);
+    y[2] = y[1] + a * (y[1] - y[2]);
+    y[3] = y[2] + a * (y[2] - y[3]);
+    y[4] = y[3] + a * (y[3] - y[4]);
+
+    const out = c[0]*y[0] + c[1]*y[1] + c[2]*y[2] + c[3]*y[3] + c[4]*y[4];
+    return this.safeFilterNumber(out * 0.41, state);
+  }
+
+  rsmetFilterSample(state, input, params, rate = sampleRate) {
+    if (this.nativeRsmetFilterReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeRsmetFilter.soemdsp_rsmet_filter_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativeRsmetFilter.soemdsp_rsmet_filter_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(input, state),
+              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
+              Math.max(0, Math.min(9, Math.round(Number(params.mode) || 0))),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativeRsmetFilterReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "rsmet_filter",
+          status: "disabled",
+          message: String(error?.message || error || "native RSMET Filter failed"),
+        });
+      }
+    }
+    return this.rsmetFilterSampleJs(state, input, params, rate);
+  }
+
+  // --- Yellowjacket Filter ---
+
+  yellowjacketFilterSampleJs(state, input, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
+    const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
+    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
+
+    let maxPitch, resDropPoint;
+    if (safeRate <= 44100) { maxPitch = 87.7; resDropPoint = 0.77; }
+    else if (safeRate <= 88200) { maxPitch = 96.0; resDropPoint = 0.82; }
+    else if (safeRate <= 132300) { maxPitch = 96.0; resDropPoint = 0.83; }
+    else if (safeRate <= 176400) { maxPitch = 96.0; resDropPoint = 0.86; }
+    else if (safeRate <= 220500) { maxPitch = 96.0; resDropPoint = 0.89; }
+    else if (safeRate <= 264600) { maxPitch = 96.0; resDropPoint = 0.90; }
+    else { maxPitch = 96.0; resDropPoint = 0.95; }
+
+    const pitch = -156 + (96 - -156) * freqNorm;
+    const frequencyHz = this.analogPitchToFreq(Math.min(pitch, maxPitch));
+    const cutoffHz = frequencyHz * (4.56415 + (0.972007 - 4.56415) * chaos);
+
+    const resGraph = [{x:0,y:reso,skew:0,shape:0},{x:resDropPoint,y:reso,skew:0,shape:0},{x:1,y:0.2,skew:0.57,shape:1}];
+    const newResNormalized = this.analogEvalGraph(resGraph, freqNorm);
+    const ellipseCGraph = [{x:0,y:7.6024,skew:0,shape:0},{x:1,y:0.00001,skew:0.99,shape:2}];
+    const feedbackGainGraph = [{x:0,y:20.0,skew:0,shape:0},{x:1,y:-0.0429102,skew:0.99,shape:2}];
+    const ellipseC = this.analogEvalGraph(ellipseCGraph, newResNormalized);
+    const feedbackGain = this.analogEvalGraph(feedbackGainGraph, newResNormalized);
+
+    const a = this.analogLadderCoefficient(cutoffHz, safeRate);
+
+    const safeInput = this.safeFilterNumber(input, state);
+    let inputSignal = Math.max(-7, Math.min(7, safeInput * 4));
+    inputSignal = state.oscSelfMod + 1.04025 * inputSignal + state.lastOutValue;
+
+    state.phase += (frequencyHz * 1.9400625 * inputSignal) / safeRate;
+    state.phase -= Math.floor(state.phase);
+
+    let oscValue = this.analogWaveEllipseFull(state.phase, 0.0, -0.71286768918541499, 0.70129855105756955, ellipseC);
+    oscValue *= 0.635417;
+
+    let y0 = oscValue;
+    y0 = y0 / (1 + y0 * y0);
+    state.filterY1 = y0 + a * (y0 - state.filterY1);
+    inputSignal = state.filterY1;
+
+    state.oscSelfMod = inputSignal * 20.0;
+
+    const out = 1.3892758936011171 * oscValue;
+    state.lastOutValue = out * 0.5 * feedbackGain;
+
+    return this.safeFilterNumber(out, state);
+  }
+
+  yellowjacketFilterSample(state, input, params, rate = sampleRate) {
+    if (this.nativeYellowjacketFilterReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeYellowjacketFilter.soemdsp_yellowjacket_filter_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativeYellowjacketFilter.soemdsp_yellowjacket_filter_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(input, state),
+              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativeYellowjacketFilterReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "yellowjacket_filter",
+          status: "disabled",
+          message: String(error?.message || error || "native Yellowjacket Filter failed"),
+        });
+      }
+    }
+    return this.yellowjacketFilterSampleJs(state, input, params, rate);
+  }
+
+  // --- SuperLove Filter ---
+
+  superloveFilterSampleJs(state, input, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
+    const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
+    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
+    const mode = Math.max(0, Math.min(3, Math.round(Number(params.mode) || 0)));
+    const safeInput = this.safeFilterNumber(input, state);
+
+    if (mode <= 1) {
+      const resGraph = [{x:0,y:0,skew:0,shape:0},{x:1,y:-2.7175,skew:-0.85,shape:2}];
+      const noiseGraph = [{x:0,y:0.00,skew:0,shape:0},{x:0.75,y:0.05,skew:-0.7,shape:2},{x:1,y:0.10,skew:0.6,shape:2}];
+      const cutoffHz = Math.max(0, Math.min(0.5 * safeRate, this.analogPitchToFreq(-12 + (135 - -12) * freqNorm)));
+      const mod = this.analogEvalGraph(resGraph, reso);
+      const noiseAmp = this.analogEvalGraph(noiseGraph, chaos);
+      const shape = chaos;
+
+      state.feedbackSignal = mod * state.feedbackSignal + safeInput;
+      const pm = (Math.random() * 2 - 1) * noiseAmp;
+      const oscValue = -this.analogWaveTrisaw(state.feedbackSignal + 0.25725 + pm, shape);
+
+      const a = this.analogLadderCoefficient(cutoffHz, safeRate);
+      const stages = mode === 0 ? 3 : 4;
+      state.feedbackSignal = this.analogLadderTapStep(state.filterY, oscValue, a, 1, stages);
+
+      const dcCutoff = mode === 0 ? 10.0 : 5.0;
+      const dcStages = mode === 0 ? 3 : 1;
+      const dcA = this.analogLadderCoefficient(dcCutoff, safeRate);
+      const dcOut = this.analogLadderTapStep(state.dcY, state.feedbackSignal, dcA, 2, dcStages);
+
+      return this.safeFilterNumber(dcOut * 1.02, state);
+    } else if (mode === 2) {
+      const resGraph = [{x:0,y:-0.2,skew:0,shape:0},{x:1,y:1.3,skew:-0.85,shape:2}];
+      const mod = this.analogEvalGraph(resGraph, reso);
+      const shape = 1 - chaos;
+
+      state.feedbackSignal = mod * state.feedbackSignal + safeInput;
+      const oscValue = -this.analogWaveTrisaw(state.feedbackSignal + 0.75, shape);
+
+      const lpA = this.analogLadderCoefficient(safeRate * 0.5, safeRate);
+      let fb = this.analogLadderTapStep(state.filterY, oscValue * 0.1, lpA, 1, 1);
+
+      const cutoffHz = Math.max(0, Math.min(0.5 * safeRate, this.analogPitchToFreq(-12 + (135 - -12) * freqNorm)));
+      const hpA = this.analogLadderCoefficient(cutoffHz, safeRate);
+      fb = this.analogLadderTapStep(state.dcY, fb, hpA, 2, 1);
+      fb *= 10;
+
+      state.feedbackSignal = fb;
+      return this.safeFilterNumber(-fb * 0.31, state);
+    } else {
+      const resGraph = [{x:0,y:-0.2,skew:0,shape:0},{x:1,y:1.3,skew:-0.85,shape:2}];
+      const mod = this.analogEvalGraph(resGraph, reso);
+      const shape = 1 - chaos;
+
+      state.feedbackSignal = mod * state.feedbackSignal + safeInput;
+      const oscValue = -this.analogWaveTrisaw(state.feedbackSignal + 0.75, shape);
+
+      const cutoffHz = Math.max(0, Math.min(0.5 * safeRate, this.analogPitchToFreq(-12 + (135 - -12) * freqNorm)));
+      const a = this.analogLadderCoefficient(cutoffHz, safeRate);
+      let fb = this.analogLadderTapStep(state.filterY, oscValue * 0.1, a, 3, 1);
+      fb *= 10;
+
+      state.feedbackSignal = fb;
+      return this.safeFilterNumber(fb, state);
+    }
+  }
+
+  superloveFilterSample(state, input, params, rate = sampleRate) {
+    if (this.nativeSuperloveFilterReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeSuperloveFilter.soemdsp_superlove_filter_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativeSuperloveFilter.soemdsp_superlove_filter_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(input, state),
+              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
+              Math.max(0, Math.min(3, Math.round(Number(params.mode) || 0))),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativeSuperloveFilterReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "superlove_filter",
+          status: "disabled",
+          message: String(error?.message || error || "native SuperLove Filter failed"),
+        });
+      }
+    }
+    return this.superloveFilterSampleJs(state, input, params, rate);
+  }
+
+  // --- Chaotic Phase Locking Filter ---
+
+  chaoticPhaseLockingFilterSampleJs(state, input, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
+    const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
+    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
+
+    const cutoffHz = Math.max(0, Math.min(0.5 * safeRate, this.analogPitchToFreq(-12 + (135 - -12) * freqNorm)));
+    const resGraph = [{x:0,y:0.1,skew:0,shape:0},{x:1,y:20.0,skew:-0.85,shape:2}];
+    const mod = this.analogEvalGraph(resGraph, reso);
+    const shape = 1 - chaos;
+
+    const safeInput = this.safeFilterNumber(input, state);
+    state.feedbackSignal = mod * state.feedbackSignal + (-safeInput);
+    const oscValue = this.analogWaveEllipse(state.feedbackSignal, shape);
+
+    const a = this.analogLadderCoefficient(cutoffHz, safeRate);
+    state.feedbackSignal = this.analogLadderTapStep(state.filterY, oscValue, a, 1, 2);
+
+    const dcA = this.analogLadderCoefficient(5.0, safeRate);
+    const dcOut = this.analogLadderTapStep(state.dcY, state.feedbackSignal, dcA, 2, 1);
+
+    return this.safeFilterNumber(-dcOut, state);
+  }
+
+  chaoticPhaseLockingFilterSample(state, input, params, rate = sampleRate) {
+    if (this.nativeChaoticPhaseLockingFilterReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeChaoticPhaseLockingFilter.soemdsp_chaotic_phase_locking_filter_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativeChaoticPhaseLockingFilter.soemdsp_chaotic_phase_locking_filter_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(input, state),
+              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativeChaoticPhaseLockingFilterReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "chaotic_phase_locking_filter",
+          status: "disabled",
+          message: String(error?.message || error || "native Chaotic Phase Locking Filter failed"),
+        });
+      }
+    }
+    return this.chaoticPhaseLockingFilterSampleJs(state, input, params, rate);
+  }
+
+  // --- Resonator Filter ---
+
+  resonatorFilterSampleJs(state, input, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
+    const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
+    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
+    const mode = Math.max(0, Math.min(2, Math.round(Number(params.mode) || 0)));
+    const safeInput = this.safeFilterNumber(input, state);
+
+    if (mode === 0 || mode === 1) {
+      const triangle = mode === 1;
+      const inputAmplitude = triangle ? 3.0 : 2.0;
+
+      let maxFreqNorm, resDropPoint;
+      if (safeRate <= 44100) { maxFreqNorm = 0.855; resDropPoint = 0.74; }
+      else if (safeRate <= 88200) { maxFreqNorm = 0.9; resDropPoint = 0.75; }
+      else if (safeRate <= 132300) { maxFreqNorm = 0.9; resDropPoint = 0.82; }
+      else if (safeRate <= 176400) { maxFreqNorm = 0.9; resDropPoint = 0.88; }
+      else if (safeRate <= 220500) { maxFreqNorm = 0.9; resDropPoint = 0.92; }
+      else { maxFreqNorm = 0.955; resDropPoint = 0.92; }
+
+      const freqNormInUse = Math.min(freqNorm, maxFreqNorm);
+      const frequencyHz = this.analogPitchToFreq(-72.96 + (69.76 - -72.96) * freqNormInUse);
+      const cutoffHz = frequencyHz * (0.248387 + (0.0927813 - 0.248387) * this.flowerChildFilterCurveShape(freqNormInUse, -0.36));
+      const osc2Ratio = 0.015625 + (1.58 - 0.015625) * freqNormInUse;
+      const osc1Ratio = osc2Ratio - 0.015625;
+
+      const resGraph = [{x:0,y:reso,skew:0,shape:0},{x:resDropPoint,y:reso,skew:0,shape:0},{x:1,y:0.15,skew:0.557,shape:1}];
+      const newResNorm = this.analogEvalGraph(resGraph, freqNorm);
+      const freqModAmt = 10.0 + (484.43 - 10.0) * newResNorm;
+      const phaseModAmt = 0.256 + (0.166 - 0.256) * chaos;
+
+      let inputSignal = inputAmplitude * safeInput;
+      inputSignal = state.osc2Value + state.osc1SelfMod + inputSignal;
+
+      const freq1 = frequencyHz * osc1Ratio * freqModAmt * 0.1 * inputSignal;
+      const clampedFreq1 = Math.max(-safeRate * 0.5, Math.min(safeRate * 0.5, freq1));
+      state.phase1 += clampedFreq1 / safeRate;
+      state.phase1 -= Math.floor(state.phase1);
+      const phaseOffset1 = inputSignal * phaseModAmt;
+      let unipolar1 = state.phase1 + phaseOffset1;
+      unipolar1 -= Math.floor(unipolar1);
+      state.osc1Value = this.analogWaveEllipse(unipolar1, 0.00749) * 0.5;
+
+      const a = this.analogLadderCoefficient(cutoffHz, safeRate);
+      inputSignal = this.analogLadderTapStep(state.filterY, state.osc1Value, a, 1, 1);
+
+      state.osc1SelfMod = inputSignal;
+      state.osc2SelfMod = state.osc2Value;
+
+      const fm2 = freqModAmt * 4.53126 * inputSignal + state.osc2SelfMod * 3.0;
+      const freq2 = frequencyHz * osc2Ratio * fm2;
+      const clampedFreq2 = Math.max(-safeRate * 0.5, Math.min(safeRate * 0.5, freq2));
+      state.phase2 += clampedFreq2 / safeRate;
+      state.phase2 -= Math.floor(state.phase2);
+
+      let out;
+      if (!triangle) {
+        out = Math.sin(state.phase2 * 2 * Math.PI);
+        state.osc2Value = out * 10.0;
+      } else {
+        const ellipseCGraph = [{x:0,y:0.3,skew:0,shape:0},{x:1,y:1.0,skew:-0.99,shape:2}];
+        const ellipseC = this.analogEvalGraph(ellipseCGraph, freqNormInUse);
+        out = this.analogWaveEllipse(state.phase2, ellipseC);
+        state.osc2Value = out * 10.0;
+      }
+
+      const dcA = this.analogLadderCoefficient(5.0, safeRate);
+      const dcOut = this.analogLadderTapStep(state.dcY, -out, dcA, 2, 1);
+      return this.safeFilterNumber(dcOut * (triangle ? 10.0 : 4.6), state);
+    } else {
+      const inputAmplitude = 2.0;
+      const frequencyHz = this.analogPitchToFreq(-50 + (108 - -50) * freqNorm);
+      const cutoffHz = frequencyHz * 8.87718;
+
+      const mod21Graph = [{x:0,y:-0.00105655,skew:0,shape:0},{x:1,y:-2.52898,skew:-0.99,shape:2}];
+      const fmpm12Graph = [{x:0,y:0.0,skew:0,shape:0},{x:1,y:0.012216,skew:0.54,shape:2}];
+
+      let breakpoint2, cap3;
+      if (safeRate <= 44100) { breakpoint2 = 0.578595; cap3 = 0.432749; }
+      else if (safeRate <= 88200) { breakpoint2 = 0.692308; cap3 = 0.502924; }
+      else if (safeRate <= 132300) { breakpoint2 = 0.749164; cap3 = 0.561404; }
+      else { breakpoint2 = 0.776273; cap3 = 0.54386; }
+      const cappedTarget = Math.min(reso, cap3);
+      const resGraph = [{x:0,y:0,skew:0,shape:0},{x:0.0434783,y:reso,skew:0,shape:0},{x:breakpoint2,y:reso,skew:0,shape:0},{x:1,y:cappedTarget,skew:0.195211,shape:1}];
+      const resSample = this.analogEvalGraph(resGraph, freqNorm);
+      let mod21 = this.analogEvalGraph(mod21Graph, resSample);
+      if (mod21 < -1.53) mod21 = -1.53;
+      const fmpm12 = this.analogEvalGraph(fmpm12Graph, chaos);
+
+      let inputSignal = (-safeInput) * inputAmplitude + state.sawFeedback * -8.07896613446314289533 + state.osc2Value + state.osc1SelfMod * 20.0;
+
+      const freq1 = frequencyHz * mod21 * inputSignal;
+      state.phase1 += freq1 / safeRate;
+      state.phase1 -= Math.floor(state.phase1);
+      state.osc1Value = Math.sin(state.phase1 * 2 * Math.PI);
+      const scaleX = 2 / 0.00873698;
+      state.osc1Value = (0.00873698 / 2) * Math.tanh(scaleX * state.osc1Value);
+
+      const a = this.analogLadderCoefficient(cutoffHz, safeRate);
+      inputSignal = this.analogLadderTapStep(state.filterY, state.osc1Value, a, 1, 1);
+
+      state.osc1SelfMod = inputSignal;
+      state.osc2SelfMod = state.osc2Value;
+
+      const modv = inputSignal * -140.010789331 + state.osc2SelfMod * -1.05208;
+      const fm = Math.cos((Math.PI / 2) * fmpm12) * modv;
+      const pm = Math.sin((Math.PI / 2) * fmpm12) * modv;
+      state.phase2 += (frequencyHz * (-0.425 + fm)) / safeRate;
+      state.phase2 -= Math.floor(state.phase2);
+      let unipolar2 = state.phase2 + pm;
+      unipolar2 -= Math.floor(unipolar2);
+      state.osc2Value = Math.sin(unipolar2 * 2 * Math.PI);
+
+      state.sawFeedback = inputSignal + state.osc2Value;
+
+      const dcA = this.analogLadderCoefficient(5.0, safeRate);
+      const dcOut = this.analogLadderTapStep(state.dcY, -state.osc2Value * 0.1, dcA, 2, 1);
+      return this.safeFilterNumber(dcOut * 80.0, state);
+    }
+  }
+
+  resonatorFilterSample(state, input, params, rate = sampleRate) {
+    if (this.nativeResonatorFilterReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeResonatorFilter.soemdsp_resonator_filter_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativeResonatorFilter.soemdsp_resonator_filter_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(input, state),
+              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
+              Math.max(0, Math.min(2, Math.round(Number(params.mode) || 0))),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativeResonatorFilterReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "resonator_filter",
+          status: "disabled",
+          message: String(error?.message || error || "native Resonator Filter failed"),
+        });
+      }
+    }
+    return this.resonatorFilterSampleJs(state, input, params, rate);
+  }
+
+  // --- Human Filter ---
+
+  humanFilterDbToAmp(db) {
+    return Math.pow(10, db / 20);
+  }
+
+  humanFilterSampleJs(state, input, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
+    const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
+    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
+    const mode = Math.max(0, Math.min(2, Math.round(Number(params.mode) || 0)));
+
+    let maxPitch, resDropPoint, chaosMax;
+    if (safeRate <= 44100) { maxPitch = 115.57; resDropPoint = 0.78; chaosMax = 0.64; }
+    else if (safeRate <= 88200) { maxPitch = 128.7; resDropPoint = 0.78; chaosMax = 1.0; }
+    else if (safeRate <= 132300) { maxPitch = 137.0; resDropPoint = 0.83; chaosMax = 0.856; }
+    else if (safeRate <= 176400) { maxPitch = 137.0; resDropPoint = 0.91; chaosMax = 1.0; }
+    else if (safeRate <= 220500) { maxPitch = 137.0; resDropPoint = 1.0; chaosMax = 1.0; }
+    else { maxPitch = 137.0; resDropPoint = 0.78; chaosMax = 1.0; }
+
+    const pitch = -0.38 + (137.0 - -0.38) * freqNorm;
+    const frequencyHz = this.analogPitchToFreq(Math.min(pitch, maxPitch));
+
+    const mod11Graph = [{x:0.0,y:2.92396,skew:0,shape:0},{x:1.0,y:-1.7544,skew:0.785442,shape:1}];
+    let mod11;
+    if (resDropPoint !== 1.0) {
+      const resVfreqGraph = [{x:0.0,y:reso,skew:0,shape:0},{x:resDropPoint,y:reso,skew:0,shape:0},{x:1.0,y:0.2,skew:0.57,shape:1}];
+      const newResNormalized = this.analogEvalGraph(resVfreqGraph, freqNorm);
+      mod11 = this.analogEvalGraph(mod11Graph, newResNormalized);
+    } else {
+      mod11 = this.analogEvalGraph(mod11Graph, reso);
+    }
+
+    const gainDb = Math.min(chaos, chaosMax) * 14.9;
+
+    const centerHz = 1000.0;
+    const Q = 1.0;
+    const A = this.humanFilterDbToAmp(gainDb);
+    const w = Math.max(1e-9, Math.min(Math.PI * 0.98, 2 * Math.PI * centerHz / safeRate));
+    const r = 1 / (Q * A);
+    const g = Math.tan(0.5 * w);
+    const c = g + r;
+    const sCoef = 1 / (1 + g * c);
+    const aB = A * A * r;
+
+    const safeInput = this.safeFilterNumber(input, state);
+    const clampedInput = this.clampValue(safeInput, -2, 2);
+    const svfIn = state.osc2Value + state.osc1ModSelf + clampedInput + state.lastOutValue;
+    const yH = (svfIn - c * state.fbZ1 - state.fbZ2) * sCoef;
+    const yB = state.fbZ1 + g * yH;
+    const yL = state.fbZ2 + g * yB;
+    state.fbZ1 = 2 * yB - state.fbZ1;
+    state.fbZ2 = 2 * yL - state.fbZ2;
+    const inputSignal = yH + aB * yB + yL;
+
+    const fm1 = -2.2784975504539248 * inputSignal;
+    state.phase1 += (frequencyHz * fm1) / safeRate;
+    state.phase1 -= Math.floor(state.phase1);
+    state.osc1Value = Math.sin(state.phase1 * 2 * Math.PI) * 0.177898;
+
+    state.osc1ModSelf = state.osc1Value * mod11;
+    state.osc2ModSelf = state.osc2Value * -0.395833;
+
+    const fm2 = 0.0333333 + 2.7429968062 * state.osc1Value + state.osc2ModSelf;
+    state.phase2 += (frequencyHz * fm2) / safeRate;
+    state.phase2 -= Math.floor(state.phase2);
+    state.osc2Value = Math.sin(state.phase2 * 2 * Math.PI) * 0.71597;
+
+    state.lastOutValue = (state.osc1Value + state.osc2Value) * 0.1443178;
+
+    const dcA = this.analogLadderCoefficient(5.0, safeRate);
+    let out;
+    if (mode === 0) out = this.analogLadderTapStep(state.dcY, state.osc1Value, dcA, 2, 1) * 2.0;
+    else if (mode === 1) out = this.analogLadderTapStep(state.dcY, state.osc1Value + state.osc2Value, dcA, 2, 1);
+    else out = this.analogLadderTapStep(state.dcY, state.osc2Value, dcA, 2, 1);
+
+    return this.safeFilterNumber(out, state);
+  }
+
+  humanFilterSample(state, input, params, rate = sampleRate) {
+    if (this.nativeHumanFilterReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeHumanFilter.soemdsp_human_filter_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativeHumanFilter.soemdsp_human_filter_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(input, state),
+              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
+              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
+              Math.max(0, Math.min(2, Math.round(Number(params.mode) || 0))),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativeHumanFilterReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "human_filter",
+          status: "disabled",
+          message: String(error?.message || error || "native Human Filter failed"),
+        });
+      }
+    }
+    return this.humanFilterSampleJs(state, input, params, rate);
   }
 
   tb303FilterSample(state, input, params, rate = sampleRate) {
@@ -7387,6 +8503,88 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const state = this.flowerChildFilterStates.get(nodeId) || this.createFlowerChildFilterState();
         this.flowerChildFilterStates.set(nodeId, state);
         value = this.flowerChildFilterSample(
+          state,
+          mixInput(nodeId),
+          {
+            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "rsmetFilter") {
+        const state = this.rsmetFilterStates.get(nodeId) || this.createRsmetFilterState();
+        this.rsmetFilterStates.set(nodeId, state);
+        value = this.rsmetFilterSample(
+          state,
+          mixInput(nodeId),
+          {
+            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "yellowjacketFilter") {
+        const state = this.yellowjacketFilterStates.get(nodeId) || this.createYellowjacketFilterState();
+        this.yellowjacketFilterStates.set(nodeId, state);
+        value = this.yellowjacketFilterSample(
+          state,
+          mixInput(nodeId),
+          {
+            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "superloveFilter") {
+        const state = this.superloveFilterStates.get(nodeId) || this.createSuperloveFilterState();
+        this.superloveFilterStates.set(nodeId, state);
+        value = this.superloveFilterSample(
+          state,
+          mixInput(nodeId),
+          {
+            chaos: this.readEffectiveParameter(node, "chaos", 0.5, frame, frames, frameValues),
+            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "chaoticPhaseLockingFilter") {
+        const state = this.chaoticPhaseLockingFilterStates.get(nodeId) || this.createChaoticPhaseLockingFilterState();
+        this.chaoticPhaseLockingFilterStates.set(nodeId, state);
+        value = this.chaoticPhaseLockingFilterSample(
+          state,
+          mixInput(nodeId),
+          {
+            chaos: this.readEffectiveParameter(node, "chaos", 1, frame, frames, frameValues),
+            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "resonatorFilter") {
+        const state = this.resonatorFilterStates.get(nodeId) || this.createResonatorFilterState();
+        this.resonatorFilterStates.set(nodeId, state);
+        value = this.resonatorFilterSample(
+          state,
+          mixInput(nodeId),
+          {
+            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "humanFilter") {
+        const state = this.humanFilterStates.get(nodeId) || this.createHumanFilterState();
+        this.humanFilterStates.set(nodeId, state);
+        value = this.humanFilterSample(
           state,
           mixInput(nodeId),
           {

@@ -178,6 +178,96 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_rsmet_filter_create" `
+  "-Wl,--export=soemdsp_rsmet_filter_destroy" `
+  "-Wl,--export=soemdsp_rsmet_filter_sample" `
+  "-Wl,--export=soemdsp_rsmet_filter_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\rsmet_filter\rsmet_filter.wasm" `
+  "$root\native_modules\rsmet_filter\rsmet_filter.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_yellowjacket_filter_create" `
+  "-Wl,--export=soemdsp_yellowjacket_filter_destroy" `
+  "-Wl,--export=soemdsp_yellowjacket_filter_sample" `
+  "-Wl,--export=soemdsp_yellowjacket_filter_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\yellowjacket_filter\yellowjacket_filter.wasm" `
+  "$root\native_modules\yellowjacket_filter\yellowjacket_filter.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_superlove_filter_create" `
+  "-Wl,--export=soemdsp_superlove_filter_destroy" `
+  "-Wl,--export=soemdsp_superlove_filter_sample" `
+  "-Wl,--export=soemdsp_superlove_filter_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\superlove_filter\superlove_filter.wasm" `
+  "$root\native_modules\superlove_filter\superlove_filter.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_chaotic_phase_locking_filter_create" `
+  "-Wl,--export=soemdsp_chaotic_phase_locking_filter_destroy" `
+  "-Wl,--export=soemdsp_chaotic_phase_locking_filter_sample" `
+  "-Wl,--export=soemdsp_chaotic_phase_locking_filter_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\chaotic_phase_locking_filter\chaotic_phase_locking_filter.wasm" `
+  "$root\native_modules\chaotic_phase_locking_filter\chaotic_phase_locking_filter.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_resonator_filter_create" `
+  "-Wl,--export=soemdsp_resonator_filter_destroy" `
+  "-Wl,--export=soemdsp_resonator_filter_sample" `
+  "-Wl,--export=soemdsp_resonator_filter_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\resonator_filter\resonator_filter.wasm" `
+  "$root\native_modules\resonator_filter\resonator_filter.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_human_filter_create" `
+  "-Wl,--export=soemdsp_human_filter_destroy" `
+  "-Wl,--export=soemdsp_human_filter_sample" `
+  "-Wl,--export=soemdsp_human_filter_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\human_filter\human_filter.wasm" `
+  "$root\native_modules\human_filter\human_filter.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_tb303_filter_create" `
   "-Wl,--export=soemdsp_tb303_filter_destroy" `
   "-Wl,--export=soemdsp_tb303_filter_sample" `

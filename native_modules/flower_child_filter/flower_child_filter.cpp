@@ -35,6 +35,22 @@
 //     (out = ((1+skew)*p) / (1-skew+2*skew*p)), including the detail that
 //     Rev2 (unlike Rev1) samples this curve at the *frequency* slider
 //     position, not at resonance.
+//
+// mode 2 (Rev3): a different oscillator scheme entirely -- an "ellipsoid"
+//   waveshaper on a bipolar phasor value, driven by 5 independent 4-node
+//   resonance-shaping curves (phase-mod amount, sine amplitude, sine-to-
+//   square morph, clip level, noise reduction), through two cascaded
+//   impulse-invariant-transform one-pole lowpass stages (a different,
+//   gentler filter response than the ladder-style stages modes 0/1 use).
+//   One curve (clipLevelGraph) had a genuinely ambiguous node list in the
+//   original 2021 source (nodes added twice, with a shape/skew set-call
+//   that only lines up with the intended values under the reading that the
+//   later three-node redefinition (7 -> 7 -> 2) supersedes an earlier,
+//   apparently-superseded four-value block) -- reproduced here using that
+//   later, clearly-intentional definition.
+// mode 3 (Downsampled): Rev1's architecture with only one lowpass stage
+//   and its oscillator's phase resampled through a sample-and-hold before
+//   waveshaping, aliasing it deliberately for a fuzzy/grungy character.
 
 namespace {
 
@@ -134,6 +150,55 @@ static inline double jmap01(double v, double outMin, double outMax) {
   return outMin + (outMax - outMin) * v;
 }
 
+static inline double jmapGeneral(double v, double srcMin, double srcMax, double dstMin, double dstMax) {
+  return dstMin + (dstMax - dstMin) * (v - srcMin) / (srcMax - srcMin);
+}
+
+static inline double dsp_exp(double x) {
+  double clamped = x < -40.0 ? -40.0 : (x > 40.0 ? 40.0 : x);
+  return dsp_exp2(clamped * 1.4426950408889634);
+}
+
+static double dsp_ln(double x) {
+  if (x <= 0.0) return -700.0;
+  DoubleBits bits;
+  bits.d = x;
+  long long expBits = (long long)((bits.u >> 52) & 0x7FF);
+  int e = (int)(expBits - 1023);
+  bits.u = (bits.u & ~(0x7FFULL << 52)) | (1023ULL << 52);
+  double m = bits.d;
+  double t = (m - 1.0) / (m + 1.0);
+  double t2 = t * t;
+  double series = t * (1.0 + t2 * (1.0 / 3.0 + t2 * (1.0 / 5.0 + t2 * (1.0 / 7.0 + t2 * (1.0 / 9.0)))));
+  return (double)e * 0.6931471805599453 + 2.0 * series;
+}
+
+// rsOnePoleFilter LOWPASS_IIT (matched-Z-transform one-pole): a1=exp(-w),
+// b0=1-a1, y[n]=b0*x[n]+a1*y[n-1]. Exact, per soemdsp/filter/OnePoleFilter.hpp.
+static inline double onePoleIitCoefficient(double cutoffHz, double sampleRate) {
+  double w = clampd(kTwoPi * cutoffHz / sampleRate, 1e-9, kPi * 0.98);
+  return dsp_exp(-w);
+}
+
+static inline double onePoleIitStep(double* y1, double input, double a1) {
+  double b0 = 1.0 - a1;
+  *y1 = b0 * input + a1 * (*y1);
+  return *y1;
+}
+
+// Standard sample-and-hold: latches a fresh value each time its own
+// internal phase (running at samplingFreq) wraps, otherwise repeats the
+// last latched value -- the only sensible reading of "SampleAndHold" as
+// used here (no source for this specific utility class was available).
+static inline double sampleAndHoldStep(double* dsPhase, double* held, double incoming, double samplingFreq, double sampleRate) {
+  *dsPhase += samplingFreq / sampleRate;
+  if (*dsPhase >= 1.0) {
+    *dsPhase -= dsp_floor(*dsPhase);
+    *held = incoming;
+  }
+  return *held;
+}
+
 // Standalone tension/ease curve (soemdsp's free-standing curve() function,
 // distinct from curve::Rational below). 0->0, 1->1, tension=0 is linear.
 static inline double curveShape(double v, double tension) {
@@ -159,6 +224,36 @@ static inline double evalResonanceGraph(double x, double n0y, double breakpoint,
   if (x < breakpoint) return n0y;  // flat segment: n1y == n0y
   double p = (x - breakpoint) / (1.0 - breakpoint);
   return n0y + (n2y - n0y) * rationalCurve(p, skew);
+}
+
+// Generic N-node soemdsp::utility::Graph evaluator (shape 1=RATIONAL,
+// 2=EXPONENTIAL, else linear) -- generalizes evalResonanceGraph above to
+// an arbitrary node list, used for Rev3's several 4-node shaping curves.
+struct GraphNode {
+  double x, y, skew;
+  int shape;
+};
+
+static double evalGraph(const GraphNode* nodes, int count, double x) {
+  if (count <= 0) return 0.0;
+  if (x < nodes[0].x) return nodes[0].y;
+  int i = -1;
+  for (int k = 0; k < count; k++) {
+    if (nodes[k].x > x) { i = k; break; }
+  }
+  if (i < 0) return nodes[count - 1].y;
+  if (i == 0) return nodes[0].y;
+  const GraphNode& n1 = nodes[i - 1];
+  const GraphNode& n2 = nodes[i];
+  if (n2.x - n1.x < 1e-9) return 0.5 * (n1.y + n2.y);
+  double p = (x - n1.x) / (n2.x - n1.x);
+  if (n2.shape == 1) return n1.y + (n2.y - n1.y) * rationalCurve(p, n2.skew);
+  if (n2.shape == 2) {
+    double c = 0.5 * (n2.skew + 1.0);
+    double a = 2.0 * dsp_ln((1.0 - c) / c);
+    return n1.y + (n2.y - n1.y) * (1.0 - dsp_exp(p * a)) / (1.0 - dsp_exp(a));
+  }
+  return n1.y + (n2.y - n1.y) * p;
 }
 
 static inline double pitchToFreq(double pitch) {
@@ -226,6 +321,11 @@ struct FlowerChildState {
   OnePoleStage stage2;
   double selfMod;
   unsigned int rngState;
+  // Rev3 (mode 2) only:
+  double rev3Feedback;
+  double rev3Lpf1Y1, rev3Lpf2Y1;  // one-pole IIT stages
+  // Downsampled (mode 3) only:
+  double dsPhase, dsHeld;
 };
 
 static FlowerChildState gPool[kMaxInstances];
@@ -242,6 +342,11 @@ extern "C" int soemdsp_flower_child_filter_create() {
       s.stage2.y1 = 0.0;
       s.selfMod = 0.0;
       s.rngState = 0x9E3779B9u + (unsigned int)(i + 1) * 2654435761u;
+      s.rev3Feedback = 0.0;
+      s.rev3Lpf1Y1 = 0.0;
+      s.rev3Lpf2Y1 = 0.0;
+      s.dsPhase = 0.0;
+      s.dsHeld = 0.0;
       s.active = true;
       return i + 1;
     }
@@ -260,7 +365,7 @@ extern "C" double soemdsp_flower_child_filter_sample(
   double frequency,   // 0..1 normalized slider, matches original
   double resonance,   // 0..1
   double chaosAmount,  // 0..1
-  int mode,            // 0 = Clean (Rev1), 1 = Dirty (Rev2)
+  int mode,            // 0=Clean(Rev1), 1=Dirty(Rev2), 2=Rev3, 3=Downsampled
   double sampleRate
 ) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
@@ -270,6 +375,99 @@ extern "C" double soemdsp_flower_child_filter_sample(
   const double freqNorm = clampd(frequency, 0.0, 1.0);
   const double reso = clampd(resonance, 0.0, 1.0);
   const double chaos = clampd(chaosAmount, 0.0, 1.0);
+
+  if (mode == 2) {
+    // Rev3
+    const double masterPitch = jmap01(freqNorm, -120.0, 105.0);
+    const double masterFrequency = pitchToFreq(masterPitch);
+    const double fmAmount = pitchToFreq(-48.377);
+    const double lpf1Cutoff = pitchToFreq(jmapGeneral(masterPitch, -120.0, 120.0, 90.0, 180.0));
+    const double lpf2Cutoff = pitchToFreq(jmapGeneral(masterPitch, -120.0, 120.0, 80.0, 130.0));
+    const double lpf1A = onePoleIitCoefficient(lpf1Cutoff, safeRate);
+    const double lpf2A = onePoleIitCoefficient(lpf2Cutoff, safeRate);
+
+    const GraphNode phaseModGraph[4] = {
+      {0, 0.0, 0, 0}, {0.5, -0.017446, 0.9, 1}, {0.6, -0.017575, 0.0, 1}, {1.0, -0.0147, 0.6, 1},
+    };
+    const GraphNode sineAmpGraph[4] = {
+      {0, 4.44777, 0, 0}, {0.5, 8.6687, 0.9, 1}, {0.6, 8.6687, 0.0, 1}, {1.0, 2.0, 0.6, 1},
+    };
+    const GraphNode sineToSquareGraph[4] = {
+      {0, 0.6792, 0, 0}, {0.5, 0.9552, 0.9, 1}, {0.6, 0.9552, 0.0, 1}, {1.0, 0.001, 0.6, 1},
+    };
+    const GraphNode clipLevelGraph[3] = { {0.0, 7.0, 0, 0}, {0.7, 7.0, 0.0, 1}, {1.0, 2.0, 0.6, 1} };
+    const GraphNode noiseGraph[3] = { {0.0, 0.0, 0, 0}, {0.8, 0.1, 0, 0}, {1.0, 1.0, 0.0, 1} };
+
+    const double pmAmount = evalGraph(phaseModGraph, 4, reso);
+    const double sineAmp = evalGraph(sineAmpGraph, 4, reso);
+    const double sineToSquare = evalGraph(sineToSquareGraph, 4, reso);
+    const double clipLevelRaw = evalGraph(clipLevelGraph, 3, reso);
+    const double clipLevel = sineAmp < clipLevelRaw ? sineAmp : clipLevelRaw;
+    const double noiseReduction = evalGraph(noiseGraph, 3, reso);
+    const double chaosAmount4x = chaos * 4.0;
+
+    double in = s.rev3Feedback + clampd(-1.0 * input, -clipLevel, clipLevel);
+    const double f = masterFrequency * in * fmAmount;
+    const double noiseTerm = masterFrequency * nextNoiseBipolar(&s.rngState) * chaosAmount4x * noiseReduction;
+
+    const double incAmt = (f + noiseTerm) / safeRate;
+    s.phase = s.phase + incAmt;
+    s.phase = s.phase - dsp_floor(s.phase);
+    const double bipolarPhasor = 2.0 * s.phase - 1.0;
+    const double phasorOut = bipolarPhasor + pmAmount * s.rev3Feedback;
+
+    const double ellipseOut = sineAmp * waveEllipse(phasorOut, sineToSquare);
+
+    double feedback = onePoleIitStep(&s.rev3Lpf1Y1, ellipseOut, lpf1A);
+    feedback = onePoleIitStep(&s.rev3Lpf2Y1, feedback, lpf2A);
+    s.rev3Feedback = feedback;
+
+    return feedback * 0.15;
+  }
+
+  if (mode == 3) {
+    // Downsampled (Rev1Downsampled)
+    const double maxNormFreq3 = safeRate <= 44100.0 ? 0.928 : 1.0;
+    const double normalizedFreqInUse3 = jmap01(freqNorm < maxNormFreq3 ? freqNorm : maxNormFreq3, 3.0, 161.0);
+    const double frequencyHz3 = pitchToFreq(normalizedFreqInUse3);
+    // FM/PM crossfade provably 0 here too (same node-domain-clamp argument
+    // as modes 0/1 -- see the file header's exact-reproduction note).
+
+    const double cutoff1 = frequencyHz3 * 0.4;
+    const double a1 = onePoleCoefficient(cutoff1, safeRate);
+
+    double breakpoint, cap;
+    if (safeRate <= 44100.0) { breakpoint = 0.732441; cap = 0.649123; }
+    else if (safeRate <= 88200.0) { breakpoint = 0.816054; cap = 0.818713; }
+    else { breakpoint = 0.879599; cap = 0.807018; }
+    const double cappedTarget = reso < cap ? reso : cap;
+    const double graphValue = evalResonanceGraph(reso, reso, breakpoint, cappedTarget, -0.38);
+    const double selfModAmp = jmap01(curveShape(graphValue, 0.4), 0.0368, 0.6333);
+
+    double inputSignal = clampd(-input, -1.0, 1.0) * 0.036;
+    inputSignal += s.selfMod;
+
+    const double mod = 1.4 * inputSignal;
+    const double fm = mod;  // crossfade=0
+
+    const double incAmt = (frequencyHz3 * fm * 6.0) / safeRate;  // live5=6.0
+    s.phase = s.phase + incAmt;
+    s.phase = s.phase - dsp_floor(s.phase);
+
+    const double dsf0y = 0.0;
+    const double dsf1y = 0.025 * safeRate;
+    const GraphNode dsf[2] = { {0, dsf0y, 0, 0}, {1, dsf1y, -0.09, 2} };
+    const double samplingFreq = frequencyHz3 * 2.0 + evalGraph(dsf, 2, 10.0 * (mod < 0 ? -mod : mod));
+
+    const double downsampledPhase = sampleAndHoldStep(&s.dsPhase, &s.dsHeld, s.phase, samplingFreq, safeRate);
+    const double current_osc_value = waveSine(downsampledPhase) * 1.3;
+
+    const double filtered = onePoleStep(&s.stage1, current_osc_value, a1);
+    s.selfMod = filtered * selfModAmp;
+
+    return filtered * 1.4;
+  }
+
   const bool dirty = mode != 0;
 
   const double maxNormFreq = safeRate <= 44100.0 ? 0.928 : 1.0;
