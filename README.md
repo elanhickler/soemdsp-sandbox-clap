@@ -514,6 +514,20 @@ match Saw/Square exactly; zero NaN/out-of-range samples across a full
 1080-combination sweep (5 waveforms × 6 frequencies × 4 Harmonics values
 × 3 pulse widths × 3 blend amounts) in wasmtime before shipping.
 
+### Round 8: Blend decoupled from PWM
+
+Live report: Blend "seems to be trying to be a triangle," happening at
+most/all settings, not one specific slider position. Blend's Square
+component had been reusing the PWM slider's variable duty cycle, so
+sweeping Blend at any PWM value other than 0.5 crossfaded Saw against a
+lopsided square. Simplified: Blend now always crossfades Saw with a
+plain, fixed 50%-duty square, using its own dedicated accumulator, fully
+independent of the PWM slider — closer to the module's very first
+Saw/Square crossfade, which just mixed two cleanly-shaped waveforms.
+Verified Blend's output is now identical across PWM values 0.1 and 0.9
+(confirming the decoupling), bounded across the full Blend range, and
+zero NaN across the full waveform sweep.
+
 ## License
 
 This repository is source-available for noncommercial use only. Commercial use

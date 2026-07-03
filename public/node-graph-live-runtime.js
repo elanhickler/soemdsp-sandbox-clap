@@ -1676,7 +1676,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=dsf-oscillator-v7-pwm-tri-blend-20260703"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=dsf-oscillator-v8-blend-fix-20260703"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

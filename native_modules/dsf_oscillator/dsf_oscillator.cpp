@@ -121,11 +121,14 @@ constexpr int kMaxInstances = 16;
 
 struct DsfOscillatorState {
   bool active;
-  double t;         // phase, 0..1
-  double sawAcc;    // Saw's leaky-integrator accumulator
-  double sqAcc;     // Square's leaky-integrator accumulator
-  double triAcc;     // Triangle's second-stage leaky-integrator accumulator
-  double triPeak;    // Triangle's adaptive peak-follower
+  double t;            // phase, 0..1
+  double sawAcc;       // Saw's leaky-integrator accumulator
+  double sqAcc;        // Square (PWM)'s leaky-integrator accumulator
+  double blendSqAcc;   // Blend's own fixed-50%-duty square accumulator --
+                        // decoupled from PWM's pulseWidth on purpose (see
+                        // sample() comment).
+  double triAcc;       // Triangle's second-stage leaky-integrator accumulator
+  double triPeak;      // Triangle's adaptive peak-follower
   double out;
 };
 
@@ -156,6 +159,7 @@ extern "C" void soemdsp_dsf_oscillator_reset(int handle) {
   s.t = 0.0;
   s.sawAcc = 0.0;
   s.sqAcc = 0.0;
+  s.blendSqAcc = 0.0;
   s.triAcc = 0.0;
   s.triPeak = 1.0;
 }
@@ -197,6 +201,16 @@ extern "C" void soemdsp_dsf_oscillator_sample(
 
     if (waveform == 1) {
       sample = s.sawAcc;
+    } else if (waveform == 4) {
+      // Blend: crossfades Saw with a plain, fixed 50%-duty Square, kept
+      // deliberately decoupled from the PWM slider -- simpler, and closer
+      // to the very first Saw/Square crossfade this module had, which
+      // just mixed two cleanly-shaped waveforms rather than inheriting
+      // PWM's variable-duty shape.
+      const double rawBlendSquare = rawSaw - pureSawEngMorphed(wrap01(s.t - 0.5), nMax, morph);
+      s.blendSqAcc = s.blendSqAcc * 0.999 + rawBlendSquare * dt;
+      const double b = clampD(blend, 0.0, 1.0);
+      sample = s.sawAcc * (1.0 - b) + s.blendSqAcc * b;
     } else {
       const double pw = clampD(pulseWidth, 0.01, 0.99);
       const double rawShiftedSaw = pureSawEngMorphed(wrap01(s.t - pw), nMax, morph);
@@ -205,15 +219,12 @@ extern "C" void soemdsp_dsf_oscillator_sample(
 
       if (waveform == 2) {
         sample = s.sqAcc;
-      } else if (waveform == 3) {
+      } else {  // waveform == 3: Triangle
         s.triAcc = s.triAcc * 0.995 + s.sqAcc * dt * 4.0;
         const double absTri = s.triAcc < 0.0 ? -s.triAcc : s.triAcc;
         s.triPeak = s.triPeak * 0.999 + absTri * 0.001;
         if (s.triPeak < 1.0) s.triPeak = 1.0;
         sample = s.triAcc / s.triPeak;
-      } else {  // waveform == 4: Saw/Square Blend
-        const double b = clampD(blend, 0.0, 1.0);
-        sample = s.sawAcc * (1.0 - b) + s.sqAcc * b;
       }
     }
   }
@@ -229,5 +240,5 @@ extern "C" double soemdsp_dsf_oscillator_out(int handle) {
 }
 
 extern "C" int soemdsp_dsf_oscillator_version() {
-  return 7;
+  return 8;
 }

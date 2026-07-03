@@ -16900,6 +16900,9 @@ def require_readme_scheduler_contract() -> None:
         "Round 7: PWM Square, Triangle, and a Saw/Square Blend",
         "square(t) = saw(t) - saw(t - pulseWidth)",
         "does **not** stay bounded on its own",
+        "Round 8: Blend decoupled from PWM",
+        "trying to be a triangle",
+        "fixed 50%-duty square",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [

@@ -10,10 +10,13 @@
 // Square output, with an adaptive peak-follower on top since -- unlike
 // Square -- this second stage doesn't stay bounded on its own across the
 // full frequency range (verified numerically before shipping).
-// Blend: a plain crossfade between the Saw and Square outputs.
+// Blend: a plain crossfade between Saw and a fixed 50%-duty Square, kept
+// deliberately decoupled from the PWM slider -- reported live as sounding
+// "triangle-like" when it inherited PWM's variable duty cycle; simplified
+// back to always crossfading two cleanly-shaped waveforms instead.
 
 function createNodeGraphDsfOscillatorState() {
-  return { t: 0, sawAcc: 0, sqAcc: 0, triAcc: 0, triPeak: 1 };
+  return { t: 0, sawAcc: 0, sqAcc: 0, blendSqAcc: 0, triAcc: 0, triPeak: 1 };
 }
 
 // pureSawEng(t, n), transcribed and simplified directly from "Extended DSF
@@ -64,6 +67,11 @@ function nodeGraphDsfOscillatorSample(state, options = {}) {
 
     if (waveform === 1) {
       sample = state.sawAcc;
+    } else if (waveform === 4) {
+      const rawBlendSquare = rawSaw - nodeGraphDsfPureSawEngMorphed(nodeGraphDsfWrap01(state.t - 0.5), nMax, options.morph);
+      state.blendSqAcc = state.blendSqAcc * 0.999 + rawBlendSquare * dt;
+      const blend = clampNodeSliderValue(Number(options.blend) ?? 0.5, 0, 1);
+      sample = state.sawAcc * (1 - blend) + state.blendSqAcc * blend;
     } else {
       const pw = clampNodeSliderValue(Number(options.pulseWidth) ?? 0.5, 0.01, 0.99);
       const rawShiftedSaw = nodeGraphDsfPureSawEngMorphed(nodeGraphDsfWrap01(state.t - pw), nMax, options.morph);
@@ -72,13 +80,10 @@ function nodeGraphDsfOscillatorSample(state, options = {}) {
 
       if (waveform === 2) {
         sample = state.sqAcc;
-      } else if (waveform === 3) {
+      } else {
         state.triAcc = state.triAcc * 0.995 + state.sqAcc * dt * 4;
         state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(state.triAcc) * 0.001);
         sample = state.triAcc / state.triPeak;
-      } else {
-        const blend = clampNodeSliderValue(Number(options.blend) ?? 0.5, 0, 1);
-        sample = state.sawAcc * (1 - blend) + state.sqAcc * blend;
       }
     }
   }
