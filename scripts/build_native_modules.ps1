@@ -43,6 +43,12 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_sabrina_reverb_wet_left" `
   "-Wl,--export=soemdsp_sabrina_reverb_wet_right" `
   "-Wl,--export=soemdsp_sabrina_reverb_version" `
+  "-Wl,--export=soemdsp_sabrina_reverb_process_block" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_input_left_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_input_right_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_output_left_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_output_right_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_max_block_frames" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\sabrina_reverb\sabrina_reverb.wasm" `
   "$root\native_modules\sabrina_reverb\sabrina_reverb.cpp"

@@ -15,6 +15,10 @@ constexpr int kMaxDelaySamples = 192000;
 // param update never snaps a delay tap length -- which is audible as a click
 // even when the incoming value itself arrives already smoothed.
 constexpr double kParamSmoothSeconds = 0.05;
+// Block-processing boundary buffers -- same fixed-size-static-array pattern
+// used by fractal_brownian_noise's process_block API. 2048 covers any
+// AudioWorklet render quantum with a large safety margin.
+constexpr int kMaxBlockFrames = 2048;
 
 double clamp(double value, double minValue, double maxValue) {
   if (value < minValue) {
@@ -109,6 +113,13 @@ struct SabrinaState {
   double smoothedLfoBaseSpeed;
   double smoothedLfoVariation;
   double paramSmoothAlpha;
+  // Block-processing boundary I/O -- caller writes frameCount dry samples
+  // into blockInLeft/Right via a zero-copy view, then reads mixed output
+  // back from blockOutLeft/Right the same way. See soemdsp_sabrina_reverb_process_block.
+  double blockInLeft[kMaxBlockFrames];
+  double blockInRight[kMaxBlockFrames];
+  double blockOutLeft[kMaxBlockFrames];
+  double blockOutRight[kMaxBlockFrames];
 };
 
 SabrinaState states[kMaxInstances];
@@ -415,6 +426,73 @@ void advanceSabrinaSmoothing(SabrinaState& state) {
   applyDelayGeometry(state);
 }
 
+// Block-processing boundary: params/state are read once per sample inside
+// the loop exactly as soemdsp_sabrina_reverb_process does, but frameCount
+// samples are produced in one call instead of one JS<->WASM crossing per
+// sample. Scalar and SIMD implementations sit behind this identical
+// (state, in, out, frameCount) shape -- same pattern as
+// fbmProcessBlockScalar/Simd in fractal_brownian_noise.cpp.
+//
+// Scalar path calls the original single-channel delaySample/diffuseSample
+// twice per stage (the pre-SIMD algorithm, still present and unused by the
+// live per-sample API since that was switched to the paired kernels).
+void sabrinaProcessBlockScalar(SabrinaState& state, const double* leftIn, const double* rightIn, double* leftOut, double* rightOut, int frameCount) {
+  for (int frame = 0; frame < frameCount; frame += 1) {
+    advanceSabrinaSmoothing(state);
+    const double dryLeft = finite(leftIn[frame]) ? leftIn[frame] : 0.0;
+    const double dryRight = finite(rightIn[frame]) ? rightIn[frame] : dryLeft;
+    const double preLeft = delaySample(state.delays[12], state.ch1);
+    const double preRight = delaySample(state.delays[13], state.ch0);
+    double left = dryLeft + preLeft * state.recycle;
+    double right = dryRight + preRight * state.recycle;
+    for (int index = 0; index < 6; index += 1) {
+      const double outLeft = diffuseSample(state.delays[index * 2], left);
+      const double outRight = diffuseSample(state.delays[index * 2 + 1], right);
+      left = outLeft;
+      right = outRight;
+    }
+    state.ch0 = finite(left) ? clamp(left, -16.0, 16.0) : 0.0;
+    state.ch1 = finite(right) ? clamp(right, -16.0, 16.0) : 0.0;
+    const double mixLeft = state.ch0 * state.mix + dryLeft * (1.0 - state.mix);
+    const double mixRight = state.ch1 * state.mix + dryRight * (1.0 - state.mix);
+    state.lastLeft = mixLeft;
+    state.lastRight = mixRight;
+    state.lastWet = (state.ch0 + state.ch1) * 0.5;
+    leftOut[frame] = mixLeft;
+    rightOut[frame] = mixRight;
+  }
+}
+
+// SIMD path -- identical structure, calls the already-committed paired
+// kernels (one f64x2 lane per stereo channel) that soemdsp_sabrina_reverb_process
+// already uses live, per sample.
+void sabrinaProcessBlockSimd(SabrinaState& state, const double* leftIn, const double* rightIn, double* leftOut, double* rightOut, int frameCount) {
+  for (int frame = 0; frame < frameCount; frame += 1) {
+    advanceSabrinaSmoothing(state);
+    const double dryLeft = finite(leftIn[frame]) ? leftIn[frame] : 0.0;
+    const double dryRight = finite(rightIn[frame]) ? rightIn[frame] : dryLeft;
+    double preLeft, preRight;
+    delaySamplePairSimd(state.delays[12], state.delays[13], state.ch1, state.ch0, preLeft, preRight);
+    double left = dryLeft + preLeft * state.recycle;
+    double right = dryRight + preRight * state.recycle;
+    for (int index = 0; index < 6; index += 1) {
+      double outLeft, outRight;
+      diffuseSamplePairSimd(state.delays[index * 2], state.delays[index * 2 + 1], left, right, outLeft, outRight);
+      left = outLeft;
+      right = outRight;
+    }
+    state.ch0 = finite(left) ? clamp(left, -16.0, 16.0) : 0.0;
+    state.ch1 = finite(right) ? clamp(right, -16.0, 16.0) : 0.0;
+    const double mixLeft = state.ch0 * state.mix + dryLeft * (1.0 - state.mix);
+    const double mixRight = state.ch1 * state.mix + dryRight * (1.0 - state.mix);
+    state.lastLeft = mixLeft;
+    state.lastRight = mixRight;
+    state.lastWet = (state.ch0 + state.ch1) * 0.5;
+    leftOut[frame] = mixLeft;
+    rightOut[frame] = mixRight;
+  }
+}
+
 void resetState(SabrinaState& state, double sampleRate) {
   state.active = true;
   state.sampleRate = clamp(sampleRate, 1.0, 192000.0);
@@ -533,6 +611,52 @@ extern "C" void soemdsp_sabrina_reverb_process(int handle, double leftInput, dou
   state->lastLeft = state->ch0 * state->mix + dryLeft * (1.0 - state->mix);
   state->lastRight = state->ch1 * state->mix + dryRight * (1.0 - state->mix);
   state->lastWet = (state->ch0 + state->ch1) * 0.5;
+}
+
+// Block-processing boundary. Caller writes frameCount dry samples into the
+// buffers returned by the _input_*_ptr getters (zero-copy Float64Array view
+// into WASM memory), calls this once, then reads mixed output back from the
+// _output_*_ptr buffers the same way -- one JS<->WASM crossing per block
+// instead of one per sample. useSimd selects sabrinaProcessBlockSimd (the
+// live per-sample kernel's algorithm) or sabrinaProcessBlockScalar (the
+// pre-SIMD reference); a real caller always passes 1, same rationale as
+// fractal_brownian_noise's process_block -- the switch exists so both paths
+// can be verified through one identical entry point.
+extern "C" void soemdsp_sabrina_reverb_process_block(int handle, int frameCount, int useSimd) {
+  SabrinaState* state = stateForHandle(handle);
+  if (!state) {
+    return;
+  }
+  const int safeFrameCount = frameCount < 1 ? 1 : (frameCount > kMaxBlockFrames ? kMaxBlockFrames : frameCount);
+  if (useSimd) {
+    sabrinaProcessBlockSimd(*state, state->blockInLeft, state->blockInRight, state->blockOutLeft, state->blockOutRight, safeFrameCount);
+  } else {
+    sabrinaProcessBlockScalar(*state, state->blockInLeft, state->blockInRight, state->blockOutLeft, state->blockOutRight, safeFrameCount);
+  }
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_input_left_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockInLeft) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_input_right_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockInRight) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_output_left_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockOutLeft) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_output_right_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockOutRight) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_max_block_frames() {
+  return kMaxBlockFrames;
 }
 
 extern "C" double soemdsp_sabrina_reverb_left(int handle) {

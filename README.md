@@ -360,3 +360,102 @@ future execution-order change could generalize from — **if and when that
 work is explicitly assigned** — not a claim that the shape has been
 generalized yet. No scheduler, no parameter-domain framework, no other
 module's dispatch was touched.
+
+## Second proof: Sabrina Reverb through the same block boundary
+
+The FBM proof above answers the question for a self-generating module with
+no external input. Sabrina Reverb is structurally different — a real
+effect that reads a live, continuously-varying dry L/R signal from
+upstream in the node graph — so it's a genuinely separate test of whether
+the *same* block-processing shape holds for a second, structurally
+different DSP unit, not a second angle on the same one.
+
+**Files inspected**: `native_modules/sabrina_reverb/sabrina_reverb.cpp`
+(the existing per-sample `soemdsp_sabrina_reverb_process`, its already-SIMD
+paired kernels `delaySamplePairSimd`/`diffuseSamplePairSimd`, and the
+original unpaired scalar `delaySample`/`diffuseSample` — still present in
+the file but unused by the live per-sample path since it switched to the
+paired kernels), and `public/node-live-audio-worklet.js`'s
+`nativeSabrinaReverbSample` call site to see exactly how the live graph
+feeds it dry input one sample at a time.
+
+**Implementation strategy**: same shape as FBM — fixed-size static
+in/out buffers added to `SabrinaState` (`blockInLeft/Right`,
+`blockOutLeft/Right`, `kMaxBlockFrames = 2048`), a
+`soemdsp_sabrina_reverb_process_block(handle, frameCount, useSimd)`
+dispatch boundary, and two block kernels behind it:
+
+- `sabrinaProcessBlockScalar` — loops the frame, calling the original
+  unpaired `delaySample`/`diffuseSample` twice per stage (once per
+  channel), i.e. the pre-SIMD algorithm, reactivated here specifically to
+  serve as the scalar baseline.
+- `sabrinaProcessBlockSimd` — identical loop structure, calling the
+  already-committed, already-live `delaySamplePairSimd`/
+  `diffuseSamplePairSimd` kernels.
+
+Both call `advanceSabrinaSmoothing` once per frame exactly as the
+per-sample API does, so DSP safety smoothing behavior is unchanged.
+Pointer getters (`_block_input_left_ptr`, `_block_output_left_ptr`, etc.)
+expose the buffers as zero-copy `Float64Array` views, same pattern as FBM.
+
+**Output equivalence method**: ran the live per-sample API
+(`soemdsp_sabrina_reverb_process` + `_left`/`_right`) as the reference
+against a deterministic pseudo-random 500-sample dry L/R signal, across 3
+presets (default, heavily modulated, mix=0 dry-bypass-adjacent). Compared
+against both block paths called once for the whole 500-sample buffer:
+
+- **Block-SIMD vs. reference: bit-exact (0 difference)** across all 3
+  presets — expected, since it's calling the identical paired-kernel code
+  the live path already runs, just batched.
+- **Block-scalar vs. reference: max diff 5.2e-15** on the heavily-modulated
+  preset, 0 on the other two — the same floating-point-reordering noise
+  already documented for this module (L and R fully sequential in the
+  unpaired scalar calls vs. interleaved via `f64x2` lanes in the paired
+  kernels), not a correctness bug.
+
+**Benchmark**: median of 5 runs, 3.072M samples (1024-sample blocks × 3000
+iterations, matching FBM's benchmark scale):
+
+- *Block-SIMD vs. block-scalar* (holding the block boundary constant):
+  **~0.96x — no measurable win**, within run-to-run noise. This reconfirms
+  the existing lesson from the per-sample SIMD kernels above: Sabrina's
+  bottleneck is the delay-buffer reads (`readDelay`, memory-bound, no
+  gather instruction in WASM SIMD128 to vectorize it), not the arithmetic
+  around them — batching into a block doesn't change that structural
+  limit.
+- *Block-SIMD vs. the live per-sample API* (holding the math identical,
+  isolating the boundary): **~1.17x faster** — consistent with FBM's
+  ~1.14x boundary-only win, from resolving `advanceSabrinaSmoothing`'s
+  per-sample work in a tight native loop and reading results back via one
+  buffer view instead of 3072 individual JS↔WASM crossings.
+
+**Deliberately NOT wired into the live worklet path — and why**: FBM's
+block cache could refill transparently because FBM has no external input;
+delaying its *parameter* resolution by up to 128 samples is inaudible.
+Sabrina's block API requires `frameCount` samples of dry input to already
+exist *before* the first output sample of that block can be computed —
+unlike FBM, this would add up to a full block's worth of real algorithmic
+latency (up to 2048 samples, or ~46ms at 44.1kHz for the max block size,
+~2.9ms if pinned to a 128-sample block like FBM) to a live audio effect's
+input-to-output path. That is an audible, real behavior change to a
+real-time effect, not a free optimization, and the sandbox currently has
+exactly one Sabrina call site (the live worklet) with no offline/batch
+render path to absorb it safely. Wiring it in was out of scope for this
+proof without separate, explicit sign-off on accepting that latency
+tradeoff for the live reverb.
+
+**How this proves the modular execution boundary, concretely**: a second,
+structurally different real DSP unit (a streaming effect with external
+input, not a generator) reuses its *already-shipping* production kernels
+—not new math — behind the identical `(state, in, out, frameCount,
+useSimd)` shape used for FBM, with measured bit-exact equivalence and an
+honestly-reported benchmark, including a negative result (no SIMD-math win
+at this granularity) reported as plainly as the positive one (a real
+boundary win). The boundary shape holds across two structurally different
+modules; whether it should also cross the live-latency line for streaming
+effects is a distinct, larger decision than this proof.
+
+**Files**: `native_modules/sabrina_reverb/sabrina_reverb.cpp` (block
+kernels + dispatch boundary + pointer getters), `scripts/build_native_modules.ps1`
+(added the 6 new exports to Sabrina's stanza). No JS integration file
+changed for this proof — see the latency note above.
