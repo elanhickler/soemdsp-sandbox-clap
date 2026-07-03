@@ -158,6 +158,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.raptEllipticDecimatorRatio = 1;
     this.passiveFilterStates = new Map();
     this.papoulisFilterStates = new Map();
+    this.phosphillatorPlaybackStates = new Map();
+    this.phosphillatorDecodedPathCache = new Map();
     this.clockDividerStates = new Map();
     this.clockStates = new Map();
     this.codeblockFunctions = new Map();
@@ -1351,6 +1353,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     this.passiveFilterStates = new Map();
     this.papoulisFilterStates = new Map();
+    this.phosphillatorPlaybackStates = new Map();
+    this.phosphillatorDecodedPathCache = new Map();
     this.clockDividerStates = new Map();
     this.clockStates = new Map();
     this.codeblockFunctions = new Map();
@@ -1714,6 +1718,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "papoulisFilter" && !this.papoulisFilterStates.has(id)) {
         this.papoulisFilterStates.set(id, this.createPapoulisFilterState());
       }
+      if (node?.type === "phosphillator" && !this.phosphillatorPlaybackStates.has(id)) {
+        this.phosphillatorPlaybackStates.set(id, this.createPhosphillatorPlaybackState());
+      }
       if (node?.type === "cookbookFilter" && !this.cookbookFilterStates.has(id)) {
         this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       }
@@ -2040,6 +2047,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const id of [...this.papoulisFilterStates.keys()]) {
       if (!ids.has(id)) {
         this.papoulisFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.phosphillatorPlaybackStates.keys()]) {
+      if (!ids.has(id)) {
+        this.phosphillatorPlaybackStates.delete(id);
+        this.phosphillatorDecodedPathCache.delete(id);
       }
     }
     for (const id of [...this.linearEnvelopeStates.keys()]) {
@@ -4779,6 +4792,81 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return biquadOut;
   }
 
+  // Phosphillator playback: decodes the drawn closed loop (packed as
+  // Phosphor Draw Sample doubles — see node-graph-phosphor-draw-sample.js
+  // for the format) and walks it via a 0..1 phase accumulator using the
+  // same 0.1V/Oct convention as osc. Duplicated here rather than shared
+  // with the main-thread files because the worklet runs in an isolated
+  // global scope with no access to them.
+  unpackPhosphorDrawSampleXY(sample) {
+    if (!this.phosphorDrawSampleView) {
+      const buffer = new ArrayBuffer(8);
+      this.phosphorDrawSampleView = {
+        f64: new Float64Array(buffer),
+        f32: new Float32Array(buffer),
+      };
+    }
+    const view = this.phosphorDrawSampleView;
+    view.f64[0] = sample;
+    return { x: view.f32[0], y: view.f32[1] };
+  }
+
+  createPhosphillatorPlaybackState() {
+    return { lastReset: false, phase: 0 };
+  }
+
+  phosphillatorDecodedPath(nodeId, node) {
+    const points = node?.drawnPath?.points;
+    if (!Array.isArray(points) || points.length < 2) {
+      this.phosphillatorDecodedPathCache.delete(nodeId);
+      return null;
+    }
+    const cached = this.phosphillatorDecodedPathCache.get(nodeId);
+    if (cached && cached.pointsRef === points) {
+      return cached;
+    }
+    const decodedX = new Float32Array(points.length);
+    const decodedY = new Float32Array(points.length);
+    for (let i = 0; i < points.length; i += 1) {
+      const unpacked = this.unpackPhosphorDrawSampleXY(points[i]);
+      decodedX[i] = unpacked.x;
+      decodedY[i] = unpacked.y;
+    }
+    const decoded = { count: points.length, decodedX, decodedY, pointsRef: points };
+    this.phosphillatorDecodedPathCache.set(nodeId, decoded);
+    return decoded;
+  }
+
+  phosphillatorLoopSample(decoded, phase) {
+    const n = decoded.count;
+    const index = (((phase % 1) + 1) % 1) * n;
+    const i0 = Math.floor(index) % n;
+    const i1 = (i0 + 1) % n;
+    const t = index - Math.floor(index);
+    return {
+      x: decoded.decodedX[i0] + (decoded.decodedX[i1] - decoded.decodedX[i0]) * t,
+      y: decoded.decodedY[i0] + (decoded.decodedY[i1] - decoded.decodedY[i0]) * t,
+    };
+  }
+
+  phosphillatorPlaybackSample(state, node, nodeId, cvInput, frequency, phaseOffset, reset, rate) {
+    const resetActive = Number(reset) > 0.5;
+    if (resetActive && !state.lastReset) {
+      state.phase = 0;
+    }
+    state.lastReset = resetActive;
+    const pitchedFrequency = Math.max(0, Number(frequency) * (2 ** ((Number(cvInput) || 0) / 0.1)));
+    const safeRate = Math.max(1, Number(rate) || 1);
+    state.phase = (((state.phase + pitchedFrequency / safeRate) % 1) + 1) % 1;
+    const decoded = this.phosphillatorDecodedPath(nodeId, node);
+    if (!decoded) {
+      return { X: 0, Y: 0 };
+    }
+    const effectivePhase = (((state.phase + (Number(phaseOffset) || 0)) % 1) + 1) % 1;
+    const point = this.phosphillatorLoopSample(decoded, effectivePhase);
+    return { X: point.x, Y: point.y };
+  }
+
   createRandomWalkState() {
     return {
       lowpass: this.createLowpassState(),
@@ -5099,6 +5187,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.oversamplingRatio = this.oversamplingRatio;
     runtime.passiveFilterStates = new Map();
     runtime.papoulisFilterStates = new Map();
+    runtime.phosphillatorPlaybackStates = new Map();
     runtime.clockDividerStates = new Map();
     runtime.clockStates = new Map();
     runtime.codeblockFunctions = new Map();
@@ -5223,6 +5312,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "robinSupersaw") this.robinSupersawStates.set(id, this.createRobinSupersawState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "papoulisFilter") this.papoulisFilterStates.set(id, this.createPapoulisFilterState());
+      if (node?.type === "phosphillator") this.phosphillatorPlaybackStates.set(id, this.createPhosphillatorPlaybackState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
       if (node?.type === "flowerChildFilter") this.flowerChildFilterStates.set(id, this.createFlowerChildFilterState());
@@ -12694,6 +12784,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           state,
           mixInput(nodeId),
           this.readEffectiveParameter(node, "cutoff", 1000, frame, frames, frameValues),
+          safeRate,
+        );
+      } else if (node?.type === "phosphillator") {
+        const state = this.phosphillatorPlaybackStates.get(nodeId) || this.createPhosphillatorPlaybackState();
+        this.phosphillatorPlaybackStates.set(nodeId, state);
+        value = this.phosphillatorPlaybackSample(
+          state,
+          node,
+          nodeId,
+          mixInput(nodeId, "0.1V/Oct"),
+          this.readEffectiveParameter(node, "frequency", 2, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+          mixInput(nodeId, "Reset"),
           safeRate,
         );
       } else if (node?.type === "cookbookFilter") {

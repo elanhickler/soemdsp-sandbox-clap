@@ -3211,6 +3211,7 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "moduleGroup",
     "noiseGenerator",
     "osc",
+    "phosphillator",
     "pitchModWheel",
     "bipolarKnob",
     "additiveOsc",

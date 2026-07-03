@@ -321,3 +321,75 @@ function drawNodeGraphPhosphillatorDrawDisplay(section) {
 
   drawNodeGraphPhosphorWaveformPlaceholder(context, width, height, "Draw a shape — dblclick to clear");
 }
+
+// Playback: turn the stored closed loop into X/Y CV. The drawn points decode
+// once per patch change (cached, keyed on the points array reference — a
+// new array reference means a new drawing) into flat X/Y arrays; each
+// sample advances a 0..1 phase accumulator (same 0.1V/Oct -> frequency
+// convention used by osc) and arclength-indexes into the loop with linear
+// interpolation between the two nearest stored points.
+
+const nodeGraphPhosphillatorDecodedPathCache = new Map();
+
+function nodeGraphPhosphillatorDecodedPath(nodeId, node) {
+  const points = node?.drawnPath?.points;
+  if (!Array.isArray(points) || points.length < 2) {
+    nodeGraphPhosphillatorDecodedPathCache.delete(nodeId);
+    return null;
+  }
+  const cached = nodeGraphPhosphillatorDecodedPathCache.get(nodeId);
+  if (cached && cached.pointsRef === points) {
+    return cached;
+  }
+  const decodedX = new Float32Array(points.length);
+  const decodedY = new Float32Array(points.length);
+  for (let i = 0; i < points.length; i += 1) {
+    const unpacked = unpackNodeGraphPhosphorDrawSample(points[i]);
+    decodedX[i] = unpacked.x;
+    decodedY[i] = unpacked.y;
+  }
+  const decoded = { count: points.length, decodedX, decodedY, pointsRef: points };
+  nodeGraphPhosphillatorDecodedPathCache.set(nodeId, decoded);
+  return decoded;
+}
+
+function nodeGraphPhosphillatorLoopSample(decoded, phase) {
+  const n = decoded.count;
+  const index = ((phase % 1) + 1) % 1 * n;
+  const i0 = Math.floor(index) % n;
+  const i1 = (i0 + 1) % n;
+  const t = index - Math.floor(index);
+  return {
+    x: decoded.decodedX[i0] + (decoded.decodedX[i1] - decoded.decodedX[i0]) * t,
+    y: decoded.decodedY[i0] + (decoded.decodedY[i1] - decoded.decodedY[i0]) * t,
+  };
+}
+
+function createNodeGraphPhosphillatorPlaybackState() {
+  return { lastReset: false, phase: 0 };
+}
+
+// cvInput follows the same 0.1V/Oct convention used by osc:
+// frequency * 2**(cv/0.1). phaseOffsetTurns and reset are 0..1 / boolean.
+function nodeGraphPhosphillatorAdvancePhase(state, cvInput, frequency, reset, sampleRate) {
+  const resetActive = Number(reset) > 0.5;
+  if (resetActive && !state.lastReset) {
+    state.phase = 0;
+  }
+  state.lastReset = resetActive;
+  const pitchedFrequency = Math.max(0, Number(frequency) * (2 ** ((Number(cvInput) || 0) / 0.1)));
+  const increment = Math.max(1, Number(sampleRate) || 1) > 0 ? pitchedFrequency / Math.max(1, Number(sampleRate) || 1) : 0;
+  state.phase = ((state.phase + increment) % 1 + 1) % 1;
+  return state.phase;
+}
+
+function nodeGraphPhosphillatorPlaybackSample(state, node, nodeId, cvInput, frequency, phaseOffset, reset, sampleRate) {
+  const phase = nodeGraphPhosphillatorAdvancePhase(state, cvInput, frequency, reset, sampleRate);
+  const decoded = nodeGraphPhosphillatorDecodedPath(nodeId, node);
+  if (!decoded) {
+    return { X: 0, Y: 0 };
+  }
+  const effectivePhase = ((phase + (Number(phaseOffset) || 0)) % 1 + 1) % 1;
+  const point = nodeGraphPhosphillatorLoopSample(decoded, effectivePhase);
+  return { X: point.x, Y: point.y };
+}

@@ -126,6 +126,9 @@ function nodeGraphBuildLiveParameterNodes(activeNodeIds = null) {
       if (node.type === "samplePlayer" || node.type === "sampleLooper" || node.type === "audioPlayer") {
         runtimeNode.sample = { id: normalizeNodeGraphSampleId(node.sample?.id) };
       }
+      if (node.type === "phosphillator" && Array.isArray(node.drawnPath?.points)) {
+        runtimeNode.drawnPath = { points: node.drawnPath.points };
+      }
       return runtimeNode;
     });
 }
@@ -188,6 +191,9 @@ function nodeGraphBuildLiveParameterNodesForPatch(patch, activeNodeIds = null) {
       if (node.type === "samplePlayer" || node.type === "sampleLooper" || node.type === "audioPlayer") {
         runtimeNode.sample = { id: normalizeNodeGraphSampleId(node.sample?.id) };
       }
+      if (node.type === "phosphillator" && Array.isArray(node.drawnPath?.points)) {
+        runtimeNode.drawnPath = { points: node.drawnPath.points };
+      }
       return runtimeNode;
     });
 }
@@ -236,6 +242,7 @@ function createNodeGraphLiveRuntime(plan) {
   const graphLfoStates = new Map();
   const passiveFilterStates = new Map();
   const papoulisFilterStates = new Map();
+  const phosphillatorPlaybackStates = new Map();
   const clockStates = new Map();
   const codeblockFunctions = new Map();
   const cookbookFilterStates = new Map();
@@ -378,6 +385,9 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "papoulisFilter") {
       papoulisFilterStates.set(node.id, createNodeGraphPapoulisFilterState());
     }
+    if (node.type === "phosphillator") {
+      phosphillatorPlaybackStates.set(node.id, createNodeGraphPhosphillatorPlaybackState());
+    }
     if (node.type === "cookbookFilter") {
       cookbookFilterStates.set(node.id, createNodeGraphCookbookFilterState());
     }
@@ -508,6 +518,7 @@ function createNodeGraphLiveRuntime(plan) {
     badNumberCount: 0,
     passiveFilterStates,
     papoulisFilterStates,
+    phosphillatorPlaybackStates,
     clockDividerStates,
     clockStates,
     codeblockFunctions,
@@ -669,6 +680,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   }
   if (!runtime.papoulisFilterStates) {
     runtime.papoulisFilterStates = new Map();
+  }
+  if (!runtime.phosphillatorPlaybackStates) {
+    runtime.phosphillatorPlaybackStates = new Map();
   }
   if (!runtime.moduleGroupRuntimes) {
     runtime.moduleGroupRuntimes = new Map();
@@ -923,6 +937,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "papoulisFilter" && !runtime.papoulisFilterStates.has(node.id)) {
       runtime.papoulisFilterStates.set(node.id, createNodeGraphPapoulisFilterState());
+    }
+    if (node.type === "phosphillator" && !runtime.phosphillatorPlaybackStates.has(node.id)) {
+      runtime.phosphillatorPlaybackStates.set(node.id, createNodeGraphPhosphillatorPlaybackState());
     }
     if (node.type === "cookbookFilter" && !runtime.cookbookFilterStates.has(node.id)) {
       runtime.cookbookFilterStates.set(node.id, createNodeGraphCookbookFilterState());
@@ -1214,6 +1231,12 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.papoulisFilterStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.papoulisFilterStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.phosphillatorPlaybackStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.phosphillatorPlaybackStates.delete(id);
+      nodeGraphPhosphillatorDecodedPathCache.delete(id);
     }
   }
   for (const id of [...runtime.moduleGroupRuntimes.keys()]) {

@@ -4441,6 +4441,19 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         readNodeGraphLiveEffectiveParam(runtime, node, "cutoff", 1000, frame, frames, frameValues),
         sampleRate,
       );
+    } else if (node?.type === "phosphillator") {
+      const state = runtime.phosphillatorPlaybackStates.get(nodeId) || createNodeGraphPhosphillatorPlaybackState();
+      runtime.phosphillatorPlaybackStates.set(nodeId, state);
+      value = nodeGraphPhosphillatorPlaybackSample(
+        state,
+        node,
+        nodeId,
+        mixInput(nodeId, "0.1V/Oct"),
+        readNodeGraphLiveEffectiveParam(runtime, node, "frequency", 2, frame, frames, frameValues),
+        readNodeGraphLiveEffectiveParam(runtime, node, "phase", 0, frame, frames, frameValues),
+        mixInput(nodeId, "Reset"),
+        sampleRate,
+      );
     } else if (node?.type === "cookbookFilter") {
       const state = runtime.cookbookFilterStates.get(nodeId) || createNodeGraphCookbookFilterState();
       runtime.cookbookFilterStates.set(nodeId, state);
