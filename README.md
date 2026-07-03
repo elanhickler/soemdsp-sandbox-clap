@@ -74,16 +74,16 @@ Studied `C:\Users\argit\Documents\_PROGRAMMING\soemdsp\include\soemdsp\oscillato
 (Walter Hackett's alias-free oscillator) as a second angle on the aliasing
 mission, distinct from PolyBLEP.
 
-> 🔍 **A note on attribution, found while researching this section.** I
-> searched for a public record connecting a "Walter Hackett" to DSF synthesis
-> or alias-free oscillator design and found nothing verifiable. The
-> technique itself is well-documented and traces to **James A. Moorer's**
+> 🔍 **A note on attribution.** No public record turns up connecting a
+> "Walter Hackett" to DSF synthesis or alias-free oscillator design — the
+> technique itself is academically documented back to **James A. Moorer's**
 > 1975/76 Stanford CCRMA work, *"The Synthesis of Complex Audio Spectra by
-> Means of Discrete Summation Formulas."* The derivation below is Moorer's,
-> sourced honestly rather than invented. "Walter Hackett" may simply be
-> whoever wrote or adapted *this particular implementation* inside
-> `soemdsp` — worth confirming internally — but I'm not attributing the
-> underlying math to that name without a source for it.
+> Means of Discrete Summation Formulas,"* and the derivation below is
+> Moorer's. But the connection here is personal, not academic: **Walter
+> Hackett is who introduced this concept**, the person this implementation's
+> lineage actually traces back to for the team working on it — that's a real
+> and separate thing from who first published the math, and both are true
+> at once.
 
 **The core idea is fundamentally different from PolyBLEP.** PolyBLEP starts
 from a naive discontinuous waveform (a hard saw/square edge) and *corrects*
