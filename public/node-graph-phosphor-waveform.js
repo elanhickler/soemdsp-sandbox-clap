@@ -244,14 +244,6 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
     context.fillRect(regionX0, 0, regionX1 - regionX0, height);
   }
 
-  // Zero line.
-  context.strokeStyle = "rgba(70, 220, 140, 0.16)";
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(0, midY);
-  context.lineTo(width, midY);
-  context.stroke();
-
   // Per-sample grid, once zoomed in enough that individual frames are
   // legible (roughly 6+ pixels per sample) — makes the discrete nature of
   // the buffer visible instead of implying a continuous signal.
@@ -297,20 +289,6 @@ function drawNodeGraphPhosphorWaveformDisplay(section) {
   drawEnvelope(true);
   drawEnvelope(false);
   context.shadowBlur = 0;
-
-  // Discrete sample points, once the grid itself is showing.
-  if (showSampleGrid) {
-    context.fillStyle = "rgba(220, 255, 230, 0.95)";
-    const firstFrame = Math.max(0, Math.ceil(state.startFrame));
-    const lastFrame = Math.min(entry.samples.length - 1, Math.floor(state.endFrame));
-    for (let frame = firstFrame; frame <= lastFrame; frame += 1) {
-      const x = frameToX(frame);
-      const y = midY - entry.samples[frame] * amplitude;
-      context.beginPath();
-      context.arc(x, y, 2, 0, Math.PI * 2);
-      context.fill();
-    }
-  }
 
   // Playhead.
   const phase = typeof nodeGraphSamplePhaseForNode === "function" ? nodeGraphSamplePhaseForNode(nodeId) : 0;
