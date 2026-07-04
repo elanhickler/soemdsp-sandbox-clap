@@ -1188,6 +1188,7 @@ function nodeGraphLivePlanShapeSignature(plan = {}) {
 }
 
 function nodeGraphLiveConnectionUpdatePayload(plan = {}, audio = {}) {
+  const pitchReference = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio);
   return {
     connections: Array.isArray(plan.connections) ? plan.connections : [],
     engineSampleRate: audio.clampedEngineSampleRate,
@@ -1196,6 +1197,8 @@ function nodeGraphLiveConnectionUpdatePayload(plan = {}, audio = {}) {
     outputNode: plan.outputNode || "output",
     oversamplingRatio: audio.oversamplingRatio,
     patchFingerprint: plan.patchFingerprint,
+    pitchReferenceHz: pitchReference.pitchReferenceHz,
+    pitchReferenceMidiNote: pitchReference.pitchReferenceMidiNote,
     planSerial: nodeGraphMvp.live.planSerial,
     sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
     scopeCaptureNodeIds: Array.isArray(plan.scopeCaptureNodeIds) ? plan.scopeCaptureNodeIds : [],
@@ -1249,16 +1252,21 @@ async function sendNodeGraphLivePlan() {
       if (canSendConnectionUpdate) {
         nodeGraphMvp.live.node?.port?.postMessage(nodeGraphLiveConnectionUpdatePayload(plan, audio));
       } else {
-        nodeGraphMvp.live.node?.port?.postMessage({
-          engineSampleRate: audio.clampedEngineSampleRate,
-          oversamplingRatio: audio.oversamplingRatio,
-          plan,
-          patchFingerprint: plan.patchFingerprint,
-          planSerial: nodeGraphMvp.live.planSerial,
-          sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
-          sessionId: nodeGraphMvp.live.sessionId,
-          type: "setPlan",
-        });
+        {
+          const pitchReference = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio);
+          nodeGraphMvp.live.node?.port?.postMessage({
+            engineSampleRate: audio.clampedEngineSampleRate,
+            oversamplingRatio: audio.oversamplingRatio,
+            plan,
+            patchFingerprint: plan.patchFingerprint,
+            pitchReferenceHz: pitchReference.pitchReferenceHz,
+            pitchReferenceMidiNote: pitchReference.pitchReferenceMidiNote,
+            planSerial: nodeGraphMvp.live.planSerial,
+            sampleRate: nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
+            sessionId: nodeGraphMvp.live.sessionId,
+            type: "setPlan",
+          });
+        }
         nodeGraphStartGpuAdditiveProducer(plan, audio);
       }
     } else if (nodeGraphMvp.live.runtime) {
@@ -1676,7 +1684,7 @@ async function createNodeGraphLiveWorkletNode(context) {
     throw new Error("AudioWorklet unavailable");
   }
   await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=smoothing-mode-switch-20260703"),
+    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=merge-analog-filters-supersaw-20260703"),
     "AudioWorklet startup timed out",
   );
   const workletNode = new AudioWorkletNode(

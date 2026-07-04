@@ -13,6 +13,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "dsf_oscillator",
+      "label": "DSF Oscillator",
+      "targetType": "dsfOscillator",
+      "kind": "oscillator",
+      "source": "native_modules/dsf_oscillator/dsf_oscillator.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/dsf_oscillator/dsf_oscillator.cpp",
+      "wasm": "native_modules/dsf_oscillator/dsf_oscillator.wasm",
+      "wasmUrl": "native_modules/dsf_oscillator/dsf_oscillator.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "ellipsoid",
       "label": "Ellipsoid",
       "targetType": "ellipsoid",
@@ -131,6 +142,17 @@
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/polyblep/polyblep.cpp",
       "wasm": "native_modules/polyblep/polyblep.wasm",
       "wasmUrl": "native_modules/polyblep/polyblep.wasm",
+      "wasmAvailable": true
+    },
+    {
+      "name": "robin_supersaw",
+      "label": "RobinSupersaw",
+      "targetType": "robinSupersaw",
+      "kind": "oscillator",
+      "source": "native_modules/robin_supersaw/robin_supersaw.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/robin_supersaw/robin_supersaw.cpp",
+      "wasm": "native_modules/robin_supersaw/robin_supersaw.wasm",
+      "wasmUrl": "native_modules/robin_supersaw/robin_supersaw.wasm",
       "wasmAvailable": true
     },
     {

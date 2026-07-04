@@ -173,6 +173,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
     this.surgeOscillatorStates = new Map();
+    this.dsfOscillatorStates = new Map();
+    this.robinSupersawStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -663,6 +665,38 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "dsf_oscillator" || targetType === "dsfOscillator") {
+        for (const state of this.dsfOscillatorStates.values()) {
+          this.destroyDsfOscillatorNativeState(state);
+        }
+        this.nativeDsfOscillator = exports;
+        this.nativeDsfOscillatorReady = Boolean(
+          this.nativeDsfOscillator?.soemdsp_dsf_oscillator_create &&
+          this.nativeDsfOscillator?.soemdsp_dsf_oscillator_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "dsf_oscillator",
+          status: this.nativeDsfOscillatorReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "robin_supersaw" || targetType === "robinSupersaw") {
+        for (const state of this.robinSupersawStates.values()) {
+          this.destroyRobinSupersawNativeState(state);
+        }
+        this.nativeRobinSupersaw = exports;
+        this.nativeRobinSupersawReady = Boolean(
+          this.nativeRobinSupersaw?.soemdsp_robin_supersaw_create &&
+          this.nativeRobinSupersaw?.soemdsp_robin_supersaw_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "robin_supersaw",
+          status: this.nativeRobinSupersawReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -778,6 +812,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
     this.surgeOscillatorStates = new Map();
+    this.dsfOscillatorStates = new Map();
+    this.robinSupersawStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -928,12 +964,21 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.sessionId = message.sessionId || 0;
     this.gpuAdditiveQueues = new Map();
     this.gpuAdditiveUnderruns = 0;
-    this.autoSmoothingSeconds = 0.016;
+    this.autoSmoothingSeconds = 0.5;
     this.hostSampleRate = Math.max(1, Number(message.sampleRate) || sampleRate || 44100);
     const requestedRatio = Number(message.oversamplingRatio) ||
       ((Number(message.engineSampleRate) || this.hostSampleRate) / this.hostSampleRate);
     this.oversamplingRatio = Math.max(1, Math.min(4, Math.round(requestedRatio) || 1));
     this.engineSampleRate = this.hostSampleRate * this.oversamplingRatio;
+    // Global 0.1V/Oct pitch reference -- see node-graph-patch-normalizers.js
+    // for the full explanation. Defaults match normalizeNodeGraphPatchAudio's
+    // own defaults (C3 @ 100Hz) if the main thread hasn't sent them yet.
+    this.pitchReferenceMidiNote = Number.isFinite(Number(message.pitchReferenceMidiNote))
+      ? Number(message.pitchReferenceMidiNote)
+      : 48;
+    this.pitchReferenceHz = Number.isFinite(Number(message.pitchReferenceHz)) && Number(message.pitchReferenceHz) > 0
+      ? Number(message.pitchReferenceHz)
+      : 100;
     this.timing = this.normalizePatchTiming(plan?.timing);
     if (this.raptEllipticDecimatorRatio !== this.oversamplingRatio) {
       this.resetRaptEllipticDecimator();
@@ -1023,6 +1068,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "surgeOscillator" && !this.surgeOscillatorStates.has(id)) {
         this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
+      }
+      if (node?.type === "dsfOscillator" && !this.dsfOscillatorStates.has(id)) {
+        this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
+      }
+      if (node?.type === "robinSupersaw" && !this.robinSupersawStates.has(id)) {
+        this.robinSupersawStates.set(id, this.createRobinSupersawState());
       }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createPassiveFilterState());
@@ -1227,6 +1278,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.surgeOscillatorStates.delete(id);
       }
     }
+    for (const id of [...this.dsfOscillatorStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyDsfOscillatorNativeState(this.dsfOscillatorStates.get(id));
+        this.dsfOscillatorStates.delete(id);
+      }
+    }
+    for (const id of [...this.robinSupersawStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyRobinSupersawNativeState(this.robinSupersawStates.get(id));
+        this.robinSupersawStates.delete(id);
+      }
+    }
     for (const id of [...this.passiveFilterStates.keys()]) {
       if (!ids.has(id)) {
         this.destroyPassiveFilterNativeState(this.passiveFilterStates.get(id));
@@ -1426,6 +1489,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   setConnections(plan, message = {}) {
+    if (Number.isFinite(Number(message.pitchReferenceMidiNote))) {
+      this.pitchReferenceMidiNote = Number(message.pitchReferenceMidiNote);
+    }
+    if (Number.isFinite(Number(message.pitchReferenceHz)) && Number(message.pitchReferenceHz) > 0) {
+      this.pitchReferenceHz = Number(message.pitchReferenceHz);
+    }
     this.patchFingerprint = message.patchFingerprint || plan?.patchFingerprint || this.patchFingerprint || "";
     this.planSerial = message.planSerial || this.planSerial || 0;
     this.sessionId = message.sessionId || this.sessionId || 0;
@@ -2465,7 +2534,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   clampAutoSmoothingSeconds(seconds) {
     const value = Number(seconds);
     if (!Number.isFinite(value)) {
-      return 0.016;
+      return 0.5;
     }
     return Math.max(0, value);
   }
@@ -3752,6 +3821,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.turingMachineStates = new Map();
     runtime.pitchQuantizerStates = new Map();
     runtime.surgeOscillatorStates = new Map();
+    runtime.dsfOscillatorStates = new Map();
+    runtime.robinSupersawStates = new Map();
     runtime.stepSequencerStates = new Map();
     runtime.triggerCounterStates = new Map();
     runtime.triggerDividerStates = new Map();
@@ -3801,6 +3872,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "turingMachine") this.turingMachineStates.set(id, this.createTuringMachineState());
       if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
       if (node?.type === "surgeOscillator") this.surgeOscillatorStates.set(id, this.createSurgeOscillatorState());
+      if (node?.type === "dsfOscillator") this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
+      if (node?.type === "robinSupersaw") this.robinSupersawStates.set(id, this.createRobinSupersawState());
       if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
       if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
@@ -6420,6 +6493,318 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.surgeOscillatorSampleJs(state, options);
   }
 
+  createDsfOscillatorState() {
+    return { t: 0, sawAcc: 0, sqAcc: 0, blendSqAcc: 0, triAcc: 0, triPeak: 1, nativeHandle: 0 };
+  }
+
+  destroyDsfOscillatorNativeState(state) {
+    if (state?.nativeHandle && this.nativeDsfOscillator?.soemdsp_dsf_oscillator_destroy) {
+      this.nativeDsfOscillator.soemdsp_dsf_oscillator_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  // pureSawEng(t, n), transcribed and simplified directly from "Extended
+  // DSF Oscillators.cxx": sin(PI*t*(2N+1)) / sin(PI*t) - 1. Guarded at the
+  // removable singularity t=0 via its L'Hopital limit (2N+1).
+  dsfPureSawEng(t, n) {
+    const denom = Math.sin(Math.PI * t);
+    if (denom > -1e-9 && denom < 1e-9) return (2 * n + 1) - 1;
+    return Math.sin(Math.PI * t * (2 * n + 1)) / denom - 1;
+  }
+
+  // Harmonics (0-1): crossfades the harmonic count from 1 (a single
+  // harmonic, an exact sine) up to nMax (Nyquist/frequency).
+  dsfPureSawEngMorphed(t, nMax, morph) {
+    const m = this.clampValue(Number(morph) || 0, 0, 1);
+    const target = 1 + m * (nMax - 1);
+    const lowN = Math.max(1, Math.floor(target));
+    const highN = Math.min(lowN + 1, nMax);
+    const frac = target - lowN;
+    return this.dsfPureSawEng(t, lowN) * (1 - frac) + this.dsfPureSawEng(t, highN) * frac;
+  }
+
+  // ~20 periods of memory, decayed to ~1%. Every accumulator's retention
+  // scales with the oscillation period instead of a fixed per-sample
+  // constant -- a fixed retention was far shorter than the period at low
+  // frequencies, so accumulators forgot mid-ramp and produced distorted,
+  // asymmetric shapes (Trimorph sounding like a square wave; DC
+  // asymmetry in Saw/Square/SquSaw). See dsf_oscillator.cpp for the full
+  // story.
+  dsfAdaptiveRetention(dt) {
+    return Math.exp(-0.23026 * dt);
+  }
+
+  // waveform: 0=Sine, 1=Saw, 2=Square (PWM), 3=Trimorph, 4=SquSaw.
+  // Square: saw(t) - saw(t - pulseWidth) -- alias-free since it's a
+  // subtraction of phase-shifted copies of an already-verified Saw.
+  // Trimorph: a second leaky integration on the (bounded) Square output,
+  // with an adaptive peak-follower since that second stage doesn't stay
+  // bounded on its own across the full frequency range.
+  dsfOscillatorSampleJs(state, options = {}) {
+    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+    const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
+    const dt = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
+    const waveform = Math.round(Number(options.waveform) || 0);
+    const level = Number(options.level) || 0;
+
+    let sample;
+    if (waveform === 0) {
+      state.t = this.wrapValue(state.t + dt, 0, 1);
+      sample = Math.sin(state.t * Math.PI * 2);
+    } else {
+      const nyquist = sampleRate * 0.5;
+      const nMax = Math.max(1, Math.floor(nyquist / safeFrequency));
+      state.t = this.wrapValue(state.t + dt * 0.9999, 0, 1);
+
+      const retention = this.dsfAdaptiveRetention(dt);
+      const rawSaw = this.dsfPureSawEngMorphed(state.t, nMax, options.morph);
+      state.sawAcc = state.sawAcc * retention + rawSaw * dt;
+
+      if (waveform === 1) {
+        sample = state.sawAcc;
+      } else if (waveform === 4) {
+        // SquSaw: crossfades Saw with a plain, fixed 50%-duty Square,
+        // decoupled from the PWM slider on purpose -- reported live as
+        // sounding "triangle-like" when it inherited PWM's variable duty
+        // cycle; simplified back to always crossfading two cleanly-
+        // shaped waveforms instead.
+        const rawBlendSquare = rawSaw - this.dsfPureSawEngMorphed(this.wrapValue(state.t - 0.5, 0, 1), nMax, options.morph);
+        state.blendSqAcc = state.blendSqAcc * retention + rawBlendSquare * dt;
+        const blend = this.clampValue(Number(options.blend) ?? 0.5, 0, 1);
+        sample = state.sawAcc * (1 - blend) + state.blendSqAcc * blend;
+      } else {
+        const pw = this.clampValue(Number(options.pulseWidth) ?? 0.5, 0.01, 0.99);
+        const rawShiftedSaw = this.dsfPureSawEngMorphed(this.wrapValue(state.t - pw, 0, 1), nMax, options.morph);
+        const rawSquare = rawSaw - rawShiftedSaw;
+        state.sqAcc = state.sqAcc * retention + rawSquare * dt;
+
+        if (waveform === 2) {
+          sample = state.sqAcc;
+        } else {
+          state.triAcc = state.triAcc * retention + state.sqAcc * dt * 4;
+          // Compensate for the fundamental's own amplitude shrinking
+          // toward 0 as pulseWidth approaches 0 or 1 -- reported live as
+          // Trimorph going quiet toward silence at extreme PWM.
+          const compensation = 1 / this.clampValue(Math.abs(Math.sin(Math.PI * pw)), 0.05, 1);
+          const compensatedTri = state.triAcc * compensation;
+          state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(compensatedTri) * 0.001);
+          sample = compensatedTri / state.triPeak;
+        }
+      }
+    }
+
+    if (!Number.isFinite(sample)) sample = 0;
+    const out = this.clampValue(sample, -1.5, 1.5) * level;
+    return { Out: out };
+  }
+
+  dsfOscillatorSample(state, options = {}) {
+    if (
+      this.nativeDsfOscillatorReady &&
+      this.nativeDsfOscillator?.soemdsp_dsf_oscillator_create &&
+      this.nativeDsfOscillator?.soemdsp_dsf_oscillator_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeDsfOscillator.soemdsp_dsf_oscillator_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+          const frequencyHz = Number(options.frequencyHz) || 0;
+          const waveform = Math.round(Number(options.waveform) || 0);
+          const morph = Number(options.morph) || 0;
+          const pulseWidth = Number(options.pulseWidth) ?? 0.5;
+          const blend = Number(options.blend) ?? 0.5;
+          const level = Number(options.level) || 0;
+          this.nativeDsfOscillator.soemdsp_dsf_oscillator_sample(
+            state.nativeHandle,
+            frequencyHz,
+            sampleRate,
+            waveform,
+            morph,
+            pulseWidth,
+            blend,
+            level,
+          );
+          return {
+            Out: Number(this.nativeDsfOscillator.soemdsp_dsf_oscillator_out(state.nativeHandle)) || 0,
+          };
+        }
+      } catch (error) {
+        this.nativeDsfOscillatorReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "dsf_oscillator",
+          status: "disabled",
+          message: String(error?.message || error || "native DSF Oscillator failed"),
+        });
+      }
+    }
+    return this.dsfOscillatorSampleJs(state, options);
+  }
+
+  // RobinSupersaw -- see native_modules/robin_supersaw/robin_supersaw.cpp
+  // for the full derivation (Robin Schmidt's pitch dithering,
+  // RobinSchmidt/RS-MET). This worklet's JS fallback is fully self-
+  // contained (not calling the shared public/node-graph-robin-supersaw.js
+  // globals) -- the AudioWorkletProcessor runs in its own isolated global
+  // scope that never loads that file. Calling those globals here silently
+  // threw a ReferenceError inside the audio thread whenever the native
+  // path wasn't active, producing total silence with no visible console
+  // error -- the same pitfall DSF Oscillator's fallback already avoids by
+  // inlining its own copy instead of sharing one.
+  createRobinSupersawDitherVoice() {
+    return { sampleCount: 0, lenNow: 100, lenMid: 100, probShort: 0, probMid: 1, phaseSlope: 1 / 99 };
+  }
+
+  createRobinSupersawState() {
+    const left = [];
+    const right = [];
+    for (let i = 0; i < 9; i++) {
+      left.push(this.createRobinSupersawDitherVoice());
+      right.push(this.createRobinSupersawDitherVoice());
+    }
+    return { left, right, nativeHandle: 0 };
+  }
+
+  destroyRobinSupersawNativeState(state) {
+    if (state?.nativeHandle && this.nativeRobinSupersaw?.soemdsp_robin_supersaw_destroy) {
+      this.nativeRobinSupersaw.soemdsp_robin_supersaw_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  // rsPitchDitherOsc<T>::calcCycleDistribution(), transcribed.
+  robinSupersawCalcCycleDistribution(c) {
+    const ci = Math.floor(c);
+    const cf = c - ci;
+    let c2 = ci;
+    if (cf >= 0.5) c2 += 1;
+    const c1 = c2 - 1;
+    const c3 = c2 + 1;
+    const e1 = c1 - c;
+    const e2 = c2 - c;
+    const e3 = c3 - c;
+    const v1 = e1 * e1;
+    const v2 = e2 * e2;
+    const v3 = e3 * e3;
+    const v = 0.25;
+    const d1 = v - v1;
+    const d2 = v - v2;
+    const d3 = v - v3;
+    const s = 1 / (e3 * (v1 - v2) - e2 * (v1 - v3) + e1 * (v2 - v3));
+    return { lenMid: c2, probShort: (d2 * e3 - d3 * e2) * s, probMid: (d3 * e1 - d1 * e3) * s };
+  }
+
+  // rsPitchDitherOsc<T>::updateCycleLength(), transcribed.
+  robinSupersawUpdateCycleLength(voice) {
+    const r = Math.random();
+    if (r < voice.probShort) {
+      voice.lenNow = voice.lenMid - 1;
+    } else if (r < voice.probShort + voice.probMid) {
+      voice.lenNow = voice.lenMid;
+    } else {
+      voice.lenNow = voice.lenMid + 1;
+    }
+    voice.phaseSlope = 1 / Math.max(1, voice.lenNow - 1);  // phasorRangeClosed = true
+  }
+
+  // rsPitchDitherOsc<T>::getSamplePhasor() + updateSampleCount(), transcribed.
+  robinSupersawGetSamplePhasor(voice) {
+    const p = voice.phaseSlope * voice.sampleCount;
+    voice.sampleCount += 1;
+    if (voice.sampleCount >= voice.lenNow) {
+      voice.sampleCount = 0;
+      this.robinSupersawUpdateCycleLength(voice);
+    }
+    return p;
+  }
+
+  robinSupersawSumVoiceBank(bank, numVoices, safeFrequency, sampleRate, spreadCents) {
+    let sum = 0;
+    for (let i = 0; i < numVoices; i++) {
+      let centsOffset = 0;
+      if (numVoices > 1) {
+        const t = i / (numVoices - 1);
+        centsOffset = (t - 0.5) * spreadCents;
+      }
+      const ratio = Math.pow(2, centsOffset / 1200);
+      const voiceFreq = safeFrequency * ratio;
+      const meanCycleLength = sampleRate / Math.max(1, voiceFreq);
+      const voice = bank[i];
+      const dist = this.robinSupersawCalcCycleDistribution(meanCycleLength);
+      voice.lenMid = dist.lenMid;
+      voice.probShort = dist.probShort;
+      voice.probMid = dist.probMid;
+      sum += 2 * this.robinSupersawGetSamplePhasor(voice) - 1;  // WF::saw(phasor)
+    }
+    return sum / numVoices;
+  }
+
+  robinSupersawSampleJs(state, options = {}) {
+    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+    const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
+    const numVoices = this.clampValue(Math.round(Number(options.voices) || 1), 1, 9);
+    const spreadCents = this.clampValue(Number(options.detuneCents) || 0, 0, 100);
+    const level = Number(options.level) || 0;
+
+    let left = this.robinSupersawSumVoiceBank(state.left, numVoices, safeFrequency, sampleRate, spreadCents);
+    let right = this.robinSupersawSumVoiceBank(state.right, numVoices, safeFrequency, sampleRate, spreadCents);
+    if (!Number.isFinite(left)) left = 0;
+    if (!Number.isFinite(right)) right = 0;
+
+    const outLeft = this.clampValue(left, -1.5, 1.5) * level;
+    const outRight = this.clampValue(right, -1.5, 1.5) * level;
+    // Arithmetic average, not a raw sum -- matches this sandbox's own
+    // Output module convention, so mono doesn't come out twice as loud.
+    const outMono = (outLeft + outRight) * 0.5;
+    return { Mono: outMono, Left: outLeft, Right: outRight };
+  }
+
+  robinSupersawSample(state, options = {}) {
+    if (
+      this.nativeRobinSupersawReady &&
+      this.nativeRobinSupersaw?.soemdsp_robin_supersaw_create &&
+      this.nativeRobinSupersaw?.soemdsp_robin_supersaw_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeRobinSupersaw.soemdsp_robin_supersaw_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
+          const frequencyHz = Number(options.frequencyHz) || 0;
+          const detuneCents = Number(options.detuneCents) || 0;
+          const voices = Math.round(Number(options.voices) || 1);
+          const level = Number(options.level) || 0;
+          this.nativeRobinSupersaw.soemdsp_robin_supersaw_sample(
+            state.nativeHandle,
+            frequencyHz,
+            sampleRate,
+            detuneCents,
+            voices,
+            level,
+          );
+          return {
+            Mono: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_mono(state.nativeHandle)) || 0,
+            Left: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_left(state.nativeHandle)) || 0,
+            Right: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_right(state.nativeHandle)) || 0,
+          };
+        }
+      } catch (error) {
+        this.nativeRobinSupersawReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "robin_supersaw",
+          status: "disabled",
+          message: String(error?.message || error || "native RobinSupersaw failed"),
+        });
+      }
+    }
+    return this.robinSupersawSampleJs(state, options);
+  }
+
   spiralWrap01(value) {
     return value - Math.floor(value);
   }
@@ -6652,7 +7037,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const baseFrequency = this.readEffectiveParameter(
           node,
           "freq",
-          440,
+          100,
           frame,
           frames,
           frameValues,
@@ -6695,7 +7080,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const frequency = this.readEffectiveParameter(
           node,
           "frequency",
-          220,
+          100,
           frame,
           frames,
           frameValues,
@@ -6776,7 +7161,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const frequency = this.readEffectiveParameter(
           node,
           "frequency",
-          220,
+          100,
           frame,
           frames,
           frameValues,
@@ -6829,7 +7214,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const phaseOffset = this.phaseRadians(
           this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
         );
-        const frequency = this.readEffectiveParameter(node, "frequency", 220, frame, frames, frameValues);
+        const frequency = this.readEffectiveParameter(node, "frequency", 100, frame, frames, frameValues);
         const pitchInput = this.clampValue(
           this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
           -1,
@@ -7194,7 +7579,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const state = this.surgeOscillatorStates.get(nodeId) || this.createSurgeOscillatorState();
         this.surgeOscillatorStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const baseFrequency = Math.max(0, read("frequency", 220));
+        const baseFrequency = Math.max(0, read("frequency", 100));
         const pitchInput = this.clampValue(
           this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
           -10,
@@ -7208,6 +7593,40 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           hasExternalSync: hasInput(nodeId, "Sync"),
           syncFrequencyHz: read("syncFrequency", 50),
           waveform: read("waveform", 0),
+          level: read("level", 1),
+        });
+      } else if (node?.type === "dsfOscillator") {
+        const state = this.dsfOscillatorStates.get(nodeId) || this.createDsfOscillatorState();
+        this.dsfOscillatorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = this.dsfOscillatorSample(state, {
+          frequencyHz: Math.max(0, read("frequency", 100)),
+          sampleRate: this.engineSampleRate || sampleRate,
+          waveform: read("waveform", 1),
+          morph: read("morph", 1),
+          pulseWidth: read("pulseWidth", 0.5),
+          blend: read("blend", 0.5),
+          level: read("level", 1),
+        });
+      } else if (node?.type === "robinSupersaw") {
+        const state = this.robinSupersawStates.get(nodeId) || this.createRobinSupersawState();
+        this.robinSupersawStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        // baseFrequency is the pitch heard at the global pitch reference
+        // note (see node-graph-patch-normalizers.js) -- set it equal to
+        // the master "Pitch Reference Frequency" setting and a MIDI
+        // keyboard is automatically in tune; double it to transpose the
+        // whole instrument up an octave.
+        const baseFrequency = Math.max(0, read("frequency", 100));
+        const pitchInput = this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1);
+        const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
+        const referenceVoltage = referenceMidiNote / 120;
+        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
+        value = this.robinSupersawSample(state, {
+          frequencyHz: pitchedFrequency,
+          sampleRate: this.engineSampleRate || sampleRate,
+          detuneCents: read("detuneCents", 30),
+          voices: read("voices", 7),
           level: read("level", 1),
         });
       } else if (node?.type === "midiOut") {

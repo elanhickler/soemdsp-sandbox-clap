@@ -203,6 +203,9 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-chord-memory.js",
     "./public/node-graph-turing-machine.js",
     "./public/node-graph-pitch-quantizer.js",
+    "./public/node-graph-surge-oscillator.js",
+    "./public/node-graph-dsf-oscillator.js",
+    "./public/node-graph-robin-supersaw.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-live-runtime.js",
@@ -8929,7 +8932,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeSliderTravelFromValue(slider, value)",
         "function wrapNodeSliderValue(value, min, max)",
         "function shortestNodeGraphWrapDelta(from, to, min, max)",
-        "const nodeGraphAutoSmoothingDefaultSeconds = 0.016",
+        "const nodeGraphAutoSmoothingDefaultSeconds = 0.5",
         "function clampNodeGraphAutoSmoothingSeconds(seconds)",
         "return Math.max(0, value);",
         "function nodeGraphSmoothingFrequencyFromSeconds(seconds)",
@@ -16911,6 +16914,16 @@ def require_readme_scheduler_contract() -> None:
         "Independent CLAP nodes in the same chunk can share one batch request.",
         "POST /instances/<id>/safety/reset",
         "DELETE /instances/<id>",
+        "supersaw",
+        "RobinSchmidt/RS-MET",
+        "Pitch Dithering",
+        "rsPitchDitherOsc",
+        "SupersawUnit",
+        "SupersawMaster",
+        "RAPT::rsRatioGenerator",
+        "Synthwave Orchestra",
+        "docs/images/synthwave-orchestra-interface.png",
+        "docs/reference/Supersaw.hpp",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [
@@ -17207,6 +17220,16 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_surge_oscillator_create",
             "soemdsp_surge_oscillator_destroy",
             "soemdsp_surge_oscillator_sample",
+        ],
+        "dsf_oscillator": [
+            "soemdsp_dsf_oscillator_create",
+            "soemdsp_dsf_oscillator_destroy",
+            "soemdsp_dsf_oscillator_sample",
+        ],
+        "robin_supersaw": [
+            "soemdsp_robin_supersaw_create",
+            "soemdsp_robin_supersaw_destroy",
+            "soemdsp_robin_supersaw_sample",
         ],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [

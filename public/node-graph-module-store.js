@@ -27,6 +27,8 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "turingMachine",
   "pitchQuantizer",
   "surgeOscillator",
+  "dsfOscillator",
+  "robinSupersaw",
   "arpeggiator",
   "spiral",
   "blubb",
@@ -406,6 +408,18 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Anti-aliased Saw/Square/Tri/Sine oscillator with hard sync: a rising zero-crossing on the Sync input forces the phase back near 0, sub-sample-interpolated and PolyBLEP-corrected so the sync reset doesn't alias like a naive hard sync would. Native C++/WASM.",
     label: "Surge Oscillator",
     notes: ["oscillator", "hard sync", "polyblep", "anti-aliasing", "native"],
+  },
+  dsfOscillator: {
+    category: "Oscillator",
+    description: "The DSF starter kit: Sine, a bandlimited Saw built from pureSawEng (Walter H. Hackett, Extended DSF Oscillators.cxx), a PWM Square derived from two phase-offset Saws, Trimorph (a second leaky integration on the Square), and SquSaw (a Saw crossfaded with a fixed 50%-duty square, landing on a saw-to-triangle-like character). Alias-free by construction: the maximum harmonic count is always Nyquist/frequency. The Harmonics knob (0-1) crossfades from a single harmonic (an exact sine) at 0 up to that Nyquist-safe maximum at 1 -- currently displayed as a raw 0.000-1.000 fraction rather than an actual harmonic count. Native C++/WASM.",
+    label: "DSF Oscillator",
+    notes: ["oscillator", "dsf", "discrete summation formula", "anti-aliasing", "native"],
+  },
+  robinSupersaw: {
+    category: "Oscillator",
+    description: "A proof-of-concept supersaw built on Robin Schmidt's pitch dithering technique (RobinSchmidt/RS-MET, rsPitchDitherOsc) -- see this repo's README for the full explanation. Instead of correcting or avoiding the aliasing edge, each voice dithers its own cycle length between 3 neighboring integer sample-counts so every individual cycle rendered is exactly periodic (alias-free), trading aliasing for a small amount of pitch-jitter noise. Stacks up to 9 independently-dithered, detuned voices (Detune spreads them symmetrically in cents around a centered anchor voice) and sums them into a classic wall-of-saws supersaw. Native C++/WASM.",
+    label: "RobinSupersaw",
+    notes: ["oscillator", "supersaw", "pitch dithering", "anti-aliasing", "native"],
   },
   arpeggiator: {
     category: "Sequence",

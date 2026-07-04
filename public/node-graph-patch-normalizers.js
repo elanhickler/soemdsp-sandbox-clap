@@ -14,10 +14,27 @@ function normalizeNodeGraphPatchInfo(info = {}) {
 
 function normalizeNodeGraphPatchAudio(audio = {}) {
   const targetSampleRate = Number(audio?.targetSampleRate);
+  // Global 0.1V/Oct pitch reference: "pitchReferenceHz" is the frequency
+  // sounded at "pitchReferenceMidiNote" (0.1V/Oct = midi/120 in this
+  // sandbox's keyboard/pitch-quantizer convention). Any oscillator that
+  // sets its own Frequency parameter equal to this value is, by
+  // definition, in tune with a MIDI keyboard -- and doubling that
+  // Frequency transposes the whole instrument up exactly one octave.
+  // Defaults to C3 @ 100Hz (this sandbox's chosen standard) rather than
+  // the more common A4/440Hz convention, which is available as a preset
+  // in the Patch Settings panel for anyone who wants it instead.
+  const pitchReferenceMidiNote = Number(audio?.pitchReferenceMidiNote);
+  const pitchReferenceHz = Number(audio?.pitchReferenceHz);
   return {
     targetSampleRate: Number.isFinite(targetSampleRate)
       ? Math.max(8000, Math.min(768000, targetSampleRate))
       : 44100,
+    pitchReferenceMidiNote: Number.isFinite(pitchReferenceMidiNote)
+      ? Math.max(0, Math.min(127, pitchReferenceMidiNote))
+      : 48,
+    pitchReferenceHz: Number.isFinite(pitchReferenceHz) && pitchReferenceHz > 0
+      ? Math.max(0.01, Math.min(20000, pitchReferenceHz))
+      : 100,
   };
 }
 

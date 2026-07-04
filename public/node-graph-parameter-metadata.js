@@ -16,6 +16,16 @@ function normalizeNodeSliderCurveAmount(value, fallback = 0) {
 }
 
 function normalizeNodeGraphMetadataSmoothingSeconds(value) {
+  // null/undefined both mean "unset -> defer to the global auto-smoothing
+  // time". Number(null) is 0 in JS (unlike Number(undefined), which is NaN),
+  // so without this check a value that was already correctly normalized to
+  // null upstream (e.g. normalizeNodeGraphPatchParameterMetadata falling back
+  // to a definition's already-null smoothingSeconds) would get silently
+  // coerced into 0 -- "smooth over exactly zero seconds" -- right here in the
+  // one function every metadata-building path funnels through.
+  if (value === null || value === undefined) {
+    return null;
+  }
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? Math.round(number) : 0;
 }

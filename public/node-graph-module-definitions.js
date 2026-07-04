@@ -39,6 +39,8 @@ const nodeGraphNodeLabels = Object.freeze({
   turingMachine: "Turing Machine",
   pitchQuantizer: "Pitch Quantizer",
   surgeOscillator: "Surge Oscillator",
+  dsfOscillator: "DSF Oscillator",
+  robinSupersaw: "RobinSupersaw",
   noiseGenerator: "Noise Generator",
   randomWalk: "Random Walk",
   fractalBrownianNoise: "Fractal Brownian Noise",
@@ -207,7 +209,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
-        defaultValue: "440",
+        defaultValue: "100",
         key: "frequency",
         kind: "frequency",
         label: "Frequency",
@@ -278,7 +280,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
-        defaultValue: "440",
+        defaultValue: "100",
         key: "frequency",
         kind: "frequency",
         label: "Frequency",
@@ -343,7 +345,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
-        defaultValue: "440",
+        defaultValue: "100",
         key: "frequency",
         kind: "frequency",
         label: "Frequency",
@@ -408,11 +410,11 @@ const nodeGraphModuleDefinitions = Object.freeze({
         wraparound: true,
       },
       {
-        defaultValue: "440",
+        defaultValue: "100",
         key: "freq",
         kind: "frequency",
         label: "Freq",
-        max: "22050",
+        max: "20000",
         mid: "440",
         min: "0",
         step: "any",
@@ -453,7 +455,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
-        defaultValue: "440",
+        defaultValue: "100",
         key: "frequency",
         kind: "frequency",
         label: "Frequency",
@@ -506,7 +508,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
-        defaultValue: "440",
+        defaultValue: "100",
         key: "frequency",
         kind: "frequency",
         label: "Frequency",
@@ -561,7 +563,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
     },
     outputs: ["Mono", "X", "Y"],
     parameters: [
-      { defaultValue: "220", key: "frequency", kind: "frequency", label: "Frequency", max: "20000", mid: "220", min: "0", step: "any", unit: "Hz" },
+      { defaultValue: "100", key: "frequency", kind: "frequency", label: "Frequency", max: "20000", mid: "220", min: "0", step: "any", unit: "Hz" },
       { defaultValue: "0", key: "phase", kind: "phase", label: "Phase", max: "1", mid: "0.5", min: "0", step: "0.01", unit: "cycle", wraparound: true },
       { defaultValue: "0", key: "offsetX", label: "Offset X", max: "1", mid: "0", min: "-1", step: "0.01" },
       { defaultValue: "0", key: "offsetY", label: "Offset Y", max: "1", mid: "0", min: "-1", step: "0.01" },
@@ -753,9 +755,50 @@ const nodeGraphModuleDefinitions = Object.freeze({
         nonlinearSlider: false,
         step: "1",
       },
-      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "220", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "100", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
       { key: "syncFrequency", label: "Sync Freq", kind: "frequency", defaultValue: "50", min: "0", mid: "50", max: "20000", step: "any", unit: "Hz" },
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
+  dsfOscillator: {
+    outputs: ["Out"],
+    parameters: [
+      {
+        choices: ["Sine", "Saw", "Square (PWM)", "Trimorph", "SquSaw"],
+        defaultValue: "1",
+        displayChoices: true,
+        divideChoicesVisibly: true,
+        key: "waveform",
+        label: "Waveform",
+        linearSmoothing: false,
+        max: "4",
+        mid: "2",
+        min: "0",
+        nonlinearSlider: false,
+        step: "1",
+      },
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "100", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
+      { key: "morph", label: "Harmonics", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.001" },
+      { key: "pulseWidth", label: "PWM", defaultValue: "0.5", min: "0.01", mid: "0.5", max: "0.99", step: "0.01" },
+      { key: "blend", label: "SquSaw", defaultValue: "0.5", min: "0", mid: "0.5", max: "1", step: "0.01" },
+      { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
+  robinSupersaw: {
+    inputs: ["0.1V/Oct"],
+    outputs: ["Mono", "Left", "Right"],
+    parameters: [
+      // "Frequency" is the pitch heard at the sandbox-wide "Pitch
+      // Reference Note" (Patch Settings panel; defaults to C3), NOT the
+      // pitch of whatever note you play. Set this equal to the master
+      // "Pitch Reference Frequency" (defaults to 100Hz) and a MIDI
+      // keyboard is automatically in tune; doubling it transposes the
+      // whole instrument up exactly one octave. See
+      // node-graph-patch-normalizers.js for the full explanation.
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "100", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
+      { key: "detuneCents", label: "Detune", defaultValue: "30", min: "0", mid: "50", max: "100", step: "0.1", unit: "cents" },
+      { key: "voices", label: "Voices", defaultValue: "7", min: "1", mid: "5", max: "9", step: "1" },
+      { key: "level", label: "Amplitude", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
     ],
   },
   noiseGenerator: {
@@ -2472,6 +2515,8 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "pluckEnvelope",
     "polyBlep",
     "surgeOscillator",
+    "robinSupersaw",
+    "pitchQuantizer",
     "randomWalk",
     "rgbaHsla",
     "sandboxVisuals",

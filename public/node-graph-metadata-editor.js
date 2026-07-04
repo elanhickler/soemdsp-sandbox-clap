@@ -979,7 +979,7 @@ function nodeMetadataScriptEffectiveRows(metadata) {
     ["step", nodeMetadataScriptPreviewValueText(metadata.step, "step")],
     ["unit", metadata.unit || "none"],
     ["digits", normalizeNodeGraphMetadataMaxDigits(metadata.maxDigits, metadata.kind)],
-    ["smoothing time", Number.isFinite(Number(metadata.smoothingSeconds)) ? `${metadata.smoothingSeconds}s` : "auto"],
+    ["smoothing time", metadata.smoothingSeconds !== null && metadata.smoothingSeconds !== undefined && Number.isFinite(Number(metadata.smoothingSeconds)) ? `${metadata.smoothingSeconds}s` : "auto"],
     ["choices", choices],
     ["flags", flags.length ? flags.join(", ") : "none"],
   ];

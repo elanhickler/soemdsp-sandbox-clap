@@ -3,7 +3,7 @@ const nodeSliderHandleLeftWallClearancePx = 1;
 const nodeSliderHandleRightWallClearancePx = 3;
 const nodeSliderMinSkewExponent = 0.25;
 const nodeSliderMaxSkewExponent = 4;
-const nodeGraphAutoSmoothingDefaultSeconds = 0.016;
+const nodeGraphAutoSmoothingDefaultSeconds = 0.5;
 
 const nodeGraphSmoothingModes = Object.freeze(["global", "blockSize", "internal", "internalGlobal", "off"]);
 
@@ -136,6 +136,14 @@ function denormalizeNodeGraphSmootherSignal(signal, metadata = {}) {
 // smoothingSeconds metadata is a SAMPLE COUNT, not seconds: 0 bypasses
 // smoothing entirely, and any N > 0 smooths over exactly N samples.
 function nodeGraphParameterSmoothingSecondsFromMetadata(metadata = {}) {
+  // metadata.smoothingSeconds is already normalized to null (unset -> defer to
+  // the global auto-smoothing time) or a finite number by
+  // normalizeNodeGraphMetadataSmoothingSeconds. Number(null) === 0 in JS, so
+  // coercing a literal null here would silently turn "unset" into "0 seconds"
+  // (instant, no smoothing) instead of preserving the fallback.
+  if (metadata.smoothingSeconds === null || metadata.smoothingSeconds === undefined) {
+    return null;
+  }
   const value = Number(metadata.smoothingSeconds);
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
 }
