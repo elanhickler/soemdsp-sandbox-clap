@@ -3259,14 +3259,17 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         null,
         "sin/cos amplitude input",
       );
-      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "0.1V/Oct"),
-        runtime,
-        nodeId,
-        null,
-        "sin/cos 0.1v input",
-      ), -1, 1);
-      const pitchedFrequency = Math.max(0, (baseFrequency + freqInput) * (2 ** (pitchInput / 0.1)));
+      const referenceVoltage = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio).pitchReferenceMidiNote / 120;
+      const pitchInput = hasInput(nodeId, "0.1V/Oct")
+        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
+          mixInput(nodeId, "0.1V/Oct"),
+          runtime,
+          nodeId,
+          null,
+          "sin/cos 0.1v input",
+        ), -1, 1)
+        : referenceVoltage;
+      const pitchedFrequency = Math.max(0, (baseFrequency + freqInput) * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
       const amplitude = Math.max(0, readNodeGraphLiveEffectiveParam(
         runtime,
         node,
@@ -3334,14 +3337,17 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         null,
         "osc increment input",
       );
-      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "0.1V/Oct"),
-        runtime,
-        nodeId,
-        null,
-        "osc 0.1v/oct input",
-      ), -1, 1);
-      const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+      const referenceVoltage = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio).pitchReferenceMidiNote / 120;
+      const pitchInput = hasInput(nodeId, "0.1V/Oct")
+        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
+          mixInput(nodeId, "0.1V/Oct"),
+          runtime,
+          nodeId,
+          null,
+          "osc 0.1v/oct input",
+        ), -1, 1)
+        : referenceVoltage;
+      const pitchedFrequency = Math.max(0, frequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
       const phaseIncrement = (pitchedFrequency / sampleRate) + incrementInput;
       const level = readNodeGraphLiveEffectiveParam(
         runtime,
@@ -3407,14 +3413,17 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
-      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "0.1V/Oct"),
-        runtime,
-        nodeId,
-        null,
-        "additive osc 0.1v/oct input",
-      ), -1, 1);
-      const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+      const referenceVoltage = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio).pitchReferenceMidiNote / 120;
+      const pitchInput = hasInput(nodeId, "0.1V/Oct")
+        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
+          mixInput(nodeId, "0.1V/Oct"),
+          runtime,
+          nodeId,
+          null,
+          "additive osc 0.1v/oct input",
+        ), -1, 1)
+        : referenceVoltage;
+      const pitchedFrequency = Math.max(0, frequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
       const incrementInput = nodeGraphSafeFilterNumber(
         mixInput(nodeId, "Increment"),
         runtime,
@@ -4197,6 +4206,42 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         voices: read("voices", 7),
         level: read("level", 1),
       });
+    } else if (node?.type === "hypersaw") {
+      const state = runtime.hypersawStates.get(nodeId) || createNodeGraphHypersawState();
+      runtime.hypersawStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      // baseFrequency is the pitch heard at the global pitch reference note
+      // (see node-graph-patch-normalizers.js), same convention as
+      // robinSupersaw above -- set it equal to the master "Pitch Reference
+      // Frequency" setting and a MIDI keyboard is automatically in tune.
+      const baseFrequency = Math.max(0, read("frequency", 100));
+      const pitchReferenceAudio = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio);
+      const referenceVoltage = pitchReferenceAudio.pitchReferenceMidiNote / 120;
+      const pitchInput = hasInput(nodeId, "0.1V/Oct")
+        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
+          mixInput(nodeId, "0.1V/Oct"),
+          runtime,
+          nodeId,
+          null,
+          "Hypersaw 0.1v input",
+        ), -1, 1)
+        : referenceVoltage;
+      const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
+      const hypersawResult = nodeGraphHypersawSample(state, {
+        frequencyHz: pitchedFrequency,
+        sampleRate,
+        phaseOffset: read("phase", 0),
+        numVoices: read("voices", 8),
+        spread: read("spread", 1),
+        randomAmount: read("random", 0.15),
+        driftAmount: read("drift", 0.1),
+        level: read("level", 0.35),
+      });
+      value = { Left: hypersawResult.Left, Right: hypersawResult.Right };
+      if (typeof nodeGraphModuleScopeState !== "undefined") {
+        nodeGraphModuleScopeState.hypersawVoicePhases ||= new Map();
+        nodeGraphModuleScopeState.hypersawVoicePhases.set(String(nodeId), hypersawResult.voicePhases);
+      }
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);

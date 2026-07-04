@@ -1064,6 +1064,12 @@ function handleNodeGraphLiveWorkletMessage(event) {
       patchFingerprint: message.patchFingerprint || nodeGraphPatchFingerprint(),
       sampleRate: message.sampleRate || nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
     });
+    if (Array.isArray(message.hypersawVoicePhases) && message.hypersawVoicePhases.length) {
+      nodeGraphModuleScopeState.hypersawVoicePhases ||= new Map();
+      for (const [nodeId, phases] of message.hypersawVoicePhases) {
+        nodeGraphModuleScopeState.hypersawVoicePhases.set(String(nodeId), phases);
+      }
+    }
   } else if (message.type === "visualControls") {
     if (message.sessionId !== nodeGraphMvp.live.sessionId || !nodeGraphMvp.live.node) {
       return;

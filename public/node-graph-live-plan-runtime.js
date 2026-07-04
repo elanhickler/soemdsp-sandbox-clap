@@ -280,6 +280,7 @@ function createNodeGraphLiveRuntime(plan) {
   const surgeOscillatorStates = new Map();
   const dsfOscillatorStates = new Map();
   const robinSupersawStates = new Map();
+  const hypersawStates = new Map();
   const lorenzAttractorStates = new Map();
   const moduleGroupRuntimes = new Map();
   const noiseGeneratorStates = new Map();
@@ -378,6 +379,9 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "robinSupersaw") {
       robinSupersawStates.set(node.id, createNodeGraphRobinSupersawState());
+    }
+    if (node.type === "hypersaw") {
+      hypersawStates.set(node.id, createNodeGraphHypersawState());
     }
     if (node.type === "passiveFilter") {
       passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());
@@ -558,6 +562,7 @@ function createNodeGraphLiveRuntime(plan) {
     surgeOscillatorStates,
     dsfOscillatorStates,
     robinSupersawStates,
+    hypersawStates,
     lorenzAttractorStates,
     meterCounter: 0,
     meterClipCount: 0,
@@ -771,6 +776,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.robinSupersawStates) {
     runtime.robinSupersawStates = new Map();
   }
+  if (!runtime.hypersawStates) {
+    runtime.hypersawStates = new Map();
+  }
   if (!runtime.clockStates) {
     runtime.clockStates = new Map();
   }
@@ -931,6 +939,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "robinSupersaw" && !runtime.robinSupersawStates.has(node.id)) {
       runtime.robinSupersawStates.set(node.id, createNodeGraphRobinSupersawState());
+    }
+    if (node.type === "hypersaw" && !runtime.hypersawStates.has(node.id)) {
+      runtime.hypersawStates.set(node.id, createNodeGraphHypersawState());
     }
     if (node.type === "passiveFilter" && !runtime.passiveFilterStates.has(node.id)) {
       runtime.passiveFilterStates.set(node.id, createNodeGraphPassiveFilterState());

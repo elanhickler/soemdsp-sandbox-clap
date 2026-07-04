@@ -220,6 +220,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-dsf-oscillator.js",
     "./public/node-graph-robin-supersaw.js",
+    "./public/node-graph-hypersaw.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-live-runtime.js",
@@ -17317,6 +17318,7 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_robin_supersaw_destroy",
             "soemdsp_robin_supersaw_sample",
         ],
+        "hypersaw": ["soemdsp_hypersaw_create", "soemdsp_hypersaw_destroy", "soemdsp_hypersaw_sample", "soemdsp_hypersaw_left", "soemdsp_hypersaw_right"],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [
             "soemdsp_polyblep_create",
