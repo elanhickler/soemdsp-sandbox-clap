@@ -351,6 +351,11 @@ body.node-module-diagnostics-tripped .node-module-diagnostics-fault {
   line-height: 1.4;
 }
 
+.node-module-diagnostics-fault-entry-ok {
+  border-color: rgba(127, 217, 160, 0.32);
+  background: rgba(127, 217, 160, 0.06);
+}
+
 .node-module-diagnostics-fault-close {
   width: min(220px, 100%);
   margin: 14px auto 0;

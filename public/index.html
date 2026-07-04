@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>soemdsp-sandbox</title>
-  <link rel="stylesheet" href="./public/styles.css?v=module-diagnostics-1-20260711">
+  <link rel="stylesheet" href="./public/styles.css?v=module-diagnostics-2-20260711">
 </head>
 <body class="debug-collapsed node-boot-loading">
   <div class="node-boot-loading-screen" role="status" aria-live="polite" aria-label="loading">
@@ -59,10 +59,10 @@
     aria-live="assertive"
     hidden>
     <div class="node-module-diagnostics-fault-panel">
-      <span class="node-module-diagnostics-fault-kicker">Module Diagnostics</span>
-      <strong>A module isn't working correctly</strong>
+      <span id="nodeModuleDiagnosticsFaultKicker" class="node-module-diagnostics-fault-kicker">Module Diagnostics</span>
+      <strong id="nodeModuleDiagnosticsFaultTitle">A module isn't working correctly</strong>
       <ul id="nodeModuleDiagnosticsFaultList" class="node-module-diagnostics-fault-list"></ul>
-      <span class="node-module-diagnostics-fault-explain">
+      <span id="nodeModuleDiagnosticsFaultExplain" class="node-module-diagnostics-fault-explain">
         This is informational only -- audio keeps playing. It flags native modules that
         failed to load, threw an error while running, or a wired node stuck producing no
         signal, so a silent failure doesn't look like nothing is wrong.
@@ -813,6 +813,10 @@
               type="button"
               aria-pressed="false"
               data-tooltip-key="settings.uiDevOpen"><span>UIDEV</span></button>
+            <button
+              id="nodeCheckAllModulesButton"
+              type="button"
+              data-tooltip-key="settings.checkAllModules"><span>Check All</span><span>Modules</span></button>
           </div>
           <div class="node-settings-dev-action-group" role="group" aria-label="In-development build actions">
             <button
@@ -3165,7 +3169,7 @@
   <script src="./public/node-graph-metadata-editor.js?v=smoothing-time-seconds-20260703"></script>
   <script src="./public/node-graph-render-settings.js?v=slider-unit-color-1780307400000"></script>
   <script src="./public/node-graph-ear-protection.js?v=ear-protection-reset-1"></script>
-  <script src="./public/node-graph-module-diagnostics.js?v=module-diagnostics-1-20260703"></script>
+  <script src="./public/node-graph-module-diagnostics.js?v=module-diagnostics-2-20260703"></script>
   <script src="./public/node-graph-rendered-audio.js?v=ear-protection-reset-1"></script>
   <script src="./public/node-graph-rendered-visual-output.js?v=beta-polish-1"></script>
   <script src="./public/node-graph-rendered-output-canvases.js?v=beta-polish-1"></script>
@@ -3229,11 +3233,11 @@
   <script src="./public/node-graph-lut-cell.js?v=lut-cell-selfclock-20260711"></script>
   <script src="./public/node-graph-live-frame-evaluator.js?v=lut-cell-selfclock-20260711"></script>
   <script src="./public/node-graph-pulse-explosion-display.js?v=1"></script>
-  <script src="./public/node-graph-live-runtime.js?v=module-diagnostics-1-20260711"></script>
+  <script src="./public/node-graph-live-runtime.js?v=module-diagnostics-2-20260711"></script>
   <script src="./public/node-graph-wire-controller-bootstrap.js?v=wire-break-trigger-0129"></script>
   <script src="./public/node-graph-workspace-event-bindings.js?v=dblclick-textbox-20260701"></script>
   <script src="./public/node-graph-render-live-event-bindings.js?v=beta-polish-1"></script>
-  <script src="./public/node-graph-header-event-bindings.js?v=module-diagnostics-1-20260711"></script>
+  <script src="./public/node-graph-header-event-bindings.js?v=module-diagnostics-2-20260711"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=remove-workspace-view-0002"></script>
   <script src="./public/node-graph-scene-menu-event-bindings.js?v=script-box-merge-20260711"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=origin-marker-uidev-1"></script>

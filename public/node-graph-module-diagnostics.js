@@ -119,6 +119,16 @@ function nodeGraphApplyModuleDiagnosticsFaultUi() {
     closeNodeGraphModuleDiagnosticsFaultUi();
     return;
   }
+  const kicker = document.getElementById("nodeModuleDiagnosticsFaultKicker");
+  const title = document.getElementById("nodeModuleDiagnosticsFaultTitle");
+  const explain = document.getElementById("nodeModuleDiagnosticsFaultExplain");
+  if (kicker) kicker.textContent = "Module Diagnostics";
+  if (title) title.textContent = "A module isn't working correctly";
+  if (explain) {
+    explain.textContent = "This is informational only -- audio keeps playing. It flags native modules that "
+      + "failed to load, threw an error while running, or a wired node stuck producing no signal, so a "
+      + "silent failure doesn't look like nothing is wrong.";
+  }
   list.innerHTML = "";
   for (const item of state.faults) {
     const entry = document.createElement("li");
@@ -202,5 +212,229 @@ function nodeGraphClearAllTrackedModuleSilence() {
   for (const nodeId of [...tracking.keys()]) {
     tracking.delete(nodeId);
     nodeGraphClearModuleFault(`silent-node:${nodeId}`);
+  }
+}
+
+// -----------------------------------------------------------------------
+// "Check All Modules" -- an on-demand self-test, triggered only by a
+// button in Settings (never automatically). It tests every native module
+// in native-modules-catalog.json directly, independent of the live audio
+// worklet or the current patch, so it works whether or not live audio is
+// running and can't be confused by whatever happens to be wired up.
+//
+// Two depths, by design (see the "Check depth" choice this feature was
+// built from): every module gets a load check (fetch its .wasm, attempt
+// WebAssembly.instantiate -- this alone would have caught the
+// keplerBouwkamp catalog bug). The 8 Jerobeam modules additionally get a
+// full create->sample(defaults)x2000->x/y read->destroy signal-sanity
+// check, since their raw export convention
+// (_create/_destroy/_reset/_sample/_x/_y/_version) and exact per-module
+// default parameter order are both known precisely (they were all authored
+// this way, on purpose, in this repo). The other 17 pre-existing native
+// modules use call conventions specific to each one (different export
+// names, different per-module option shapes) that aren't safe to guess
+// generically, so they get the load check only -- reported as such, not
+// silently treated as equivalent.
+const nodeGraphJerobeamSelfTestManifest = Object.freeze([
+  {
+    targetType: "wirdoSpiral",
+    exportPrefix: "soemdsp_jbwirdo",
+    // frequency, sharp, cross, density, length, rotate, splashDepth, splashDensity, cut, scrap, ringCut, splashSpeed, syncCut
+    args: [8, 0, 0, 0.8, 1, 0, 0, 0, 1000, 1, 10, 0, 1],
+  },
+  {
+    targetType: "blubb",
+    exportPrefix: "soemdsp_jbblubb",
+    // frequency, shape, rotX, rotY, zDepth
+    args: [8, 0, 0, 0, 0],
+  },
+  {
+    targetType: "mushroom",
+    exportPrefix: "soemdsp_jbmushroom",
+    // frequency, phaseOffset, numMushrooms, grow, density, capRotation, stemRotationSpeed, head, spread, wobble, clusterRotation, clusterRotationSpeed, sharp, width, stem, apart, capStemTransition
+    args: [8, 0, 1, 1, 3, 0, 0, 0.6667, 0.5, 0.0625, 0, 0, 0, 1, 0, 0, 0.1],
+  },
+  {
+    targetType: "boing",
+    exportPrefix: "soemdsp_jbboing",
+    // frequency, density, sharpness, rotX, rotY, zDepth, zAmount, ends, boing, boingStrength, dir, shape, volume, volumePreJump
+    args: [8, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+  },
+  {
+    targetType: "torus",
+    exportPrefix: "soemdsp_jbtorus",
+    // frequency, density, quantizeDensity, subdensity, quantizeSubDensity, sharp, size, length, balance, wander, darkAngle, darkIntensity, rotX, rotY, rotZ, zAngleX, zAngleY, zDepth
+    args: [8, 1, 1, 0, 1, 0.5, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  },
+  {
+    targetType: "keplerBouwkamp",
+    exportPrefix: "soemdsp_jbkepler",
+    // frequency, start, length, circles, zoom, rotation, tri
+    args: [8, 3, 1, 0.5, 0, 0, 0],
+  },
+  {
+    targetType: "nyquistShannon",
+    exportPrefix: "soemdsp_jbnyquist",
+    // frequencyA, midiNoteRaw, rate, sampleDots, phaseOffset, frequencyB, subPhase, subPhaseRotationSpeed, tone, toneSmoothTime, artifact, enableToneModPitch, enableToneModFreq, enableToneModNote
+    args: [440, 48, 20, 0, 0, 5, 0, 0, 0, 0.01, 0, 1, 0, 0],
+  },
+  {
+    targetType: "radar",
+    exportPrefix: "soemdsp_jbradar",
+    // frequency, phaseOffset, density, sharp, fade, rotation, direction, shade, lap, ringcut, pow1Up, pow1Down, pow2Bend, phaseInv, tunnelInv, spiralReturn, length, ratio, frontring, zoom, zDepth, inner, x, y
+    args: [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+  },
+]);
+
+const nodeGraphModuleSelfTestSampleCount = 2000;
+const nodeGraphModuleSelfTestSampleRate = 44100;
+
+async function nodeGraphRunJerobeamModuleSelfTest(entry, manifestEntry) {
+  try {
+    const response = await fetch(entry.wasmUrl, { cache: "no-store" });
+    if (!response.ok) {
+      return { ok: false, reason: `wasm fetch failed (HTTP ${response.status})` };
+    }
+    const bytes = await response.arrayBuffer();
+    const { instance } = await WebAssembly.instantiate(bytes, {});
+    const exportsObj = instance.exports;
+    const prefix = manifestEntry.exportPrefix;
+    const create = exportsObj[`${prefix}_create`];
+    const destroy = exportsObj[`${prefix}_destroy`];
+    const sample = exportsObj[`${prefix}_sample`];
+    const getX = exportsObj[`${prefix}_x`];
+    const getY = exportsObj[`${prefix}_y`];
+    if (!create || !destroy || !sample || !getX || !getY) {
+      return { ok: false, reason: `missing expected exports (${prefix}_create/_destroy/_sample/_x/_y)` };
+    }
+    const handle = create();
+    if (!handle) {
+      return { ok: false, reason: "create() returned no handle (pool exhausted?)" };
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let badCount = 0;
+    for (let i = 0; i < nodeGraphModuleSelfTestSampleCount; i++) {
+      sample(handle, ...manifestEntry.args, nodeGraphModuleSelfTestSampleRate);
+      const x = getX(handle);
+      const y = getY(handle);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        badCount += 1;
+        continue;
+      }
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+    destroy(handle);
+    if (badCount > 0) {
+      return { ok: false, reason: `produced NaN/Inf on ${badCount}/${nodeGraphModuleSelfTestSampleCount} samples` };
+    }
+    const rangeX = maxX - minX;
+    const rangeY = maxY - minY;
+    if (rangeX < 1e-9 && rangeY < 1e-9) {
+      return { ok: false, reason: `output never changed across ${nodeGraphModuleSelfTestSampleCount} samples (frozen at X=${minX}, Y=${minY})` };
+    }
+    return {
+      ok: true,
+      reason: `finite, varying output over ${nodeGraphModuleSelfTestSampleCount} samples (ΔX=${rangeX.toFixed(4)}, ΔY=${rangeY.toFixed(4)})`,
+    };
+  } catch (error) {
+    return { ok: false, reason: String(error?.message || error || "unknown error") };
+  }
+}
+
+async function nodeGraphRunGenericModuleLoadCheck(entry) {
+  try {
+    const response = await fetch(entry.wasmUrl, { cache: "no-store" });
+    if (!response.ok) {
+      return { ok: false, reason: `wasm fetch failed (HTTP ${response.status})` };
+    }
+    const bytes = await response.arrayBuffer();
+    await WebAssembly.instantiate(bytes, {});
+    return { ok: true, reason: "wasm fetched and instantiated successfully" };
+  } catch (error) {
+    return { ok: false, reason: String(error?.message || error || "unknown error") };
+  }
+}
+
+function nodeGraphShowModuleSelfTestReport(report) {
+  const fault = document.getElementById("nodeModuleDiagnosticsFault");
+  const list = document.getElementById("nodeModuleDiagnosticsFaultList");
+  const kicker = document.getElementById("nodeModuleDiagnosticsFaultKicker");
+  const title = document.getElementById("nodeModuleDiagnosticsFaultTitle");
+  const explain = document.getElementById("nodeModuleDiagnosticsFaultExplain");
+  if (!fault || !list) {
+    return;
+  }
+  if (kicker) kicker.textContent = "Module Self-Test";
+  list.innerHTML = "";
+  if (report.running) {
+    if (title) title.textContent = "Checking all modules...";
+    if (explain) explain.textContent = "Fetching and testing every native module. This takes a few seconds.";
+  } else {
+    const okCount = report.results.filter((item) => item.ok).length;
+    if (title) title.textContent = `${okCount}/${report.results.length} modules OK`;
+    if (explain) {
+      explain.textContent = "\"load + signal check\" ran the module for 2000 samples and confirmed varying, "
+        + "finite output. \"load check only\" confirmed its WASM loads, but didn't run it (this module's call "
+        + "convention isn't part of this self-test's known list).";
+    }
+    for (const item of report.results) {
+      const entry = document.createElement("li");
+      entry.className = `node-module-diagnostics-fault-entry${item.ok ? " node-module-diagnostics-fault-entry-ok" : ""}`;
+      entry.textContent = `${item.ok ? "OK" : "FAIL"} — ${item.label} (${item.depth}): ${item.reason}`;
+      list.append(entry);
+    }
+  }
+  document.body?.classList.add("node-module-diagnostics-tripped");
+  fault.hidden = false;
+}
+
+let nodeGraphModuleSelfTestRunning = false;
+
+async function runNodeGraphModuleSelfTest() {
+  if (nodeGraphModuleSelfTestRunning) {
+    return;
+  }
+  nodeGraphModuleSelfTestRunning = true;
+  const button = document.getElementById("nodeCheckAllModulesButton");
+  if (button) {
+    button.disabled = true;
+  }
+  try {
+    nodeGraphShowModuleSelfTestReport({ running: true, results: [] });
+    const jerobeamManifestByTargetType = new Map(
+      nodeGraphJerobeamSelfTestManifest.map((entry) => [entry.targetType, entry]),
+    );
+    let catalog;
+    try {
+      catalog = await fetchNodeGraphLiveNativeModuleCatalog();
+    } catch (_error) {
+      catalog = { modules: [] };
+    }
+    const modules = Array.isArray(catalog?.modules) ? catalog.modules : [];
+    const results = [];
+    for (const entry of modules) {
+      const manifestEntry = jerobeamManifestByTargetType.get(entry.targetType);
+      const result = manifestEntry
+        ? await nodeGraphRunJerobeamModuleSelfTest(entry, manifestEntry)
+        : await nodeGraphRunGenericModuleLoadCheck(entry);
+      results.push({
+        depth: manifestEntry ? "load + signal check" : "load check only",
+        label: entry.label || entry.targetType || entry.name || "unknown module",
+        ok: result.ok,
+        reason: result.reason,
+      });
+    }
+    nodeGraphShowModuleSelfTestReport({ running: false, results });
+  } finally {
+    nodeGraphModuleSelfTestRunning = false;
+    if (button) {
+      button.disabled = false;
+    }
   }
 }
