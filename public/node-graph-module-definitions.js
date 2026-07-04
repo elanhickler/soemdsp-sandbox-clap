@@ -102,6 +102,7 @@ const nodeGraphNodeLabels = Object.freeze({
   visualOscilloscope: "Display",
   traceDisplay: "1D Trace",
   dotOscilloscope: "0D Burn",
+  oscilloscopeBank: "Oscilloscope Bank",
   valueOscilloscope: "0D Value",
   numberReadout: "Number Readout",
   lineBurnOscilloscope: "1D Burn",
@@ -1301,7 +1302,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "Left", kind: "scalar" },
     ],
     inputs: ["Reset", "0.1V/Oct"],
-    outputs: ["Left", "Right"],
+    outputs: ["Left", "Right", "Phases", "Amplitudes", "Pans"],
     parameters: [
       { key: "voices", label: "Num Sawtooths", defaultValue: "8", min: "1", mid: "8", max: "32", step: "1" },
       { key: "phase", label: "Phase", kind: "phase", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01", unit: "cycle", wraparound: true },
@@ -2992,6 +2993,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
     visualInputs: [
       { key: "dotOscilloscope", label: "In", port: "In" },
     ],
+    visualSink: true,
+  },
+  oscilloscopeBank: {
+    displayType: "oscilloscopeBankBurn",
+    inputs: ["Phases", "Amplitudes", "Pans"],
+    layout: "traceDisplay",
+    outputs: [],
+    parameters: [],
     visualSink: true,
   },
   valueOscilloscope: {

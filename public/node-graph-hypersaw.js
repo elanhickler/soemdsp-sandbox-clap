@@ -86,6 +86,8 @@ function nodeGraphHypersawSample(state, options = {}) {
   let leftSum = 0, rightSum = 0;
   let leftCount = 0, rightCount = 0;
   const voicePhases = new Array(numVoices);
+  const voiceAmplitudes = new Array(numVoices);
+  const voicePans = new Array(numVoices);
 
   for (let i = 0; i < numVoices; i++) {
     const voice = state.voices[i];
@@ -102,18 +104,22 @@ function nodeGraphHypersawSample(state, options = {}) {
     // fundamental frequency (that's the pitch itself, not something a
     // "voice position" display should show), so it's excluded here.
     voicePhases[i] = nodeGraphHypersawWrap01(dispersion);
+    voiceAmplitudes[i] = sawSample;
     voice.phase = nodeGraphHypersawWrap01(voice.phase + phaseIncrement);
 
     const isCenter = i === 0 || (i === 1 && numVoices % 2 === 0);
     if (isCenter) {
+      voicePans[i] = 0;
       leftSum += sawSample;
       rightSum += sawSample;
       leftCount++;
       rightCount++;
     } else if (i % 2 === 0) {
+      voicePans[i] = -1;
       leftSum += sawSample;
       leftCount++;
     } else {
+      voicePans[i] = 1;
       rightSum += sawSample;
       rightCount++;
     }
@@ -126,5 +132,5 @@ function nodeGraphHypersawSample(state, options = {}) {
 
   const outLeft = clampNodeSliderValue(left, -1.5, 1.5) * level;
   const outRight = clampNodeSliderValue(right, -1.5, 1.5) * level;
-  return { Left: outLeft, Right: outRight, voicePhases };
+  return { Left: outLeft, Right: outRight, voicePhases, voiceAmplitudes, voicePans };
 }

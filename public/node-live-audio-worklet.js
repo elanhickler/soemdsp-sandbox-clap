@@ -3300,9 +3300,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       state.postedFrame = absoluteFrame;
     }
     const hypersawVoicePhases = [];
+    const hypersawVoiceAmplitudes = [];
+    const hypersawVoicePans = [];
     for (const [nodeId, state] of this.hypersawStates) {
       if (Array.isArray(state?.lastVoicePhases) && state.lastVoicePhases.length) {
         hypersawVoicePhases.push([nodeId, state.lastVoicePhases]);
+      }
+      if (Array.isArray(state?.lastVoiceAmplitudes) && state.lastVoiceAmplitudes.length) {
+        hypersawVoiceAmplitudes.push([nodeId, state.lastVoiceAmplitudes]);
+      }
+      if (Array.isArray(state?.lastVoicePans) && state.lastVoicePans.length) {
+        hypersawVoicePans.push([nodeId, state.lastVoicePans]);
       }
     }
     if (!values.length && !hypersawVoicePhases.length) {
@@ -3310,6 +3318,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     this.port.postMessage({
       ...(hypersawVoicePhases.length ? { hypersawVoicePhases } : {}),
+      ...(hypersawVoiceAmplitudes.length ? { hypersawVoiceAmplitudes } : {}),
+      ...(hypersawVoicePans.length ? { hypersawVoicePans } : {}),
       patchFingerprint: this.patchFingerprint,
       sampleRate: engineSampleRate,
       sessionId: this.sessionId,
@@ -11462,6 +11472,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
     const sawSamples = new Array(numVoices);
     const voicePhases = new Array(numVoices);
+    const voicePans = new Array(numVoices);
 
     for (let i = 0; i < numVoices; i++) {
       const voice = state.voices[i];
@@ -11478,10 +11489,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       // position" display should show.
       voicePhases[i] = this.hypersawWrap01(dispersion);
       voice.phase = this.hypersawWrap01(voice.phase + phaseIncrement);
+
+      const isCenter = i === 0 || (i === 1 && numVoices % 2 === 0);
+      voicePans[i] = isCenter ? 0 : (i % 2 === 0 ? -1 : 1);
     }
 
     state.lastVoicePhases = voicePhases;
-    return { sawSamples, numVoices };
+    state.lastVoiceAmplitudes = sawSamples;
+    state.lastVoicePans = voicePans;
+    return { sawSamples, numVoices, voicePans };
   }
 
   hypersawSampleJs(state, options = {}) {
@@ -11513,7 +11529,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     if (!Number.isFinite(left)) left = 0;
     if (!Number.isFinite(right)) right = 0;
 
-    return { Left: this.clampValue(left, -1.5, 1.5) * level, Right: this.clampValue(right, -1.5, 1.5) * level };
+    return {
+      Left: this.clampValue(left, -1.5, 1.5) * level,
+      Right: this.clampValue(right, -1.5, 1.5) * level,
+      Phases: state.lastVoicePhases,
+      Amplitudes: state.lastVoiceAmplitudes,
+      Pans: state.lastVoicePans,
+    };
   }
 
   hypersawSample(state, options = {}) {
@@ -11555,6 +11577,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           return {
             Left: Number(this.nativeHypersaw.soemdsp_hypersaw_left(state.nativeHandle)) || 0,
             Right: Number(this.nativeHypersaw.soemdsp_hypersaw_right(state.nativeHandle)) || 0,
+            Phases: state.lastVoicePhases,
+            Amplitudes: state.lastVoiceAmplitudes,
+            Pans: state.lastVoicePans,
           };
         }
       } catch (error) {

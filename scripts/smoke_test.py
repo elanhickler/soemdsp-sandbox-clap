@@ -12793,7 +12793,8 @@ def require_node_graph_mvp_contract() -> None:
     require('"lineBurnOscilloscope"' in module_store_source and 'label: "1D Burn"' in module_store_source, "1D Burn oscilloscope should exist")
     require('"scope2d"' in module_store_source and 'label: "2D Burn"' in module_store_source, "2D Burn oscilloscope should exist")
     require('"scope2dTrace"' in module_store_source and 'label: "2D Trace"' in module_store_source, "2D Trace oscilloscope should exist")
-    require('"dotOscilloscope",\n  "valueOscilloscope",\n  "numberReadout",\n  "lineBurnOscilloscope",\n  "scope2d",\n  "scope2dTrace"' in module_store_source, "Oscilloscope modules should be listed together")
+    require('"dotOscilloscope",\n  "oscilloscopeBank",\n  "valueOscilloscope",\n  "numberReadout",\n  "lineBurnOscilloscope",\n  "scope2d",\n  "scope2dTrace"' in module_store_source, "Oscilloscope modules should be listed together")
+    require('"oscilloscopeBank"' in module_store_source and 'label: "Oscilloscope Bank"' in module_store_source, "Oscilloscope Bank should exist")
     require('nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([\n  "canvas",\n  "graph",\n  "graph2",\n  "groupInput",\n  "groupOutput",\n  "humanFilter",\n  "shootingStarTail",\n]));' in module_store_source, "Canvas, graph modules, group portals, Human Filter, and shooting star tail should be under construction in the store set")
     for oscilloscope_type in ["dotOscilloscope", "valueOscilloscope", "numberReadout", "lineBurnOscilloscope", "scope2d", "scope2dTrace"]:
         require(f"{oscilloscope_type}: {{" in module_definitions_source, f"{oscilloscope_type} should have a spawnable module definition")

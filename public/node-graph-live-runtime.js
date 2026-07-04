@@ -1070,6 +1070,18 @@ function handleNodeGraphLiveWorkletMessage(event) {
         nodeGraphModuleScopeState.hypersawVoicePhases.set(String(nodeId), phases);
       }
     }
+    if (Array.isArray(message.hypersawVoiceAmplitudes) && message.hypersawVoiceAmplitudes.length) {
+      nodeGraphModuleScopeState.hypersawVoiceAmplitudes ||= new Map();
+      for (const [nodeId, amplitudes] of message.hypersawVoiceAmplitudes) {
+        nodeGraphModuleScopeState.hypersawVoiceAmplitudes.set(String(nodeId), amplitudes);
+      }
+    }
+    if (Array.isArray(message.hypersawVoicePans) && message.hypersawVoicePans.length) {
+      nodeGraphModuleScopeState.hypersawVoicePans ||= new Map();
+      for (const [nodeId, pans] of message.hypersawVoicePans) {
+        nodeGraphModuleScopeState.hypersawVoicePans.set(String(nodeId), pans);
+      }
+    }
   } else if (message.type === "visualControls") {
     if (message.sessionId !== nodeGraphMvp.live.sessionId || !nodeGraphMvp.live.node) {
       return;

@@ -2712,7 +2712,7 @@ function nodeGraphTraceDisplaySettingsEditingTraceDefaults() {
   return nodeGraphModuleDisplaySettingsSchemaForNode(node) === "trace";
 }
 
-const nodeGraphDisplayModeRenderers = Object.freeze(["trace", "clock", "dot", "value", "lineBurn", "hypersawBurn", "scope2d", "scope2dTrace", "numberReadout"]);
+const nodeGraphDisplayModeRenderers = Object.freeze(["trace", "clock", "dot", "value", "lineBurn", "hypersawBurn", "oscilloscopeBankBurn", "scope2d", "scope2dTrace", "numberReadout"]);
 const nodeGraphDisplayModeSignalKinds = Object.freeze(["scalar", "xy", "buffer"]);
 
 function nodeGraphDisplayModeSettingsSchemaForRenderer(renderer) {
@@ -9950,6 +9950,109 @@ function drawNodeGraphHypersawBurnItem(renderer, item, pixelRatio) {
   }
 }
 
+// Oscilloscope Bank -- a standalone, reusable "phase x amplitude" scope for
+// any voice-bank-shaped source (Hypersaw today, anything else that
+// publishes the same {phases, amplitudes, pans} snapshot shape later).
+// Unlike hypersawBurn (a fixed 1D dispersion-position display hardcoded to
+// Hypersaw), this node discovers ITS source at render time by looking at
+// what's actually wired into its own Phases/Amplitudes/Pans input ports --
+// "1 wire per major data array" is the whole patching model: the wire's
+// existence tells this renderer which node's published snapshot to read,
+// the real array payload rides the same lightweight scope-state relay
+// Hypersaw's own display already uses (worklet -> main thread), not the
+// per-sample audio-rate signal graph.
+//
+// x = phase (0..1 across the canvas), y = amplitude (bipolar stem around
+// vertical center), color = pan (red at -1/left, green at 0/center, blue
+// at +1/right), additive blending so overlapping voices actually brighten
+// rather than overpaint, and phosphor persistence via painting a
+// translucent black rect instead of clearing -- so the ghost of where
+// each line has been stays visible while it fades, same technique as
+// hypersawBurn and lineBurn.
+function nodeGraphOscilloscopeBankPanColor(pan) {
+  const p = clampNodeSliderValue(Number(pan) || 0, -1, 1);
+  let r, g, b;
+  if (p <= 0) {
+    // -1 (red) .. 0 (green)
+    const t = p + 1; // 0..1
+    r = Math.round(255 * (1 - t));
+    g = Math.round(255 * t);
+    b = 0;
+  } else {
+    // 0 (green) .. +1 (blue)
+    const t = p; // 0..1
+    r = 0;
+    g = Math.round(255 * (1 - t));
+    b = Math.round(255 * t);
+  }
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function drawNodeGraphOscilloscopeBankBurnItem(renderer, item, pixelRatio) {
+  const nodeId = item?.slot?.nodeId;
+  if (!nodeId) {
+    return;
+  }
+  const canvas = nodeGraphModuleScopeLocalFallbackCanvas(item?.slot);
+  const screenElement = item?.screenElement || item?.slot?.scopeElement;
+  if (!canvas || !syncNodeGraphModuleScopeLocalFallbackCanvas(canvas, screenElement, pixelRatio)) {
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  // Burn-in decay: normal (non-additive) compositing so the fade-to-black
+  // actually darkens rather than brightening what's already there.
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const phasesConnection = nodeGraphModuleScopeConnectionsTo(nodeId, "Phases")
+    .find((candidate) => candidate?.sourceNode);
+  const amplitudesConnection = nodeGraphModuleScopeConnectionsTo(nodeId, "Amplitudes")
+    .find((candidate) => candidate?.sourceNode);
+  const pansConnection = nodeGraphModuleScopeConnectionsTo(nodeId, "Pans")
+    .find((candidate) => candidate?.sourceNode);
+  if (!phasesConnection || !amplitudesConnection) {
+    return;
+  }
+
+  const phases = nodeGraphModuleScopeState.hypersawVoicePhases?.get(String(phasesConnection.sourceNode));
+  const amplitudes = nodeGraphModuleScopeState.hypersawVoiceAmplitudes?.get(String(amplitudesConnection.sourceNode));
+  const pans = pansConnection
+    ? nodeGraphModuleScopeState.hypersawVoicePans?.get(String(pansConnection.sourceNode))
+    : null;
+  if (!Array.isArray(phases) || !phases.length || !Array.isArray(amplitudes) || !amplitudes.length) {
+    return;
+  }
+
+  const centerY = canvas.height / 2;
+  const halfHeight = canvas.height / 2;
+  const lineWidth = Math.max(1, canvas.width / 240);
+
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineWidth = lineWidth;
+  const count = Math.min(phases.length, amplitudes.length);
+  for (let i = 0; i < count; i++) {
+    const phase = Number(phases[i]);
+    const amplitude = Number(amplitudes[i]);
+    if (!Number.isFinite(phase) || !Number.isFinite(amplitude)) {
+      continue;
+    }
+    const pan = Array.isArray(pans) ? Number(pans[i]) : 0;
+    const x = clampNodeSliderValue(phase, 0, 1) * canvas.width;
+    const y = centerY - clampNodeSliderValue(amplitude, -1.5, 1.5) * halfHeight;
+    ctx.strokeStyle = nodeGraphOscilloscopeBankPanColor(pan);
+    ctx.beginPath();
+    ctx.moveTo(x, centerY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
 function nodeGraphScope2dFiniteSample(value) {
   const sample = Number(value);
   return Number.isFinite(sample) ? sample : null;
@@ -10512,6 +10615,10 @@ function drawNodeGraphModuleScopeTypedItem(renderer, item, pixelRatio) {
   }
   if (displayRenderer === "hypersawBurn") {
     drawNodeGraphHypersawBurnItem(renderer, item, pixelRatio);
+    return true;
+  }
+  if (displayRenderer === "oscilloscopeBankBurn") {
+    drawNodeGraphOscilloscopeBankBurnItem(renderer, item, pixelRatio);
     return true;
   }
   if (displayRenderer === "scope2dTrace") {

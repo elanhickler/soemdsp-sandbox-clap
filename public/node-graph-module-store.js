@@ -129,6 +129,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "visualOscilloscope",
   "traceDisplay",
   "dotOscilloscope",
+  "oscilloscopeBank",
   "valueOscilloscope",
   "numberReadout",
   "lineBurnOscilloscope",
@@ -1069,6 +1070,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Placeholder for a clock-like oscilloscope that draws one efficient brightness dot from the current buffered value.",
     label: "0D Burn",
     notes: ["clock display", "single dot", "latest value"],
+  },
+  oscilloscopeBank: {
+    category: "Oscilloscope",
+    description: "A phase-vs-amplitude scope for any voice-bank source (Hypersaw today). Wire Phases/Amplitudes/Pans from a compatible node -- x is phase (0..1), y is amplitude (bipolar stem), color is pan (red = left, green = center, blue = right). Additive blending so overlapping voices brighten instead of overpainting; phosphor persistence so you see where each line has been, not just where it is now.",
+    label: "Oscilloscope Bank",
+    notes: ["voice bank scope", "phase vs amplitude", "pan color", "additive blend", "phosphor burn"],
   },
   valueOscilloscope: {
     category: "Oscilloscope",
