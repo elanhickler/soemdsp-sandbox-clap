@@ -31,6 +31,8 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "robinSupersaw",
   "arpeggiator",
   "spiral",
+  "fractalSpiral",
+  "logSpiral",
   "blubb",
   "boing",
   "keplerBoukamp",
@@ -440,6 +442,18 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Jerobeam spiral engine. Emits X/Y/Z motion-signal for alien curves and audiovisual flight paths.",
     label: "Jerobeam Spiral",
     notes: ["attractor motion", "rotation", "density and morph controls"],
+  },
+  fractalSpiral: {
+    category: "Jerobeam",
+    description: "Self-affine Weierstrass-style fractal spiral: N rotating copies of itself, each spun faster and scaled down, summed into one curve with a real, tunable Hausdorff dimension.",
+    label: "Fractal Spiral",
+    notes: ["fractal", "self-similar", "logarithmic spiral", "Weierstrass function"],
+  },
+  logSpiral: {
+    category: "Jerobeam",
+    description: "Pure logarithmic (equiangular) spiral: the one curve that looks identical after any rotation+rescaling. Sweeps a constant per-turn growth ratio, no fractal texture layer.",
+    label: "Logarithmic Spiral",
+    notes: ["logarithmic spiral", "equiangular spiral", "self-similar"],
   },
   blubb: {
     category: "Jerobeam",

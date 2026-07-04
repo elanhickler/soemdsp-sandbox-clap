@@ -495,3 +495,147 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\surge_oscillator\surge_oscillator.wasm" `
   "$root\native_modules\surge_oscillator\surge_oscillator.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbwirdo_create" `
+  "-Wl,--export=soemdsp_jbwirdo_destroy" `
+  "-Wl,--export=soemdsp_jbwirdo_reset" `
+  "-Wl,--export=soemdsp_jbwirdo_sample" `
+  "-Wl,--export=soemdsp_jbwirdo_x" `
+  "-Wl,--export=soemdsp_jbwirdo_y" `
+  "-Wl,--export=soemdsp_jbwirdo_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_wirdo_spiral\jerobeam_wirdo_spiral.wasm" `
+  "$root\native_modules\jerobeam_wirdo_spiral\jerobeam_wirdo_spiral.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbblubb_create" `
+  "-Wl,--export=soemdsp_jbblubb_destroy" `
+  "-Wl,--export=soemdsp_jbblubb_reset" `
+  "-Wl,--export=soemdsp_jbblubb_sample" `
+  "-Wl,--export=soemdsp_jbblubb_x" `
+  "-Wl,--export=soemdsp_jbblubb_y" `
+  "-Wl,--export=soemdsp_jbblubb_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_blubb\jerobeam_blubb.wasm" `
+  "$root\native_modules\jerobeam_blubb\jerobeam_blubb.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbmushroom_create" `
+  "-Wl,--export=soemdsp_jbmushroom_destroy" `
+  "-Wl,--export=soemdsp_jbmushroom_reset" `
+  "-Wl,--export=soemdsp_jbmushroom_sample" `
+  "-Wl,--export=soemdsp_jbmushroom_x" `
+  "-Wl,--export=soemdsp_jbmushroom_y" `
+  "-Wl,--export=soemdsp_jbmushroom_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_mushroom\jerobeam_mushroom.wasm" `
+  "$root\native_modules\jerobeam_mushroom\jerobeam_mushroom.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbboing_create" `
+  "-Wl,--export=soemdsp_jbboing_destroy" `
+  "-Wl,--export=soemdsp_jbboing_reset" `
+  "-Wl,--export=soemdsp_jbboing_sample" `
+  "-Wl,--export=soemdsp_jbboing_x" `
+  "-Wl,--export=soemdsp_jbboing_y" `
+  "-Wl,--export=soemdsp_jbboing_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_boing\jerobeam_boing.wasm" `
+  "$root\native_modules\jerobeam_boing\jerobeam_boing.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbtorus_create" `
+  "-Wl,--export=soemdsp_jbtorus_destroy" `
+  "-Wl,--export=soemdsp_jbtorus_reset" `
+  "-Wl,--export=soemdsp_jbtorus_sample" `
+  "-Wl,--export=soemdsp_jbtorus_x" `
+  "-Wl,--export=soemdsp_jbtorus_y" `
+  "-Wl,--export=soemdsp_jbtorus_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_torus\jerobeam_torus.wasm" `
+  "$root\native_modules\jerobeam_torus\jerobeam_torus.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbkepler_create" `
+  "-Wl,--export=soemdsp_jbkepler_destroy" `
+  "-Wl,--export=soemdsp_jbkepler_reset" `
+  "-Wl,--export=soemdsp_jbkepler_sample" `
+  "-Wl,--export=soemdsp_jbkepler_x" `
+  "-Wl,--export=soemdsp_jbkepler_y" `
+  "-Wl,--export=soemdsp_jbkepler_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_kepler_bouwkamp\jerobeam_kepler_bouwkamp.wasm" `
+  "$root\native_modules\jerobeam_kepler_bouwkamp\jerobeam_kepler_bouwkamp.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbnyquist_create" `
+  "-Wl,--export=soemdsp_jbnyquist_destroy" `
+  "-Wl,--export=soemdsp_jbnyquist_reset" `
+  "-Wl,--export=soemdsp_jbnyquist_sample" `
+  "-Wl,--export=soemdsp_jbnyquist_x" `
+  "-Wl,--export=soemdsp_jbnyquist_y" `
+  "-Wl,--export=soemdsp_jbnyquist_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_nyquist_shannon\jerobeam_nyquist_shannon.wasm" `
+  "$root\native_modules\jerobeam_nyquist_shannon\jerobeam_nyquist_shannon.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jbradar_create" `
+  "-Wl,--export=soemdsp_jbradar_destroy" `
+  "-Wl,--export=soemdsp_jbradar_reset" `
+  "-Wl,--export=soemdsp_jbradar_sample" `
+  "-Wl,--export=soemdsp_jbradar_x" `
+  "-Wl,--export=soemdsp_jbradar_y" `
+  "-Wl,--export=soemdsp_jbradar_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_radar\jerobeam_radar.wasm" `
+  "$root\native_modules\jerobeam_radar\jerobeam_radar.cpp"

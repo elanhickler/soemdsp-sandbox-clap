@@ -257,6 +257,14 @@ function createNodeGraphLiveRuntime(plan) {
   const logisticMapStates = new Map();
   const henonMapStates = new Map();
   const chuaAttractorStates = new Map();
+  const wirdoSpiralStates = new Map();
+  const blubbStates = new Map();
+  const mushroomStates = new Map();
+  const boingStates = new Map();
+  const torusStates = new Map();
+  const keplerBouwkampStates = new Map();
+  const nyquistShannonStates = new Map();
+  const radarStates = new Map();
   const chordMemoryStates = new Map();
   const turingMachineStates = new Map();
   const pitchQuantizerStates = new Map();
@@ -281,6 +289,8 @@ function createNodeGraphLiveRuntime(plan) {
   const slewLimiterStates = new Map();
   const stepSequencerStates = new Map();
   const spiralStates = new Map();
+  const fractalSpiralStates = new Map();
+  const logSpiralStates = new Map();
   const smoothers = new Map();
   const triggerCounterStates = new Map();
   const triggerDividerStates = new Map();
@@ -299,6 +309,12 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "spiral") {
       spiralStates.set(node.id, createJerobeamSpiralState());
     }
+    if (node.type === "fractalSpiral") {
+      fractalSpiralStates.set(node.id, createFractalSpiralState());
+    }
+    if (node.type === "logSpiral") {
+      logSpiralStates.set(node.id, createLogSpiralState());
+    }
     if (node.type === "lorenzAttractor") {
       lorenzAttractorStates.set(node.id, createNodeGraphLorenzAttractorState());
     }
@@ -310,6 +326,30 @@ function createNodeGraphLiveRuntime(plan) {
     }
     if (node.type === "chuaAttractor") {
       chuaAttractorStates.set(node.id, createNodeGraphChuaAttractorState());
+    }
+    if (node.type === "wirdoSpiral") {
+      wirdoSpiralStates.set(node.id, createNodeGraphWirdoSpiralState());
+    }
+    if (node.type === "blubb") {
+      blubbStates.set(node.id, createNodeGraphBlubbState());
+    }
+    if (node.type === "mushroom") {
+      mushroomStates.set(node.id, createNodeGraphMushroomState());
+    }
+    if (node.type === "boing") {
+      boingStates.set(node.id, createNodeGraphBoingState());
+    }
+    if (node.type === "torus") {
+      torusStates.set(node.id, createNodeGraphTorusState());
+    }
+    if (node.type === "keplerBouwkamp") {
+      keplerBouwkampStates.set(node.id, createNodeGraphKeplerBouwkampState());
+    }
+    if (node.type === "nyquistShannon") {
+      nyquistShannonStates.set(node.id, createNodeGraphNyquistShannonState());
+    }
+    if (node.type === "radar") {
+      radarStates.set(node.id, createNodeGraphRadarState());
     }
     if (node.type === "chordMemory") {
       chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -479,6 +519,14 @@ function createNodeGraphLiveRuntime(plan) {
     logisticMapStates,
     henonMapStates,
     chuaAttractorStates,
+    wirdoSpiralStates,
+    blubbStates,
+    mushroomStates,
+    boingStates,
+    torusStates,
+    keplerBouwkampStates,
+    nyquistShannonStates,
+    radarStates,
     chordMemoryStates,
     turingMachineStates,
     pitchQuantizerStates,
@@ -530,6 +578,8 @@ function createNodeGraphLiveRuntime(plan) {
     slewLimiterStates,
     smoothers,
     spiralStates,
+    fractalSpiralStates,
+    logSpiralStates,
     stepSequencerStates,
     timing: normalizeNodeGraphPatchTiming(plan.timing),
     triggerCounterStates,
@@ -593,6 +643,12 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.spiralStates) {
     runtime.spiralStates = new Map();
   }
+  if (!runtime.fractalSpiralStates) {
+    runtime.fractalSpiralStates = new Map();
+  }
+  if (!runtime.logSpiralStates) {
+    runtime.logSpiralStates = new Map();
+  }
   if (!runtime.passiveFilterStates) {
     runtime.passiveFilterStates = new Map();
   }
@@ -640,6 +696,30 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   }
   if (!runtime.chuaAttractorStates) {
     runtime.chuaAttractorStates = new Map();
+  }
+  if (!runtime.wirdoSpiralStates) {
+    runtime.wirdoSpiralStates = new Map();
+  }
+  if (!runtime.blubbStates) {
+    runtime.blubbStates = new Map();
+  }
+  if (!runtime.mushroomStates) {
+    runtime.mushroomStates = new Map();
+  }
+  if (!runtime.boingStates) {
+    runtime.boingStates = new Map();
+  }
+  if (!runtime.torusStates) {
+    runtime.torusStates = new Map();
+  }
+  if (!runtime.keplerBouwkampStates) {
+    runtime.keplerBouwkampStates = new Map();
+  }
+  if (!runtime.nyquistShannonStates) {
+    runtime.nyquistShannonStates = new Map();
+  }
+  if (!runtime.radarStates) {
+    runtime.radarStates = new Map();
   }
   if (!runtime.chordMemoryStates) {
     runtime.chordMemoryStates = new Map();
@@ -754,6 +834,12 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     if (node.type === "spiral" && !runtime.spiralStates.has(node.id)) {
       runtime.spiralStates.set(node.id, createJerobeamSpiralState());
     }
+    if (node.type === "fractalSpiral" && !runtime.fractalSpiralStates.has(node.id)) {
+      runtime.fractalSpiralStates.set(node.id, createFractalSpiralState());
+    }
+    if (node.type === "logSpiral" && !runtime.logSpiralStates.has(node.id)) {
+      runtime.logSpiralStates.set(node.id, createLogSpiralState());
+    }
     if (node.type === "lorenzAttractor" && !runtime.lorenzAttractorStates.has(node.id)) {
       runtime.lorenzAttractorStates.set(node.id, createNodeGraphLorenzAttractorState());
     }
@@ -765,6 +851,30 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "chuaAttractor" && !runtime.chuaAttractorStates.has(node.id)) {
       runtime.chuaAttractorStates.set(node.id, createNodeGraphChuaAttractorState());
+    }
+    if (node.type === "wirdoSpiral" && !runtime.wirdoSpiralStates.has(node.id)) {
+      runtime.wirdoSpiralStates.set(node.id, createNodeGraphWirdoSpiralState());
+    }
+    if (node.type === "blubb" && !runtime.blubbStates.has(node.id)) {
+      runtime.blubbStates.set(node.id, createNodeGraphBlubbState());
+    }
+    if (node.type === "mushroom" && !runtime.mushroomStates.has(node.id)) {
+      runtime.mushroomStates.set(node.id, createNodeGraphMushroomState());
+    }
+    if (node.type === "boing" && !runtime.boingStates.has(node.id)) {
+      runtime.boingStates.set(node.id, createNodeGraphBoingState());
+    }
+    if (node.type === "torus" && !runtime.torusStates.has(node.id)) {
+      runtime.torusStates.set(node.id, createNodeGraphTorusState());
+    }
+    if (node.type === "keplerBouwkamp" && !runtime.keplerBouwkampStates.has(node.id)) {
+      runtime.keplerBouwkampStates.set(node.id, createNodeGraphKeplerBouwkampState());
+    }
+    if (node.type === "nyquistShannon" && !runtime.nyquistShannonStates.has(node.id)) {
+      runtime.nyquistShannonStates.set(node.id, createNodeGraphNyquistShannonState());
+    }
+    if (node.type === "radar" && !runtime.radarStates.has(node.id)) {
+      runtime.radarStates.set(node.id, createNodeGraphRadarState());
     }
     if (node.type === "chordMemory" && !runtime.chordMemoryStates.has(node.id)) {
       runtime.chordMemoryStates.set(node.id, createNodeGraphChordMemoryState());
@@ -963,6 +1073,16 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
       runtime.spiralStates.delete(id);
     }
   }
+  for (const id of [...runtime.fractalSpiralStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.fractalSpiralStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.logSpiralStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.logSpiralStates.delete(id);
+    }
+  }
   for (const id of [...runtime.lorenzAttractorStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.lorenzAttractorStates.delete(id);
@@ -981,6 +1101,46 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.chuaAttractorStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.chuaAttractorStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.wirdoSpiralStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.wirdoSpiralStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.blubbStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.blubbStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.mushroomStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.mushroomStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.boingStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.boingStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.torusStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.torusStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.keplerBouwkampStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.keplerBouwkampStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.nyquistShannonStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.nyquistShannonStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.radarStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.radarStates.delete(id);
     }
   }
   for (const id of [...runtime.chordMemoryStates.keys()]) {

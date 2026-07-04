@@ -190,6 +190,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.logisticMapStates = new Map();
     this.henonMapStates = new Map();
     this.chuaAttractorStates = new Map();
+    this.wirdoSpiralStates = new Map();
+    this.blubbStates = new Map();
+    this.mushroomStates = new Map();
+    this.boingStates = new Map();
+    this.torusStates = new Map();
+    this.keplerBouwkampStates = new Map();
+    this.nyquistShannonStates = new Map();
+    this.radarStates = new Map();
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
@@ -221,6 +229,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.slewLimiterStates = new Map();
     this.smoothers = new Map();
     this.spiralStates = new Map();
+    this.fractalSpiralStates = new Map();
+    this.logSpiralStates = new Map();
     this.stepSequencerStates = new Map();
     this.timing = this.normalizePatchTiming();
     this.triggerCounterStates = new Map();
@@ -766,6 +776,150 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "jerobeam_wirdo_spiral" || targetType === "wirdoSpiral") {
+        for (const state of this.wirdoSpiralStates.values()) {
+          this.destroyWirdoSpiralNativeState(state);
+        }
+        this.nativeWirdoSpiral = exports;
+        this.nativeWirdoSpiralReady = Boolean(
+          this.nativeWirdoSpiral?.soemdsp_jbwirdo_create &&
+          this.nativeWirdoSpiral?.soemdsp_jbwirdo_sample &&
+          this.nativeWirdoSpiral?.soemdsp_jbwirdo_x &&
+          this.nativeWirdoSpiral?.soemdsp_jbwirdo_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_wirdo_spiral",
+          status: this.nativeWirdoSpiralReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_blubb" || targetType === "blubb") {
+        for (const state of this.blubbStates.values()) {
+          this.destroyBlubbNativeState(state);
+        }
+        this.nativeBlubb = exports;
+        this.nativeBlubbReady = Boolean(
+          this.nativeBlubb?.soemdsp_jbblubb_create &&
+          this.nativeBlubb?.soemdsp_jbblubb_sample &&
+          this.nativeBlubb?.soemdsp_jbblubb_x &&
+          this.nativeBlubb?.soemdsp_jbblubb_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_blubb",
+          status: this.nativeBlubbReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_mushroom" || targetType === "mushroom") {
+        for (const state of this.mushroomStates.values()) {
+          this.destroyMushroomNativeState(state);
+        }
+        this.nativeMushroom = exports;
+        this.nativeMushroomReady = Boolean(
+          this.nativeMushroom?.soemdsp_jbmushroom_create &&
+          this.nativeMushroom?.soemdsp_jbmushroom_sample &&
+          this.nativeMushroom?.soemdsp_jbmushroom_x &&
+          this.nativeMushroom?.soemdsp_jbmushroom_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_mushroom",
+          status: this.nativeMushroomReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_boing" || targetType === "boing") {
+        for (const state of this.boingStates.values()) {
+          this.destroyBoingNativeState(state);
+        }
+        this.nativeBoing = exports;
+        this.nativeBoingReady = Boolean(
+          this.nativeBoing?.soemdsp_jbboing_create &&
+          this.nativeBoing?.soemdsp_jbboing_sample &&
+          this.nativeBoing?.soemdsp_jbboing_x &&
+          this.nativeBoing?.soemdsp_jbboing_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_boing",
+          status: this.nativeBoingReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_torus" || targetType === "torus") {
+        for (const state of this.torusStates.values()) {
+          this.destroyTorusNativeState(state);
+        }
+        this.nativeTorus = exports;
+        this.nativeTorusReady = Boolean(
+          this.nativeTorus?.soemdsp_jbtorus_create &&
+          this.nativeTorus?.soemdsp_jbtorus_sample &&
+          this.nativeTorus?.soemdsp_jbtorus_x &&
+          this.nativeTorus?.soemdsp_jbtorus_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_torus",
+          status: this.nativeTorusReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_kepler_bouwkamp" || targetType === "keplerBouwkamp") {
+        for (const state of this.keplerBouwkampStates.values()) {
+          this.destroyKeplerBouwkampNativeState(state);
+        }
+        this.nativeKeplerBouwkamp = exports;
+        this.nativeKeplerBouwkampReady = Boolean(
+          this.nativeKeplerBouwkamp?.soemdsp_jbkepler_create &&
+          this.nativeKeplerBouwkamp?.soemdsp_jbkepler_sample &&
+          this.nativeKeplerBouwkamp?.soemdsp_jbkepler_x &&
+          this.nativeKeplerBouwkamp?.soemdsp_jbkepler_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_kepler_bouwkamp",
+          status: this.nativeKeplerBouwkampReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_nyquist_shannon" || targetType === "nyquistShannon") {
+        for (const state of this.nyquistShannonStates.values()) {
+          this.destroyNyquistShannonNativeState(state);
+        }
+        this.nativeNyquistShannon = exports;
+        this.nativeNyquistShannonReady = Boolean(
+          this.nativeNyquistShannon?.soemdsp_jbnyquist_create &&
+          this.nativeNyquistShannon?.soemdsp_jbnyquist_sample &&
+          this.nativeNyquistShannon?.soemdsp_jbnyquist_x &&
+          this.nativeNyquistShannon?.soemdsp_jbnyquist_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_nyquist_shannon",
+          status: this.nativeNyquistShannonReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "jerobeam_radar" || targetType === "radar") {
+        for (const state of this.radarStates.values()) {
+          this.destroyRadarNativeState(state);
+        }
+        this.nativeRadar = exports;
+        this.nativeRadarReady = Boolean(
+          this.nativeRadar?.soemdsp_jbradar_create &&
+          this.nativeRadar?.soemdsp_jbradar_sample &&
+          this.nativeRadar?.soemdsp_jbradar_x &&
+          this.nativeRadar?.soemdsp_jbradar_y,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_radar",
+          status: this.nativeRadarReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "pitch_quantizer" || targetType === "pitchQuantizer") {
         for (const state of this.pitchQuantizerStates.values()) {
           this.destroyPitchQuantizerNativeState(state);
@@ -969,6 +1123,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.logisticMapStates = new Map();
     this.henonMapStates = new Map();
     this.chuaAttractorStates = new Map();
+    this.wirdoSpiralStates = new Map();
+    this.blubbStates = new Map();
+    this.mushroomStates = new Map();
+    this.boingStates = new Map();
+    this.torusStates = new Map();
+    this.keplerBouwkampStates = new Map();
+    this.nyquistShannonStates = new Map();
+    this.radarStates = new Map();
     this.chordMemoryStates = new Map();
     this.turingMachineStates = new Map();
     this.pitchQuantizerStates = new Map();
@@ -1001,6 +1163,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.scopeCounter = 0;
     this.smoothers = new Map();
     this.spiralStates = new Map();
+    this.fractalSpiralStates = new Map();
+    this.logSpiralStates = new Map();
     this.stepSequencerStates = new Map();
     this.triggerCounterStates = new Map();
     this.triggerDividerStates = new Map();
@@ -1197,6 +1361,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "spiral" && !this.spiralStates.has(id)) {
         this.spiralStates.set(id, this.createSpiralState());
       }
+      if (node?.type === "fractalSpiral" && !this.fractalSpiralStates.has(id)) {
+        this.fractalSpiralStates.set(id, this.createFractalSpiralState());
+      }
+      if (node?.type === "logSpiral" && !this.logSpiralStates.has(id)) {
+        this.logSpiralStates.set(id, this.createLogSpiralState());
+      }
       if (node?.type === "lorenzAttractor" && !this.lorenzAttractorStates.has(id)) {
         this.lorenzAttractorStates.set(id, this.createLorenzAttractorState());
       }
@@ -1208,6 +1378,30 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "chuaAttractor" && !this.chuaAttractorStates.has(id)) {
         this.chuaAttractorStates.set(id, this.createChuaAttractorState());
+      }
+      if (node?.type === "wirdoSpiral" && !this.wirdoSpiralStates.has(id)) {
+        this.wirdoSpiralStates.set(id, this.createWirdoSpiralState());
+      }
+      if (node?.type === "blubb" && !this.blubbStates.has(id)) {
+        this.blubbStates.set(id, this.createBlubbState());
+      }
+      if (node?.type === "mushroom" && !this.mushroomStates.has(id)) {
+        this.mushroomStates.set(id, this.createMushroomState());
+      }
+      if (node?.type === "boing" && !this.boingStates.has(id)) {
+        this.boingStates.set(id, this.createBoingState());
+      }
+      if (node?.type === "torus" && !this.torusStates.has(id)) {
+        this.torusStates.set(id, this.createTorusState());
+      }
+      if (node?.type === "keplerBouwkamp" && !this.keplerBouwkampStates.has(id)) {
+        this.keplerBouwkampStates.set(id, this.createKeplerBouwkampState());
+      }
+      if (node?.type === "nyquistShannon" && !this.nyquistShannonStates.has(id)) {
+        this.nyquistShannonStates.set(id, this.createNyquistShannonState());
+      }
+      if (node?.type === "radar" && !this.radarStates.has(id)) {
+        this.radarStates.set(id, this.createRadarState());
       }
       if (node?.type === "chordMemory" && !this.chordMemoryStates.has(id)) {
         this.chordMemoryStates.set(id, this.createChordMemoryState());
@@ -1401,6 +1595,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.nodeOutputs.delete(id);
       }
     }
+    for (const id of [...this.fractalSpiralStates.keys()]) {
+      if (!ids.has(id)) {
+        this.fractalSpiralStates.delete(id);
+      }
+    }
+    for (const id of [...this.logSpiralStates.keys()]) {
+      if (!ids.has(id)) {
+        this.logSpiralStates.delete(id);
+      }
+    }
     for (const id of [...this.spiralStates.keys()]) {
       if (!ids.has(id)) {
         this.spiralStates.delete(id);
@@ -1427,6 +1631,54 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyChuaAttractorNativeState(this.chuaAttractorStates.get(id));
         this.chuaAttractorStates.delete(id);
+      }
+    }
+    for (const id of [...this.wirdoSpiralStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyWirdoSpiralNativeState(this.wirdoSpiralStates.get(id));
+        this.wirdoSpiralStates.delete(id);
+      }
+    }
+    for (const id of [...this.blubbStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyBlubbNativeState(this.blubbStates.get(id));
+        this.blubbStates.delete(id);
+      }
+    }
+    for (const id of [...this.mushroomStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyMushroomNativeState(this.mushroomStates.get(id));
+        this.mushroomStates.delete(id);
+      }
+    }
+    for (const id of [...this.boingStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyBoingNativeState(this.boingStates.get(id));
+        this.boingStates.delete(id);
+      }
+    }
+    for (const id of [...this.torusStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyTorusNativeState(this.torusStates.get(id));
+        this.torusStates.delete(id);
+      }
+    }
+    for (const id of [...this.keplerBouwkampStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyKeplerBouwkampNativeState(this.keplerBouwkampStates.get(id));
+        this.keplerBouwkampStates.delete(id);
+      }
+    }
+    for (const id of [...this.nyquistShannonStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyNyquistShannonNativeState(this.nyquistShannonStates.get(id));
+        this.nyquistShannonStates.delete(id);
+      }
+    }
+    for (const id of [...this.radarStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyRadarNativeState(this.radarStates.get(id));
+        this.radarStates.delete(id);
       }
     }
     for (const id of [...this.chordMemoryStates.keys()]) {
@@ -4122,6 +4374,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.logisticMapStates = new Map();
     runtime.henonMapStates = new Map();
     runtime.chuaAttractorStates = new Map();
+    runtime.wirdoSpiralStates = new Map();
+    runtime.blubbStates = new Map();
+    runtime.mushroomStates = new Map();
+    runtime.boingStates = new Map();
+    runtime.torusStates = new Map();
+    runtime.keplerBouwkampStates = new Map();
+    runtime.nyquistShannonStates = new Map();
+    runtime.radarStates = new Map();
     runtime.chordMemoryStates = new Map();
     runtime.turingMachineStates = new Map();
     runtime.pitchQuantizerStates = new Map();
@@ -4169,10 +4429,20 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.noiseSeeds.set(id, this.stableSeed(id));
       }
       if (node?.type === "spiral") this.spiralStates.set(id, this.createSpiralState());
+      if (node?.type === "fractalSpiral") this.fractalSpiralStates.set(id, this.createFractalSpiralState());
+      if (node?.type === "logSpiral") this.logSpiralStates.set(id, this.createLogSpiralState());
       if (node?.type === "lorenzAttractor") this.lorenzAttractorStates.set(id, this.createLorenzAttractorState());
       if (node?.type === "logisticMap") this.logisticMapStates.set(id, this.createLogisticMapState());
       if (node?.type === "henonMap") this.henonMapStates.set(id, this.createHenonMapState());
       if (node?.type === "chuaAttractor") this.chuaAttractorStates.set(id, this.createChuaAttractorState());
+      if (node?.type === "wirdoSpiral") this.wirdoSpiralStates.set(id, this.createWirdoSpiralState());
+      if (node?.type === "blubb") this.blubbStates.set(id, this.createBlubbState());
+      if (node?.type === "mushroom") this.mushroomStates.set(id, this.createMushroomState());
+      if (node?.type === "boing") this.boingStates.set(id, this.createBoingState());
+      if (node?.type === "torus") this.torusStates.set(id, this.createTorusState());
+      if (node?.type === "keplerBouwkamp") this.keplerBouwkampStates.set(id, this.createKeplerBouwkampState());
+      if (node?.type === "nyquistShannon") this.nyquistShannonStates.set(id, this.createNyquistShannonState());
+      if (node?.type === "radar") this.radarStates.set(id, this.createRadarState());
       if (node?.type === "chordMemory") this.chordMemoryStates.set(id, this.createChordMemoryState());
       if (node?.type === "turingMachine") this.turingMachineStates.set(id, this.createTuringMachineState());
       if (node?.type === "pitchQuantizer") this.pitchQuantizerStates.set(id, this.createPitchQuantizerState());
@@ -7148,6 +7418,113 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createFractalSpiralState() {
+    return {
+      phase: 0,
+      spinPhase: 0,
+    };
+  }
+
+  fractalSpiralWrap01(value) {
+    return value - Math.floor(value);
+  }
+
+  // Self-affine Weierstrass-style fractal spiral -- see
+  // public/node-graph-fractal-spiral.js for the full derivation. Mirrors
+  // that file exactly.
+  fractalSpiralSample(state, options = {}) {
+    const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const spin = Number(options.spin) || 0;
+    const size = Math.max(0, Number(options.size) || 0);
+    const growth = Number(options.growth) || 0;
+    const gain = Math.max(0.001, Math.min(0.98, Number(options.gain)));
+    const lacunarity = Math.max(1.0001, Number(options.lacunarity) || 1);
+    const octaveCount = Math.max(1, Math.min(16, Math.round(Number(options.octaves) || 1)));
+    const twist = Number(options.twist) || 0;
+
+    const mainPhase = this.fractalSpiralWrap01(state.phase);
+    state.phase = this.fractalSpiralWrap01(state.phase + frequency / sampleRateValue);
+    const spinPhaseValue = this.fractalSpiralWrap01(state.spinPhase);
+    state.spinPhase = this.fractalSpiralWrap01(state.spinPhase + spin / sampleRateValue);
+
+    const theta = mainPhase * Math.PI * 2;
+    const envelope = Math.exp(growth * (mainPhase - 0.5));
+
+    let sumX = 0;
+    let sumY = 0;
+    let ampSum = 0;
+    let amp = 1;
+    let angleMultiplier = 1;
+    for (let k = 0; k < octaveCount; k++) {
+      const angle = angleMultiplier * theta + k * twist * Math.PI * 2;
+      sumX += amp * Math.cos(angle);
+      sumY += amp * Math.sin(angle);
+      ampSum += amp;
+      amp *= gain;
+      angleMultiplier *= lacunarity;
+    }
+    const normX = ampSum > 0 ? sumX / ampSum : 0;
+    const normY = ampSum > 0 ? sumY / ampSum : 0;
+
+    const radius = envelope * size;
+    const rawX = normX * radius;
+    const rawY = normY * radius;
+
+    const spinAngle = spinPhaseValue * Math.PI * 2;
+    const cosSpin = Math.cos(spinAngle);
+    const sinSpin = Math.sin(spinAngle);
+    const x = rawX * cosSpin - rawY * sinSpin;
+    const y = rawX * sinSpin + rawY * cosSpin;
+    const z = envelope - 1;
+
+    return { x, y, z };
+  }
+
+  createLogSpiralState() {
+    return {
+      phase: 0,
+      spinPhase: 0,
+    };
+  }
+
+  logSpiralWrap01(value) {
+    return value - Math.floor(value);
+  }
+
+  // Pure logarithmic (equiangular) spiral -- see
+  // public/node-graph-log-spiral.js for the full derivation. Mirrors that
+  // file exactly.
+  logSpiralSample(state, options = {}) {
+    const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const spin = Number(options.spin) || 0;
+    const size = Math.max(0, Number(options.size) || 0);
+    const growth = Number(options.growth) || 0;
+    const turns = Math.max(0.1, Number(options.turns) || 1);
+
+    const mainPhase = this.logSpiralWrap01(state.phase);
+    state.phase = this.logSpiralWrap01(state.phase + frequency / sampleRateValue);
+    const spinPhaseValue = this.logSpiralWrap01(state.spinPhase);
+    state.spinPhase = this.logSpiralWrap01(state.spinPhase + spin / sampleRateValue);
+
+    const theta = turns * Math.PI * 2 * mainPhase;
+    const envelope = Math.exp(growth * (mainPhase - 0.5));
+    const radius = size * envelope;
+
+    const rawX = radius * Math.cos(theta);
+    const rawY = radius * Math.sin(theta);
+
+    const spinAngle = spinPhaseValue * Math.PI * 2;
+    const cosSpin = Math.cos(spinAngle);
+    const sinSpin = Math.sin(spinAngle);
+    const x = rawX * cosSpin - rawY * sinSpin;
+    const y = rawX * sinSpin + rawY * cosSpin;
+    const z = envelope - 1;
+
+    return { x, y, z };
+  }
+
   createLorenzAttractorState() {
     return {
       resetWasHigh: false,
@@ -7381,6 +7758,1399 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
     }
     return this.henonMapSampleJs(state, options);
+  }
+
+  createWirdoSpiralState() {
+    return { phase: 0, splashPhase: 0, resetWasHigh: false, nativeHandle: 0 };
+  }
+
+  destroyWirdoSpiralNativeState(state) {
+    if (state?.nativeHandle && this.nativeWirdoSpiral?.soemdsp_jbwirdo_destroy) {
+      this.nativeWirdoSpiral.soemdsp_jbwirdo_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  wirdoSpiralWrap01(v) {
+    return v - Math.floor(v);
+  }
+
+  wirdoSpiralTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = this.wirdoSpiralWrap01(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  wirdoSpiralSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const sharp = this.clampValue(Number(options.sharp) || 0, 0, 1);
+    const cross = Number(options.cross) || 0;
+    const density = Number(options.density) || 0;
+    const length = Number(options.length) || 0;
+    const rotate = Number(options.rotate) || 0;
+    const splashDepth = Number(options.splashDepth) || 0;
+    const splashDensity = Number(options.splashDensity) || 0;
+    const cut = Number(options.cut) || 0;
+    const scrap = Number(options.scrap) || 0;
+    const ringCut = Number(options.ringCut) || 0;
+    const splashSpeed = Number(options.splashSpeed) || 0;
+    const syncCut = Number(options.syncCut) || 0;
+
+    const dens = density * Math.PI * 2;
+    const safeScrap = this.clampValue(scrap, 0.0001, 1);
+    const safeCut = Math.trunc(cut + 0.5);
+
+    let phas = state.phase;
+    if (safeCut < 1000 && safeCut > 0) {
+      phas = Math.trunc(phas * safeCut) / safeCut;
+    }
+
+    const crossRot = (phas > sharp ? 1 : 0) * cross * Math.PI * 2 - cross * Math.PI;
+    let crossPhas = this.wirdoSpiralTrisaw(phas, sharp);
+    if (syncCut < 1) {
+      const denom = this.clampValue(Math.abs(dens) * syncCut, 1, 1000);
+      crossPhas = Math.trunc(crossPhas * denom) / denom;
+    }
+    const crossbow = crossPhas * length - this.clampValue(length - 1, 0, 1);
+
+    const crossX = crossbow * Math.cos(crossRot);
+    const crossY = crossbow * Math.sin(crossRot);
+
+    const spirot = crossbow * dens;
+    const spirotX = crossX * Math.cos(spirot) + crossY * Math.sin(spirot);
+    const spirotY = crossY * Math.cos(spirot) - crossX * Math.sin(spirot);
+
+    let splash = Math.sin(this.wirdoSpiralTrisaw(phas * splashDensity + state.splashPhase, 1) * Math.PI * 2 * safeScrap);
+    if (safeScrap < 0.25) {
+      const denom = Math.sin(safeScrap * Math.PI * 2);
+      splash = denom !== 0 ? splash / denom : 0;
+    }
+    if (safeScrap < 0.5) {
+      splash = splash * 2 - 1;
+    } else if (safeScrap < 0.75) {
+      const s2 = Math.sin(safeScrap * Math.PI * 2);
+      splash = splash * (2 + s2) - (s2 + 1) * (1 + s2);
+    }
+    if (ringCut < 10 && ringCut > 0) {
+      splash = Math.trunc(splash * ringCut) / ringCut;
+    }
+
+    const x = spirotX;
+    const y = spirotY * Math.cos(rotate * Math.PI * 0.5) + splash * splashDepth;
+
+    state.phase = this.wirdoSpiralWrap01(state.phase + frequency / safeRate);
+    state.splashPhase = this.wirdoSpiralWrap01(state.splashPhase + splashSpeed / safeRate);
+
+    return { x, y };
+  }
+
+  wirdoSpiralSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.splashPhase = 0;
+      if (state.nativeHandle && this.nativeWirdoSpiral?.soemdsp_jbwirdo_reset) {
+        this.nativeWirdoSpiral.soemdsp_jbwirdo_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeWirdoSpiralReady &&
+      this.nativeWirdoSpiral?.soemdsp_jbwirdo_create &&
+      this.nativeWirdoSpiral?.soemdsp_jbwirdo_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeWirdoSpiral.soemdsp_jbwirdo_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeWirdoSpiral.soemdsp_jbwirdo_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            this.clampValue(Number(options.sharp) || 0, 0, 1),
+            Number(options.cross) || 0,
+            Number(options.density) || 0,
+            Number(options.length) || 0,
+            Number(options.rotate) || 0,
+            Number(options.splashDepth) || 0,
+            Number(options.splashDensity) || 0,
+            Number(options.cut) || 0,
+            Number(options.scrap) || 0,
+            Number(options.ringCut) || 0,
+            Number(options.splashSpeed) || 0,
+            Number(options.syncCut) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeWirdoSpiral.soemdsp_jbwirdo_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeWirdoSpiral.soemdsp_jbwirdo_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeWirdoSpiralReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_wirdo_spiral",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam WirdoSpiral failed"),
+        });
+      }
+    }
+    return this.wirdoSpiralSampleJs(state, options);
+  }
+
+  createBlubbState() {
+    return { phase: 0, resetWasHigh: false, nativeHandle: 0 };
+  }
+
+  destroyBlubbNativeState(state) {
+    if (state?.nativeHandle && this.nativeBlubb?.soemdsp_jbblubb_destroy) {
+      this.nativeBlubb.soemdsp_jbblubb_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  blubbBipolarTriangle(phase) {
+    const p = phase - Math.floor(phase);
+    return p < 0.5 ? (4 * p - 1) : (3 - 4 * p);
+  }
+
+  blubbSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const shape = Number(options.shape) || 0;
+    const rotX = Number(options.rotX) || 0;
+    const rotY = Number(options.rotY) || 0;
+    const zDepth = Number(options.zDepth) || 0;
+
+    const phase = state.phase;
+    let chX, chY;
+    if (shape >= 0.5) {
+      chX = this.blubbBipolarTriangle(phase + 0.125);
+      chY = this.blubbBipolarTriangle(phase + 0.375);
+    } else {
+      chX = Math.sin(phase * Math.PI * 2);
+      chY = Math.cos(phase * Math.PI * 2);
+    }
+
+    const sinRotX = Math.sin(rotX * Math.PI * 2);
+    const cosRotX = Math.cos(rotX * Math.PI * 2);
+    const help11 = chX * cosRotX - chY * sinRotX;
+    const help12 = chX * sinRotX + chY * cosRotX;
+    const sinRotY = Math.sin(rotY * Math.PI * 2);
+    const cosRotY = Math.cos(rotY * Math.PI * 2);
+    const help21 = help11 * cosRotY;
+    const z = help11 * sinRotY;
+
+    const formula = zDepth * 1.25 * (z * 0.05 + 0.5);
+    const m = 1 + zDepth;
+    const x = (help21 - formula * help21) * m;
+    const y = (help12 - formula * help12) * m;
+
+    const nextPhase = state.phase + frequency / safeRate;
+    state.phase = nextPhase - Math.floor(nextPhase);
+
+    return { x, y };
+  }
+
+  blubbSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      if (state.nativeHandle && this.nativeBlubb?.soemdsp_jbblubb_reset) {
+        this.nativeBlubb.soemdsp_jbblubb_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeBlubbReady &&
+      this.nativeBlubb?.soemdsp_jbblubb_create &&
+      this.nativeBlubb?.soemdsp_jbblubb_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeBlubb.soemdsp_jbblubb_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeBlubb.soemdsp_jbblubb_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.shape) || 0,
+            Number(options.rotX) || 0,
+            Number(options.rotY) || 0,
+            Number(options.zDepth) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeBlubb.soemdsp_jbblubb_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeBlubb.soemdsp_jbblubb_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeBlubbReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_blubb",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Blubb failed"),
+        });
+      }
+    }
+    return this.blubbSampleJs(state, options);
+  }
+
+  createMushroomState() {
+    return { phase: 0, capRotRamp: 0, clusterRotRamp: 0, resetWasHigh: false, nativeHandle: 0 };
+  }
+
+  destroyMushroomNativeState(state) {
+    if (state?.nativeHandle && this.nativeMushroom?.soemdsp_jbmushroom_destroy) {
+      this.nativeMushroom.soemdsp_jbmushroom_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  mushroomTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  mushroomSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const phaseOffset = Number(options.phaseOffset) || 0;
+    const numMushroomsRaw = Number(options.numMushrooms) || 0;
+    const grow = Number(options.grow) || 0;
+    const density = Number(options.density) || 0;
+    const capRotation = Number(options.capRotation) || 0;
+    const stemRotationSpeed = Number(options.stemRotationSpeed) || 0;
+    const head = Number(options.head) || 0;
+    const spread = Number(options.spread) || 0;
+    const wobble = Number(options.wobble) || 0;
+    const clusterRotation = Number(options.clusterRotation) || 0;
+    const clusterRotationSpeed = Number(options.clusterRotationSpeed) || 0;
+    const sharp = Number(options.sharp) || 0;
+    const width = Number(options.width) || 0;
+    const stem = Number(options.stem) || 0;
+    const apart = Number(options.apart) || 0;
+    const capStemTransition = Number(options.capStemTransition) || 0;
+
+    const nom = this.clampValue(numMushroomsRaw, -5, 5) || 1;
+    const nomTrunc = nom === 0 ? 1 : Math.trunc(nom);
+    const phasorFreq = nomTrunc < 0 ? (frequency / nomTrunc * 0.5) : (frequency * 0.5);
+    const safeSharp = sharp * 0.5 + 0.5;
+    const safeSpread = spread * 4;
+
+    const phas = (state.phase + phaseOffset * 0.5) - Math.floor(state.phase + phaseOffset * 0.5);
+    const caprot = (state.capRotRamp + capRotation) - Math.floor(state.capRotRamp + capRotation);
+    const stemrot = (state.clusterRotRamp + clusterRotation) - Math.floor(state.clusterRotRamp + clusterRotation);
+
+    const phasXNomX2 = phas * nomTrunc * 2;
+    const ph = this.mushroomTrisaw(phasXNomX2, safeSharp) * grow;
+    const stair = Math.floor(phasXNomX2) / nomTrunc;
+    const phukRaw = ph * wobble + stair;
+    const phuk = phukRaw - Math.floor(phukRaw);
+
+    const formulaSin = Math.sin((ph - caprot) * density * Math.PI * 2);
+    const formulaCos = Math.cos((ph - caprot) * density * Math.PI * 2);
+
+    let shroomX = formulaSin * width;
+    let shroomY = -formulaCos * width;
+
+    const sinPhTau = Math.sin(ph * Math.PI * 2);
+    const shroomHeadX = shroomX * sinPhTau * 0.5;
+    const densClamped = this.clampValue(density, 0, 10);
+    const shroomHeadY = shroomY * 0.1 * sinPhTau * densClamped / 10;
+
+    const shroomStemX = shroomX * -0.4 * stem;
+    const shroomStemY = shroomY * -0.1 * stem;
+
+    if (ph > head) {
+      shroomX = shroomHeadX;
+      shroomY = shroomHeadY;
+    } else if (ph > (1 - capStemTransition) * head) {
+      const oneMTransXHead = (1 - capStemTransition) * head;
+      const formula2 = (ph - oneMTransXHead) / (head - oneMTransXHead);
+      shroomX = shroomHeadX * formula2 + shroomStemX * (1 - formula2);
+      shroomY = shroomHeadY * formula2 + shroomStemY * (1 - formula2);
+    } else {
+      shroomX = shroomStemX;
+      shroomY = shroomStemY;
+    }
+
+    shroomX += ph * Math.cos((phuk + stemrot - 0.25) * Math.PI * 2) * 0.5 * safeSpread;
+    shroomY += ph * 2 - 1;
+
+    const dual = ((phas >= 0.5 ? 1 : 0) * 2 - 1) * apart;
+    shroomX += shroomX + dual;
+
+    if (nomTrunc > 0) {
+      shroomX = -shroomX;
+    }
+
+    const nextPhase = state.phase + phasorFreq / safeRate;
+    state.phase = nextPhase - Math.floor(nextPhase);
+    const nextCapRot = state.capRotRamp + stemRotationSpeed / safeRate;
+    state.capRotRamp = nextCapRot - Math.floor(nextCapRot);
+    const nextClusterRot = state.clusterRotRamp + clusterRotationSpeed / safeRate;
+    state.clusterRotRamp = nextClusterRot - Math.floor(nextClusterRot);
+
+    return { x: shroomX, y: shroomY };
+  }
+
+  mushroomSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.capRotRamp = 0;
+      state.clusterRotRamp = 0;
+      if (state.nativeHandle && this.nativeMushroom?.soemdsp_jbmushroom_reset) {
+        this.nativeMushroom.soemdsp_jbmushroom_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeMushroomReady &&
+      this.nativeMushroom?.soemdsp_jbmushroom_create &&
+      this.nativeMushroom?.soemdsp_jbmushroom_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeMushroom.soemdsp_jbmushroom_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeMushroom.soemdsp_jbmushroom_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.phaseOffset) || 0,
+            Number(options.numMushrooms) || 0,
+            Number(options.grow) || 0,
+            Number(options.density) || 0,
+            Number(options.capRotation) || 0,
+            Number(options.stemRotationSpeed) || 0,
+            Number(options.head) || 0,
+            Number(options.spread) || 0,
+            Number(options.wobble) || 0,
+            Number(options.clusterRotation) || 0,
+            Number(options.clusterRotationSpeed) || 0,
+            Number(options.sharp) || 0,
+            Number(options.width) || 0,
+            Number(options.stem) || 0,
+            Number(options.apart) || 0,
+            Number(options.capStemTransition) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeMushroom.soemdsp_jbmushroom_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeMushroom.soemdsp_jbmushroom_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeMushroomReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_mushroom",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Mushroom failed"),
+        });
+      }
+    }
+    return this.mushroomSampleJs(state, options);
+  }
+
+  createBoingState() {
+    return { phase: 0, zHistory: 0, resetWasHigh: false, nativeHandle: 0 };
+  }
+
+  destroyBoingNativeState(state) {
+    if (state?.nativeHandle && this.nativeBoing?.soemdsp_jbboing_destroy) {
+      this.nativeBoing.soemdsp_jbboing_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  boingTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  boingSphere(fphas, dens, shape) {
+    const formula001 = dens * Math.PI * 2 * fphas - 3 * dens;
+    const sin001 = Math.sin(formula001 * Math.PI * 2);
+    const cos001 = Math.cos(formula001 * Math.PI * 2);
+    const formula002 = shape + (1 - shape) * Math.sin(Math.PI * (fphas + 1));
+    return {
+      x: -Math.cos(Math.PI * fphas),
+      y: sin001 * formula002,
+      z: cos001 * formula002,
+    };
+  }
+
+  boingRotate(inX, inY, inZ, rotX, rotY) {
+    const sinX = Math.sin(rotX * Math.PI * 2);
+    const cosX = Math.cos(rotX * Math.PI * 2);
+    const help11 = inX * cosX - inY * sinX;
+    const help12 = inX * sinX + inY * cosX;
+    const sinY = Math.sin(rotY * Math.PI * 2);
+    const cosY = Math.cos(rotY * Math.PI * 2);
+    const help21 = help11 * cosY - inZ * sinY;
+    const help22 = help11 * sinY + inZ * cosY;
+    return { x: help21, y: help12, z: help22 };
+  }
+
+  boingFunc(inX, inY, inZ, boing, strength) {
+    const formula001 = 1 - Math.pow(boing, 2) * strength;
+    return {
+      x: inX * formula001,
+      y: inY * formula001 * (1 - Math.pow(1 - boing, 4) * strength) + (Math.pow(boing, 0.8) * 2 - 1) * strength,
+      z: inZ,
+    };
+  }
+
+  boingRender(inX, inY, inZ, zdepth) {
+    const zd = Math.pow(zdepth, 2) + 1;
+    const exponent = -inZ - zd * 0.2;
+    const factor = Math.pow(zd, exponent);
+    return { l: inX * factor, r: inY * factor };
+  }
+
+  boingSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const density = Number(options.density) || 0;
+    const sharpness = Number(options.sharpness) || 0;
+    const rotX = Number(options.rotX) || 0;
+    const rotY = Number(options.rotY) || 0;
+    const zDepth = Number(options.zDepth) || 0;
+    const zAmount = Number(options.zAmount) || 0;
+    const ends = Number(options.ends) || 0;
+    const boing = Number(options.boing) || 0;
+    const boingStrength = Number(options.boingStrength) || 0;
+    const dir = Number(options.dir) || 0;
+    const shape = Number(options.shape) || 0;
+    const volume = Number(options.volume) || 0;
+    const prejump = Number(options.volumePreJump) >= 0.5;
+
+    const tri = sharpness * 0.5 + 0.5;
+    const rotXTurns = (rotX + 90) / 360;
+    const rotYTurns = rotY / 360;
+
+    const zDarkness = Math.pow(zAmount * zAmount * 5 + 1, state.zHistory) + Math.pow(zAmount, 1.5) * 0.22;
+
+    const fphasEnds = this.boingTrisaw(state.phase, tri);
+    const fphasMids = Math.asin((Math.asin(fphasEnds * 2 - 1) / Math.PI + 0.5) * 2 - 1) / Math.PI + 0.5;
+    const fphas = ends * fphasMids + (1 - ends) * fphasEnds;
+
+    let wave = this.boingSphere(fphas, density, shape);
+    wave = this.boingRotate(wave.x, wave.y, wave.z, rotXTurns, rotYTurns);
+    wave = this.boingRotate(wave.x, wave.y, wave.z, -dir, 0);
+
+    if (prejump) {
+      wave.x *= volume;
+      wave.y *= volume;
+    }
+
+    wave = this.boingFunc(wave.x, wave.y, wave.z, boing, boingStrength);
+
+    wave.y *= 1 - boingStrength * (0.5 + volume / 2) * (-Math.cos(dir * 8 * Math.PI) / 2 + 0.5) * Math.abs(Math.pow(wave.x * 0.75, 2)) * Math.pow(1 - boing, 5);
+
+    wave = this.boingRotate(wave.x, wave.y, wave.z, dir, 0);
+
+    const rendered = this.boingRender(wave.x, wave.y, wave.z, zDepth);
+    let outL = rendered.l;
+    let outR = rendered.r;
+
+    if (!prejump) {
+      outL *= volume;
+      outR *= volume;
+    }
+
+    state.zHistory = wave.z;
+    state.phase = state.phase + (frequency * zDarkness) / safeRate;
+    state.phase -= Math.floor(state.phase);
+
+    return { x: outL, y: outR };
+  }
+
+  boingSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.zHistory = 0;
+      if (state.nativeHandle && this.nativeBoing?.soemdsp_jbboing_reset) {
+        this.nativeBoing.soemdsp_jbboing_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeBoingReady &&
+      this.nativeBoing?.soemdsp_jbboing_create &&
+      this.nativeBoing?.soemdsp_jbboing_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeBoing.soemdsp_jbboing_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeBoing.soemdsp_jbboing_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.density) || 0,
+            Number(options.sharpness) || 0,
+            Number(options.rotX) || 0,
+            Number(options.rotY) || 0,
+            Number(options.zDepth) || 0,
+            Number(options.zAmount) || 0,
+            Number(options.ends) || 0,
+            Number(options.boing) || 0,
+            Number(options.boingStrength) || 0,
+            Number(options.dir) || 0,
+            Number(options.shape) || 0,
+            Number(options.volume) || 0,
+            Number(options.volumePreJump) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeBoing.soemdsp_jbboing_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeBoing.soemdsp_jbboing_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeBoingReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_boing",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Boing failed"),
+        });
+      }
+    }
+    return this.boingSampleJs(state, options);
+  }
+
+  createTorusState() {
+    return {
+      phase: 0,
+      wanderPhase: 0,
+      xPhase: 0,
+      yPhase: 0,
+      zPhase: 0,
+      darkAnglePhase: 0,
+      resetWasHigh: false,
+      nativeHandle: 0,
+    };
+  }
+
+  destroyTorusNativeState(state) {
+    if (state?.nativeHandle && this.nativeTorus?.soemdsp_jbtorus_destroy) {
+      this.nativeTorus.soemdsp_jbtorus_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  torusTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  torusSign(v) {
+    return (v > 0 ? 1 : 0) - (v < 0 ? 1 : 0);
+  }
+
+  torusRotate(inX, inY, inZ, rotX, rotY, rotZ) {
+    const sinX = Math.sin(rotX * Math.PI * 2);
+    const cosX = Math.cos(rotX * Math.PI * 2);
+    const help11 = inX * cosX - inY * sinX;
+    const help12 = inX * sinX + inY * cosX;
+    const sinY = Math.sin(rotY * Math.PI * 2);
+    const cosY = Math.cos(rotY * Math.PI * 2);
+    const help21 = help11 * cosY - inZ * sinY;
+    const help22 = help11 * sinY + inZ * cosY;
+    const sinZ = Math.sin(rotZ * Math.PI * 2);
+    const cosZ = Math.cos(rotZ * Math.PI * 2);
+    const help31 = help21 * cosZ - help12 * sinZ;
+    const help32 = help21 * sinZ + help12 * cosZ;
+    return { x: help31, y: help32, z: help22 };
+  }
+
+  torusRender(inX, inY, inZ, zaspx, zaspy, zdepth) {
+    const formula001 = zdepth * (inZ / 2 + 0.5);
+    const half = 0.5 * zaspx * zdepth;
+    return {
+      l: inX - formula001 * (inX - zaspx) - half,
+      r: inY - formula001 * (inY + zaspy) + half,
+    };
+  }
+
+  torusSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const density = Number(options.density) || 0;
+    const quantizeDensity = Number(options.quantizeDensity) >= 0.5;
+    const subdensity = Number(options.subdensity) || 0;
+    const quantizeSubDensity = Number(options.quantizeSubDensity) >= 0.5;
+    const sharp = Number(options.sharp) || 0;
+    const size = Number(options.size) || 0;
+    const length = Number(options.length) || 0;
+    const balance = Number(options.balance) || 0;
+    const wander = Number(options.wander) || 0;
+    const darkAngle = Number(options.darkAngle) || 0;
+    const darkIntensity = Number(options.darkIntensity) || 0;
+    const rotX = Number(options.rotX) || 0;
+    const rotY = Number(options.rotY) || 0;
+    const rotZ = Number(options.rotZ) || 0;
+    const zAngleX = Number(options.zAngleX) || 0;
+    const zAngleY = Number(options.zAngleY) || 0;
+    const zDepth = Number(options.zDepth) || 0;
+
+    const dense = quantizeDensity ? Math.floor(density) : density;
+    const pow2Dense = dense * dense;
+    const sdens = quantizeSubDensity
+      ? Math.floor(pow2Dense * subdensity) * Math.PI * 2
+      : pow2Dense * subdensity * Math.PI * 2;
+    const div = size === 0 ? 1 : (1 / size);
+    const volCorrect = 1 / (1 + size + size * div);
+    const zdepthZ2 = zDepth / 2;
+    const dank = Math.trunc(darkIntensity) * 2 + 1;
+    const wanderFreq = dense === 0 ? 0 : (wander / dense);
+
+    const dangle = (state.darkAnglePhase + darkAngle - Math.floor(state.darkAnglePhase + darkAngle)) + 0.5;
+    const rotXValue = -Math.PI * 2 * ((state.xPhase + rotX - Math.floor(state.xPhase + rotX)) + 1);
+    const rotYValue = Math.PI * 2 * (state.yPhase + rotY - Math.floor(state.yPhase + rotY)) - Math.PI / 2;
+    const rotZValue = Math.PI / 2 - Math.PI * 2 * (state.zPhase + rotZ - Math.floor(state.zPhase + rotZ));
+
+    const triphase = this.torusTrisaw(state.phase, sharp);
+    const phasRaw = triphase * length - rotXValue / (Math.PI * 2);
+    const phas = phasRaw - Math.floor(phasRaw);
+
+    const blend = Math.sin(rotYValue);
+    const normPhas = phas * (1 - 0.5 * Math.abs(blend));
+    const phasBipolar = phas * 2 - 1;
+    const dankedPos = 0.5 * this.clampValue(blend, 0, 1) * (Math.pow(phasBipolar, dank) + 1) / 2;
+    const phasPlusHalf = phas + 0.5;
+    const phasPlusHalfWrapped = phasPlusHalf - Math.floor(phasPlusHalf);
+    const dankedNeg = 0.5 * this.clampValue(-blend, 0, 1) * (0.5 * Math.pow(phasPlusHalfWrapped * 2 - 1, dank) + (this.torusSign(phasBipolar) + 1) / 2);
+    const phasor = normPhas + dankedPos + dankedNeg + 0.25 + rotXValue / (Math.PI * 2) + dangle;
+
+    const sp0sin = Math.sin(phasor * Math.PI * 2);
+    const sp0cos = Math.cos(phasor * Math.PI * 2);
+    const spiral0X = sp0sin;
+    const spiral0Y = sp0cos;
+    const spiral0Z = 0;
+
+    const sp1sin = Math.sin(dense * phasor * Math.PI * 2);
+    const sp1cos = Math.cos(dense * phasor * Math.PI * 2);
+    const formula001 = (1 - balance) / div;
+    const formula002 = formula001 * sp1sin;
+    const spiral1X = formula002 * sp0sin;
+    const spiral1Y = formula002 * sp0cos;
+    const spiral1Z = formula001 * sp1cos;
+
+    const sp2sin = Math.sin(sdens * (phasor + state.wanderPhase) * Math.PI * 2);
+    const sp2cos = Math.cos(sdens * (phasor + state.wanderPhase) * Math.PI * 2);
+    const balZDivXDiv = balance / (div * div);
+    const spiral2X = balZDivXDiv * (sp2cos * sp0cos + sp2sin * sp1sin * sp0sin);
+    const spiral2Y = balZDivXDiv * (sp2cos * -sp0sin + sp2sin * sp1sin * sp0cos);
+    const spiral2Z = balZDivXDiv * sp2sin * sp1cos;
+
+    const formula003 = volCorrect + zdepthZ2 - volCorrect * zdepthZ2;
+    let waveX = (spiral0X + spiral1X + spiral2X) * formula003;
+    let waveY = (spiral0Y + spiral1Y + spiral2Y) * formula003;
+    let waveZ = (spiral0Z + spiral1Z + spiral2Z) * formula003;
+
+    const rotated = this.torusRotate(waveX, waveY, waveZ, rotXValue, rotYValue, rotZValue);
+    waveX = rotated.x;
+    waveY = rotated.y;
+    waveZ = rotated.z;
+
+    const rendered = this.torusRender(waveX, waveY, waveZ, zAngleX, zAngleY, zDepth);
+
+    state.phase = state.phase + frequency / safeRate;
+    state.phase -= Math.floor(state.phase);
+    state.wanderPhase = state.wanderPhase + wanderFreq / safeRate;
+    state.wanderPhase -= Math.floor(state.wanderPhase);
+    state.xPhase = state.xPhase + 1 / safeRate;
+    state.xPhase -= Math.floor(state.xPhase);
+    state.yPhase = state.yPhase + 1 / safeRate;
+    state.yPhase -= Math.floor(state.yPhase);
+    state.zPhase = state.zPhase + 1 / safeRate;
+    state.zPhase -= Math.floor(state.zPhase);
+    state.darkAnglePhase = state.darkAnglePhase + 1 / safeRate;
+    state.darkAnglePhase -= Math.floor(state.darkAnglePhase);
+
+    return { x: rendered.l, y: rendered.r };
+  }
+
+  torusSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.wanderPhase = 0;
+      state.xPhase = 0;
+      state.yPhase = 0;
+      state.zPhase = 0;
+      state.darkAnglePhase = 0;
+      if (state.nativeHandle && this.nativeTorus?.soemdsp_jbtorus_reset) {
+        this.nativeTorus.soemdsp_jbtorus_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeTorusReady &&
+      this.nativeTorus?.soemdsp_jbtorus_create &&
+      this.nativeTorus?.soemdsp_jbtorus_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeTorus.soemdsp_jbtorus_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeTorus.soemdsp_jbtorus_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.density) || 0,
+            Number(options.quantizeDensity) || 0,
+            Number(options.subdensity) || 0,
+            Number(options.quantizeSubDensity) || 0,
+            Number(options.sharp) || 0,
+            Number(options.size) || 0,
+            Number(options.length) || 0,
+            Number(options.balance) || 0,
+            Number(options.wander) || 0,
+            Number(options.darkAngle) || 0,
+            Number(options.darkIntensity) || 0,
+            Number(options.rotX) || 0,
+            Number(options.rotY) || 0,
+            Number(options.rotZ) || 0,
+            Number(options.zAngleX) || 0,
+            Number(options.zAngleY) || 0,
+            Number(options.zDepth) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeTorus.soemdsp_jbtorus_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeTorus.soemdsp_jbtorus_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeTorusReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_torus",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Torus failed"),
+        });
+      }
+    }
+    return this.torusSampleJs(state, options);
+  }
+
+  createKeplerBouwkampState() {
+    return { phase: 0, resetWasHigh: false, nativeHandle: 0 };
+  }
+
+  destroyKeplerBouwkampNativeState(state) {
+    if (state?.nativeHandle && this.nativeKeplerBouwkamp?.soemdsp_jbkepler_destroy) {
+      this.nativeKeplerBouwkamp.soemdsp_jbkepler_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  keplerBouwkampTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  keplerBouwkampSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const start = Number(options.start) || 0;
+    const length = Number(options.length) || 0;
+    const circles = Number(options.circles) || 0;
+    const zoom = Number(options.zoom) || 0;
+    const rotation = Number(options.rotation) || 0;
+    const tri = Number(options.tri) || 0;
+
+    const firstPolygon = Math.trunc(this.clampValue(Math.trunc(start), 3, 20));
+    const n = Math.trunc(this.clampValue(Math.trunc(length), 1, 20));
+    const circleblend = this.clampValue(circles, 0.0001, 0.9999);
+
+    let waveX = 0;
+    let waveY = 0;
+
+    const fphas = this.keplerBouwkampTrisaw(state.phase, tri);
+    const phasXN = fphas * n;
+    const stepPhas = phasXN - Math.floor(phasXN);
+    const polygonNumber = phasXN - stepPhas + firstPolygon;
+
+    let polygonPhas = this.clampValue((stepPhas - circleblend) / (1 - circleblend), 0, 1);
+    let circlePhas = this.clampValue(stepPhas / circleblend, 0, 1);
+    if (stepPhas > circleblend) {
+      circlePhas = 0;
+    }
+
+    const radIn = Math.cos(Math.PI / polygonNumber);
+    let radInPrev = 1;
+    if (polygonNumber > firstPolygon) {
+      const iStart = Math.trunc(polygonNumber);
+      for (let i = iStart; i > firstPolygon && (iStart - i) < 64; i--) {
+        radInPrev *= Math.cos(Math.PI / (i - 1));
+      }
+    }
+
+    let radInNext = 1;
+    {
+      const iStart = Math.trunc(polygonNumber);
+      const iEnd = firstPolygon + n - 1;
+      for (let i = iStart; i < iEnd && (i - iStart) < 64; i++) {
+        radInNext *= Math.cos(Math.PI / (i + 1));
+      }
+    }
+
+    let first = 0;
+    const f001 = 0.5 / polygonNumber;
+    if (polygonNumber === firstPolygon) {
+      first = 1;
+    } else if (circlePhas > 1 - f001) {
+      circlePhas = this.keplerBouwkampTrisaw((circlePhas - (1 - f001)) * 1 / f001, 0.5 + 0.5 * circleblend) * f001 + 1 - f001;
+    }
+
+    if (circlePhas !== 0) {
+      const f003 = radIn + zoom * (1 - radIn);
+      const arg = circlePhas + (first === 0 ? 1 : 0) * (1 - zoom) * 0.5 / (polygonNumber - 1) - zoom * first * f001;
+      const f002Sin = Math.sin(arg * Math.PI * 2);
+      const f002Cos = Math.cos(arg * Math.PI * 2);
+      waveX = -f002Sin * f003;
+      waveY = f002Cos * f003;
+    }
+    if (polygonPhas !== 0) {
+      const shifted = polygonPhas + 1 - (1 - zoom) * 0.5 / polygonNumber;
+      polygonPhas = shifted - Math.floor(shifted);
+      const linePhasRaw = polygonPhas * polygonNumber;
+      let linePhas = linePhasRaw - Math.floor(linePhasRaw);
+      const lineNumber = Math.floor(linePhasRaw) + (polygonPhas !== 0 ? 1 : 0);
+
+      if (polygonNumber !== (firstPolygon + n - 1)
+          && lineNumber === polygonNumber
+          && linePhas > 0.5 * zoom && linePhas < 0.5 + 0.5 * zoom) {
+        linePhas = this.keplerBouwkampTrisaw((linePhas - 0.5 * zoom) * 2, 1 - circleblend) / 2 + 0.5 * zoom;
+      }
+
+      const line = (linePhas * 2 - 1) * Math.sin(Math.PI / polygonNumber);
+
+      const arg = lineNumber / polygonNumber;
+      const f1Sin = Math.sin(arg * Math.PI * 2);
+      const f1Cos = Math.cos(arg * Math.PI * 2);
+      waveX = line * f1Cos + radIn * f1Sin;
+      waveY = radIn * f1Cos - line * f1Sin;
+    }
+
+    const scale = zoom * radInPrev + (1 - zoom) * radInNext;
+    waveX *= scale;
+    waveY *= scale;
+
+    const rotArg = rotation * (polygonNumber - firstPolygon);
+    const rotSin = Math.sin(rotArg * Math.PI * 2);
+    const rotCos = Math.cos(rotArg * Math.PI * 2);
+
+    const x = waveX * rotCos + waveY * rotSin;
+    const y = waveY * rotCos - waveX * rotSin;
+
+    const phaseInc = Math.PI * 2 * frequency / safeRate;
+    const nextPhase = state.phase + phaseInc;
+    state.phase = nextPhase - Math.floor(nextPhase / (Math.PI * 2)) * (Math.PI * 2);
+    if (state.phase < 0) {
+      state.phase += Math.PI * 2;
+    }
+
+    return { x, y };
+  }
+
+  keplerBouwkampSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      if (state.nativeHandle && this.nativeKeplerBouwkamp?.soemdsp_jbkepler_reset) {
+        this.nativeKeplerBouwkamp.soemdsp_jbkepler_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeKeplerBouwkampReady &&
+      this.nativeKeplerBouwkamp?.soemdsp_jbkepler_create &&
+      this.nativeKeplerBouwkamp?.soemdsp_jbkepler_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeKeplerBouwkamp.soemdsp_jbkepler_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeKeplerBouwkamp.soemdsp_jbkepler_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.start) || 0,
+            Number(options.length) || 0,
+            Number(options.circles) || 0,
+            Number(options.zoom) || 0,
+            Number(options.rotation) || 0,
+            Number(options.tri) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeKeplerBouwkamp.soemdsp_jbkepler_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeKeplerBouwkamp.soemdsp_jbkepler_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeKeplerBouwkampReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_kepler_bouwkamp",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Kepler-Bouwkamp failed"),
+        });
+      }
+    }
+    return this.keplerBouwkampSampleJs(state, options);
+  }
+
+  createNyquistShannonState() {
+    return {
+      phase: 0,
+      rotatorPhase: 0,
+      lastFphas: 0,
+      hasLastFphas: false,
+      toneSmoothCurrent: 0,
+      toneSmoothInit: false,
+      resetWasHigh: false,
+      nativeHandle: 0,
+    };
+  }
+
+  destroyNyquistShannonNativeState(state) {
+    if (state?.nativeHandle && this.nativeNyquistShannon?.soemdsp_jbnyquist_destroy) {
+      this.nativeNyquistShannon.soemdsp_jbnyquist_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  nyquistShannonTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  nyquistShannonSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequencyA = Number(options.frequencyA) || 0;
+    const midiNoteRaw = Number(options.midiNoteRaw) || 0;
+    const rate = Number(options.rate) || 0;
+    const sampleDots = Number(options.sampleDots) || 0;
+    const phaseOffset = Number(options.phaseOffset) || 0;
+    const frequencyB = Number(options.frequencyB) || 0;
+    const subPhase = Number(options.subPhase) || 0;
+    const subPhaseRotationSpeed = Number(options.subPhaseRotationSpeed) || 0;
+    const tone = Number(options.tone) || 0;
+    const toneSmoothTime = Number(options.toneSmoothTime) || 0;
+    const artifact = Number(options.artifact) || 0;
+    const enableToneModPitch = Number(options.enableToneModPitch) || 0;
+    const enableToneModFreq = Number(options.enableToneModFreq) || 0;
+    const enableToneModNote = Number(options.enableToneModNote) || 0;
+
+    const userFreqA = frequencyA;
+    const pitch = frequencyB;
+    const phasorFreq = userFreqA * pitch;
+    const midiNote = midiNoteRaw - 48;
+    const sr = rate;
+    const blend = 1 / (1 - sampleDots + 0.001);
+    const tri = this.clampValue(1 - artifact, 0.001, 0.999);
+    const freqToPitch = (12 * Math.log2(Math.abs(userFreqA) / 440) + 69) - 48;
+
+    const toneMode = (enableToneModNote >= 0.5 ? 1 : 0) + (enableToneModPitch >= 0.5 ? 2 : 0) + (enableToneModFreq >= 0.5 ? 4 : 0);
+
+    const mainPhas = (state.phase + phaseOffset) - Math.floor(state.phase + phaseOffset);
+    const fphas = this.nyquistShannonTrisaw(mainPhas, tri);
+
+    const stair = Math.floor(fphas * sr) / sr;
+    const fmodFphasSr = (fphas * sr) - Math.floor(fphas * sr);
+    const phas = this.clampValue(blend * fmodFphasSr, 0, 1) / sr + stair;
+
+    const waveX = phas * 2 - 1;
+    let waveY = 0;
+
+    const smoothSamples = toneSmoothTime > 0 ? toneSmoothTime * safeRate : 1;
+    const smoothStep = smoothSamples > 0 ? (1 / smoothSamples) : 1;
+
+    const runSmoother = (target) => {
+      if (!state.toneSmoothInit) {
+        state.toneSmoothCurrent = target;
+        state.toneSmoothInit = true;
+      } else if (state.toneSmoothCurrent < target) {
+        state.toneSmoothCurrent = target - state.toneSmoothCurrent > smoothStep
+          ? state.toneSmoothCurrent + smoothStep
+          : target;
+      } else if (state.toneSmoothCurrent > target) {
+        state.toneSmoothCurrent = state.toneSmoothCurrent - target > smoothStep
+          ? state.toneSmoothCurrent - smoothStep
+          : target;
+      }
+      return state.toneSmoothCurrent;
+    };
+
+    let actualTone;
+    switch (toneMode) {
+      case 0: actualTone = tone; break;
+      case 1: actualTone = tone + runSmoother(midiNote); break;
+      case 2: actualTone = tone + runSmoother(pitch - 1); break;
+      case 3: actualTone = tone + runSmoother((pitch - 1) + midiNote); break;
+      case 4: actualTone = tone + freqToPitch; break;
+      case 5: actualTone = tone + runSmoother(midiNote * 0.5) + freqToPitch * 0.5; break;
+      case 6: actualTone = tone + runSmoother(pitch - 1) + freqToPitch; break;
+      default: actualTone = tone + runSmoother((pitch - 1) + midiNote * 0.5) + freqToPitch * 0.5; break;
+    }
+
+    const rotatorArg = state.rotatorPhase - subPhase;
+    const psXPi = (rotatorArg - Math.floor(rotatorArg)) * Math.PI * 2;
+
+    const wasFirstSample = !state.hasLastFphas;
+    const changed = wasFirstSample ? 0 : (state.lastFphas > fphas ? 1 : (state.lastFphas < fphas ? -1 : 0));
+    state.lastFphas = fphas;
+    state.hasLastFphas = true;
+
+    if (changed === 1) {
+      waveY = Math.sin(actualTone * Math.PI * 2 * phas + psXPi);
+    } else {
+      waveY = -Math.sin(sr * Math.PI * phas + Math.PI / 2) * Math.sin(phas * (sr / 2 - actualTone) * Math.PI * 2 - psXPi);
+    }
+
+    state.phase = state.phase + phasorFreq / safeRate;
+    state.phase -= Math.floor(state.phase);
+    state.rotatorPhase = state.rotatorPhase + (-subPhaseRotationSpeed) / safeRate;
+    state.rotatorPhase -= Math.floor(state.rotatorPhase);
+
+    return { x: waveX, y: waveY };
+  }
+
+  nyquistShannonSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.rotatorPhase = 0;
+      state.hasLastFphas = false;
+      state.toneSmoothInit = false;
+      if (state.nativeHandle && this.nativeNyquistShannon?.soemdsp_jbnyquist_reset) {
+        this.nativeNyquistShannon.soemdsp_jbnyquist_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeNyquistShannonReady &&
+      this.nativeNyquistShannon?.soemdsp_jbnyquist_create &&
+      this.nativeNyquistShannon?.soemdsp_jbnyquist_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeNyquistShannon.soemdsp_jbnyquist_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeNyquistShannon.soemdsp_jbnyquist_sample(
+            state.nativeHandle,
+            Number(options.frequencyA) || 0,
+            Number(options.midiNoteRaw) || 0,
+            Number(options.rate) || 0,
+            Number(options.sampleDots) || 0,
+            Number(options.phaseOffset) || 0,
+            Number(options.frequencyB) || 0,
+            Number(options.subPhase) || 0,
+            Number(options.subPhaseRotationSpeed) || 0,
+            Number(options.tone) || 0,
+            Number(options.toneSmoothTime) || 0,
+            Number(options.artifact) || 0,
+            Number(options.enableToneModPitch) || 0,
+            Number(options.enableToneModFreq) || 0,
+            Number(options.enableToneModNote) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeNyquistShannon.soemdsp_jbnyquist_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeNyquistShannon.soemdsp_jbnyquist_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeNyquistShannonReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_nyquist_shannon",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Nyquist-Shannon failed"),
+        });
+      }
+    }
+    return this.nyquistShannonSampleJs(state, options);
+  }
+
+  createRadarState() {
+    return {
+      phase: 0,
+      rotatorPhase: 0,
+      resetWasHigh: false,
+      nativeHandle: 0,
+    };
+  }
+
+  destroyRadarNativeState(state) {
+    if (state?.nativeHandle && this.nativeRadar?.soemdsp_jbradar_destroy) {
+      this.nativeRadar.soemdsp_jbradar_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  radarTrisaw(phase, warp) {
+    const safeWarp = this.clampValue(warp, 0.001, 0.999);
+    const wrapped = phase - Math.floor(phase);
+    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
+  }
+
+  radarSign(v) {
+    return (v > 0 ? 1 : 0) - (v < 0 ? 1 : 0);
+  }
+
+  radarUpdateXY(x, y) {
+    const x_ = Math.sin(x * (Math.PI / 4 + (1 - Math.abs(y)) * (Math.PI / 4)));
+    const y_ = y * Math.cos(x * (Math.PI / 4));
+    const r = (this.radarSign(y_) + (y_ === 0 ? 1 : 0)) * Math.sqrt(x_ * x_ + y_ * y_);
+    const ph = y_ !== 0 ? Math.atan(x_ / y_) : (Math.PI / 2) * this.radarSign(x_);
+    return { ph, r };
+  }
+
+  radarRenderJs(options) {
+    const {
+      inPhas, tri1, pow1, pow1Up, pow1Down, phaseInv, dens, frontring, tunnelInv, length,
+      spiralReturn, tri2, pow2, rot, lap, ration, pow2Bend, ringcut, ph, r, size, x, y, ratio,
+    } = options;
+
+    let phas = this.radarTrisaw(inPhas, tri1);
+    if (phaseInv) phas = 1 - this.radarTrisaw(inPhas, tri1);
+
+    if ((pow1Up && inPhas < tri1) || (pow1Down && inPhas >= tri1)) {
+      phas = Math.pow(phas, pow1);
+    }
+
+    phas = phas * (dens + frontring / ((tunnelInv ? 1 : 0) + (tunnelInv ? 0 : 1) * length)) / dens;
+
+    let sphas = phas;
+    if (inPhas > tri1 && spiralReturn) sphas = 2 - phas;
+
+    const sinPhas = this.clampValue(Math.pow(this.radarTrisaw(sphas * length * dens, tri2), pow2), -1e100, 1e100);
+
+    const f002Arg = (sinPhas - (tunnelInv ? 1 : 0) * frontring - rot / lap - (tunnelInv ? 0 : 1) * length * dens) * lap;
+    const f002Sin = Math.sin(f002Arg * Math.PI * 2);
+    const f002Cos = Math.cos(f002Arg * Math.PI * 2);
+    const lilsin = f002Cos * ration;
+    const lilcos = f002Sin * ration;
+
+    phas *= length;
+    phas = (pow2Bend ? 0 : 1) * (Math.floor(phas * dens) / dens + sinPhas / dens) + (pow2Bend ? 1 : 0) * phas;
+
+    if (ringcut) {
+      phas = (Math.floor(phas * dens + (tunnelInv ? 1 : 0) * (1 - frontring)) + rot - (tunnelInv ? 1 : 0) * (1 - frontring)) / dens;
+    }
+
+    if (!tunnelInv) {
+      phas = 1 - phas - (1 - length) + frontring / dens;
+    }
+
+    phas = this.clampValue(phas - frontring / dens, 0, 1);
+
+    const phSinNeg = Math.sin(-ph * Math.PI * 2);
+    const phCosNeg = Math.cos(-ph * Math.PI * 2);
+    const lilsin1 = lilsin * phSinNeg + lilcos * phCosNeg;
+    const lilcos1 = lilcos * phSinNeg - lilsin * phCosNeg;
+
+    const f003Sin = Math.sin(phas * Math.abs(r) * Math.PI * 2);
+    const f003Cos = Math.cos(phas * Math.abs(r) * Math.PI * 2);
+    const bigsin = f003Cos;
+    const bigcos = -f003Sin;
+
+    const lilX = lilsin1 * bigsin;
+    const lilY = lilcos1;
+    const lilZ = lilsin1 * bigcos * this.radarSign(r);
+
+    let bigX = 0;
+    let bigY = 0;
+    let bigZ = -Math.PI * 2 * phas;
+    if (r !== 0) {
+      bigZ = bigcos / Math.abs(r);
+      bigX = (bigsin - 1) / r;
+    }
+
+    const waveX1 = bigX + lilX;
+    const waveY1 = bigY + lilY;
+    const waveZ2raw = bigZ + lilZ;
+
+    const phSin = Math.sin(ph * Math.PI * 2);
+    const phCos = Math.cos(ph * Math.PI * 2);
+    let waveX = waveX1 * phSin + waveY1 * phCos;
+    let waveY2 = waveY1 * phSin - waveX1 * phCos;
+    let waveZ2 = waveZ2raw;
+
+    const syz = 2 * (size + 0.33) * (Math.abs(x) * (1 - y) + 0.5);
+    waveX = size * waveX + (1 - size) * (waveX + x * (1 - ratio) + x * ratio) * syz;
+    waveY2 = size * waveY2 + (1 - size) * (waveY2 - y) * syz;
+    waveZ2 = size * waveZ2 + (1 - size) * waveZ2 * syz;
+
+    const sizArg = (1 - size) * (Math.PI / 2);
+    const sizSin = Math.sin(sizArg * Math.PI * 2);
+    const sizCos = Math.cos(sizArg * Math.PI * 2);
+    const waveY = waveY2 * sizCos + waveZ2 * sizSin;
+    const waveZ = waveZ2 * sizCos - waveY2 * sizSin;
+
+    return { x: waveX, y: waveY, z: waveZ };
+  }
+
+  radarSampleJs(state, options = {}) {
+    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const phaseOffset = Number(options.phaseOffset) || 0;
+    const density = Number(options.density) || 0;
+    const sharp = Number(options.sharp) || 0;
+    const fade = Number(options.fade) || 0;
+    const rotation = Number(options.rotation) || 0;
+    const direction = Number(options.direction) || 0;
+    const shade = Number(options.shade) || 0;
+    const lap = Number(options.lap) || 0;
+    const ringcut = Number(options.ringcut) >= 0.5;
+    const pow1Up = Number(options.pow1Up) >= 0.5;
+    const pow1Down = Number(options.pow1Down) >= 0.5;
+    const pow2Bend = Number(options.pow2Bend) >= 0.5;
+    const phaseInv = Number(options.phaseInv) >= 0.5;
+    const tunnelInv = Number(options.tunnelInv) >= 0.5;
+    const spiralReturn = Number(options.spiralReturn) >= 0.5;
+    const length = Number(options.length) || 0;
+    const ratio = Number(options.ratio) || 0;
+    const frontring = Number(options.frontring) || 0;
+    const zoom = Number(options.zoom) || 0;
+    const zDepth = Number(options.zDepth) || 0;
+    const inner = Number(options.inner) || 0;
+    const x = Number(options.x) || 0;
+    const y = Number(options.y) || 0;
+
+    const tri1 = sharp * 0.5 + 0.5;
+    const pow1 = fade;
+    const tri2 = direction;
+    const pow2 = this.clampValue(shade, -80, 80);
+    const safeLap = Math.max(1e-6, lap + 1);
+    const ration = ratio + 0.1;
+    let dens = (ringcut ? Math.floor(density) : density) + 1e-6;
+    dens = Math.min(dens, 1e6);
+    const size = zoom;
+    const xz = 1 - zoom;
+    const yFixForZoom = xz + (xz - Math.pow(xz, 6));
+
+    const rx = -x;
+    const ry = y;
+    const { ph, r } = this.radarUpdateXY(rx, ry);
+
+    const inPhas = (state.phase + phaseOffset) - Math.floor(state.phase + phaseOffset);
+    const rotRaw = state.rotatorPhase + rotation;
+    const rot = rotRaw - Math.floor(rotRaw);
+
+    const wave = this.radarRenderJs({
+      inPhas, tri1, pow1, pow1Up, pow1Down, phaseInv, dens, frontring, tunnelInv, length,
+      spiralReturn, tri2, pow2, rot, lap: safeLap, ration, pow2Bend, ringcut, ph, r, size,
+      x: rx, y: ry, ratio,
+    });
+
+    const depth = (1 - zDepth) * (1 - Math.abs(wave.z) / (Math.PI * 2)) + zDepth * Math.pow(zDepth * 9 + 1, wave.z);
+    const f001 = (depth * (1 - inner) + inner) / ((1 - size) + size * ration);
+    const outX = wave.x * f001;
+    const outY = wave.y * f001 + yFixForZoom;
+
+    state.phase = state.phase + frequency / safeRate;
+    state.phase -= Math.floor(state.phase);
+    state.rotatorPhase = state.rotatorPhase + 1 / safeRate;
+    state.rotatorPhase -= Math.floor(state.rotatorPhase);
+
+    return { x: outX, y: outY };
+  }
+
+  radarSample(state, options = {}) {
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      state.phase = 0;
+      state.rotatorPhase = 0;
+      if (state.nativeHandle && this.nativeRadar?.soemdsp_jbradar_reset) {
+        this.nativeRadar.soemdsp_jbradar_reset(state.nativeHandle);
+      }
+    }
+    state.resetWasHigh = resetHigh;
+    if (
+      this.nativeRadarReady &&
+      this.nativeRadar?.soemdsp_jbradar_create &&
+      this.nativeRadar?.soemdsp_jbradar_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeRadar.soemdsp_jbradar_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeRadar.soemdsp_jbradar_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.phaseOffset) || 0,
+            Number(options.density) || 0,
+            Number(options.sharp) || 0,
+            Number(options.fade) || 0,
+            Number(options.rotation) || 0,
+            Number(options.direction) || 0,
+            Number(options.shade) || 0,
+            Number(options.lap) || 0,
+            Number(options.ringcut) || 0,
+            Number(options.pow1Up) || 0,
+            Number(options.pow1Down) || 0,
+            Number(options.pow2Bend) || 0,
+            Number(options.phaseInv) || 0,
+            Number(options.tunnelInv) || 0,
+            Number(options.spiralReturn) || 0,
+            Number(options.length) || 0,
+            Number(options.ratio) || 0,
+            Number(options.frontring) || 0,
+            Number(options.zoom) || 0,
+            Number(options.zDepth) || 0,
+            Number(options.inner) || 0,
+            Number(options.x) || 0,
+            Number(options.y) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.safeFilterNumber(this.nativeRadar.soemdsp_jbradar_x(state.nativeHandle), null),
+            y: this.safeFilterNumber(this.nativeRadar.soemdsp_jbradar_y(state.nativeHandle), null),
+          };
+        }
+      } catch (error) {
+        this.nativeRadarReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_radar",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Radar failed"),
+        });
+      }
+    }
+    return this.radarSampleJs(state, options);
   }
 
   createChuaAttractorState() {
@@ -8766,6 +10536,59 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Y: spiral.y * level,
           Z: spiral.z * level,
         };
+      } else if (node?.type === "fractalSpiral") {
+        const state = this.fractalSpiralStates.get(nodeId) || this.createFractalSpiralState();
+        this.fractalSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const fractal = this.fractalSpiralSample(state, {
+          frequency: read("frequency", 1),
+          gain: read("gain", 0.5),
+          growth: read("growth", 1.5),
+          lacunarity: read("lacunarity", 2),
+          octaves: read("octaves", 5),
+          sampleRate: safeRate,
+          size: read("size", 0.5),
+          spin: read("spin", 0.05),
+          twist: read("twist", 0.381966),
+        });
+        const fractalLevel = read("level", 1);
+        value = {
+          X: fractal.x * fractalLevel,
+          Y: fractal.y * fractalLevel,
+          Z: fractal.z * fractalLevel,
+        };
+      } else if (node?.type === "logSpiral") {
+        const state = this.logSpiralStates.get(nodeId) || this.createLogSpiralState();
+        this.logSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const logSpiral = this.logSpiralSample(state, {
+          frequency: read("frequency", 1),
+          growth: read("growth", 3),
+          sampleRate: safeRate,
+          size: read("size", 0.5),
+          spin: read("spin", 0.05),
+          turns: read("turns", 4),
+        });
+        const logSpiralLevel = read("level", 1);
+        value = {
+          X: logSpiral.x * logSpiralLevel,
+          Y: logSpiral.y * logSpiralLevel,
+          Z: logSpiral.z * logSpiralLevel,
+        };
       } else if (node?.type === "lorenzAttractor") {
         const state = this.lorenzAttractorStates.get(nodeId) || this.createLorenzAttractorState();
         this.lorenzAttractorStates.set(nodeId, state);
@@ -8826,6 +10649,222 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = {
           X: henon.x * henonLevel,
           Y: henon.y * henonLevel,
+        };
+      } else if (node?.type === "wirdoSpiral") {
+        const state = this.wirdoSpiralStates.get(nodeId) || this.createWirdoSpiralState();
+        this.wirdoSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const wirdo = this.wirdoSpiralSample(state, {
+          cross: read("cross", 0),
+          cut: read("cut", 1000),
+          density: read("density", 0.8),
+          frequency: read("frequency", 8),
+          length: read("length", 1),
+          reset: mixInput(nodeId, "Reset"),
+          ringCut: read("ringCut", 10),
+          rotate: read("rotate", 0),
+          sampleRate: safeRate,
+          scrap: read("scrap", 1),
+          sharp: read("sharp", 0),
+          splashDensity: read("splashDensity", 0),
+          splashDepth: read("splashDepth", 0),
+          splashSpeed: read("splashSpeed", 0),
+          syncCut: read("syncCut", 1),
+        });
+        const wirdoLevel = read("level", 1);
+        value = {
+          X: wirdo.x * wirdoLevel,
+          Y: wirdo.y * wirdoLevel,
+        };
+      } else if (node?.type === "blubb") {
+        const state = this.blubbStates.get(nodeId) || this.createBlubbState();
+        this.blubbStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const blubb = this.blubbSample(state, {
+          frequency: read("frequency", 8),
+          reset: mixInput(nodeId, "Reset"),
+          rotX: read("rotX", 0),
+          rotY: read("rotY", 0),
+          sampleRate: safeRate,
+          shape: read("shape", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const blubbLevel = read("level", 1);
+        value = {
+          X: blubb.x * blubbLevel,
+          Y: blubb.y * blubbLevel,
+        };
+      } else if (node?.type === "mushroom") {
+        const state = this.mushroomStates.get(nodeId) || this.createMushroomState();
+        this.mushroomStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const mushroom = this.mushroomSample(state, {
+          apart: read("apart", 0),
+          capRotation: read("capRotation", 0),
+          capStemTransition: read("capStemTransition", 0.1),
+          clusterRotation: read("clusterRotation", 0),
+          clusterRotationSpeed: read("clusterRotationSpeed", 0),
+          density: read("density", 3),
+          frequency: read("frequency", 8),
+          grow: read("grow", 1),
+          head: read("head", 0.6667),
+          numMushrooms: read("numMushrooms", 1),
+          phaseOffset: read("phaseOffset", 0),
+          reset: mixInput(nodeId, "Reset"),
+          sampleRate: safeRate,
+          sharp: read("sharp", 0),
+          spread: read("spread", 0.5),
+          stem: read("stem", 0),
+          stemRotationSpeed: read("stemRotationSpeed", 0),
+          width: read("width", 1),
+          wobble: read("wobble", 0.0625),
+        });
+        const mushroomLevel = read("level", 1);
+        value = {
+          X: mushroom.x * mushroomLevel,
+          Y: mushroom.y * mushroomLevel,
+        };
+      } else if (node?.type === "boing") {
+        const state = this.boingStates.get(nodeId) || this.createBoingState();
+        this.boingStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const boing = this.boingSample(state, {
+          boing: read("boing", 0),
+          boingStrength: read("boingStrength", 0),
+          density: read("density", 1),
+          dir: read("dir", 0),
+          ends: read("ends", 0),
+          frequency: read("frequency", 8),
+          reset: mixInput(nodeId, "Reset"),
+          rotX: read("rotX", 0),
+          rotY: read("rotY", 0),
+          sampleRate: safeRate,
+          shape: read("shape", 0),
+          sharpness: read("sharpness", 0),
+          volume: read("volume", 1),
+          volumePreJump: read("volumePreJump", 0),
+          zAmount: read("zAmount", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const boingLevel = read("level", 1);
+        value = {
+          X: boing.x * boingLevel,
+          Y: boing.y * boingLevel,
+        };
+      } else if (node?.type === "torus") {
+        const state = this.torusStates.get(nodeId) || this.createTorusState();
+        this.torusStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const torus = this.torusSample(state, {
+          balance: read("balance", 0),
+          darkAngle: read("darkAngle", 0),
+          darkIntensity: read("darkIntensity", 0),
+          density: read("density", 1),
+          frequency: read("frequency", 8),
+          length: read("length", 0),
+          quantizeDensity: read("quantizeDensity", 1),
+          quantizeSubDensity: read("quantizeSubDensity", 1),
+          reset: mixInput(nodeId, "Reset"),
+          rotX: read("rotX", 0),
+          rotY: read("rotY", 0),
+          rotZ: read("rotZ", 0),
+          sampleRate: safeRate,
+          sharp: read("sharp", 0.5),
+          size: read("size", 1),
+          subdensity: read("subdensity", 0),
+          wander: read("wander", 0),
+          zAngleX: read("zAngleX", 0),
+          zAngleY: read("zAngleY", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const torusLevel = read("level", 1);
+        value = {
+          X: torus.x * torusLevel,
+          Y: torus.y * torusLevel,
+        };
+      } else if (node?.type === "keplerBouwkamp") {
+        const state = this.keplerBouwkampStates.get(nodeId) || this.createKeplerBouwkampState();
+        this.keplerBouwkampStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const kepler = this.keplerBouwkampSample(state, {
+          circles: read("circles", 0.5),
+          frequency: read("frequency", 8),
+          length: read("length", 1),
+          reset: mixInput(nodeId, "Reset"),
+          rotation: read("rotation", 0),
+          sampleRate: safeRate,
+          start: read("start", 3),
+          tri: read("tri", 0),
+          zoom: read("zoom", 0),
+        });
+        const keplerLevel = read("level", 1);
+        value = {
+          X: kepler.x * keplerLevel,
+          Y: kepler.y * keplerLevel,
+        };
+      } else if (node?.type === "nyquistShannon") {
+        const state = this.nyquistShannonStates.get(nodeId) || this.createNyquistShannonState();
+        this.nyquistShannonStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const nyquist = this.nyquistShannonSample(state, {
+          artifact: read("artifact", 0),
+          enableToneModFreq: read("enableToneModFreq", 0),
+          enableToneModNote: read("enableToneModNote", 0),
+          enableToneModPitch: read("enableToneModPitch", 1),
+          frequencyA: read("frequencyA", 440),
+          frequencyB: read("frequencyB", 5),
+          midiNoteRaw: read("midiNoteRaw", 48),
+          phaseOffset: read("phaseOffset", 0),
+          rate: read("rate", 20),
+          reset: mixInput(nodeId, "Reset"),
+          sampleDots: read("sampleDots", 0),
+          sampleRate: safeRate,
+          subPhase: read("subPhase", 0),
+          subPhaseRotationSpeed: read("subPhaseRotationSpeed", 0),
+          tone: read("tone", 0),
+          toneSmoothTime: read("toneSmoothTime", 0.01),
+        });
+        const nyquistLevel = read("level", 1);
+        value = {
+          X: nyquist.x * nyquistLevel,
+          Y: nyquist.y * nyquistLevel,
+        };
+      } else if (node?.type === "radar") {
+        const state = this.radarStates.get(nodeId) || this.createRadarState();
+        this.radarStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const radar = this.radarSample(state, {
+          density: read("density", 1),
+          direction: read("direction", 0),
+          fade: read("fade", 1),
+          frequency: read("frequency", 1),
+          frontring: read("frontring", 0),
+          inner: read("inner", 0),
+          lap: read("lap", 0),
+          length: read("length", 1),
+          phaseInv: read("phaseInv", 0),
+          phaseOffset: read("phaseOffset", 0),
+          pow1Down: read("pow1Down", 0),
+          pow1Up: read("pow1Up", 0),
+          pow2Bend: read("pow2Bend", 0),
+          ratio: read("ratio", 0),
+          reset: mixInput(nodeId, "Reset"),
+          ringcut: read("ringcut", 0),
+          rotation: read("rotation", 0),
+          sampleRate: safeRate,
+          shade: read("shade", 1),
+          sharp: read("sharp", 0),
+          spiralReturn: read("spiralReturn", 0),
+          tunnelInv: read("tunnelInv", 0),
+          x: read("x", 0),
+          y: read("y", 0),
+          zDepth: read("zDepth", 0),
+          zoom: read("zoom", 0),
+        });
+        const radarLevel = read("level", 1);
+        value = {
+          X: radar.x * radarLevel,
+          Y: radar.y * radarLevel,
         };
       } else if (node?.type === "chuaAttractor") {
         const state = this.chuaAttractorStates.get(nodeId) || this.createChuaAttractorState();
