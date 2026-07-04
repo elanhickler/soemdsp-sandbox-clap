@@ -200,6 +200,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.smoothers = new Map();
     this.spiralStates = new Map();
     this.fractalSpiralStates = new Map();
+    this.logSpiralStates = new Map();
     this.stepSequencerStates = new Map();
     this.timing = this.normalizePatchTiming();
     this.triggerCounterStates = new Map();
@@ -942,6 +943,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.smoothers = new Map();
     this.spiralStates = new Map();
     this.fractalSpiralStates = new Map();
+    this.logSpiralStates = new Map();
     this.stepSequencerStates = new Map();
     this.triggerCounterStates = new Map();
     this.triggerDividerStates = new Map();
@@ -1140,6 +1142,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "fractalSpiral" && !this.fractalSpiralStates.has(id)) {
         this.fractalSpiralStates.set(id, this.createFractalSpiralState());
+      }
+      if (node?.type === "logSpiral" && !this.logSpiralStates.has(id)) {
+        this.logSpiralStates.set(id, this.createLogSpiralState());
       }
       if (node?.type === "lorenzAttractor" && !this.lorenzAttractorStates.has(id)) {
         this.lorenzAttractorStates.set(id, this.createLorenzAttractorState());
@@ -1342,6 +1347,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const id of [...this.fractalSpiralStates.keys()]) {
       if (!ids.has(id)) {
         this.fractalSpiralStates.delete(id);
+      }
+    }
+    for (const id of [...this.logSpiralStates.keys()]) {
+      if (!ids.has(id)) {
+        this.logSpiralStates.delete(id);
       }
     }
     for (const id of [...this.spiralStates.keys()]) {
@@ -3944,6 +3954,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "spiral") this.spiralStates.set(id, this.createSpiralState());
       if (node?.type === "fractalSpiral") this.fractalSpiralStates.set(id, this.createFractalSpiralState());
+      if (node?.type === "logSpiral") this.logSpiralStates.set(id, this.createLogSpiralState());
       if (node?.type === "lorenzAttractor") this.lorenzAttractorStates.set(id, this.createLorenzAttractorState());
       if (node?.type === "logisticMap") this.logisticMapStates.set(id, this.createLogisticMapState());
       if (node?.type === "henonMap") this.henonMapStates.set(id, this.createHenonMapState());
@@ -5982,6 +5993,50 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const radius = envelope * size;
     const rawX = normX * radius;
     const rawY = normY * radius;
+
+    const spinAngle = spinPhaseValue * Math.PI * 2;
+    const cosSpin = Math.cos(spinAngle);
+    const sinSpin = Math.sin(spinAngle);
+    const x = rawX * cosSpin - rawY * sinSpin;
+    const y = rawX * sinSpin + rawY * cosSpin;
+    const z = envelope - 1;
+
+    return { x, y, z };
+  }
+
+  createLogSpiralState() {
+    return {
+      phase: 0,
+      spinPhase: 0,
+    };
+  }
+
+  logSpiralWrap01(value) {
+    return value - Math.floor(value);
+  }
+
+  // Pure logarithmic (equiangular) spiral -- see
+  // public/node-graph-log-spiral.js for the full derivation. Mirrors that
+  // file exactly.
+  logSpiralSample(state, options = {}) {
+    const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+    const frequency = Number(options.frequency) || 0;
+    const spin = Number(options.spin) || 0;
+    const size = Math.max(0, Number(options.size) || 0);
+    const growth = Number(options.growth) || 0;
+    const turns = Math.max(0.1, Number(options.turns) || 1);
+
+    const mainPhase = this.logSpiralWrap01(state.phase);
+    state.phase = this.logSpiralWrap01(state.phase + frequency / sampleRateValue);
+    const spinPhaseValue = this.logSpiralWrap01(state.spinPhase);
+    state.spinPhase = this.logSpiralWrap01(state.spinPhase + spin / sampleRateValue);
+
+    const theta = turns * Math.PI * 2 * mainPhase;
+    const envelope = Math.exp(growth * (mainPhase - 0.5));
+    const radius = size * envelope;
+
+    const rawX = radius * Math.cos(theta);
+    const rawY = radius * Math.sin(theta);
 
     const spinAngle = spinPhaseValue * Math.PI * 2;
     const cosSpin = Math.cos(spinAngle);
@@ -8585,6 +8640,31 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           X: fractal.x * fractalLevel,
           Y: fractal.y * fractalLevel,
           Z: fractal.z * fractalLevel,
+        };
+      } else if (node?.type === "logSpiral") {
+        const state = this.logSpiralStates.get(nodeId) || this.createLogSpiralState();
+        this.logSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const logSpiral = this.logSpiralSample(state, {
+          frequency: read("frequency", 1),
+          growth: read("growth", 3),
+          sampleRate: safeRate,
+          size: read("size", 0.5),
+          spin: read("spin", 0.05),
+          turns: read("turns", 4),
+        });
+        const logSpiralLevel = read("level", 1);
+        value = {
+          X: logSpiral.x * logSpiralLevel,
+          Y: logSpiral.y * logSpiralLevel,
+          Z: logSpiral.z * logSpiralLevel,
         };
       } else if (node?.type === "lorenzAttractor") {
         const state = this.lorenzAttractorStates.get(nodeId) || this.createLorenzAttractorState();

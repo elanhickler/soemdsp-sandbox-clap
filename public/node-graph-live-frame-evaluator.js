@@ -2840,6 +2840,33 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         Y: fractal.y * fractalLevel,
         Z: fractal.z * fractalLevel,
       };
+    } else if (node?.type === "logSpiral") {
+      const state = runtime.logSpiralStates.get(nodeId) || createLogSpiralState();
+      runtime.logSpiralStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(
+        runtime,
+        node,
+        key,
+        fallback,
+        frame,
+        frames,
+        frameValues,
+      );
+      const logSpiral = logSpiralSample({
+        frequency: read("frequency", 1),
+        growth: read("growth", 3),
+        sampleRate,
+        size: read("size", 0.5),
+        spin: read("spin", 0.05),
+        state,
+        turns: read("turns", 4),
+      });
+      const logSpiralLevel = read("level", 1);
+      value = {
+        X: logSpiral.x * logSpiralLevel,
+        Y: logSpiral.y * logSpiralLevel,
+        Z: logSpiral.z * logSpiralLevel,
+      };
     } else if (node?.type === "lorenzAttractor") {
       const state = runtime.lorenzAttractorStates.get(nodeId) || createNodeGraphLorenzAttractorState();
       runtime.lorenzAttractorStates.set(nodeId, state);
