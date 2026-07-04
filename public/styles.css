@@ -10703,15 +10703,17 @@ input.node-header-title {
   margin: 0;
   box-shadow: none;
   outline: none;
+  /* Editing only starts on triple-click (see
+     node-graph-module-header-rendering.js); a text-select cursor on
+     hover would falsely advertise "click to edit" the rest of the time,
+     so keep the same pointer cursor as the rest of the header row. */
+  cursor: default;
 }
 
 input.node-header-title:focus {
   background: rgba(255, 255, 255, 0.06);
   outline: none;
-}
-
-input.node-header-title:read-only {
-  cursor: default;
+  cursor: text;
 }
 
 .dsp-node-io-section {
