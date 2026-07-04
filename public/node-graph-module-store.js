@@ -101,6 +101,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "resonatorFilter",
   "humanFilter",
   "flowerChildFilter",
+  "pulseExplosion",
   "ladderFilter",
   "tb303Filter",
   "papoulisFilter",
@@ -922,6 +923,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Resonant self-oscillating filter built from a feedback-modulated phasor through two cascaded one-pole stages. 4 modes: Clean (sine oscillator), Dirty (reshaped oscillator, hotter output), Rev3 (ellipsoid oscillator with richer resonance shaping), Downsampled (Clean's architecture with a sample-and-hold aliasing stage).",
     label: "Flower Child Filter",
     notes: ["self-oscillating", "4 modes", "feedback FM"],
+  },
+  pulseExplosion: {
+    category: "Sequence",
+    description: "On a rising-edge trigger, schedules a burst of single-sample pulses distributed over Start/Center/End Time, concentrated toward Center by Time Spread (0 = tight, 1 = wide). Each pulse gets its own randomized amplitude between Low and High Amplitude.",
+    label: "Pulse Explosion",
+    notes: ["trigger burst", "skewed distribution", "randomized amplitude"],
   },
   ladderFilter: {
     category: "Filter",

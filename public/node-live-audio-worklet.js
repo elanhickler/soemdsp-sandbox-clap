@@ -198,6 +198,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeResonatorFilterReady = false;
     this.nativeHumanFilter = null;
     this.nativeHumanFilterReady = false;
+    this.nativePulseExplosion = null;
+    this.nativePulseExplosionReady = false;
     this.nativeTb303Filter = null;
     this.nativeTb303FilterReady = false;
     this.nativePassiveFilter = null;
@@ -230,6 +232,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.chaoticPhaseLockingFilterStates = new Map();
     this.resonatorFilterStates = new Map();
     this.humanFilterStates = new Map();
+    this.pulseExplosionStates = new Map();
     this.ladderFilterStates = new Map();
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
@@ -735,6 +738,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           type: "nativeModuleStatus",
           name: "human_filter",
           status: this.nativeHumanFilterReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "pulse_explosion" || targetType === "pulseExplosion") {
+        for (const state of this.pulseExplosionStates.values()) {
+          this.destroyPulseExplosionNativeState(state);
+        }
+        this.nativePulseExplosion = exports;
+        this.nativePulseExplosionReady = Boolean(
+          this.nativePulseExplosion?.soemdsp_pulse_explosion_create &&
+          this.nativePulseExplosion?.soemdsp_pulse_explosion_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pulse_explosion",
+          status: this.nativePulseExplosionReady ? "ready" : "missing exports",
         });
         return;
       }
@@ -1420,6 +1439,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.destroyHumanFilterNativeState(state);
     }
     this.humanFilterStates = new Map();
+    for (const state of this.pulseExplosionStates.values()) {
+      this.destroyPulseExplosionNativeState(state);
+    }
+    this.pulseExplosionStates = new Map();
     for (const state of this.tb303FilterStates.values()) {
       this.destroyTb303FilterNativeState(state);
     }
@@ -1768,6 +1791,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "humanFilter" && !this.humanFilterStates.has(id)) {
         this.humanFilterStates.set(id, this.createHumanFilterState());
+      }
+      if (node?.type === "pulseExplosion" && !this.pulseExplosionStates.has(id)) {
+        this.pulseExplosionStates.set(id, this.createPulseExplosionState());
       }
       if (node?.type === "tb303Filter" && !this.tb303FilterStates.has(id)) {
         this.tb303FilterStates.set(id, this.createTb303FilterState());
@@ -2155,6 +2181,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyHumanFilterNativeState(this.humanFilterStates.get(id));
         this.humanFilterStates.delete(id);
+      }
+    }
+    for (const id of [...this.pulseExplosionStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyPulseExplosionNativeState(this.pulseExplosionStates.get(id));
+        this.pulseExplosionStates.delete(id);
       }
     }
     for (const id of [...this.tb303FilterStates.keys()]) {
@@ -4418,6 +4450,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createPulseExplosionState() {
+    return {
+      wasHigh: false, exploding: false, elapsed: 0,
+      pulses: [], nextPulseIndex: 0, nativeHandle: 0,
+    };
+  }
+
   resetCookbookFilterState(state) {
     for (const key of ["x1", "x2", "y1", "y2"]) {
       if (Array.isArray(state?.[key])) {
@@ -4728,6 +4767,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyHumanFilterNativeState(state) {
     if (state.nativeHandle && this.nativeHumanFilter?.soemdsp_human_filter_destroy) {
       this.nativeHumanFilter.soemdsp_human_filter_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyPulseExplosionNativeState(state) {
+    if (state.nativeHandle && this.nativePulseExplosion?.soemdsp_pulse_explosion_destroy) {
+      this.nativePulseExplosion.soemdsp_pulse_explosion_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }
@@ -5251,6 +5297,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.chaoticPhaseLockingFilterStates = new Map();
     runtime.resonatorFilterStates = new Map();
     runtime.humanFilterStates = new Map();
+    runtime.pulseExplosionStates = new Map();
     runtime.linearEnvelopeStates = new Map();
     runtime.sineWavetableStates = new Map();
     runtime.noiseGeneratorStates = new Map();
@@ -5368,6 +5415,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "chaoticPhaseLockingFilter") this.chaoticPhaseLockingFilterStates.set(id, this.createChaoticPhaseLockingFilterState());
       if (node?.type === "resonatorFilter") this.resonatorFilterStates.set(id, this.createResonatorFilterState());
       if (node?.type === "humanFilter") this.humanFilterStates.set(id, this.createHumanFilterState());
+      if (node?.type === "pulseExplosion") this.pulseExplosionStates.set(id, this.createPulseExplosionState());
       if (node?.type === "tb303Filter") this.tb303FilterStates.set(id, this.createTb303FilterState());
       if (node?.type === "clock") this.clockStates.set(id, this.createClockState());
       if (node?.type === "graph" || node?.type === "graph2") this.graphLfoStates.set(id, this.createGraphLfoState());
@@ -6994,6 +7042,119 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
     }
     return this.humanFilterSampleJs(state, input, params, rate);
+  }
+
+  // --- Pulse Explosion ---
+
+  pulseExplosionRationalCurve(p, skew) {
+    let denom = 1 - skew + 2 * skew * p;
+    if (denom > -1e-12 && denom < 1e-12) denom = denom >= 0 ? 1e-12 : -1e-12;
+    return ((1 + skew) * p) / denom;
+  }
+
+  pulseExplosionRaisedCosineEase(x, x1, x2) {
+    const span = x2 - x1;
+    if (span > -1e-12 && span < 1e-12) return 0.5;
+    let p = (x - x1) / span;
+    p = Math.max(0, Math.min(1, p));
+    return 1 - (0.5 + 0.5 * Math.sin((p - 0.5) * Math.PI));
+  }
+
+  pulseExplosionDensity(t, startTime, centerTime, endTime, skew) {
+    if (t <= startTime || t >= endTime) return 0;
+    const ease = t < centerTime
+      ? this.pulseExplosionRaisedCosineEase(t, centerTime, startTime)
+      : this.pulseExplosionRaisedCosineEase(t, centerTime, endTime);
+    return Math.max(0, Math.min(1, this.pulseExplosionRationalCurve(ease, skew)));
+  }
+
+  pulseExplosionSampleJs(state, trigger, params, rate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const safeStart = Math.max(0, this.safeFilterNumber(params.startTime, state));
+    let safeEnd = this.safeFilterNumber(params.endTime, state);
+    if (safeEnd <= safeStart) safeEnd = safeStart + 0.001;
+    let safeCenter = this.clampValue(this.safeFilterNumber(params.centerTime, state), safeStart, safeEnd);
+    if (safeCenter <= safeStart) safeCenter = safeStart + 1e-6;
+    if (safeCenter >= safeEnd) safeCenter = safeEnd - 1e-6;
+    const skew = -0.99 + 1.98 * this.clampValue(this.safeFilterNumber(params.timeSpread, state), 0, 1);
+    const safeCount = Math.max(1, Math.min(128, Math.round(Number(params.numberOfPulses) || 1)));
+    const lo = Math.min(Number(params.lowAmplitude) || 0, Number(params.highAmplitude) || 0);
+    const hi = Math.max(Number(params.lowAmplitude) || 0, Number(params.highAmplitude) || 0);
+
+    const high = this.safeFilterNumber(trigger, state) > 0.5;
+    if (high && !state.wasHigh) {
+      state.pulses = [];
+      state.nextPulseIndex = 0;
+      state.elapsed = 0;
+      state.exploding = true;
+
+      for (let i = 0; i < safeCount; i++) {
+        let chosenTime = safeCenter;
+        for (let attempt = 0; attempt < 200; attempt++) {
+          const candidate = safeStart + (safeEnd - safeStart) * Math.random();
+          const roll = Math.random();
+          const density = this.pulseExplosionDensity(candidate, safeStart, safeCenter, safeEnd, skew);
+          if (roll < density) {
+            chosenTime = candidate;
+            break;
+          }
+        }
+        state.pulses.push({ time: chosenTime, amplitude: lo + (hi - lo) * Math.random() });
+      }
+      state.pulses.sort((a, b) => a.time - b.time);
+    }
+    state.wasHigh = high;
+
+    let output = 0;
+    if (state.exploding) {
+      if (state.nextPulseIndex < state.pulses.length && state.elapsed >= state.pulses[state.nextPulseIndex].time) {
+        output = state.pulses[state.nextPulseIndex].amplitude;
+        state.nextPulseIndex++;
+      }
+      state.elapsed += 1 / safeRate;
+      if (state.nextPulseIndex >= state.pulses.length && state.elapsed > safeEnd) {
+        state.exploding = false;
+      }
+    }
+
+    return this.safeFilterNumber(output, state);
+  }
+
+  pulseExplosionSample(state, trigger, params, rate = sampleRate) {
+    if (this.nativePulseExplosionReady) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativePulseExplosion.soemdsp_pulse_explosion_create();
+        }
+        if (state.nativeHandle) {
+          return this.safeFilterNumber(
+            this.nativePulseExplosion.soemdsp_pulse_explosion_sample(
+              state.nativeHandle,
+              this.safeFilterNumber(trigger, state),
+              Math.max(0, this.safeFilterNumber(params.startTime, state)),
+              this.safeFilterNumber(params.centerTime, state),
+              this.safeFilterNumber(params.endTime, state),
+              this.clampValue(this.safeFilterNumber(params.timeSpread, state), 0, 1),
+              Math.max(1, Math.min(128, Math.round(Number(params.numberOfPulses) || 1))),
+              this.safeFilterNumber(params.lowAmplitude, state),
+              this.safeFilterNumber(params.highAmplitude, state),
+              Math.max(1, Number(rate) || sampleRate || 44100),
+            ),
+            state,
+          );
+        }
+      } catch (error) {
+        this.nativePulseExplosionReady = false;
+        state.nativeHandle = 0;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pulse_explosion",
+          status: "disabled",
+          message: String(error?.message || error || "native Pulse Explosion failed"),
+        });
+      }
+    }
+    return this.pulseExplosionSampleJs(state, trigger, params, rate);
   }
 
   tb303FilterSample(state, input, params, rate = sampleRate) {
@@ -13190,6 +13351,23 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
             mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
             resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "pulseExplosion") {
+        const state = this.pulseExplosionStates.get(nodeId) || this.createPulseExplosionState();
+        this.pulseExplosionStates.set(nodeId, state);
+        value = this.pulseExplosionSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          {
+            startTime: this.readEffectiveParameter(node, "startTime", 0, frame, frames, frameValues),
+            centerTime: this.readEffectiveParameter(node, "centerTime", 0.5, frame, frames, frameValues),
+            endTime: this.readEffectiveParameter(node, "endTime", 1, frame, frames, frameValues),
+            timeSpread: this.readEffectiveParameter(node, "timeSpread", 0.3, frame, frames, frameValues),
+            numberOfPulses: this.readEffectiveParameter(node, "numberOfPulses", 20, frame, frames, frameValues),
+            lowAmplitude: this.readEffectiveParameter(node, "lowAmplitude", 0.3, frame, frames, frameValues),
+            highAmplitude: this.readEffectiveParameter(node, "highAmplitude", 1, frame, frames, frameValues),
           },
           safeRate,
         );

@@ -1674,6 +1674,99 @@ function nodeGraphHumanFilterSample(state, input, params, sampleRate, runtime = 
   return nodeGraphSafeFilterNumber(out, runtime, nodeId, state, "human output");
 }
 
+// --- Pulse Explosion ---
+// See native_modules/pulse_explosion/pulse_explosion.cpp's header comment
+// for the full derivation of the density shape and rejection sampling.
+
+const kNodeGraphPulseExplosionMaxPulses = 128;
+const kNodeGraphPulseExplosionMaxRejectionAttempts = 200;
+
+function createNodeGraphPulseExplosionState() {
+  return {
+    wasHigh: false,
+    exploding: false,
+    elapsed: 0,
+    pulses: [],
+    nextPulseIndex: 0,
+  };
+}
+
+function nodeGraphPulseExplosionRationalCurve(p, skew) {
+  let denom = 1 - skew + 2 * skew * p;
+  if (denom > -1e-12 && denom < 1e-12) denom = denom >= 0 ? 1e-12 : -1e-12;
+  return ((1 + skew) * p) / denom;
+}
+
+function nodeGraphPulseExplosionRaisedCosineEase(x, x1, x2) {
+  const span = x2 - x1;
+  if (span > -1e-12 && span < 1e-12) return 0.5;
+  let p = (x - x1) / span;
+  p = Math.max(0, Math.min(1, p));
+  return 1 - (0.5 + 0.5 * Math.sin((p - 0.5) * Math.PI));
+}
+
+function nodeGraphPulseExplosionDensity(t, startTime, centerTime, endTime, skew) {
+  if (t <= startTime || t >= endTime) return 0;
+  const ease = t < centerTime
+    ? nodeGraphPulseExplosionRaisedCosineEase(t, centerTime, startTime)
+    : nodeGraphPulseExplosionRaisedCosineEase(t, centerTime, endTime);
+  return Math.max(0, Math.min(1, nodeGraphPulseExplosionRationalCurve(ease, skew)));
+}
+
+function nodeGraphPulseExplosionSample(state, trigger, params, sampleRate, runtime = null, nodeId = "") {
+  const rate = Math.max(1, Number(sampleRate) || nodeGraphMvp.sampleRate || 44100);
+  const safeStart = Math.max(0, Number(params.startTime) || 0);
+  let safeEnd = Number(params.endTime) || 0;
+  if (safeEnd <= safeStart) safeEnd = safeStart + 0.001;
+  let safeCenter = Math.max(safeStart, Math.min(safeEnd, Number(params.centerTime) || 0));
+  if (safeCenter <= safeStart) safeCenter = safeStart + 1e-6;
+  if (safeCenter >= safeEnd) safeCenter = safeEnd - 1e-6;
+  // 0..1 spread -> -0.99..0.99 skew (0 concentrates tightly at centerTime,
+  // 1 spreads widely -- measured empirically, see the .cpp header comment).
+  const skew = -0.99 + 1.98 * Math.max(0, Math.min(1, Number(params.timeSpread) || 0));
+  const safeCount = Math.max(1, Math.min(kNodeGraphPulseExplosionMaxPulses, Math.round(Number(params.numberOfPulses) || 1)));
+  const lo = Math.min(Number(params.lowAmplitude) || 0, Number(params.highAmplitude) || 0);
+  const hi = Math.max(Number(params.lowAmplitude) || 0, Number(params.highAmplitude) || 0);
+
+  const high = (Number(trigger) || 0) > 0.5;
+  if (high && !state.wasHigh) {
+    state.pulses = [];
+    state.nextPulseIndex = 0;
+    state.elapsed = 0;
+    state.exploding = true;
+
+    for (let i = 0; i < safeCount; i++) {
+      let chosenTime = safeCenter;
+      for (let attempt = 0; attempt < kNodeGraphPulseExplosionMaxRejectionAttempts; attempt++) {
+        const candidate = safeStart + (safeEnd - safeStart) * Math.random();
+        const roll = Math.random();
+        const density = nodeGraphPulseExplosionDensity(candidate, safeStart, safeCenter, safeEnd, skew);
+        if (roll < density) {
+          chosenTime = candidate;
+          break;
+        }
+      }
+      state.pulses.push({ time: chosenTime, amplitude: lo + (hi - lo) * Math.random() });
+    }
+    state.pulses.sort((a, b) => a.time - b.time);
+  }
+  state.wasHigh = high;
+
+  let output = 0;
+  if (state.exploding) {
+    if (state.nextPulseIndex < state.pulses.length && state.elapsed >= state.pulses[state.nextPulseIndex].time) {
+      output = state.pulses[state.nextPulseIndex].amplitude;
+      state.nextPulseIndex++;
+    }
+    state.elapsed += 1 / rate;
+    if (state.nextPulseIndex >= state.pulses.length && state.elapsed > safeEnd) {
+      state.exploding = false;
+    }
+  }
+
+  return nodeGraphSafeFilterNumber(output, runtime, nodeId, state, "pulse explosion output");
+}
+
 function createNodeGraphTb303FilterState() {
   return { y: [0, 0, 0, 0], hpX: 0, hpY: 0 };
 }
@@ -4639,6 +4732,25 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           frequency: readNodeGraphLiveEffectiveParam(runtime, node, "frequency", 0.5, frame, frames, frameValues),
           mode: readNodeGraphLiveEffectiveParam(runtime, node, "mode", 0, frame, frames, frameValues),
           resonance: readNodeGraphLiveEffectiveParam(runtime, node, "resonance", 0.2, frame, frames, frameValues),
+        },
+        sampleRate,
+        runtime,
+        nodeId,
+      );
+    } else if (node?.type === "pulseExplosion") {
+      const state = runtime.pulseExplosionStates.get(nodeId) || createNodeGraphPulseExplosionState();
+      runtime.pulseExplosionStates.set(nodeId, state);
+      value = nodeGraphPulseExplosionSample(
+        state,
+        mixInput(nodeId, "Trigger"),
+        {
+          startTime: readNodeGraphLiveEffectiveParam(runtime, node, "startTime", 0, frame, frames, frameValues),
+          centerTime: readNodeGraphLiveEffectiveParam(runtime, node, "centerTime", 0.5, frame, frames, frameValues),
+          endTime: readNodeGraphLiveEffectiveParam(runtime, node, "endTime", 1, frame, frames, frameValues),
+          timeSpread: readNodeGraphLiveEffectiveParam(runtime, node, "timeSpread", 0.3, frame, frames, frameValues),
+          numberOfPulses: readNodeGraphLiveEffectiveParam(runtime, node, "numberOfPulses", 20, frame, frames, frameValues),
+          lowAmplitude: readNodeGraphLiveEffectiveParam(runtime, node, "lowAmplitude", 0.3, frame, frames, frameValues),
+          highAmplitude: readNodeGraphLiveEffectiveParam(runtime, node, "highAmplitude", 1, frame, frames, frameValues),
         },
         sampleRate,
         runtime,

@@ -289,6 +289,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_pulse_explosion_create" `
+  "-Wl,--export=soemdsp_pulse_explosion_destroy" `
+  "-Wl,--export=soemdsp_pulse_explosion_sample" `
+  "-Wl,--export=soemdsp_pulse_explosion_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\pulse_explosion\pulse_explosion.wasm" `
+  "$root\native_modules\pulse_explosion\pulse_explosion.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_tb303_filter_create" `
   "-Wl,--export=soemdsp_tb303_filter_destroy" `
   "-Wl,--export=soemdsp_tb303_filter_sample" `

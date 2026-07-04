@@ -409,6 +409,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "pulse_explosion",
+      "label": "Pulse Explosion",
+      "targetType": "pulseExplosion",
+      "kind": "generator",
+      "source": "native_modules/pulse_explosion/pulse_explosion.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pulse_explosion/pulse_explosion.cpp",
+      "wasm": "native_modules/pulse_explosion/pulse_explosion.wasm",
+      "wasmUrl": "native_modules/pulse_explosion/pulse_explosion.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "random_walk",
       "label": "Random Walk",
       "targetType": "randomWalk",

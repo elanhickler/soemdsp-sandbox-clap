@@ -67,6 +67,7 @@ const nodeGraphNodeLabels = Object.freeze({
   chaoticPhaseLockingFilter: "Chaotic Phase Locking Filter",
   resonatorFilter: "Resonator Filter",
   humanFilter: "Human Filter",
+  pulseExplosion: "Pulse Explosion",
   ladderFilter: "Ladder Filter",
   tb303Filter: "TB-303 Filter",
   papoulisFilter: "Papoulis Filter",
@@ -2133,6 +2134,19 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "0.5", key: "frequency", label: "Frequency", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
       { defaultValue: "0.2", key: "resonance", label: "Resonance", max: "1", mid: "0.2", min: "0", nonlinearSlider: false, step: "any" },
       { defaultValue: "0", key: "chaos", label: "Chaos", max: "1", mid: "0.1", min: "0", nonlinearSlider: false, step: "any" },
+    ],
+  },
+  pulseExplosion: {
+    inputs: ["Trigger"],
+    outputs: ["Out"],
+    parameters: [
+      { defaultValue: "0", key: "startTime", label: "Start Time", max: "10", mid: "1", min: "0", nonlinearSlider: false, step: "any", unit: "s" },
+      { defaultValue: "0.5", key: "centerTime", label: "Center Time", max: "10", mid: "1", min: "0", nonlinearSlider: false, step: "any", unit: "s" },
+      { defaultValue: "1", key: "endTime", label: "End Time", max: "10", mid: "1", min: "0", nonlinearSlider: false, step: "any", unit: "s" },
+      { defaultValue: "0.3", key: "timeSpread", label: "Time Spread", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "20", key: "numberOfPulses", label: "Number of Pulses", max: "128", mid: "20", min: "1", nonlinearSlider: false, step: "1" },
+      { defaultValue: "0.3", key: "lowAmplitude", label: "Low Amplitude", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "1", key: "highAmplitude", label: "High Amplitude", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
   flowerChildFilter: {

@@ -202,6 +202,7 @@ var nodeGraphMvp = {
     chaoticPhaseLockingFilter: 0,
     resonatorFilter: 0,
     humanFilter: 0,
+    pulseExplosion: 0,
     graph2: 0,
     highpass: 0,
     image: 0,
