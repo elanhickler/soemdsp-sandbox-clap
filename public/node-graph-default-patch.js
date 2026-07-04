@@ -71,6 +71,8 @@ const nodeGraphDefaultPatch = Object.freeze({
   activeCameraId: "camera-1",
   audio: {
     targetSampleRate: 44100,
+    pitchReferenceMidiNote: 48,
+    pitchReferenceHz: 100,
   },
   bypassedNodes: [],
   cameras: [

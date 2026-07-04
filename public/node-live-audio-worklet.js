@@ -964,6 +964,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       ((Number(message.engineSampleRate) || this.hostSampleRate) / this.hostSampleRate);
     this.oversamplingRatio = Math.max(1, Math.min(4, Math.round(requestedRatio) || 1));
     this.engineSampleRate = this.hostSampleRate * this.oversamplingRatio;
+    // Global 0.1V/Oct pitch reference -- see node-graph-patch-normalizers.js
+    // for the full explanation. Defaults match normalizeNodeGraphPatchAudio's
+    // own defaults (C3 @ 100Hz) if the main thread hasn't sent them yet.
+    this.pitchReferenceMidiNote = Number.isFinite(Number(message.pitchReferenceMidiNote))
+      ? Number(message.pitchReferenceMidiNote)
+      : 48;
+    this.pitchReferenceHz = Number.isFinite(Number(message.pitchReferenceHz)) && Number(message.pitchReferenceHz) > 0
+      ? Number(message.pitchReferenceHz)
+      : 100;
     this.timing = this.normalizePatchTiming(plan?.timing);
     if (this.raptEllipticDecimatorRatio !== this.oversamplingRatio) {
       this.resetRaptEllipticDecimator();
@@ -1474,6 +1483,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   setConnections(plan, message = {}) {
+    if (Number.isFinite(Number(message.pitchReferenceMidiNote))) {
+      this.pitchReferenceMidiNote = Number(message.pitchReferenceMidiNote);
+    }
+    if (Number.isFinite(Number(message.pitchReferenceHz)) && Number(message.pitchReferenceHz) > 0) {
+      this.pitchReferenceHz = Number(message.pitchReferenceHz);
+    }
     this.patchFingerprint = message.patchFingerprint || plan?.patchFingerprint || this.patchFingerprint || "";
     this.planSerial = message.planSerial || this.planSerial || 0;
     this.sessionId = message.sessionId || this.sessionId || 0;
@@ -7533,9 +7548,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const state = this.robinSupersawStates.get(nodeId) || this.createRobinSupersawState();
         this.robinSupersawStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const baseFrequency = Math.max(0, read("frequency", 220));
+        // baseFrequency is the pitch heard at the global pitch reference
+        // note (see node-graph-patch-normalizers.js) -- set it equal to
+        // the master "Pitch Reference Frequency" setting and a MIDI
+        // keyboard is automatically in tune; double it to transpose the
+        // whole instrument up an octave.
+        const baseFrequency = Math.max(0, read("frequency", 100));
         const pitchInput = this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1);
-        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** (pitchInput / 0.1)));
+        const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
+        const referenceVoltage = referenceMidiNote / 120;
+        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
         value = this.robinSupersawSample(state, {
           frequencyHz: pitchedFrequency,
           sampleRate: this.engineSampleRate || sampleRate,

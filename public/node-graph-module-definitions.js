@@ -788,14 +788,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
     inputs: ["0.1V/Oct"],
     outputs: ["Mono", "Left", "Right"],
     parameters: [
-      // Default is the standard MIDI-note-0 frequency (C-1, 8.1758Hz), not
-      // A440 -- "Frequency" is the pitch heard at 0.1V/Oct = 0V, and this
-      // sandbox's keyboard/pitch-quantizer chain encodes MIDI note number
-      // directly as that voltage (0.1V/Oct = midi/120), so
-      // soundingFrequency = Frequency * 2^(midi/12). Defaulting Frequency
-      // here to MIDI note 0's frequency makes a keyboard patch track
-      // standard concert pitch (A4 = 440Hz at MIDI 69) with zero retuning.
-      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "8.1758", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
+      // "Frequency" is the pitch heard at the sandbox-wide "Pitch
+      // Reference Note" (Patch Settings panel; defaults to C3), NOT the
+      // pitch of whatever note you play. Set this equal to the master
+      // "Pitch Reference Frequency" (defaults to 100Hz) and a MIDI
+      // keyboard is automatically in tune; doubling it transposes the
+      // whole instrument up exactly one octave. See
+      // node-graph-patch-normalizers.js for the full explanation.
+      { key: "frequency", label: "Frequency", kind: "frequency", defaultValue: "100", min: "0", mid: "220", max: "20000", step: "any", unit: "Hz" },
       { key: "detuneCents", label: "Detune", defaultValue: "30", min: "0", mid: "50", max: "100", step: "0.1", unit: "cents" },
       { key: "voices", label: "Voices", defaultValue: "7", min: "1", mid: "5", max: "9", step: "1" },
       { key: "level", label: "Amplitude", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },

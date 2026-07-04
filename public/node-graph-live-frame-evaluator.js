@@ -2965,7 +2965,11 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       const state = runtime.robinSupersawStates.get(nodeId) || createNodeGraphRobinSupersawState();
       runtime.robinSupersawStates.set(nodeId, state);
       const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
-      const baseFrequency = Math.max(0, read("frequency", 220));
+      // baseFrequency is the pitch heard at the global pitch reference note
+      // (see node-graph-patch-normalizers.js) -- set it equal to the
+      // master "Pitch Reference Frequency" setting and a MIDI keyboard is
+      // automatically in tune; double it to transpose up an octave.
+      const baseFrequency = Math.max(0, read("frequency", 100));
       const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
         mixInput(nodeId, "0.1V/Oct"),
         runtime,
@@ -2973,7 +2977,9 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         null,
         "RobinSupersaw 0.1v input",
       ), -1, 1);
-      const pitchedFrequency = Math.max(0, baseFrequency * (2 ** (pitchInput / 0.1)));
+      const pitchReferenceAudio = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio);
+      const referenceVoltage = pitchReferenceAudio.pitchReferenceMidiNote / 120;
+      const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
       value = nodeGraphRobinSupersawSample(state, {
         frequencyHz: pitchedFrequency,
         sampleRate,
