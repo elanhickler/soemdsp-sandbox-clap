@@ -24,14 +24,25 @@ browser.
 ## 🚀 Quick start
 
 ```powershell
-# Requirements: Python 3, a modern browser. No package install needed.
+# Requirements:
+# - Python 3
+# - A modern browser
+# No package install is required for the sandbox server.
 
+# Download:
 git clone https://github.com/soundemote/soemdsp-sandbox.git
 cd soemdsp-sandbox
 
+# Run:
 python server.py
-# open http://127.0.0.1:8765
 
+# Open:
+# http://127.0.0.1:8765
+
+# Stop:
+# Ctrl+C
+
+# Test:
 python scripts\smoke_test.py
 ```
 
