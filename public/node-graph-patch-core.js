@@ -174,6 +174,10 @@ function validateNodeGraphPatch(patch) {
     if (type === "codeblock") {
       normalizedNode.codeblock = normalizeNodeGraphCodeblock(node.codeblock);
     }
+    const normalizedPortScripts = normalizeNodeGraphPortScripts(type, node.portScripts);
+    if (normalizedPortScripts) {
+      normalizedNode.portScripts = normalizedPortScripts;
+    }
     if (type === "canvas") {
       normalizedNode.canvasScript = normalizeNodeGraphCanvasScript(node.canvasScript);
     }

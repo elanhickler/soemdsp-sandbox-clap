@@ -1064,22 +1064,9 @@ function handleNodeGraphLiveWorkletMessage(event) {
       patchFingerprint: message.patchFingerprint || nodeGraphPatchFingerprint(),
       sampleRate: message.sampleRate || nodeGraphMvp.live.context?.sampleRate || nodeGraphMvp.sampleRate,
     });
-    if (Array.isArray(message.hypersawVoicePhases) && message.hypersawVoicePhases.length) {
-      nodeGraphModuleScopeState.hypersawVoicePhases ||= new Map();
-      for (const [nodeId, phases] of message.hypersawVoicePhases) {
-        nodeGraphModuleScopeState.hypersawVoicePhases.set(String(nodeId), phases);
-      }
-    }
-    if (Array.isArray(message.hypersawVoiceAmplitudes) && message.hypersawVoiceAmplitudes.length) {
-      nodeGraphModuleScopeState.hypersawVoiceAmplitudes ||= new Map();
-      for (const [nodeId, amplitudes] of message.hypersawVoiceAmplitudes) {
-        nodeGraphModuleScopeState.hypersawVoiceAmplitudes.set(String(nodeId), amplitudes);
-      }
-    }
-    if (Array.isArray(message.hypersawVoicePans) && message.hypersawVoicePans.length) {
-      nodeGraphModuleScopeState.hypersawVoicePans ||= new Map();
-      for (const [nodeId, pans] of message.hypersawVoicePans) {
-        nodeGraphModuleScopeState.hypersawVoicePans.set(String(nodeId), pans);
+    if (Array.isArray(message.dataPorts) && message.dataPorts.length) {
+      for (const [nodeId, port, value] of message.dataPorts) {
+        writeNodeGraphDataOutput(String(nodeId), port, value);
       }
     }
   } else if (message.type === "visualControls") {

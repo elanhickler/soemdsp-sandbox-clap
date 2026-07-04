@@ -60,6 +60,7 @@ function nodeGraphModuleOutputPorts(type) {
   }
   return [
     ...(definition.outputs || []),
+    ...(definition.dataOutputs || []),
     ...(definition.parameters || []).map((parameter) => parameter.key),
   ];
 }
@@ -323,7 +324,11 @@ function nodeGraphPatchNodeInputPorts(node) {
   if (patchNode?.type === "screenSpaceShader") {
     return normalizeNodeGraphScreenSpaceShader(patchNode.screenSpaceShader).inputs;
   }
-  return nodeGraphModuleDefinitions[patchNode?.type]?.inputs || [];
+  const definition = nodeGraphModuleDefinitions[patchNode?.type];
+  return [
+    ...(definition?.inputs || []),
+    ...(definition?.dataInputs || []),
+  ];
 }
 
 function nodeGraphPatchNodeOutputPorts(node) {

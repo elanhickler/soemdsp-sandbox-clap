@@ -9931,7 +9931,11 @@ function drawNodeGraphHypersawBurnItem(renderer, item, pixelRatio) {
   ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const phases = nodeGraphModuleScopeState.hypersawVoicePhases?.get(String(nodeId));
+  // Reads its own just-published Phases output directly off the data bus
+  // (see node-graph-data-bus.js) -- this is Hypersaw looking at its own
+  // data, not a wired input, so it bypasses readNodeGraphDataInput's wire
+  // lookup and addresses the bus by its own node id.
+  const phases = nodeGraphDataBus.get(nodeGraphDataBusKey(String(nodeId), "Phases"));
   if (!Array.isArray(phases) || !phases.length) {
     return;
   }
@@ -10009,21 +10013,9 @@ function drawNodeGraphOscilloscopeBankBurnItem(renderer, item, pixelRatio) {
   ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const phasesConnection = nodeGraphModuleScopeConnectionsTo(nodeId, "Phases")
-    .find((candidate) => candidate?.sourceNode);
-  const amplitudesConnection = nodeGraphModuleScopeConnectionsTo(nodeId, "Amplitudes")
-    .find((candidate) => candidate?.sourceNode);
-  const pansConnection = nodeGraphModuleScopeConnectionsTo(nodeId, "Pans")
-    .find((candidate) => candidate?.sourceNode);
-  if (!phasesConnection || !amplitudesConnection) {
-    return;
-  }
-
-  const phases = nodeGraphModuleScopeState.hypersawVoicePhases?.get(String(phasesConnection.sourceNode));
-  const amplitudes = nodeGraphModuleScopeState.hypersawVoiceAmplitudes?.get(String(amplitudesConnection.sourceNode));
-  const pans = pansConnection
-    ? nodeGraphModuleScopeState.hypersawVoicePans?.get(String(pansConnection.sourceNode))
-    : null;
+  const phases = readNodeGraphDataInput(nodeId, "Phases");
+  const amplitudes = readNodeGraphDataInput(nodeId, "Amplitudes");
+  const pans = readNodeGraphDataInput(nodeId, "Pans");
   if (!Array.isArray(phases) || !phases.length || !Array.isArray(amplitudes) || !amplitudes.length) {
     return;
   }

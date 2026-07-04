@@ -4240,17 +4240,11 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       value = {
         Left: hypersawResult.Left,
         Right: hypersawResult.Right,
-        Phases: hypersawResult.voicePhases,
-        Amplitudes: hypersawResult.voiceAmplitudes,
-        Pans: hypersawResult.voicePans,
       };
-      if (typeof nodeGraphModuleScopeState !== "undefined") {
-        nodeGraphModuleScopeState.hypersawVoicePhases ||= new Map();
-        nodeGraphModuleScopeState.hypersawVoicePhases.set(String(nodeId), hypersawResult.voicePhases);
-        nodeGraphModuleScopeState.hypersawVoiceAmplitudes ||= new Map();
-        nodeGraphModuleScopeState.hypersawVoiceAmplitudes.set(String(nodeId), hypersawResult.voiceAmplitudes);
-        nodeGraphModuleScopeState.hypersawVoicePans ||= new Map();
-        nodeGraphModuleScopeState.hypersawVoicePans.set(String(nodeId), hypersawResult.voicePans);
+      if (typeof writeNodeGraphDataOutput === "function") {
+        writeNodeGraphDataOutput(String(nodeId), "Phases", hypersawResult.voicePhases);
+        writeNodeGraphDataOutput(String(nodeId), "Amplitudes", hypersawResult.voiceAmplitudes);
+        writeNodeGraphDataOutput(String(nodeId), "Pans", hypersawResult.voicePans);
       }
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;

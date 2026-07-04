@@ -114,11 +114,87 @@ function handleNodeGraphTextBoxWheel(event) {
   }
 }
 
+// Title/Text data-input resolution -- returns null when the port isn't
+// wired (caller falls back to the typed value), or the resolved string
+// (raw wire value, optionally transformed by a port script stored at
+// `patchNode.portScripts[port]`) when it is. Port scripts are plain
+// JavaScript, see node-graph-port-script.js.
+function nodeGraphTextBoxResolvedTitle(patchNode) {
+  const raw = readNodeGraphDataInput(patchNode.id, "Title");
+  if (raw === undefined) {
+    return null;
+  }
+  return String(evaluateNodeGraphPortScript(patchNode.portScripts?.Title, raw) ?? "");
+}
+
+function nodeGraphTextBoxResolvedText(patchNode) {
+  const raw = readNodeGraphDataInput(patchNode.id, "Text");
+  if (raw === undefined) {
+    return null;
+  }
+  return String(evaluateNodeGraphPortScript(patchNode.portScripts?.Text, raw) ?? "");
+}
+
+// Text Box's title is directly editable (typed live, committed to
+// node.alias -- the same field/commit pattern the context-menu alias
+// field already used, just triggered inline instead of via a menu
+// round trip) unless the Title data-input port is connected, in which
+// case the wire's resolved value takes over and the field goes
+// read-only. The static <span> title (built once, in
+// createNodeGraphModuleHeader) gets swapped for an <input> the first
+// time this runs for a given node.
+function syncNodeGraphTextBoxTitle(element, patchNode) {
+  const titleRow = element.querySelector(".node-header-title-row");
+  if (!titleRow) {
+    return;
+  }
+  let field = titleRow.querySelector(".node-text-box-title-input");
+  if (!field) {
+    const staticSpan = titleRow.querySelector(".node-header-title");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "node-header-title node-text-box-title-input";
+    input.dataset.node = patchNode.id;
+    input.spellcheck = false;
+    input.addEventListener("pointerdown", (event) => event.stopPropagation());
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("dblclick", (event) => event.stopPropagation());
+    input.addEventListener("change", () => {
+      const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+      const targetNode = patch.nodes.find((candidate) => candidate.id === patchNode.id);
+      if (!targetNode) {
+        return;
+      }
+      const alias = input.value.trim();
+      if (alias) {
+        targetNode.alias = alias;
+      } else {
+        delete targetNode.alias;
+      }
+      commitNodeGraphPatch(patch, { status: "text box title changed" });
+    });
+    staticSpan?.replaceWith(input);
+    field = input;
+  }
+  const resolvedTitle = nodeGraphTextBoxResolvedTitle(patchNode);
+  field.readOnly = resolvedTitle !== null;
+  const displayValue = resolvedTitle !== null ? resolvedTitle : nodeGraphPatchNodeTitle(patchNode.id);
+  if (document.activeElement !== field && field.value !== displayValue) {
+    field.value = displayValue;
+  }
+}
+
 function syncNodeGraphTextBoxElement(element, patchNode) {
   if (!element || !patchNode) {
     return;
   }
+  syncNodeGraphTextBoxTitle(element, patchNode);
   const layout = normalizeNodeGraphTextBoxLayout(patchNode.layout);
+  const resolvedText = nodeGraphTextBoxResolvedText(patchNode);
+  if (resolvedText !== null) {
+    layout.text = resolvedText;
+  }
+  writeNodeGraphDataOutput(patchNode.id, "Text Out", layout.text);
   const body = element.querySelector(".node-text-box-body");
   if (!body) {
     return;

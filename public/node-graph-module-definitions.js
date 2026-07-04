@@ -1302,7 +1302,8 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "Left", kind: "scalar" },
     ],
     inputs: ["Reset", "0.1V/Oct"],
-    outputs: ["Left", "Right", "Phases", "Amplitudes", "Pans"],
+    outputs: ["Left", "Right"],
+    dataOutputs: ["Phases", "Amplitudes", "Pans"],
     parameters: [
       { key: "voices", label: "Num Sawtooths", defaultValue: "8", min: "1", mid: "8", max: "32", step: "1" },
       { key: "phase", label: "Phase", kind: "phase", defaultValue: "0", min: "0", mid: "0.5", max: "1", step: "0.01", unit: "cycle", wraparound: true },
@@ -2997,7 +2998,7 @@ const nodeGraphModuleDefinitions = Object.freeze({
   },
   oscilloscopeBank: {
     displayType: "oscilloscopeBankBurn",
-    inputs: ["Phases", "Amplitudes", "Pans"],
+    dataInputs: ["Phases", "Amplitudes", "Pans"],
     layout: "traceDisplay",
     outputs: [],
     parameters: [],
@@ -3084,6 +3085,8 @@ const nodeGraphModuleDefinitions = Object.freeze({
   textBox: {
     layout: "textBox",
     layoutOnly: true,
+    dataInputs: ["Title", "Text"],
+    dataOutputs: ["Text Out"],
     parameters: [],
   },
   output: {

@@ -3299,27 +3299,27 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }]);
       state.postedFrame = absoluteFrame;
     }
-    const hypersawVoicePhases = [];
-    const hypersawVoiceAmplitudes = [];
-    const hypersawVoicePans = [];
+    // Data-plane relay: any dataOutputs port (Hypersaw's Phases/
+    // Amplitudes/Pans today, more later) piggybacks on this same
+    // periodic "scope" message instead of the per-sample signal graph --
+    // see public/node-graph-data-bus.js for the receiving/read side.
+    const dataPorts = [];
     for (const [nodeId, state] of this.hypersawStates) {
       if (Array.isArray(state?.lastVoicePhases) && state.lastVoicePhases.length) {
-        hypersawVoicePhases.push([nodeId, state.lastVoicePhases]);
+        dataPorts.push([nodeId, "Phases", state.lastVoicePhases]);
       }
       if (Array.isArray(state?.lastVoiceAmplitudes) && state.lastVoiceAmplitudes.length) {
-        hypersawVoiceAmplitudes.push([nodeId, state.lastVoiceAmplitudes]);
+        dataPorts.push([nodeId, "Amplitudes", state.lastVoiceAmplitudes]);
       }
       if (Array.isArray(state?.lastVoicePans) && state.lastVoicePans.length) {
-        hypersawVoicePans.push([nodeId, state.lastVoicePans]);
+        dataPorts.push([nodeId, "Pans", state.lastVoicePans]);
       }
     }
-    if (!values.length && !hypersawVoicePhases.length) {
+    if (!values.length && !dataPorts.length) {
       return;
     }
     this.port.postMessage({
-      ...(hypersawVoicePhases.length ? { hypersawVoicePhases } : {}),
-      ...(hypersawVoiceAmplitudes.length ? { hypersawVoiceAmplitudes } : {}),
-      ...(hypersawVoicePans.length ? { hypersawVoicePans } : {}),
+      ...(dataPorts.length ? { dataPorts } : {}),
       patchFingerprint: this.patchFingerprint,
       sampleRate: engineSampleRate,
       sessionId: this.sessionId,
