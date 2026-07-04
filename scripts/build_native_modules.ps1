@@ -1019,3 +1019,18 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\lut_cell\lut_cell.wasm" `
   "$root\native_modules\lut_cell\lut_cell.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_metallic_ratio_sample" `
+  "-Wl,--export=soemdsp_metallic_ratio_version" `
+  "-Wl,--export=soemdsp_metallic_ratio_metadata_json" `
+  "-Wl,--export=soemdsp_metallic_ratio_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\metallic_ratio\metallic_ratio.wasm" `
+  "$root\native_modules\metallic_ratio\metallic_ratio.cpp"

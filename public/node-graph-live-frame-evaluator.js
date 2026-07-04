@@ -4461,6 +4461,10 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         truthTable: read("truthTable", 27030),
         sampleRate,
       });
+    } else if (node?.type === "metallicRatio") {
+      value = nodeGraphMetallicRatioSample(
+        readNodeGraphLiveEffectiveParam(runtime, node, "index", 1, frame, frames, frameValues),
+      );
     } else if (node?.type === "midiOut") {
       const midiInputKey = `${nodeId}.MIDI Number`;
       const hasMidiInput = runtime.inputConnections.has(midiInputKey);

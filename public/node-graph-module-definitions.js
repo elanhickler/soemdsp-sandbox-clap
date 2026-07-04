@@ -50,6 +50,7 @@ const nodeGraphNodeLabels = Object.freeze({
   hypersaw: "Hypersaw",
   chordSequencer: "Chord Sequencer",
   lutCell: "LUT Cell",
+  metallicRatio: "Metallic Ratio",
   noiseGenerator: "Noise Generator",
   randomWalk: "Random Walk",
   fractalBrownianNoise: "Fractal Brownian Noise",
@@ -1348,6 +1349,12 @@ const nodeGraphModuleDefinitions = Object.freeze({
     outputs: ["Out", "Q"],
     parameters: [
       { key: "truthTable", label: "Truth Table", defaultValue: "27030", min: "0", mid: "32767.5", max: "65535", step: "1" },
+    ],
+  },
+  metallicRatio: {
+    outputs: ["Ratio"],
+    parameters: [
+      { key: "index", label: "Index", defaultValue: "1", min: "0", mid: "4", max: "8", step: "any" },
     ],
   },
   noiseGenerator: {

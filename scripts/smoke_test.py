@@ -227,6 +227,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-hypersaw.js",
     "./public/node-graph-chord-sequencer.js",
     "./public/node-graph-lut-cell.js",
+    "./public/node-graph-metallic-ratio.js",
     "./public/node-graph-live-frame-evaluator.js",
     "./public/node-graph-surge-oscillator.js",
     "./public/node-graph-live-runtime.js",
@@ -17022,6 +17023,8 @@ def require_readme_scheduler_contract() -> None:
         "docs/media/radar-anim.gif",
         "BEAMING_RADAR_SIGNAL_TO_JEROBEAM.md",
         "POWER_ENGINE_SYNTHESIS.md",
+        "Metallic Ratio",
+        "metallic mean",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
     for snippet in [
@@ -17294,6 +17297,7 @@ def require_native_module_contract(base_url: str) -> None:
     expected_native_exports = {
         "chord_sequencer": ["soemdsp_chord_sequencer_create", "soemdsp_chord_sequencer_destroy", "soemdsp_chord_sequencer_sample"],
         "lut_cell": ["soemdsp_lut_cell_create", "soemdsp_lut_cell_destroy", "soemdsp_lut_cell_sample", "soemdsp_lut_cell_q"],
+        "metallic_ratio": ["soemdsp_metallic_ratio_sample"],
         "chua_attractor": ["soemdsp_chua_attractor_create", "soemdsp_chua_attractor_destroy", "soemdsp_chua_attractor_sample"],
         "ellipsoid": ["soemdsp_ellipsoid_sample", "soemdsp_ellipsoid_vector_sample"],
         "fractal_brownian_noise": ["soemdsp_fbm_create", "soemdsp_fbm_destroy", "soemdsp_fbm_sample"],

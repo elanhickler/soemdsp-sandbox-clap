@@ -380,6 +380,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "metallic_ratio",
+      "label": "Metallic Ratio",
+      "targetType": "metallicRatio",
+      "kind": "math",
+      "source": "native_modules/metallic_ratio/metallic_ratio.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/metallic_ratio/metallic_ratio.cpp",
+      "wasm": "native_modules/metallic_ratio/metallic_ratio.wasm",
+      "wasmUrl": "native_modules/metallic_ratio/metallic_ratio.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "noise_generator",
       "label": "Noise Generator",
       "targetType": "noiseGenerator",

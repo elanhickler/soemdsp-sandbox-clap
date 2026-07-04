@@ -1053,6 +1053,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "metallic_ratio" || targetType === "metallicRatio") {
+        this.nativeMetallicRatio = exports;
+        this.nativeMetallicRatioReady = Boolean(
+          this.nativeMetallicRatio?.soemdsp_metallic_ratio_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "metallic_ratio",
+          status: this.nativeMetallicRatioReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "surge_oscillator" || targetType === "surgeOscillator") {
         for (const state of this.surgeOscillatorStates.values()) {
           this.destroySurgeOscillatorNativeState(state);
@@ -2637,6 +2649,26 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const normalizedSpeed = Number(speed);
     event.speed = Number.isFinite(normalizedSpeed) ? normalizedSpeed : null;
     this.shootingStarExplosionEvent = event;
+  }
+
+  metallicRatioSample(index) {
+    const n = Number(index) || 0;
+    const fallback = () => 0.5 * (n + Math.sqrt(n * n + 4));
+    if (!this.nativeMetallicRatioReady || !this.nativeMetallicRatio?.soemdsp_metallic_ratio_sample) {
+      return fallback();
+    }
+    try {
+      return this.safeFilterNumber(this.nativeMetallicRatio.soemdsp_metallic_ratio_sample(n), null);
+    } catch (error) {
+      this.nativeMetallicRatioReady = false;
+      this.port.postMessage({
+        type: "nativeModuleStatus",
+        name: "metallic_ratio",
+        status: "disabled",
+        message: String(error?.message || error || "native Metallic Ratio failed"),
+      });
+      return fallback();
+    }
   }
 
   nativeShootingStarExplosionPower(speed, lowRange = 0, highRange = 1) {
@@ -13386,6 +13418,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           driftAmount: read("drift", 0.1),
           level: read("level", 0.35),
         });
+      } else if (node?.type === "metallicRatio") {
+        value = {
+          Ratio: this.metallicRatioSample(
+            this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
+          ),
+        };
       } else if (node?.type === "midiOut") {
         const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
         const midiNumber = this.clampValue(Math.round(this.readEffectiveParameter(

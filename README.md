@@ -461,6 +461,14 @@ out: RS-MET's pitch dithering for cheap, alias-free density at scale, and
 Soundemote's existing `Supersaw`/`Hypersaw` voice architecture for the
 musical character on top of it.
 
+### 📐 Metallic Ratio — RobinSchmidt/RS-MET
+
+A direct port of `RAPT::rsRatioGenerator::metallic()` from RS-MET's
+`RatioGenerator.h`: `Ratio = (Index + sqrt(Index^2 + 4)) / 2`, the metallic
+mean family (0 = unity, 1 = golden, 2 = silver, 3 = bronze, ...). Stateless
+native module wired into both the offline frame evaluator and the realtime
+audio worklet.
+
 ### 🌀 Hypersaw
 
 A sibling voice architecture to Supersaw (reference copy:
