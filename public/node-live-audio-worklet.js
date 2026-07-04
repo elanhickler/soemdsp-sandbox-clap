@@ -6973,7 +6973,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const baseFrequency = this.readEffectiveParameter(
           node,
           "freq",
-          440,
+          100,
           frame,
           frames,
           frameValues,
@@ -7016,7 +7016,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const frequency = this.readEffectiveParameter(
           node,
           "frequency",
-          220,
+          100,
           frame,
           frames,
           frameValues,
@@ -7097,7 +7097,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const frequency = this.readEffectiveParameter(
           node,
           "frequency",
-          220,
+          100,
           frame,
           frames,
           frameValues,
@@ -7150,7 +7150,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const phaseOffset = this.phaseRadians(
           this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
         );
-        const frequency = this.readEffectiveParameter(node, "frequency", 220, frame, frames, frameValues);
+        const frequency = this.readEffectiveParameter(node, "frequency", 100, frame, frames, frameValues);
         const pitchInput = this.clampValue(
           this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
           -1,
@@ -7515,7 +7515,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const state = this.surgeOscillatorStates.get(nodeId) || this.createSurgeOscillatorState();
         this.surgeOscillatorStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const baseFrequency = Math.max(0, read("frequency", 220));
+        const baseFrequency = Math.max(0, read("frequency", 100));
         const pitchInput = this.clampValue(
           this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
           -10,
@@ -7536,7 +7536,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.dsfOscillatorStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
         value = this.dsfOscillatorSample(state, {
-          frequencyHz: Math.max(0, read("frequency", 220)),
+          frequencyHz: Math.max(0, read("frequency", 100)),
           sampleRate: this.engineSampleRate || sampleRate,
           waveform: read("waveform", 1),
           morph: read("morph", 1),

@@ -2311,7 +2311,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         runtime,
         node,
         "freq",
-        440,
+        100,
         frame,
         frames,
         frameValues,
@@ -2384,7 +2384,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         runtime,
         node,
         "frequency",
-        220,
+        100,
         frame,
         frames,
         frameValues,
@@ -2473,7 +2473,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         runtime,
         node,
         "frequency",
-        220,
+        100,
         frame,
         frames,
         frameValues,
@@ -2540,7 +2540,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frameValues,
       );
       const phaseOffset = nodeGraphPhaseRadians(read("phase", 0));
-      const frequency = read("frequency", 220);
+      const frequency = read("frequency", 100);
       const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
         mixInput(nodeId, "0.1V/Oct"),
         runtime,
@@ -2930,7 +2930,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       const state = runtime.surgeOscillatorStates.get(nodeId) || createNodeGraphSurgeOscillatorState();
       runtime.surgeOscillatorStates.set(nodeId, state);
       const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
-      const baseFrequency = Math.max(0, read("frequency", 220));
+      const baseFrequency = Math.max(0, read("frequency", 100));
       const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
         mixInput(nodeId, "0.1V/Oct"),
         runtime,
@@ -2953,7 +2953,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       runtime.dsfOscillatorStates.set(nodeId, state);
       const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
       value = nodeGraphDsfOscillatorSample(state, {
-        frequencyHz: Math.max(0, read("frequency", 220)),
+        frequencyHz: Math.max(0, read("frequency", 100)),
         sampleRate,
         waveform: read("waveform", 1),
         morph: read("morph", 1),
