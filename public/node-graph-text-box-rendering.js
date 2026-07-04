@@ -135,46 +135,17 @@ function nodeGraphTextBoxResolvedText(patchNode) {
   return String(evaluateNodeGraphPortScript(patchNode.portScripts?.Text, raw) ?? "");
 }
 
-// Text Box's title is directly editable (typed live, committed to
-// node.alias -- the same field/commit pattern the context-menu alias
-// field already used, just triggered inline instead of via a menu
-// round trip) unless the Title data-input port is connected, in which
-// case the wire's resolved value takes over and the field goes
-// read-only. The static <span> title (built once, in
-// createNodeGraphModuleHeader) gets swapped for an <input> the first
-// time this runs for a given node.
+// Every module's title is directly editable inline now (see
+// createNodeGraphModuleHeader / commitNodeGraphModuleTitleFromHeaderInput
+// in node-graph-module-header-rendering.js and node-graph-module-actions.js
+// -- ".node-header-title" is always an <input>, committing to node.alias).
+// Text Box layers one thing on top of that generic behavior: when the
+// Title data-input port is connected, the wire's resolved value overrides
+// whatever's typed and the field goes read-only.
 function syncNodeGraphTextBoxTitle(element, patchNode) {
-  const titleRow = element.querySelector(".node-header-title-row");
-  if (!titleRow) {
-    return;
-  }
-  let field = titleRow.querySelector(".node-text-box-title-input");
+  const field = element.querySelector(".node-header-title");
   if (!field) {
-    const staticSpan = titleRow.querySelector(".node-header-title");
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "node-header-title node-text-box-title-input";
-    input.dataset.node = patchNode.id;
-    input.spellcheck = false;
-    input.addEventListener("pointerdown", (event) => event.stopPropagation());
-    input.addEventListener("click", (event) => event.stopPropagation());
-    input.addEventListener("dblclick", (event) => event.stopPropagation());
-    input.addEventListener("change", () => {
-      const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
-      const targetNode = patch.nodes.find((candidate) => candidate.id === patchNode.id);
-      if (!targetNode) {
-        return;
-      }
-      const alias = input.value.trim();
-      if (alias) {
-        targetNode.alias = alias;
-      } else {
-        delete targetNode.alias;
-      }
-      commitNodeGraphPatch(patch, { status: "text box title changed" });
-    });
-    staticSpan?.replaceWith(input);
-    field = input;
+    return;
   }
   const resolvedTitle = nodeGraphTextBoxResolvedTitle(patchNode);
   field.readOnly = resolvedTitle !== null;

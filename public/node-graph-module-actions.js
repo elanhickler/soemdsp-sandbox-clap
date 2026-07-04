@@ -785,6 +785,29 @@ function adjustNodeGraphTextBoxHeightFromContext(delta) {
   configureNodeSceneContextMenu("module");
 }
 
+// Commits an inline edit made directly in a module's header title field
+// (see createNodeGraphModuleHeader) to node.alias -- same normalize/commit
+// as the context-menu alias field (setNodeGraphModuleAliasFromContext),
+// just addressed by node id instead of reading the currently-targeted
+// context-menu node, since the header input can be edited without the
+// context menu open at all.
+function commitNodeGraphModuleTitleFromHeaderInput(nodeId, value) {
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === nodeId);
+  if (!targetNode) {
+    return;
+  }
+  const alias = normalizeNodeGraphPatchNodeAlias(value);
+  if (alias) {
+    targetNode.alias = alias;
+  } else {
+    delete targetNode.alias;
+  }
+  commitNodeGraphPatch(patch, {
+    status: alias ? "module title changed" : "module title cleared",
+  });
+}
+
 function setNodeGraphModuleAliasFromContext({ record = true } = {}) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
   if (!sourceNode) {

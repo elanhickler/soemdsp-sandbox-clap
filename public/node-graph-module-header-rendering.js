@@ -358,9 +358,16 @@ function createNodeGraphModuleHeader(type, node, definition) {
   const titleRow = document.createElement("div");
   titleRow.className = "node-header-title-row";
   nodeGraphApplyTooltip(titleRow, "module.titleMove", {}, { title: false });
-  const titleText = document.createElement("span");
-  titleText.className = "node-header-title";
-  titleText.textContent = nodeGraphPatchNodeTitle({ id: node, type });
+  const titleText = document.createElement("input");
+  titleText.type = "text";
+  titleText.className = "node-header-title node-header-title-input";
+  titleText.dataset.node = node;
+  titleText.spellcheck = false;
+  titleText.value = nodeGraphPatchNodeTitle({ id: node, type });
+  titleText.addEventListener("pointerdown", (event) => event.stopPropagation());
+  titleText.addEventListener("click", (event) => event.stopPropagation());
+  titleText.addEventListener("dblclick", (event) => event.stopPropagation());
+  titleText.addEventListener("change", () => commitNodeGraphModuleTitleFromHeaderInput(node, titleText.value));
   titleRow.append(titleText);
   header.append(titleRow);
 

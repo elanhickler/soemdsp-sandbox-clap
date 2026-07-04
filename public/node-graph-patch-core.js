@@ -498,7 +498,13 @@ function applyNodeGraphPatchToDom() {
     element.dataset.structuralUiSignature = structuralUiSignature;
     const titleText = element.querySelector(".node-header-title");
     if (titleText) {
-      titleText.textContent = nodeGraphPatchNodeTitle(patchNode);
+      if (titleText.tagName === "INPUT") {
+        if (document.activeElement !== titleText) {
+          titleText.value = nodeGraphPatchNodeTitle(patchNode);
+        }
+      } else {
+        titleText.textContent = nodeGraphPatchNodeTitle(patchNode);
+      }
     }
     element.classList.toggle("buttons-hidden", patchNodeUi.buttonsHidden);
     element.classList.toggle("io-hidden", patchNodeUi.ioHidden);
