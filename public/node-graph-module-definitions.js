@@ -2508,6 +2508,8 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "pluckEnvelope",
     "polyBlep",
     "surgeOscillator",
+    "robinSupersaw",
+    "pitchQuantizer",
     "randomWalk",
     "rgbaHsla",
     "sandboxVisuals",
