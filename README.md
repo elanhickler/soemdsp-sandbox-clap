@@ -83,10 +83,10 @@ compiled artifact with a Python+wasmtime harness before wiring:
 |---|---|---|
 | `flower_child_filter` | Clean, Dirty, Rev3, Downsampled | The original two revisions plus an ellipsoid-oscillator variant and a sample-and-hold aliasing variant |
 | `rsmet_filter` | LP6/12/18/24, HP6/12/18/24, BP6, BP12 (10) | A ladder filter with a tanh soft clipper and noise injection stage |
-| `yellowjacket_filter` | — | Feedback ellipse-oscillator filter, grindy, easily produces square-wave-like output |
+| `yellowjacket_filter` | — | Feedback ellipse-oscillator filter, grindy, easily produces square-wave-like output. Its resonance has a chaotic, bubbly character reminiscent of a Polivoks-style filter |
 | `superlove_filter` | LP18, LP24, HP6, BP6 | Trisaw-oscillator feedback resonator, warm and stably self-oscillating |
 | `chaotic_phase_locking_filter` | — | Direct feedback ellipse-waveshaper resonator (no oscillator phasor) |
-| `resonator_filter` | Sinusoid, Triangle, Sawtooth | Dual-phasor FM feedback resonator |
+| `resonator_filter` | Sinusoid, Triangle, Sawtooth | Dual-phasor FM feedback resonator — each mode's *resonance itself* is visibly and audibly shaped like its namesake, not just a generic buzz with a different label. See below |
 | `human_filter` 🚧 | BP6, LP6, LP12 | Dual-phasor feedback network shaped by a bell filter — marked under construction; the original's feedback-filter wrapper (Q, center frequency) wasn't recoverable from the accessible codebase, so a documented Q=1/1kHz default stands in |
 
 Every shaping curve in these (resonance-vs-frequency, FM/PM crossfade, etc.)
@@ -109,6 +109,24 @@ digital effect being crossfaded in.
 **SuperLove's HP6 mode in particular** screams — driven hard, it produces
 clean, beautiful square waves and is generally one of the hottest-sounding
 highpass filters in this set.
+
+**Resonator Filter deserves more than "dual-phasor FM feedback resonator."**
+What actually makes it interesting is that each of its three modes doesn't
+just change the *timbre* of the resonance — it visibly reshapes what the
+resonance *is*:
+
+- **Sawtooth mode's** resonance is literally sawtooth-shaped when you look
+  at the waveform, not just "a buzzier tone."
+- **Triangle mode's** resonance is literally triangular — a different
+  geometric shape entirely, not a filtered version of the same shape.
+- **Sinusoid mode's** resonance looks like an overly rounded sine wave, and
+  that rounding is exactly why it sounds bubbly rather than smooth — a kind
+  of sinusoidal fractal quality that comes directly from the shape, not from
+  added modulation.
+
+That's a genuinely novel result for a feedback resonator: the *shape* of the
+self-oscillation is the mode, not a label on top of the same underlying
+waveform.
 
 ---
 

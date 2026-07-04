@@ -16874,6 +16874,9 @@ def require_readme_scheduler_contract() -> None:
         "Characterizing behavior empirically",
         "morphs a sine into a square",
         "SuperLove's HP6 mode in particular",
+        "Polivoks-style filter",
+        "Resonator Filter deserves more than",
+        "sinusoidal fractal quality",
     ]:
         require(snippet in readme_text, f"README scheduler contract missing {snippet}")
 
