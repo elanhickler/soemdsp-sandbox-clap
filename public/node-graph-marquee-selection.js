@@ -47,6 +47,15 @@ function nodeGraphMarqueeTargetIsBlocked(target) {
 }
 
 function startNodeGraphMarqueeSelection(event, workspace) {
+  // event.preventDefault() below suppresses the browser's normal
+  // click-elsewhere-blurs-the-focused-field behavior, so a module title
+  // being edited (see node-graph-module-header-rendering.js) would stay
+  // focused forever on a left-click into empty canvas. Blur it explicitly
+  // so marquee-select on empty space also exits title-edit mode, matching
+  // what already happens via the context menu / right-click path.
+  if (document.activeElement?.classList?.contains("node-header-title")) {
+    document.activeElement.blur();
+  }
   const point = nodeGraphClientPoint(event);
   const additive = event.shiftKey || event.ctrlKey || event.metaKey;
   nodeGraphMvp.marqueeSelection = {
