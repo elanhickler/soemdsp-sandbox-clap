@@ -1,5 +1,6 @@
 function bindNodeGraphHeaderControlEvents() {
   bindNodeGraphEarProtectionFaultUi();
+  bindNodeGraphModuleDiagnosticsFaultUi();
   bindNodeGraphShaderScriptEvents();
   bindNodeGraphCanvasScriptEvents();
   bindNodeGraphCodeScreenEvents();

@@ -275,6 +275,108 @@ body.node-ear-protection-tripped .node-ear-protection-fault {
   color: rgba(243, 241, 236, 0.86);
 }
 
+.node-module-diagnostics-fault {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  display: none;
+  place-items: center;
+  pointer-events: auto;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(240, 197, 111, 0.1), transparent 34%),
+    rgba(0, 0, 0, 0.42);
+}
+
+body.node-module-diagnostics-tripped .node-module-diagnostics-fault {
+  display: grid;
+}
+
+.node-module-diagnostics-fault-panel {
+  min-inline-size: min(520px, calc(100vw - 32px));
+  max-inline-size: min(680px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 18px 22px;
+  border: 1px solid rgba(240, 197, 111, 0.42);
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgba(240, 197, 111, 0.08), rgba(127, 199, 217, 0.06)),
+    rgba(5, 7, 9, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.86),
+    0 0 32px rgba(240, 197, 111, 0.2),
+    inset 0 0 24px rgba(240, 197, 111, 0.05);
+  color: var(--text);
+  font-family: "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  text-align: center;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.node-module-diagnostics-fault-panel > * {
+  display: block;
+  user-select: text;
+}
+
+.node-module-diagnostics-fault-kicker,
+.node-module-diagnostics-fault-explain {
+  color: rgba(243, 241, 236, 0.74);
+  font-size: 0.78rem;
+}
+
+.node-module-diagnostics-fault-panel strong {
+  margin-block: 5px 7px;
+  color: rgba(240, 197, 111, 0.96);
+  font-size: 1.14rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.node-module-diagnostics-fault-list {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.node-module-diagnostics-fault-entry {
+  padding: 8px 10px;
+  border: 1px solid rgba(240, 197, 111, 0.28);
+  border-radius: 5px;
+  background: rgba(240, 197, 111, 0.06);
+  color: rgba(243, 241, 236, 0.9);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.node-module-diagnostics-fault-close {
+  width: min(220px, 100%);
+  margin: 14px auto 0;
+  padding: 8px 14px;
+  border: 1px solid rgba(127, 199, 217, 0.36);
+  border-radius: 6px;
+  background: rgba(17, 20, 24, 0.82);
+  color: rgba(243, 241, 236, 0.92);
+  font: 700 0.82rem/1 "Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.node-module-diagnostics-fault-close:hover,
+.node-module-diagnostics-fault-close:focus-visible {
+  border-color: rgba(127, 199, 217, 0.68);
+  background: rgba(24, 31, 36, 0.92);
+  outline: 0;
+}
+
+.node-module-diagnostics-fault-explain {
+  max-inline-size: 58em;
+  margin: 9px auto 0;
+  line-height: 1.45;
+}
+
 .node-missing-sample-assets {
   position: fixed;
   inset: 0;
