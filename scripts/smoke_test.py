@@ -10247,7 +10247,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphNodeIoBypassClickCandidate(event, handle)",
         "event.altKey && nodeGraphNodeIoSectionEmptyTarget(event, handle)",
         "event.button !== undefined && event.button !== 0",
-        '".node-port, .node-param-port, button:not(.node-drag-handle), input, textarea, select, option, [contenteditable=\'true\']"',
+        '".node-port, .node-param-port, button:not(.node-drag-handle), input:not(.node-header-title-input), textarea, select, option, [contenteditable=\'true\']"',
         '".node-io-row, .node-port, .node-param-port, button, input, textarea, select, option, label, [contenteditable=\'true\']"',
         "handle.classList.contains(\"dsp-node-io-section\") && !nodeGraphNodeIoSectionEmptyTarget(event, handle)",
         "if (nodeGraphPatchNodeMovementLocked(node.dataset.node))",

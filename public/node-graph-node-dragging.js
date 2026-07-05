@@ -43,7 +43,7 @@ function beginNodeGraphNodeDrag(event) {
   }
   if (
     event.target.closest?.(
-      ".node-port, .node-param-port, button:not(.node-drag-handle), input, textarea, select, option, [contenteditable='true']",
+      ".node-port, .node-param-port, button:not(.node-drag-handle), input:not(.node-header-title-input), textarea, select, option, [contenteditable='true']",
     )
   ) {
     return;
