@@ -2098,9 +2098,14 @@
         <button id="nodeSceneToggleModuleEnabled" type="button" role="menuitem" hidden>
           <span>Disable module</span>
         </button>
-        <button id="nodeSceneOpenNativeCode" type="button" role="menuitem" hidden>
-          <span>Code</span>
-        </button>
+        <div id="nodeSceneCodeGroup" class="scene-context-button-group" role="group" hidden>
+          <button id="nodeSceneOpenNativeCode" type="button" role="menuitem">
+            <span>SRC</span>
+          </button>
+          <button id="nodeSceneOpenNativeLib" type="button" role="menuitem" hidden>
+            <span>LIB</span>
+          </button>
+        </div>
         <button id="nodeSceneDeleteModule" class="scene-context-danger" type="button" role="menuitem" hidden>
           <span>🗑️ Delete</span>
         </button>
@@ -3144,8 +3149,8 @@
   <script src="./public/node-graph-clap-host.js?v=0051"></script>
   <script src="./public/node-graph-marquee-selection.js?v=title-blur-on-marquee-20260707"></script>
   <script src="./public/node-graph-node-dragging.js?v=io-alt-bypass-1"></script>
-  <script src="./public/node-graph-context-menu.js?v=script-box-merge-20260711"></script>
-  <script src="./public/node-graph-module-actions.js?v=script-box-merge-20260711"></script>
+  <script src="./public/node-graph-context-menu.js?v=src-lib-buttons-20260711"></script>
+  <script src="./public/node-graph-module-actions.js?v=src-lib-buttons-20260711"></script>
   <script src="./public/node-graph-code-screen.js?v=canvas-video-list-20260650"></script>
   <script src="./public/node-graph-module-scopes.js?v=spectrum-bars-full-intensity-20260711"></script>
   <script src="./public/node-graph-shader-script.js?v=unified-window-pos-1"></script>
@@ -3239,7 +3244,7 @@
   <script src="./public/node-graph-render-live-event-bindings.js?v=beta-polish-1"></script>
   <script src="./public/node-graph-header-event-bindings.js?v=module-diagnostics-2-20260711"></script>
   <script src="./public/node-graph-help-event-bindings.js?v=remove-workspace-view-0002"></script>
-  <script src="./public/node-graph-scene-menu-event-bindings.js?v=script-box-merge-20260711"></script>
+  <script src="./public/node-graph-scene-menu-event-bindings.js?v=src-lib-buttons-20260711"></script>
   <script src="./public/node-graph-uidev-event-bindings.js?v=origin-marker-uidev-1"></script>
   <script src="./public/node-graph-settings-event-bindings.js?v=metadata-popover-bind-1"></script>
   <script src="./public/node-graph-slider-event-bindings.js?v=node-graph-slider-event-bindings-refactor-1780369200000"></script>

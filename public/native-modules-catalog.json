@@ -74,6 +74,7 @@
       "kind": "chaos",
       "source": "native_modules/chua_attractor/chua_attractor.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/chua_attractor/chua_attractor.cpp",
+      "libUrl": "",
       "wasm": "native_modules/chua_attractor/chua_attractor.wasm",
       "wasmUrl": "native_modules/chua_attractor/chua_attractor.wasm",
       "wasmAvailable": true
@@ -107,6 +108,7 @@
       "kind": "oscillator",
       "source": "native_modules/ellipsoid/ellipsoid.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/ellipsoid/ellipsoid.cpp",
+      "libUrl": "",
       "wasm": "native_modules/ellipsoid/ellipsoid.wasm",
       "wasmUrl": "native_modules/ellipsoid/ellipsoid.wasm",
       "wasmAvailable": true
@@ -140,6 +142,7 @@
       "kind": "noise",
       "source": "native_modules/fractal_brownian_noise/fractal_brownian_noise.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/fractal_brownian_noise/fractal_brownian_noise.cpp",
+      "libUrl": "",
       "wasm": "native_modules/fractal_brownian_noise/fractal_brownian_noise.wasm",
       "wasmUrl": "native_modules/fractal_brownian_noise/fractal_brownian_noise.wasm",
       "wasmAvailable": true
@@ -162,6 +165,7 @@
       "kind": "analysis",
       "source": "native_modules/helmholtz/helmholtz.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/helmholtz/helmholtz.cpp",
+      "libUrl": "",
       "wasm": "native_modules/helmholtz/helmholtz.wasm",
       "wasmUrl": "native_modules/helmholtz/helmholtz.wasm",
       "wasmAvailable": true
@@ -173,6 +177,7 @@
       "kind": "chaos",
       "source": "native_modules/henon_map/henon_map.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/henon_map/henon_map.cpp",
+      "libUrl": "",
       "wasm": "native_modules/henon_map/henon_map.wasm",
       "wasmUrl": "native_modules/henon_map/henon_map.wasm",
       "wasmAvailable": true
@@ -206,6 +211,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_blubb/jerobeam_blubb.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_blubb/jerobeam_blubb.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_blubb/jerobeam_blubb.wasm",
       "wasmUrl": "native_modules/jerobeam_blubb/jerobeam_blubb.wasm",
       "wasmAvailable": true
@@ -217,6 +223,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_boing/jerobeam_boing.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_boing/jerobeam_boing.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_boing/jerobeam_boing.wasm",
       "wasmUrl": "native_modules/jerobeam_boing/jerobeam_boing.wasm",
       "wasmAvailable": true
@@ -228,6 +235,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.wasm",
       "wasmUrl": "native_modules/jerobeam_kepler_bouwkamp/jerobeam_kepler_bouwkamp.wasm",
       "wasmAvailable": true
@@ -239,6 +247,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_mushroom/jerobeam_mushroom.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_mushroom/jerobeam_mushroom.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_mushroom/jerobeam_mushroom.wasm",
       "wasmUrl": "native_modules/jerobeam_mushroom/jerobeam_mushroom.wasm",
       "wasmAvailable": true
@@ -250,6 +259,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_nyquist_shannon/jerobeam_nyquist_shannon.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_nyquist_shannon/jerobeam_nyquist_shannon.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_nyquist_shannon/jerobeam_nyquist_shannon.wasm",
       "wasmUrl": "native_modules/jerobeam_nyquist_shannon/jerobeam_nyquist_shannon.wasm",
       "wasmAvailable": true
@@ -261,6 +271,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_radar/jerobeam_radar.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_radar/jerobeam_radar.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_radar/jerobeam_radar.wasm",
       "wasmUrl": "native_modules/jerobeam_radar/jerobeam_radar.wasm",
       "wasmAvailable": true
@@ -283,6 +294,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_torus/jerobeam_torus.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_torus/jerobeam_torus.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_torus/jerobeam_torus.wasm",
       "wasmUrl": "native_modules/jerobeam_torus/jerobeam_torus.wasm",
       "wasmAvailable": true
@@ -294,6 +306,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_wirdo_spiral/jerobeam_wirdo_spiral.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_wirdo_spiral/jerobeam_wirdo_spiral.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_wirdo_spiral/jerobeam_wirdo_spiral.wasm",
       "wasmUrl": "native_modules/jerobeam_wirdo_spiral/jerobeam_wirdo_spiral.wasm",
       "wasmAvailable": true
@@ -305,6 +318,7 @@
       "kind": "filter",
       "source": "native_modules/ladder_filter/ladder_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/ladder_filter/ladder_filter.cpp",
+      "libUrl": "https://github.com/RobinSchmidt/RS-MET",
       "wasm": "native_modules/ladder_filter/ladder_filter.wasm",
       "wasmUrl": "native_modules/ladder_filter/ladder_filter.wasm",
       "wasmAvailable": true
@@ -338,6 +352,7 @@
       "kind": "chaos",
       "source": "native_modules/logistic_map/logistic_map.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/logistic_map/logistic_map.cpp",
+      "libUrl": "",
       "wasm": "native_modules/logistic_map/logistic_map.wasm",
       "wasmUrl": "native_modules/logistic_map/logistic_map.wasm",
       "wasmAvailable": true
@@ -371,6 +386,7 @@
       "kind": "noise",
       "source": "native_modules/noise_generator/noise_generator.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/noise_generator/noise_generator.cpp",
+      "libUrl": "",
       "wasm": "native_modules/noise_generator/noise_generator.wasm",
       "wasmUrl": "native_modules/noise_generator/noise_generator.wasm",
       "wasmAvailable": true
@@ -382,6 +398,7 @@
       "kind": "filter",
       "source": "native_modules/passive_filter/passive_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/passive_filter/passive_filter.cpp",
+      "libUrl": "https://github.com/RobinSchmidt/RS-MET",
       "wasm": "native_modules/passive_filter/passive_filter.wasm",
       "wasmUrl": "native_modules/passive_filter/passive_filter.wasm",
       "wasmAvailable": true
@@ -393,6 +410,7 @@
       "kind": "pitch",
       "source": "native_modules/pitch_quantizer/pitch_quantizer.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pitch_quantizer/pitch_quantizer.cpp",
+      "libUrl": "",
       "wasm": "native_modules/pitch_quantizer/pitch_quantizer.wasm",
       "wasmUrl": "native_modules/pitch_quantizer/pitch_quantizer.wasm",
       "wasmAvailable": true
@@ -404,6 +422,7 @@
       "kind": "effect",
       "source": "native_modules/pll/pll.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pll/pll.cpp",
+      "libUrl": "",
       "wasm": "native_modules/pll/pll.wasm",
       "wasmUrl": "native_modules/pll/pll.wasm",
       "wasmAvailable": true
@@ -426,6 +445,7 @@
       "kind": "oscillator",
       "source": "native_modules/polyblep/polyblep.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/polyblep/polyblep.cpp",
+      "libUrl": "",
       "wasm": "native_modules/polyblep/polyblep.wasm",
       "wasmUrl": "native_modules/polyblep/polyblep.wasm",
       "wasmAvailable": true
@@ -492,6 +512,7 @@
       "kind": "effect",
       "source": "native_modules/sabrina_reverb/sabrina_reverb.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/sabrina_reverb/sabrina_reverb.cpp",
+      "libUrl": "",
       "wasm": "native_modules/sabrina_reverb/sabrina_reverb.wasm",
       "wasmUrl": "native_modules/sabrina_reverb/sabrina_reverb.wasm",
       "wasmAvailable": true
@@ -503,6 +524,7 @@
       "kind": "game trigger",
       "source": "native_modules/shooting_star_explosion/shooting_star_explosion.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/shooting_star_explosion/shooting_star_explosion.cpp",
+      "libUrl": "",
       "wasm": "native_modules/shooting_star_explosion/shooting_star_explosion.wasm",
       "wasmUrl": "native_modules/shooting_star_explosion/shooting_star_explosion.wasm",
       "wasmAvailable": true
@@ -525,6 +547,7 @@
       "kind": "dynamics",
       "source": "native_modules/soft_clipper/soft_clipper.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/soft_clipper/soft_clipper.cpp",
+      "libUrl": "",
       "wasm": "native_modules/soft_clipper/soft_clipper.wasm",
       "wasmUrl": "native_modules/soft_clipper/soft_clipper.wasm",
       "wasmAvailable": true
@@ -558,6 +581,7 @@
       "kind": "filter",
       "source": "native_modules/tb303_filter/tb303_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/tb303_filter/tb303_filter.cpp",
+      "libUrl": "https://github.com/RobinSchmidt/RS-MET",
       "wasm": "native_modules/tb303_filter/tb303_filter.wasm",
       "wasmUrl": "native_modules/tb303_filter/tb303_filter.wasm",
       "wasmAvailable": true
@@ -569,6 +593,7 @@
       "kind": "envelope",
       "source": "native_modules/vactrol_envelope/vactrol_envelope.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/vactrol_envelope/vactrol_envelope.cpp",
+      "libUrl": "",
       "wasm": "native_modules/vactrol_envelope/vactrol_envelope.wasm",
       "wasmUrl": "native_modules/vactrol_envelope/vactrol_envelope.wasm",
       "wasmAvailable": true

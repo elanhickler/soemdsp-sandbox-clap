@@ -1867,23 +1867,44 @@ function nodeGraphNativeModuleCodeEntryForNode(node) {
   return nodeGraphCodeEntryForType(node.type) || null;
 }
 
-function openNodeGraphNativeModuleCodeFromContext() {
-  const targetNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  const entry = nodeGraphNativeModuleCodeEntryForNode(targetNode);
-  if (!entry?.sourceUrl) {
-    return;
+function nodeGraphNativeModuleLibEntryForNode(node) {
+  if (!node || typeof nodeGraphLibEntryForType !== "function") {
+    return null;
   }
+  return nodeGraphLibEntryForType(node.type) || null;
+}
+
+function nodeGraphOpenUrlInNewTab(url) {
   // window.open's return value can't be trusted here: with "noopener" set,
   // many browsers return null even on success (there's no opener reference
   // to hand back), so checking it to decide whether to fall back caused a
   // second tab to open on every click. The anchor-click approach alone is
   // reliable and still gets the noopener/noreferrer protection.
   const a = document.createElement("a");
-  a.href = entry.sourceUrl;
+  a.href = url;
   a.target = "_blank";
   a.rel = "noopener noreferrer";
   a.click();
+}
+
+function openNodeGraphNativeModuleCodeFromContext() {
+  const targetNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  const entry = nodeGraphNativeModuleCodeEntryForNode(targetNode);
+  if (!entry?.sourceUrl) {
+    return;
+  }
+  nodeGraphOpenUrlInNewTab(entry.sourceUrl);
   setNodeInteractionHelp(`Opened ${entry.source || entry.sourceUrl}.`);
+}
+
+function openNodeGraphNativeModuleLibFromContext() {
+  const targetNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  const entry = nodeGraphNativeModuleLibEntryForNode(targetNode);
+  if (!entry?.libUrl) {
+    return;
+  }
+  nodeGraphOpenUrlInNewTab(entry.libUrl);
+  setNodeInteractionHelp(`Opened ${entry.libUrl}.`);
 }
 
 function deleteNodeGraphModuleFromContext() {

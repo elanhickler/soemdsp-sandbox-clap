@@ -450,6 +450,7 @@ class SandboxServer(BaseHTTPRequestHandler):
             "kind": headers.get("kind") or "",
             "source": relative_source,
             "sourceUrl": f"https://github.com/soundemote/soemdsp-sandbox/blob/master/{relative_source}",
+            "libUrl": headers.get("lib") or "",
             "wasm": relative_wasm,
             "wasmUrl": relative_wasm,
             "wasmAvailable": wasm_path.exists(),

@@ -2,6 +2,7 @@
 // soemdsp-native-label: Passive Filter
 // soemdsp-native-target: passiveFilter
 // soemdsp-native-kind: filter
+// soemdsp-native-lib: https://github.com/RobinSchmidt/RS-MET
 
 // 1-pole RC-style filter in three modes: LP, HP, and BP (HP then LP cascaded).
 // mode 0 = LP  (uses highFrequency as cutoff)

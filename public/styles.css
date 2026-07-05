@@ -13336,6 +13336,24 @@ button.saved-default,
   display: none;
 }
 
+.scene-context-button-group {
+  display: flex;
+}
+
+.scene-context-button-group[hidden] {
+  display: none;
+}
+
+.scene-context-button-group button {
+  flex: 1 1 50%;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.scene-context-button-group button:first-child {
+  border-inline-end: 1px solid var(--node-scene-context-menu-divider, rgba(243, 241, 236, 0.14));
+}
+
 .scene-context-selected-module {
   display: grid;
   gap: 2px;

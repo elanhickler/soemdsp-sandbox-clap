@@ -1264,6 +1264,7 @@ function normalizeNodeGraphNativeModuleEntry(entry = {}) {
   return Object.freeze({
     kind: String(entry.kind || ""),
     label: String(entry.label || name),
+    libUrl: String(entry.libUrl || ""),
     name,
     source: String(entry.source || ""),
     sourceUrl: String(entry.sourceUrl || ""),
@@ -1345,6 +1346,10 @@ function nodeGraphJsSourceEntryForType(type) {
 function nodeGraphCodeEntryForType(type) {
   return nodeGraphNativeModulesForType(type).find((entry) => entry?.sourceUrl) ||
     nodeGraphJsSourceEntryForType(type);
+}
+
+function nodeGraphLibEntryForType(type) {
+  return nodeGraphNativeModulesForType(type).find((entry) => entry?.libUrl) || null;
 }
 
 function nodeGraphModuleStoreEntries() {

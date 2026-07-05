@@ -2,6 +2,7 @@
 // soemdsp-native-label: TB-303 Filter
 // soemdsp-native-target: tb303Filter
 // soemdsp-native-kind: filter
+// soemdsp-native-lib: https://github.com/RobinSchmidt/RS-MET
 
 // Based on Robin Schmidt's TeeBeeFilter (RS-MET / Open303).
 // Key differences from a plain Moog ladder:

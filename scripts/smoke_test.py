@@ -17481,18 +17481,30 @@ def require_native_module_contract(base_url: str) -> None:
     require("loadNodeGraphNativeModuleCatalog" in module_store_source, "native module catalog loader missing")
     require("\"Native C++\"" in module_store_source, "native module browser badge missing")
     require("id=\"nodeSceneOpenNativeCode\"" in index_html, "native module code action markup missing")
+    require("id=\"nodeSceneOpenNativeLib\"" in index_html, "native module lib action markup missing")
+    require("id=\"nodeSceneCodeGroup\"" in index_html, "native module SRC/LIB button group markup missing")
     require("nodeSceneOpenNativeCode" in context_menu_source, "native module code action menu state missing")
+    require("nodeSceneOpenNativeLib" in context_menu_source, "native module lib action menu state missing")
     require("nodeGraphCodeEntryForType(targetNode.type)" in context_menu_source, "native code action should use scanned module catalog")
+    require("nodeGraphLibEntryForType(targetNode.type)" in context_menu_source, "native lib action should use scanned module catalog")
+    require("\"nodeSceneCodeGroup\"" in context_menu_source, "module actions window should move the SRC/LIB group as one unit, not just the SRC button")
     require("function openNodeGraphNativeModuleCodeFromContext()" in module_actions_source, "native module code opener missing")
+    require("function openNodeGraphNativeModuleLibFromContext()" in module_actions_source, "native module lib opener missing")
+    require("function nodeGraphLibEntryForType(type)" in module_store_source, "native module lib entry lookup missing")
     require(
-        "a.href = entry.sourceUrl" in module_actions_source
-        and "window.open(entry.sourceUrl" not in module_actions_source,
-        "native module code opener should use a single reliable anchor click, not window.open (whose noopener return value can't be trusted for success detection)",
+        "a.href = url" in module_actions_source
+        and "window.open(" not in module_actions_source,
+        "native module code/lib openers should use a single reliable anchor click, not window.open (whose noopener return value can't be trusted for success detection)",
     )
     require(
         'bindNodeGraphSceneElementEvent("nodeSceneOpenNativeCode", "click", openNodeGraphNativeModuleCodeFromContext)'
         in event_bindings_source,
         "native module code action binding missing",
+    )
+    require(
+        'bindNodeGraphSceneElementEvent("nodeSceneOpenNativeLib", "click", openNodeGraphNativeModuleLibFromContext)'
+        in event_bindings_source,
+        "native module lib action binding missing",
     )
     require("sendNodeGraphLiveNativeModules" in live_runtime_source, "native worklet sender missing")
     require("\"setNativeModuleWasm\"" in live_runtime_source, "native worklet post message missing")
