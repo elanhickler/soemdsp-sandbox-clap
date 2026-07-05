@@ -14754,7 +14754,7 @@ def require_node_graph_mvp_contract() -> None:
             sizing_source,
             (
                 "function nodeGraphModuleSizingCapabilities(type)",
-                'moduleHeight = normalizedType === "textBox"',
+                "moduleHeight = nodeGraphNodeTypeHasTextBoxLayout(normalizedType)",
                 '? "textBox"',
                 ': normalizedType === "canvas"',
                 '? "canvasScript"',
@@ -14777,7 +14777,7 @@ def require_node_graph_mvp_contract() -> None:
             sizing_source,
             (
                 "function nodeGraphPatchNodeGridHeightUnits(node)",
-                'if (node?.type === "textBox" && Number.isFinite(Number(node.heightGu))) {',
+                "if (nodeGraphNodeTypeHasTextBoxLayout(node?.type) && Number.isFinite(Number(node.heightGu))) {",
                 "return normalizeNodeGraphTextBoxHeightUnits(node.heightGu);",
                 "const autoHeightGu = nodeGraphModuleGridHeightUnitsForUi(node?.type, node?.ui);",
             ),

@@ -165,7 +165,9 @@ function syncNodeGraphTextBoxElement(element, patchNode) {
   if (resolvedText !== null) {
     layout.text = resolvedText;
   }
-  writeNodeGraphDataOutput(patchNode.id, "Text Out", layout.text);
+  if (nodeGraphModuleDefinitions[patchNode.type]?.dataOutputs?.includes("Text Out")) {
+    writeNodeGraphDataOutput(patchNode.id, "Text Out", layout.text);
+  }
   const body = element.querySelector(".node-text-box-body");
   if (!body) {
     return;

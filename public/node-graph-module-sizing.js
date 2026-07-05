@@ -106,7 +106,7 @@ function nodeGraphPatchNodeHasHideableOscilloscope(node) {
 function nodeGraphModuleSizingCapabilities(type) {
   const normalizedType = String(type || "").trim();
   const definition = nodeGraphModuleDefinitions[normalizedType];
-  const moduleHeight = normalizedType === "textBox"
+  const moduleHeight = nodeGraphNodeTypeHasTextBoxLayout(normalizedType)
     ? "textBox"
     : normalizedType === "canvas"
       ? "canvasScript"
@@ -499,7 +499,7 @@ function nodeGraphPatchNodeGridHeightUnits(node) {
   if (scriptGrid?.heightGu) {
     return normalizeNodeGraphModuleHeightUnits(node?.type, scriptGrid.heightGu);
   }
-  if (node?.type === "textBox" && Number.isFinite(Number(node.heightGu))) {
+  if (nodeGraphNodeTypeHasTextBoxLayout(node?.type) && Number.isFinite(Number(node.heightGu))) {
     return normalizeNodeGraphTextBoxHeightUnits(node.heightGu);
   }
   const autoHeightGu = nodeGraphModuleGridHeightUnitsForUi(node?.type, node?.ui);

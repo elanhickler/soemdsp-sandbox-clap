@@ -5,6 +5,7 @@ const nodeGraphNodeLabels = Object.freeze({
   graph2: "Graph 2",
   groupInput: "Group Input",
   groupOutput: "Group Output",
+  animatedTextBox: "Animated Text Box",
   moduleGroup: "Module Group",
   nextPatch: "Next Patch",
   scriptBox: "Script Box",
@@ -3089,6 +3090,11 @@ const nodeGraphModuleDefinitions = Object.freeze({
   textBox: {
     layout: "textBox",
     layoutOnly: true,
+    parameters: [],
+  },
+  animatedTextBox: {
+    layout: "textBox",
+    layoutOnly: true,
     dataInputs: ["Title", "Text"],
     dataOutputs: ["Text Out"],
     parameters: [],
@@ -3111,6 +3117,15 @@ const nodeGraphModuleDefinitions = Object.freeze({
     ],
   },
 });
+
+// Text Box and Animated Text Box share the exact same body/title rendering
+// (see node-graph-text-box-rendering.js) and layout/sizing rules -- the
+// only difference is Animated Text Box also has data-plane ports (Title,
+// Text, Text Out). Anything about the shared textBox layout (not the
+// wiring feature) should check this instead of hardcoding one type name.
+function nodeGraphNodeTypeHasTextBoxLayout(type) {
+  return nodeGraphModuleDefinitions[type]?.layout === "textBox";
+}
 
 const nodeGraphOutputInputPorts = Object.freeze(["Mono", "Left", "Right"]);
 const nodeGraphAudioBlockSize = 512;

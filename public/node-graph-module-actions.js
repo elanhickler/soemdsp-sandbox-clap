@@ -582,7 +582,7 @@ function copyNodeGraphModule(sourceNode) {
       ui: sourceNode.ui,
       ...(Object.hasOwn(sourceNode, "widthGu") ? { widthGu: sourceNode.widthGu } : {}),
     }),
-    ...(sourceNode.type === "textBox"
+    ...(nodeGraphNodeTypeHasTextBoxLayout(sourceNode.type)
       ? { layout: normalizeNodeGraphTextBoxLayout(sourceNode.layout) }
       : {}),
     ...(sourceNode.type === "image"
@@ -733,7 +733,7 @@ function adjustNodeGraphModuleDisplayHeightFromContext(delta) {
 
 function adjustNodeGraphTextBoxTextSizeFromContext(delta) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode || !nodeGraphNodeTypeHasTextBoxLayout(sourceNode.type)) {
     return;
   }
 
@@ -1452,7 +1452,7 @@ function setNodeGraphScriptBoxSourceFromContext({ record = true } = {}) {
 
 function setNodeGraphTextBoxPortScriptFromContext(port, { record = true } = {}) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode || sourceNode.type !== "animatedTextBox") {
     return;
   }
   const elementId = port === "Title" ? "nodeSceneTextBoxTitleScript" : "nodeSceneTextBoxTextScript";
@@ -1489,7 +1489,7 @@ function setNodeGraphTextBoxPortScriptFromContext(port, { record = true } = {}) 
 
 function setNodeGraphTextBoxModeFromContext(textMode) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode || !nodeGraphNodeTypeHasTextBoxLayout(sourceNode.type)) {
     return;
   }
 
@@ -1508,7 +1508,7 @@ function setNodeGraphTextBoxModeFromContext(textMode) {
 
 function setNodeGraphTextBoxTextFromContext({ record = true } = {}) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode || !nodeGraphNodeTypeHasTextBoxLayout(sourceNode.type)) {
     return;
   }
   const input = document.getElementById("nodeSceneTextBoxTextInput");
@@ -1533,7 +1533,7 @@ function setNodeGraphTextBoxTextFromContext({ record = true } = {}) {
 
 function setNodeGraphTextBoxHorizontalAlignFromContext(value) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode || !nodeGraphNodeTypeHasTextBoxLayout(sourceNode.type)) {
     return;
   }
 
@@ -1553,7 +1553,7 @@ function setNodeGraphTextBoxHorizontalAlignFromContext(value) {
 
 function setNodeGraphTextBoxVerticalAlignFromContext({ record = true } = {}) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
-  if (!sourceNode || sourceNode.type !== "textBox") {
+  if (!sourceNode || !nodeGraphNodeTypeHasTextBoxLayout(sourceNode.type)) {
     return;
   }
   const input = document.getElementById("nodeSceneTextBoxVerticalAlign");

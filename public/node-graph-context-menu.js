@@ -1038,7 +1038,7 @@ function configureNodeSceneContextMenu(mode) {
   textBoxTextControls.hidden = !(moduleMode && !multiModuleMode && targetSupportsTextBoxHeight);
   codeblockControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "codeblock");
   scriptBoxControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "scriptBox");
-  textBoxPortScriptControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "textBox");
+  textBoxPortScriptControls.hidden = !(moduleMode && !multiModuleMode && targetNode?.type === "animatedTextBox");
   graphControls.hidden = !(moduleMode && !multiModuleMode && targetIsGraphType);
   toggleModuleEnabledButton.hidden = !moduleMode || multiModuleMode;
   if (nativeCodeButton) {
@@ -1255,7 +1255,7 @@ function configureNodeSceneContextMenu(mode) {
       scriptBoxSource.value = "";
       scriptBoxStatus.textContent = "";
     }
-    if (targetNode?.type === "textBox") {
+    if (targetNode?.type === "animatedTextBox") {
       const titleScript = targetNode.portScripts?.Title || "";
       const textScript = targetNode.portScripts?.Text || "";
       textBoxTitleScript.value = titleScript;

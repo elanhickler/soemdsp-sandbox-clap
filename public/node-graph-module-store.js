@@ -142,6 +142,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "speakerProtection",
   "badvalMonitor",
   "textBox",
+  "animatedTextBox",
 ]);
 
 let nodeGraphNativeModuleEntries = Object.freeze([]);
@@ -1145,6 +1146,11 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Visual",
     description: "In-world label plate for prompts, lore, instructions, and electric annotations.",
     notes: ["annotation", "layout", "field notes"],
+  },
+  animatedTextBox: {
+    category: "Visual",
+    description: "Text Box with data-plane Title/Text inputs and a Text Out -- wire it to Script Box or another Animated Text Box instead of typing it by hand.",
+    notes: ["data-plane ports", "port scripts", "wired label"],
   },
 });
 
