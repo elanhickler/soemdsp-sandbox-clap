@@ -244,6 +244,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "log_spiral",
+      "label": "Logarithmic Spiral",
+      "targetType": "logSpiral",
+      "kind": "jerobeam",
+      "source": "native_modules/log_spiral/log_spiral.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/log_spiral/log_spiral.cpp",
+      "wasm": "native_modules/log_spiral/log_spiral.wasm",
+      "wasmUrl": "native_modules/log_spiral/log_spiral.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "logistic_map",
       "label": "Logistic Map",
       "targetType": "logisticMap",

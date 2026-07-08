@@ -451,9 +451,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   logSpiral: {
     category: "Jerobeam",
-    description: "Pure logarithmic (equiangular) spiral: the one curve that looks identical after any rotation+rescaling. Sweeps a constant per-turn growth ratio, no fractal texture layer.",
+    description: "Pure logarithmic (equiangular) spiral: the one curve that looks identical after any rotation+rescaling. Sweeps a constant per-turn growth ratio, no fractal texture layer. Native C++/WASM.",
     label: "Logarithmic Spiral",
-    notes: ["logarithmic spiral", "equiangular spiral", "self-similar"],
+    notes: ["logarithmic spiral", "equiangular spiral", "self-similar", "native"],
   },
   blubb: {
     category: "Jerobeam",

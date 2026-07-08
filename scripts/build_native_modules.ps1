@@ -796,3 +796,23 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\sine_wavetable\sine_wavetable.wasm" `
   "$root\native_modules\sine_wavetable\sine_wavetable.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_log_spiral_create" `
+  "-Wl,--export=soemdsp_log_spiral_destroy" `
+  "-Wl,--export=soemdsp_log_spiral_sample" `
+  "-Wl,--export=soemdsp_log_spiral_x" `
+  "-Wl,--export=soemdsp_log_spiral_y" `
+  "-Wl,--export=soemdsp_log_spiral_z" `
+  "-Wl,--export=soemdsp_log_spiral_version" `
+  "-Wl,--export=soemdsp_log_spiral_metadata_json" `
+  "-Wl,--export=soemdsp_log_spiral_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\log_spiral\log_spiral.wasm" `
+  "$root\native_modules\log_spiral\log_spiral.cpp"
