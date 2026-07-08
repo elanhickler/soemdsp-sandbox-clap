@@ -17265,6 +17265,7 @@ def require_native_module_contract(base_url: str) -> None:
         "log_spiral": ["soemdsp_log_spiral_create", "soemdsp_log_spiral_destroy", "soemdsp_log_spiral_sample", "soemdsp_log_spiral_x", "soemdsp_log_spiral_y", "soemdsp_log_spiral_z"],
         "fractal_spiral": ["soemdsp_fractal_spiral_create", "soemdsp_fractal_spiral_destroy", "soemdsp_fractal_spiral_sample", "soemdsp_fractal_spiral_x", "soemdsp_fractal_spiral_y", "soemdsp_fractal_spiral_z"],
         "jerobeam_spiral": ["soemdsp_jerobeam_spiral_create", "soemdsp_jerobeam_spiral_destroy", "soemdsp_jerobeam_spiral_sample", "soemdsp_jerobeam_spiral_x", "soemdsp_jerobeam_spiral_y", "soemdsp_jerobeam_spiral_z", "soemdsp_jerobeam_spiral_left", "soemdsp_jerobeam_spiral_right"],
+        "additive_osc": ["soemdsp_additive_osc_sample"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",

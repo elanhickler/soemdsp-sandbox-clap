@@ -2,6 +2,17 @@
   "ok": true,
   "modules": [
     {
+      "name": "additive_osc",
+      "label": "Additive Osc",
+      "targetType": "additiveOsc",
+      "kind": "oscillator",
+      "source": "native_modules/additive_osc/additive_osc.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/additive_osc/additive_osc.cpp",
+      "wasm": "native_modules/additive_osc/additive_osc.wasm",
+      "wasmUrl": "native_modules/additive_osc/additive_osc.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "archimedes",
       "label": "Archimedes Oscillator",
       "targetType": "archimedes",

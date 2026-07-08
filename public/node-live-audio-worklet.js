@@ -1129,6 +1129,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "additive_osc" || targetType === "additiveOsc") {
+        this.nativeAdditiveOsc = exports;
+        this.nativeAdditiveOscReady = Boolean(this.nativeAdditiveOsc?.soemdsp_additive_osc_sample);
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "additive_osc",
+          status: this.nativeAdditiveOscReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -3776,6 +3786,39 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   additiveOscillatorSample(phase, params = {}, rate = this.engineSampleRate || sampleRate) {
+    if (
+      !params.hasGraphInput &&
+      this.nativeAdditiveOscReady &&
+      this.nativeAdditiveOsc?.soemdsp_additive_osc_sample
+    ) {
+      try {
+        const safeRateValue = Math.max(1, Number(rate) || this.engineSampleRate || sampleRate || 44100);
+        return this.nativeAdditiveOsc.soemdsp_additive_osc_sample(
+          Number(phase) || 0,
+          Math.max(0, Number(params.frequency) || 0),
+          Math.max(1, Math.min(1024, Math.round(Number(params.harmonics) || 32))),
+          Math.round(Number(params.waveform) || 0),
+          this.clampValue(Number(params.modA) || 0, 0, 1),
+          this.clampValue(Number(params.harmonicPhaseAdd) || 0, 0, 1),
+          this.clampValue(Number(params.harmonicPhaseMultiply) || 0, 0, 4),
+          this.clampValue(Number(params.level) || 0, 0, 1),
+          Number(params.dampingFilterFrequency) || 20000,
+          safeRateValue,
+        );
+      } catch (error) {
+        this.nativeAdditiveOscReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "additive_osc",
+          status: "disabled",
+          message: String(error?.message || error || "native Additive Osc failed"),
+        });
+      }
+    }
+    return this.additiveOscillatorSampleJs(phase, params, rate);
+  }
+
+  additiveOscillatorSampleJs(phase, params = {}, rate = this.engineSampleRate || sampleRate) {
     const safeRate = Math.max(1, Number(rate) || this.engineSampleRate || sampleRate || 44100);
     const frequency = Math.max(0, Number(params.frequency) || 0);
     const maxHarmonics = Math.max(
@@ -10887,6 +10930,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
               frequency: pitchedFrequency,
               dampingFilterFrequency: this.readEffectiveParameter(node, "dampingFilterFrequency", 20000, frame, frames, frameValues),
               dampingGraphValueAt: (x) => graphInputValue(nodeId, "Damping Graph", x, 1),
+              hasGraphInput,
               harmonics: this.readEffectiveParameter(node, "harmonics", 32, frame, frames, frameValues),
               harmonicPhaseAdd: this.readEffectiveParameter(node, "harmonicPhaseAdd", 0, frame, frames, frameValues),
               harmonicPhaseMultiply: this.readEffectiveParameter(node, "harmonicPhaseMultiply", 0, frame, frames, frameValues),

@@ -858,3 +858,18 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\jerobeam_spiral\jerobeam_spiral.wasm" `
   "$root\native_modules\jerobeam_spiral\jerobeam_spiral.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_additive_osc_sample" `
+  "-Wl,--export=soemdsp_additive_osc_version" `
+  "-Wl,--export=soemdsp_additive_osc_metadata_json" `
+  "-Wl,--export=soemdsp_additive_osc_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\additive_osc\additive_osc.wasm" `
+  "$root\native_modules\additive_osc\additive_osc.cpp"
