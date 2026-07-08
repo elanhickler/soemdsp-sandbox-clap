@@ -72,6 +72,17 @@ function nodeLiveSineCosWavetableSample(phaseRadians, frequency, amplitude, samp
 }
 
 class NodeLiveAudioProcessor extends AudioWorkletProcessor {
+  // Block size for the FBM native block-processing boundary
+  // (soemdsp_fbm_process_block) -- matches the typical AudioWorklet render
+  // quantum. Params are resolved once per this many samples instead of once
+  // per sample; see fractalBrownianNoiseVector.
+  static FBM_NATIVE_BLOCK_SIZE = 128;
+
+  // Same block-processing boundary pattern for Noise Generator
+  // (soemdsp_noise_generator_process_block) -- a pure generator like FBM,
+  // so its block cache also refills transparently with no added latency.
+  static NOISE_NATIVE_BLOCK_SIZE = 128;
+
   constructor() {
     super();
     this.inputConnections = new Map();
@@ -4205,7 +4216,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   createNoiseGeneratorState() {
-    return { left: this.createNoiseGeneratorChannelState(), nativeHandle: 0, right: this.createNoiseGeneratorChannelState() };
+    return {
+      left: this.createNoiseGeneratorChannelState(), nativeHandle: 0, right: this.createNoiseGeneratorChannelState(),
+      blockCache: { cursor: 0, size: 0, left: null, right: null },
+    };
   }
 
   destroyNoiseGeneratorNativeState(state) {
@@ -4335,12 +4349,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   createFractalBrownianNoiseState() {
-    return { axes: {}, nativeHandle: 0, resetWasHigh: false };
+    return {
+      axes: {},
+      nativeHandle: 0,
+      resetWasHigh: false,
+      // Block-processing cache: resolves params once per
+      // FBM_NATIVE_BLOCK_SIZE calls via soemdsp_fbm_process_block instead of
+      // once per sample via soemdsp_fbm_sample. cursor >= size means the
+      // cache is empty/exhausted and the next read triggers a refill.
+      blockCache: { cursor: 0, size: 0, x: null, y: null, z: null, xRaw: null, yRaw: null, zRaw: null },
+    };
   }
 
   resetFractalBrownianNoiseState(state) {
     for (const axisState of Object.values(state.axes || {})) {
       axisState.time = 0;
+    }
+    if (state.blockCache) {
+      state.blockCache.cursor = 0;
+      state.blockCache.size = 0;
     }
     if (state.nativeHandle && this.nativeFbm?.soemdsp_fbm_reset) {
       this.nativeFbm.soemdsp_fbm_reset(state.nativeHandle);
@@ -6862,6 +6889,51 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // DspBinding for Sabrina Reverb: resolves clamped native params, checks
+  // whether they've actually changed since the last apply (paramKey dirty
+  // check), and only then syncs them into native DSP memory via
+  // soemdsp_sabrina_reverb_set_params. Pure extraction -- same clamps, same
+  // key construction, same condition, same call args as before.
+  applySabrinaDspBindingIfDirty(native, state, params) {
+    const safeParams = {
+      delaySize: this.clampValue(this.safeFilterNumber(params.delaySize, null), 0, 1),
+      diffusionAmount: this.clampValue(this.safeFilterNumber(params.diffusionAmount, null), 0, 0.98),
+      diffusionSize: this.clampValue(this.safeFilterNumber(params.diffusionSize, null), 0, 1),
+      lfoAmplitude: this.clampValue(this.safeFilterNumber(params.lfoAmplitude, null), 0, 1),
+      lfoBaseSpeed: this.clampValue(this.safeFilterNumber(params.lfoBaseSpeed, null), 0, 1),
+      lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
+      mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
+      recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
+      seed: Math.max(0, Math.min(99999, Math.round(this.safeFilterNumber(params.seed, null) ?? 0))),
+    };
+    const paramKey = [
+      safeParams.mix,
+      safeParams.diffusionSize,
+      safeParams.diffusionAmount,
+      safeParams.delaySize,
+      safeParams.recycle,
+      safeParams.lfoAmplitude,
+      safeParams.lfoBaseSpeed,
+      safeParams.lfoVariation,
+    ].map((value) => Math.round(value * 1000000)).join(":") + `:${safeParams.seed}`;
+    if (paramKey === state.nativeParamKey || !native.soemdsp_sabrina_reverb_set_params) {
+      return;
+    }
+    state.nativeParamKey = paramKey;
+    native.soemdsp_sabrina_reverb_set_params(
+      state.nativeHandle,
+      safeParams.mix,
+      safeParams.diffusionSize,
+      safeParams.diffusionAmount,
+      safeParams.delaySize,
+      safeParams.recycle,
+      safeParams.lfoAmplitude,
+      safeParams.lfoBaseSpeed,
+      safeParams.lfoVariation,
+      safeParams.seed,
+    );
+  }
+
   nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate, frame = 0) {
     const native = this.nativeSabrinaReverb;
     if (
@@ -6886,42 +6958,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!state.nativeHandle) {
         return null;
       }
-      const safeParams = {
-        delaySize: this.clampValue(this.safeFilterNumber(params.delaySize, null), 0, 1),
-        diffusionAmount: this.clampValue(this.safeFilterNumber(params.diffusionAmount, null), 0, 0.98),
-        diffusionSize: this.clampValue(this.safeFilterNumber(params.diffusionSize, null), 0, 1),
-        lfoAmplitude: this.clampValue(this.safeFilterNumber(params.lfoAmplitude, null), 0, 1),
-        lfoBaseSpeed: this.clampValue(this.safeFilterNumber(params.lfoBaseSpeed, null), 0, 1),
-        lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
-        mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
-        recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
-        seed: Math.max(0, Math.min(99999, Math.round(this.safeFilterNumber(params.seed, null) ?? 0))),
-      };
-      const paramKey = [
-        safeParams.mix,
-        safeParams.diffusionSize,
-        safeParams.diffusionAmount,
-        safeParams.delaySize,
-        safeParams.recycle,
-        safeParams.lfoAmplitude,
-        safeParams.lfoBaseSpeed,
-        safeParams.lfoVariation,
-      ].map((value) => Math.round(value * 1000000)).join(":") + `:${safeParams.seed}`;
-      if (paramKey !== state.nativeParamKey && native.soemdsp_sabrina_reverb_set_params) {
-        state.nativeParamKey = paramKey;
-        native.soemdsp_sabrina_reverb_set_params(
-          state.nativeHandle,
-          safeParams.mix,
-          safeParams.diffusionSize,
-          safeParams.diffusionAmount,
-          safeParams.delaySize,
-          safeParams.recycle,
-          safeParams.lfoAmplitude,
-          safeParams.lfoBaseSpeed,
-          safeParams.lfoVariation,
-          safeParams.seed,
-        );
-      }
+      this.applySabrinaDspBindingIfDirty(native, state, params);
       const dryLeft = this.safeFilterNumber(leftInput, null);
       const dryRight = this.safeFilterNumber(rightInput, null);
       const dryMono = (dryLeft + dryRight) * 0.5;
@@ -7347,8 +7384,32 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     if (this.nativeNoiseGeneratorReady) {
       if (!state.nativeHandle) {
         state.nativeHandle = this.nativeNoiseGenerator.soemdsp_noise_generator_create();
+        if (state.blockCache) {
+          state.blockCache.cursor = 0;
+          state.blockCache.size = 0;
+        }
       }
       if (state.nativeHandle) {
+        if (this.nativeNoiseGenerator.soemdsp_noise_generator_process_block) {
+          const cache = state.blockCache || (state.blockCache = { cursor: 0, size: 0, left: null, right: null });
+          if (cache.cursor >= cache.size) {
+            const blockSize = NodeLiveAudioProcessor.NOISE_NATIVE_BLOCK_SIZE;
+            this.nativeNoiseGenerator.soemdsp_noise_generator_process_block(state.nativeHandle, seed, mode, mean, deviation, level, blockSize, 1);
+            const memory = this.nativeNoiseGenerator.memory;
+            const leftPtr = this.nativeNoiseGenerator.soemdsp_noise_generator_block_output_left_ptr(state.nativeHandle);
+            const rightPtr = this.nativeNoiseGenerator.soemdsp_noise_generator_block_output_right_ptr(state.nativeHandle);
+            cache.left = new Float64Array(memory.buffer, leftPtr, blockSize);
+            cache.right = new Float64Array(memory.buffer, rightPtr, blockSize);
+            cache.size = blockSize;
+            cache.cursor = 0;
+          }
+          const index = cache.cursor;
+          cache.cursor += 1;
+          return {
+            "Left Out": this.safeFilterNumber(cache.left[index], null),
+            "Right Out": this.safeFilterNumber(cache.right[index], null),
+          };
+        }
         this.nativeNoiseGenerator.soemdsp_noise_generator_sample(state.nativeHandle, seed, mode, mean, deviation, level);
         return {
           "Left Out": this.safeFilterNumber(this.nativeNoiseGenerator.soemdsp_noise_generator_left(state.nativeHandle), null),
@@ -7507,6 +7568,65 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     if (this.nativeFbmReady) {
       if (!state.nativeHandle) {
         state.nativeHandle = this.nativeFbm.soemdsp_fbm_create();
+        // A stale cache here would replay up to one block's worth of
+        // samples read from a detached WASM memory buffer belonging to a
+        // module instance that no longer exists -- most likely after a
+        // native-module hot-reload (see the "fractal_brownian_noise"
+        // reload handler above, which destroys the handle but doesn't
+        // touch this Map entry). Matches the same reset already applied
+        // in noiseGeneratorSample.
+        if (state.blockCache) {
+          state.blockCache.cursor = 0;
+          state.blockCache.size = 0;
+        }
+      }
+      if (state.nativeHandle && this.nativeFbm?.soemdsp_fbm_process_block) {
+        const cache = state.blockCache;
+        if (cache.cursor >= cache.size) {
+          // Block-processing boundary: resolve params ONCE for the whole
+          // block instead of once per sample, run the native block kernel
+          // (SIMD internally), and cache the results for the next
+          // FBM_NATIVE_BLOCK_SIZE reads. Params are frozen for the
+          // duration of one cached block (128 samples, ~2.9ms @ 44.1kHz) --
+          // the standard block-rate tradeoff, well below audible for a
+          // slowly-evolving noise generator like FBM.
+          const seed = Math.max(0, Math.round(this.safeFilterNumber(params.seed, null)));
+          const octaves = Math.max(1, Math.min(8, Math.round(this.safeFilterNumber(params.octaves, null))));
+          const persistence = this.clampValue(this.safeFilterNumber(params.persistence, null), 0, 0.99);
+          const scale = Math.max(0.000001, this.safeFilterNumber(params.scale, null));
+          const frequency = Math.max(0, this.safeFilterNumber(params.frequency, null));
+          const level = this.safeFilterNumber(params.level, null);
+          const blockSize = NodeLiveAudioProcessor.FBM_NATIVE_BLOCK_SIZE;
+          this.nativeFbm.soemdsp_fbm_process_block(state.nativeHandle, seed, octaves, persistence, scale, frequency, level, safeRate, blockSize, 1);
+          const memory = this.nativeFbm.memory;
+          const xPtr = this.nativeFbm.soemdsp_fbm_block_output_x_ptr(state.nativeHandle);
+          const yPtr = this.nativeFbm.soemdsp_fbm_block_output_y_ptr(state.nativeHandle);
+          const zPtr = this.nativeFbm.soemdsp_fbm_block_output_z_ptr(state.nativeHandle);
+          const xRawPtr = this.nativeFbm.soemdsp_fbm_block_output_x_raw_ptr(state.nativeHandle);
+          const yRawPtr = this.nativeFbm.soemdsp_fbm_block_output_y_raw_ptr(state.nativeHandle);
+          const zRawPtr = this.nativeFbm.soemdsp_fbm_block_output_z_raw_ptr(state.nativeHandle);
+          cache.x = new Float64Array(memory.buffer, xPtr, blockSize);
+          cache.y = new Float64Array(memory.buffer, yPtr, blockSize);
+          cache.z = new Float64Array(memory.buffer, zPtr, blockSize);
+          cache.xRaw = new Float64Array(memory.buffer, xRawPtr, blockSize);
+          cache.yRaw = new Float64Array(memory.buffer, yRawPtr, blockSize);
+          cache.zRaw = new Float64Array(memory.buffer, zRawPtr, blockSize);
+          cache.size = blockSize;
+          cache.cursor = 0;
+        }
+        const index = cache.cursor;
+        cache.cursor += 1;
+        const outX = this.safeFilterNumber(cache.x[index], null);
+        const outY = this.safeFilterNumber(cache.y[index], null);
+        const outZ = this.safeFilterNumber(cache.z[index], null);
+        return {
+          "Out X": outX,
+          "Out Y": outY,
+          "Out Z": outZ,
+          "Out X Raw": this.safeFilterNumber(cache.xRaw[index], null),
+          "Out Y Raw": this.safeFilterNumber(cache.yRaw[index], null),
+          "Out Z Raw": this.safeFilterNumber(cache.zRaw[index], null),
+        };
       }
       if (state.nativeHandle) {
         const seed = Math.max(0, Math.round(this.safeFilterNumber(params.seed, null)));

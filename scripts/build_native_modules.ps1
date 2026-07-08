@@ -27,6 +27,7 @@ if (!(Test-Path -LiteralPath $clang)) {
 & $clang `
   --target=wasm32 `
   -O3 `
+  -msimd128 `
   -nostdlib `
   -fno-exceptions `
   -fno-rtti `
@@ -42,6 +43,12 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_sabrina_reverb_wet_left" `
   "-Wl,--export=soemdsp_sabrina_reverb_wet_right" `
   "-Wl,--export=soemdsp_sabrina_reverb_version" `
+  "-Wl,--export=soemdsp_sabrina_reverb_process_block" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_input_left_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_input_right_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_output_left_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_block_output_right_ptr" `
+  "-Wl,--export=soemdsp_sabrina_reverb_max_block_frames" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\sabrina_reverb\sabrina_reverb.wasm" `
   "$root\native_modules\sabrina_reverb\sabrina_reverb.cpp"
@@ -88,6 +95,7 @@ if (!(Test-Path -LiteralPath $clang)) {
 & $clang `
   --target=wasm32 `
   -O3 `
+  -msimd128 `
   -nostdlib `
   -fno-exceptions `
   -fno-rtti `
@@ -98,6 +106,10 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_noise_generator_left" `
   "-Wl,--export=soemdsp_noise_generator_right" `
   "-Wl,--export=soemdsp_noise_generator_version" `
+  "-Wl,--export=soemdsp_noise_generator_process_block" `
+  "-Wl,--export=soemdsp_noise_generator_block_output_left_ptr" `
+  "-Wl,--export=soemdsp_noise_generator_block_output_right_ptr" `
+  "-Wl,--export=soemdsp_noise_generator_max_block_frames" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\noise_generator\noise_generator.wasm" `
   "$root\native_modules\noise_generator\noise_generator.cpp"
@@ -120,6 +132,7 @@ if (!(Test-Path -LiteralPath $clang)) {
 & $clang `
   --target=wasm32 `
   -O3 `
+  -msimd128 `
   -nostdlib `
   -fno-exceptions `
   -fno-rtti `
@@ -135,6 +148,14 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_fbm_y_raw" `
   "-Wl,--export=soemdsp_fbm_z_raw" `
   "-Wl,--export=soemdsp_fbm_version" `
+  "-Wl,--export=soemdsp_fbm_process_block" `
+  "-Wl,--export=soemdsp_fbm_block_output_x_ptr" `
+  "-Wl,--export=soemdsp_fbm_block_output_y_ptr" `
+  "-Wl,--export=soemdsp_fbm_block_output_z_ptr" `
+  "-Wl,--export=soemdsp_fbm_block_output_x_raw_ptr" `
+  "-Wl,--export=soemdsp_fbm_block_output_y_raw_ptr" `
+  "-Wl,--export=soemdsp_fbm_block_output_z_raw_ptr" `
+  "-Wl,--export=soemdsp_fbm_max_block_frames" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\fractal_brownian_noise\fractal_brownian_noise.wasm" `
   "$root\native_modules\fractal_brownian_noise\fractal_brownian_noise.cpp"
@@ -909,3 +930,22 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\basic_oscillator\basic_oscillator.wasm" `
   "$root\native_modules\basic_oscillator\basic_oscillator.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_video_synth_raster_create" `
+  "-Wl,--export=soemdsp_video_synth_raster_destroy" `
+  "-Wl,--export=soemdsp_video_synth_raster_reset" `
+  "-Wl,--export=soemdsp_video_synth_raster_process_block" `
+  "-Wl,--export=soemdsp_video_synth_raster_output_ptr" `
+  "-Wl,--export=soemdsp_video_synth_raster_max_width" `
+  "-Wl,--export=soemdsp_video_synth_raster_max_height" `
+  "-Wl,--export=soemdsp_video_synth_raster_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\video_synth_raster\video_synth_raster.wasm" `
+  "$root\native_modules\video_synth_raster\video_synth_raster.cpp"

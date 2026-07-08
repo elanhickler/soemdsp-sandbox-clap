@@ -3,6 +3,8 @@
 // soemdsp-native-target: reverbEffect
 // soemdsp-native-kind: effect
 
+#include <wasm_simd128.h>
+
 namespace {
 constexpr int kDelayCount = 14;
 constexpr int kDiffusionCount = 12;
@@ -13,6 +15,10 @@ constexpr int kMaxDelaySamples = 192000;
 // param update never snaps a delay tap length -- which is audible as a click
 // even when the incoming value itself arrives already smoothed.
 constexpr double kParamSmoothSeconds = 0.05;
+// Block-processing boundary buffers -- same fixed-size-static-array pattern
+// used by fractal_brownian_noise's process_block API. 2048 covers any
+// AudioWorklet render quantum with a large safety margin.
+constexpr int kMaxBlockFrames = 2048;
 
 double clamp(double value, double minValue, double maxValue) {
   if (value < minValue) {
@@ -107,6 +113,13 @@ struct SabrinaState {
   double smoothedLfoBaseSpeed;
   double smoothedLfoVariation;
   double paramSmoothAlpha;
+  // Block-processing boundary I/O -- caller writes frameCount dry samples
+  // into blockInLeft/Right via a zero-copy view, then reads mixed output
+  // back from blockOutLeft/Right the same way. See soemdsp_sabrina_reverb_process_block.
+  double blockInLeft[kMaxBlockFrames];
+  double blockInRight[kMaxBlockFrames];
+  double blockOutLeft[kMaxBlockFrames];
+  double blockOutRight[kMaxBlockFrames];
 };
 
 SabrinaState states[kMaxInstances];
@@ -189,6 +202,104 @@ double diffuseSample(SabrinaDelay& delay, double input) {
   return finite(output) ? output : 0.0;
 }
 
+// SIMD kernel: vectorized parabol(), one f64x2 lane per stereo channel.
+v128_t parabolPairSimd(v128_t value) {
+  const v128_t whole = wasm_f64x2_floor(value);
+  const v128_t wrapped = wasm_f64x2_sub(value, whole);
+  const v128_t fit = wasm_f64x2_sub(wasm_f64x2_add(wrapped, wrapped), wasm_f64x2_splat(1.0));
+  const v128_t absFit = wasm_f64x2_abs(fit);
+  return wasm_f64x2_mul(wasm_f64x2_splat(4.0), wasm_f64x2_mul(fit, wasm_f64x2_sub(wasm_f64x2_splat(1.0), absFit)));
+}
+
+// SIMD kernels below process the left and right channels together, one lane
+// each, instead of two full sequential calls. The two channels never depend
+// on each other within a single call (the "cross-feed" is only via ch0/ch1
+// persisted from the *previous* process() call), so this is a legitimate,
+// data-independent pairing -- the classic stereo-channel-parallel SIMD
+// pattern, not a reordering of any real dependency.
+//
+// The buffer read/write itself stays scalar: delayL.buffer and delayR.buffer
+// are two separate arrays at unrelated addresses with independently-computed
+// indices, and WASM SIMD128 has no gather/scatter instruction -- there is no
+// single vector load that could touch both. What vectorizes is the
+// arithmetic around it: the modulation increment, the parabol/LFO calc, the
+// read-position calc, and (for diffusion) the feedback combine.
+void delaySamplePairSimd(SabrinaDelay& delayL, SabrinaDelay& delayR, double inputL, double inputR, double& outL, double& outR) {
+  const double safeInputL = finite(inputL) ? inputL : 0.0;
+  const double safeInputR = finite(inputR) ? inputR : 0.0;
+
+  const v128_t modSpeed = wasm_f64x2_make(delayL.modSpeed, delayR.modSpeed);
+  const v128_t modInc = wasm_f64x2_add(wasm_f64x2_make(delayL.modInc, delayR.modInc), modSpeed);
+  double modIncLanes[2];
+  wasm_v128_store(modIncLanes, modInc);
+  delayL.modInc = modIncLanes[0];
+  delayR.modInc = modIncLanes[1];
+
+  const v128_t lfo = wasm_f64x2_add(wasm_f64x2_mul(parabolPairSimd(modInc), wasm_f64x2_splat(0.5)), wasm_f64x2_splat(0.5));
+  const v128_t offset = wasm_f64x2_make(delayL.offset, delayR.offset);
+  const v128_t lfopercent = wasm_f64x2_make(delayL.lfopercent, delayR.lfopercent);
+  const v128_t driver = wasm_f64x2_make(static_cast<double>(delayL.driver), static_cast<double>(delayR.driver));
+  const v128_t readPosition = wasm_f64x2_sub(driver, wasm_f64x2_add(offset, wasm_f64x2_mul(wasm_f64x2_mul(offset, lfo), lfopercent)));
+  double readPositionLanes[2];
+  wasm_v128_store(readPositionLanes, readPosition);
+
+  delayL.driver = (delayL.driver + 1) % kMaxDelaySamples;
+  delayR.driver = (delayR.driver + 1) % kMaxDelaySamples;
+
+  const double delayedL = readDelay(delayL, readPositionLanes[0]);
+  const double delayedR = readDelay(delayR, readPositionLanes[1]);
+  delayL.buffer[delayL.driver] = static_cast<float>(safeInputL);
+  delayR.buffer[delayR.driver] = static_cast<float>(safeInputR);
+
+  outL = finite(delayedL) ? delayedL : 0.0;
+  outR = finite(delayedR) ? delayedR : 0.0;
+}
+
+void diffuseSamplePairSimd(SabrinaDelay& delayL, SabrinaDelay& delayR, double inputL, double inputR, double& outL, double& outR) {
+  const double safeInputL = finite(inputL) ? inputL : 0.0;
+  const double safeInputR = finite(inputR) ? inputR : 0.0;
+
+  const v128_t modSpeed = wasm_f64x2_make(delayL.modSpeed, delayR.modSpeed);
+  const v128_t modInc = wasm_f64x2_add(wasm_f64x2_make(delayL.modInc, delayR.modInc), modSpeed);
+  double modIncLanes[2];
+  wasm_v128_store(modIncLanes, modInc);
+  delayL.modInc = modIncLanes[0];
+  delayR.modInc = modIncLanes[1];
+
+  const v128_t lfo = wasm_f64x2_add(wasm_f64x2_mul(parabolPairSimd(modInc), wasm_f64x2_splat(0.5)), wasm_f64x2_splat(0.5));
+  const v128_t offset = wasm_f64x2_make(delayL.offset, delayR.offset);
+  const v128_t lfopercent = wasm_f64x2_make(delayL.lfopercent, delayR.lfopercent);
+  const v128_t driver = wasm_f64x2_make(static_cast<double>(delayL.driver), static_cast<double>(delayR.driver));
+  const v128_t readPosition = wasm_f64x2_sub(driver, wasm_f64x2_add(offset, wasm_f64x2_mul(wasm_f64x2_mul(offset, lfo), lfopercent)));
+  double readPositionLanes[2];
+  wasm_v128_store(readPositionLanes, readPosition);
+
+  delayL.driver = (delayL.driver + 1) % kMaxDelaySamples;
+  delayR.driver = (delayR.driver + 1) % kMaxDelaySamples;
+
+  const double delayedL = readDelay(delayL, readPositionLanes[0]);
+  const double delayedR = readDelay(delayR, readPositionLanes[1]);
+
+  const v128_t feedback = wasm_f64x2_make(delayL.feedback, delayR.feedback);
+  const v128_t delayed = wasm_f64x2_make(delayedL, delayedR);
+  const v128_t safeInput = wasm_f64x2_make(safeInputL, safeInputR);
+  v128_t writeVal = wasm_f64x2_sub(wasm_f64x2_sub(wasm_f64x2_splat(0.0), safeInput), wasm_f64x2_mul(delayed, feedback));
+  writeVal = wasm_f64x2_pmin(wasm_f64x2_pmax(writeVal, wasm_f64x2_splat(-16.0)), wasm_f64x2_splat(16.0));
+  const v128_t output = wasm_f64x2_sub(
+    wasm_f64x2_mul(safeInput, feedback),
+    wasm_f64x2_mul(delayed, wasm_f64x2_sub(wasm_f64x2_splat(1.0), wasm_f64x2_mul(feedback, feedback)))
+  );
+  double writeLanes[2];
+  double outputLanes[2];
+  wasm_v128_store(writeLanes, writeVal);
+  wasm_v128_store(outputLanes, output);
+  delayL.buffer[delayL.driver] = static_cast<float>(writeLanes[0]);
+  delayR.buffer[delayR.driver] = static_cast<float>(writeLanes[1]);
+
+  outL = finite(outputLanes[0]) ? outputLanes[0] : 0.0;
+  outR = finite(outputLanes[1]) ? outputLanes[1] : 0.0;
+}
+
 // Re-derives every delay line's random offset/modulation phase from a single
 // seed, clearing their buffers in the process (same as a reset). Each delay
 // line keeps its own distinct sub-seed (index * 137 + 7) so they don't all
@@ -201,6 +312,48 @@ void reseedDelays(SabrinaState& state, int seed) {
   }
 }
 
+// SIMD kernel: computes offset + modSpeed for a pair of diffusion delay
+// lines at once via WASM SIMD128 f64x2 lanes. Mirrors setOffsetSize +
+// initializeMod exactly (same formula, same operation order) -- the two
+// lines differ only in their per-lane rndOffset/rndMod data, while
+// maxDelaySize/sizeFactor/lfoSpeed/lfoVariation/sampleRate are the same
+// scalar broadcast to both lanes, which is what makes this batchable.
+// WASM SIMD128 has no f64x4 (only 2 lanes for doubles), so 12 diffusion
+// lines batch into 6 pairs rather than 3 groups of 4 -- f32x4 would allow
+// groups of 4, but would require narrowing offset/modSpeed to float,
+// touching a type used throughout the rest of the file for no measured
+// benefit here, so this stays in double precision to match scalar exactly.
+void applyDiffusionGeometryPairSimd(
+  SabrinaDelay& delayA,
+  SabrinaDelay& delayB,
+  double maxDelaySize,
+  double sizeFactor,
+  double lfoSpeed,
+  double lfoVariation,
+  double sampleRate
+) {
+  const v128_t rndOffset = wasm_f64x2_make(delayA.rndOffset, delayB.rndOffset);
+  const v128_t rndMod = wasm_f64x2_make(delayA.rndMod, delayB.rndMod);
+
+  const v128_t offset = wasm_f64x2_add(
+    wasm_f64x2_mul(wasm_f64x2_splat(maxDelaySize * sizeFactor), rndOffset),
+    wasm_f64x2_splat(1.0)
+  );
+
+  const v128_t seconds = wasm_f64x2_add(wasm_f64x2_splat(lfoSpeed), wasm_f64x2_mul(rndMod, wasm_f64x2_splat(lfoVariation)));
+  const v128_t safeSeconds = wasm_f64x2_pmax(seconds, wasm_f64x2_splat(0.000001));
+  const v128_t modSpeed = wasm_f64x2_div(wasm_f64x2_div(wasm_f64x2_splat(1.0), safeSeconds), wasm_f64x2_splat(sampleRate));
+
+  double offsetLanes[2];
+  double modSpeedLanes[2];
+  wasm_v128_store(offsetLanes, offset);
+  wasm_v128_store(modSpeedLanes, modSpeed);
+  delayA.offset = offsetLanes[0];
+  delayB.offset = offsetLanes[1];
+  delayA.modSpeed = modSpeedLanes[0];
+  delayB.modSpeed = modSpeedLanes[1];
+}
+
 // Derives delay-line offsets/LFO speed from the ramped (smoothed*) copies of
 // the params, never the raw target values -- called every sample so tap
 // length changes glide instead of snapping.
@@ -208,12 +361,18 @@ void applyDelayGeometry(SabrinaState& state) {
   const double maxDelaySize = state.sampleRate * 4.0;
   const double lfoSpeed = ((1.0 - state.smoothedLfoBaseSpeed) * 1.95 + 0.5) * 0.5;
   const double lfoVariation = (1.0 - state.smoothedLfoVariation) * 0.25;
-  for (int index = 0; index < kDiffusionCount; index += 1) {
-    SabrinaDelay& delay = state.delays[index];
-    setOffsetSize(delay, state.smoothedDiffusionSize, maxDelaySize);
-    delay.feedback = state.diffusionAmount;
-    delay.lfopercent = state.smoothedLfoAmplitude * 0.1;
-    initializeMod(delay, lfoSpeed, lfoVariation, state.sampleRate);
+  const double diffusionSizeFactor = state.smoothedDiffusionSize * 0.1 + 0.0000001;
+  const double sharedFeedback = state.diffusionAmount;
+  const double sharedLfopercent = state.smoothedLfoAmplitude * 0.1;
+  static_assert(kDiffusionCount % 2 == 0, "diffusion geometry SIMD kernel processes delay lines in pairs");
+  for (int index = 0; index < kDiffusionCount; index += 2) {
+    SabrinaDelay& delayA = state.delays[index];
+    SabrinaDelay& delayB = state.delays[index + 1];
+    applyDiffusionGeometryPairSimd(delayA, delayB, maxDelaySize, diffusionSizeFactor, lfoSpeed, lfoVariation, state.sampleRate);
+    delayA.feedback = sharedFeedback;
+    delayB.feedback = sharedFeedback;
+    delayA.lfopercent = sharedLfopercent;
+    delayB.lfopercent = sharedLfopercent;
   }
   for (int index = kDiffusionCount; index < kDelayCount; index += 1) {
     SabrinaDelay& delay = state.delays[index];
@@ -265,6 +424,73 @@ void advanceSabrinaSmoothing(SabrinaState& state) {
   state.smoothedLfoBaseSpeed = smoothStep(state.smoothedLfoBaseSpeed, state.lfoBaseSpeed, state.paramSmoothAlpha);
   state.smoothedLfoVariation = smoothStep(state.smoothedLfoVariation, state.lfoVariation, state.paramSmoothAlpha);
   applyDelayGeometry(state);
+}
+
+// Block-processing boundary: params/state are read once per sample inside
+// the loop exactly as soemdsp_sabrina_reverb_process does, but frameCount
+// samples are produced in one call instead of one JS<->WASM crossing per
+// sample. Scalar and SIMD implementations sit behind this identical
+// (state, in, out, frameCount) shape -- same pattern as
+// fbmProcessBlockScalar/Simd in fractal_brownian_noise.cpp.
+//
+// Scalar path calls the original single-channel delaySample/diffuseSample
+// twice per stage (the pre-SIMD algorithm, still present and unused by the
+// live per-sample API since that was switched to the paired kernels).
+void sabrinaProcessBlockScalar(SabrinaState& state, const double* leftIn, const double* rightIn, double* leftOut, double* rightOut, int frameCount) {
+  for (int frame = 0; frame < frameCount; frame += 1) {
+    advanceSabrinaSmoothing(state);
+    const double dryLeft = finite(leftIn[frame]) ? leftIn[frame] : 0.0;
+    const double dryRight = finite(rightIn[frame]) ? rightIn[frame] : dryLeft;
+    const double preLeft = delaySample(state.delays[12], state.ch1);
+    const double preRight = delaySample(state.delays[13], state.ch0);
+    double left = dryLeft + preLeft * state.recycle;
+    double right = dryRight + preRight * state.recycle;
+    for (int index = 0; index < 6; index += 1) {
+      const double outLeft = diffuseSample(state.delays[index * 2], left);
+      const double outRight = diffuseSample(state.delays[index * 2 + 1], right);
+      left = outLeft;
+      right = outRight;
+    }
+    state.ch0 = finite(left) ? clamp(left, -16.0, 16.0) : 0.0;
+    state.ch1 = finite(right) ? clamp(right, -16.0, 16.0) : 0.0;
+    const double mixLeft = state.ch0 * state.mix + dryLeft * (1.0 - state.mix);
+    const double mixRight = state.ch1 * state.mix + dryRight * (1.0 - state.mix);
+    state.lastLeft = mixLeft;
+    state.lastRight = mixRight;
+    state.lastWet = (state.ch0 + state.ch1) * 0.5;
+    leftOut[frame] = mixLeft;
+    rightOut[frame] = mixRight;
+  }
+}
+
+// SIMD path -- identical structure, calls the already-committed paired
+// kernels (one f64x2 lane per stereo channel) that soemdsp_sabrina_reverb_process
+// already uses live, per sample.
+void sabrinaProcessBlockSimd(SabrinaState& state, const double* leftIn, const double* rightIn, double* leftOut, double* rightOut, int frameCount) {
+  for (int frame = 0; frame < frameCount; frame += 1) {
+    advanceSabrinaSmoothing(state);
+    const double dryLeft = finite(leftIn[frame]) ? leftIn[frame] : 0.0;
+    const double dryRight = finite(rightIn[frame]) ? rightIn[frame] : dryLeft;
+    double preLeft, preRight;
+    delaySamplePairSimd(state.delays[12], state.delays[13], state.ch1, state.ch0, preLeft, preRight);
+    double left = dryLeft + preLeft * state.recycle;
+    double right = dryRight + preRight * state.recycle;
+    for (int index = 0; index < 6; index += 1) {
+      double outLeft, outRight;
+      diffuseSamplePairSimd(state.delays[index * 2], state.delays[index * 2 + 1], left, right, outLeft, outRight);
+      left = outLeft;
+      right = outRight;
+    }
+    state.ch0 = finite(left) ? clamp(left, -16.0, 16.0) : 0.0;
+    state.ch1 = finite(right) ? clamp(right, -16.0, 16.0) : 0.0;
+    const double mixLeft = state.ch0 * state.mix + dryLeft * (1.0 - state.mix);
+    const double mixRight = state.ch1 * state.mix + dryRight * (1.0 - state.mix);
+    state.lastLeft = mixLeft;
+    state.lastRight = mixRight;
+    state.lastWet = (state.ch0 + state.ch1) * 0.5;
+    leftOut[frame] = mixLeft;
+    rightOut[frame] = mixRight;
+  }
 }
 
 void resetState(SabrinaState& state, double sampleRate) {
@@ -366,19 +592,71 @@ extern "C" void soemdsp_sabrina_reverb_process(int handle, double leftInput, dou
   advanceSabrinaSmoothing(*state);
   const double dryLeft = finite(leftInput) ? leftInput : 0.0;
   const double dryRight = finite(rightInput) ? rightInput : dryLeft;
-  double left = dryLeft + delaySample(state->delays[12], state->ch1) * state->recycle;
+  // Left and right channels are independent within this call (cross-feed
+  // only happens via ch0/ch1 persisted from the *previous* call), so both
+  // chains are processed together, one SIMD lane per channel, instead of
+  // two full sequential passes.
+  double preLeft, preRight;
+  delaySamplePairSimd(state->delays[12], state->delays[13], state->ch1, state->ch0, preLeft, preRight);
+  double left = dryLeft + preLeft * state->recycle;
+  double right = dryRight + preRight * state->recycle;
   for (int index = 0; index < 6; index += 1) {
-    left = diffuseSample(state->delays[index * 2], left);
-  }
-  double right = dryRight + delaySample(state->delays[13], state->ch0) * state->recycle;
-  for (int index = 0; index < 6; index += 1) {
-    right = diffuseSample(state->delays[index * 2 + 1], right);
+    double outLeft, outRight;
+    diffuseSamplePairSimd(state->delays[index * 2], state->delays[index * 2 + 1], left, right, outLeft, outRight);
+    left = outLeft;
+    right = outRight;
   }
   state->ch0 = finite(left) ? clamp(left, -16.0, 16.0) : 0.0;
   state->ch1 = finite(right) ? clamp(right, -16.0, 16.0) : 0.0;
   state->lastLeft = state->ch0 * state->mix + dryLeft * (1.0 - state->mix);
   state->lastRight = state->ch1 * state->mix + dryRight * (1.0 - state->mix);
   state->lastWet = (state->ch0 + state->ch1) * 0.5;
+}
+
+// Block-processing boundary. Caller writes frameCount dry samples into the
+// buffers returned by the _input_*_ptr getters (zero-copy Float64Array view
+// into WASM memory), calls this once, then reads mixed output back from the
+// _output_*_ptr buffers the same way -- one JS<->WASM crossing per block
+// instead of one per sample. useSimd selects sabrinaProcessBlockSimd (the
+// live per-sample kernel's algorithm) or sabrinaProcessBlockScalar (the
+// pre-SIMD reference); a real caller always passes 1, same rationale as
+// fractal_brownian_noise's process_block -- the switch exists so both paths
+// can be verified through one identical entry point.
+extern "C" void soemdsp_sabrina_reverb_process_block(int handle, int frameCount, int useSimd) {
+  SabrinaState* state = stateForHandle(handle);
+  if (!state) {
+    return;
+  }
+  const int safeFrameCount = frameCount < 1 ? 1 : (frameCount > kMaxBlockFrames ? kMaxBlockFrames : frameCount);
+  if (useSimd) {
+    sabrinaProcessBlockSimd(*state, state->blockInLeft, state->blockInRight, state->blockOutLeft, state->blockOutRight, safeFrameCount);
+  } else {
+    sabrinaProcessBlockScalar(*state, state->blockInLeft, state->blockInRight, state->blockOutLeft, state->blockOutRight, safeFrameCount);
+  }
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_input_left_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockInLeft) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_input_right_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockInRight) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_output_left_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockOutLeft) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_block_output_right_ptr(int handle) {
+  SabrinaState* state = stateForHandle(handle);
+  return state ? reinterpret_cast<int>(state->blockOutRight) : 0;
+}
+
+extern "C" int soemdsp_sabrina_reverb_max_block_frames() {
+  return kMaxBlockFrames;
 }
 
 extern "C" double soemdsp_sabrina_reverb_left(int handle) {

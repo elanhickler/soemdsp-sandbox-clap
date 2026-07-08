@@ -530,6 +530,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "video_synth_raster",
+      "label": "Video Synth Raster (proof of concept)",
+      "targetType": "videoSynthRaster",
+      "kind": "video-poc",
+      "source": "native_modules/video_synth_raster/video_synth_raster.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/video_synth_raster/video_synth_raster.cpp",
+      "wasm": "native_modules/video_synth_raster/video_synth_raster.wasm",
+      "wasmUrl": "native_modules/video_synth_raster/video_synth_raster.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "yellowjacket_filter",
       "label": "Yellowjacket Filter",
       "targetType": "yellowjacketFilter",

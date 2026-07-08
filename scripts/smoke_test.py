@@ -17336,6 +17336,12 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_vactrol_envelope_sample",
             "soemdsp_vactrol_envelope_metadata_json",
         ],
+        "video_synth_raster": [
+            "soemdsp_video_synth_raster_create",
+            "soemdsp_video_synth_raster_destroy",
+            "soemdsp_video_synth_raster_process_block",
+            "soemdsp_video_synth_raster_output_ptr",
+        ],
     }
     for source_path in native_sources:
         source_text = source_path.read_text(encoding="utf-8")

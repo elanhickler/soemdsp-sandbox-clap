@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Video Synth Raster — proof of concept</title>
+<style>
+  body {
+    background: #0a0a0a;
+    color: #d8d8d8;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+  }
+  canvas {
+    image-rendering: pixelated;
+    border: 1px solid #333;
+    background: black;
+    width: 512px;
+    height: 512px;
+  }
+  .controls {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    max-width: 640px;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    gap: 4px;
+  }
+  input[type="range"] { width: 160px; }
+  #status { font-size: 12px; color: #888; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  p { font-size: 12px; color: #999; max-width: 640px; text-align: center; margin: 0; }
+</style>
+</head>
+<body>
+<h1>Video Synth Raster — proof of concept</h1>
+<p>
+  A Lorenz attractor's continuous state is walked one step per pixel (row-major
+  raster order), producing a grayscale frame. Brightness is blended with the
+  previous frame using the same one-pole decay model documented in the
+  soemdsp-sandbox-phosphor fork. Runs on its own requestAnimationFrame clock,
+  not the audio engine — this is not wired into the node graph.
+</p>
+<canvas id="canvas" width="256" height="256"></canvas>
+<div class="controls">
+  <label>Speed (dt)
+    <input id="speed" type="range" min="0.0005" max="0.02" step="0.0005" value="0.006">
+  </label>
+  <label>Decay (persistence)
+    <input id="decay" type="range" min="0" max="0.97" step="0.01" value="0.6">
+  </label>
+  <label>Sigma
+    <input id="sigma" type="range" min="1" max="30" step="0.5" value="10">
+  </label>
+  <label>Rho
+    <input id="rho" type="range" min="1" max="60" step="0.5" value="28">
+  </label>
+  <label>Beta
+    <input id="beta" type="range" min="0.1" max="8" step="0.1" value="2.7">
+  </label>
+  <label>
+    <button id="reset">Reset chaos state</button>
+  </label>
+</div>
+<div id="status">loading...</div>
+<script>
+(async () => {
+  const statusEl = document.getElementById("status");
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const imageData = ctx.createImageData(width, height);
+
+  const speedEl = document.getElementById("speed");
+  const decayEl = document.getElementById("decay");
+  const sigmaEl = document.getElementById("sigma");
+  const rhoEl = document.getElementById("rho");
+  const betaEl = document.getElementById("beta");
+  const resetBtn = document.getElementById("reset");
+
+  let exports = null;
+  let handle = 0;
+
+  async function loadModule() {
+    const bytes = await (await fetch("/native_modules/video_synth_raster/video_synth_raster.wasm", { cache: "no-store" })).arrayBuffer();
+    const { instance } = await WebAssembly.instantiate(bytes, {});
+    return instance.exports;
+  }
+
+  try {
+    exports = await loadModule();
+    handle = exports.soemdsp_video_synth_raster_create();
+    if (!handle) throw new Error("create() returned 0 -- instance pool exhausted");
+    statusEl.textContent = `ready — module version ${exports.soemdsp_video_synth_raster_version()}, handle ${handle}, ${width}x${height}`;
+  } catch (error) {
+    statusEl.textContent = "failed to load: " + (error?.message || error);
+    return;
+  }
+
+  resetBtn.addEventListener("click", () => {
+    exports.soemdsp_video_synth_raster_reset(handle);
+  });
+
+  let frameCount = 0;
+  let lastFpsTime = performance.now();
+  let fps = 0;
+
+  function tick() {
+    const speed = Number(speedEl.value);
+    const decay = Number(decayEl.value);
+    const sigma = Number(sigmaEl.value);
+    const rho = Number(rhoEl.value);
+    const beta = Number(betaEl.value);
+
+    exports.soemdsp_video_synth_raster_process_block(handle, width, height, speed, decay, sigma, rho, beta);
+
+    const ptr = exports.soemdsp_video_synth_raster_output_ptr(handle);
+    const frame = new Float64Array(exports.memory.buffer, ptr, width * height);
+    const pixels = imageData.data;
+    for (let i = 0; i < frame.length; i += 1) {
+      const value = Math.max(0, Math.min(1, frame[i]));
+      const byte = Math.round(value * 255);
+      const base = i * 4;
+      pixels[base] = byte;
+      pixels[base + 1] = byte;
+      pixels[base + 2] = byte;
+      pixels[base + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    frameCount += 1;
+    const now = performance.now();
+    if (now - lastFpsTime >= 500) {
+      fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+      frameCount = 0;
+      lastFpsTime = now;
+      statusEl.textContent = `running — ${width}x${height}, ~${fps} fps`;
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
