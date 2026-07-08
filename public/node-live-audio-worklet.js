@@ -1113,6 +1113,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "jerobeam_spiral" || targetType === "spiral") {
+        for (const state of this.spiralStates.values()) {
+          this.destroyJerobeamSpiralNativeState(state);
+        }
+        this.nativeJerobeamSpiral = exports;
+        this.nativeJerobeamSpiralReady = Boolean(
+          this.nativeJerobeamSpiral?.soemdsp_jerobeam_spiral_create &&
+          this.nativeJerobeamSpiral?.soemdsp_jerobeam_spiral_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_spiral",
+          status: this.nativeJerobeamSpiralReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1739,6 +1755,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.spiralStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyJerobeamSpiralNativeState(this.spiralStates.get(id));
         this.spiralStates.delete(id);
       }
     }
@@ -7737,6 +7754,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       rotX: 0,
       rotY: 0,
       zHistory: 0,
+      nativeHandle: 0,
     };
   }
 
@@ -10057,6 +10075,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyJerobeamSpiralNativeState(state) {
+    if (state?.nativeHandle && this.nativeJerobeamSpiral?.soemdsp_jerobeam_spiral_destroy) {
+      this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   destroyPluckEnvelopeNativeState(state) {
     if (state?.nativeHandle && this.nativePluckEnvelope?.soemdsp_pluck_envelope_destroy) {
       this.nativePluckEnvelope.soemdsp_pluck_envelope_destroy(state.nativeHandle);
@@ -10483,6 +10508,60 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   jerobeamSpiralSample(options) {
+    const state = options.state;
+    if (
+      this.nativeJerobeamSpiralReady &&
+      this.nativeJerobeamSpiral?.soemdsp_jerobeam_spiral_create &&
+      this.nativeJerobeamSpiral?.soemdsp_jerobeam_spiral_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.density) || 0,
+            Number(options.size) || 0,
+            Number(options.sharp) || 0,
+            Number(options.sharpCurve) || 0,
+            Number(options.sharpCurveMult) || 0,
+            Number(options.morph) || 0,
+            Number(options.morphSpeed) || 0,
+            Number(options.position) || 0,
+            Number(options.positionSpeed) || 0,
+            Number(options.rotX) || 0,
+            Number(options.rotXSpeed) || 0,
+            Number(options.rotY) || 0,
+            Number(options.rotYSpeed) || 0,
+            Number(options.zAmount) || 0,
+            Number(options.zDepth) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_x(state.nativeHandle),
+            y: this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_y(state.nativeHandle),
+            z: this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_z(state.nativeHandle),
+            left: this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_left(state.nativeHandle),
+            right: this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_right(state.nativeHandle),
+          };
+        }
+      } catch (error) {
+        this.nativeJerobeamSpiralReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "jerobeam_spiral",
+          status: "disabled",
+          message: String(error?.message || error || "native Jerobeam Spiral failed"),
+        });
+      }
+    }
+    return this.jerobeamSpiralSampleJs(options);
+  }
+
+  jerobeamSpiralSampleJs(options) {
     const tau = Math.PI * 2;
     const piOver2 = Math.PI / 2;
     const state = options.state;

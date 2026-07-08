@@ -836,3 +836,25 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\fractal_spiral\fractal_spiral.wasm" `
   "$root\native_modules\fractal_spiral\fractal_spiral.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_create" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_destroy" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_sample" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_x" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_y" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_z" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_left" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_right" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_version" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_metadata_json" `
+  "-Wl,--export=soemdsp_jerobeam_spiral_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\jerobeam_spiral\jerobeam_spiral.wasm" `
+  "$root\native_modules\jerobeam_spiral\jerobeam_spiral.cpp"

@@ -211,6 +211,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "jerobeam_spiral",
+      "label": "Jerobeam Spiral",
+      "targetType": "spiral",
+      "kind": "jerobeam",
+      "source": "native_modules/jerobeam_spiral/jerobeam_spiral.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_spiral/jerobeam_spiral.cpp",
+      "wasm": "native_modules/jerobeam_spiral/jerobeam_spiral.wasm",
+      "wasmUrl": "native_modules/jerobeam_spiral/jerobeam_spiral.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "jerobeam_torus",
       "label": "Jerobeam Torus",
       "targetType": "torus",

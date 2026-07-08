@@ -439,9 +439,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   spiral: {
     category: "Jerobeam",
-    description: "Jerobeam spiral engine. Emits X/Y/Z motion-signal for alien curves and audiovisual flight paths.",
+    description: "Jerobeam spiral engine. Emits X/Y/Z motion-signal for alien curves and audiovisual flight paths. Native C++/WASM.",
     label: "Jerobeam Spiral",
-    notes: ["attractor motion", "rotation", "density and morph controls"],
+    notes: ["attractor motion", "rotation", "density and morph controls", "native"],
   },
   fractalSpiral: {
     category: "Jerobeam",
