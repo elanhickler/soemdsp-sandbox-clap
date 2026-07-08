@@ -35,7 +35,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "logSpiral",
   "blubb",
   "boing",
-  "keplerBoukamp",
+  "keplerBouwkamp",
   "mushroom",
   "nyquistShannon",
   "radar",
@@ -467,11 +467,11 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Jerobeam Boing",
     notes: ["placeholder", "jerobeam"],
   },
-  keplerBoukamp: {
+  keplerBouwkamp: {
     category: "Jerobeam",
-    description: "Placeholder for the Jerobeam Kepler-Boukamp motion engine.",
-    label: "Jerobeam KeplerBoukamp",
-    notes: ["placeholder", "jerobeam"],
+    description: "Jerobeam Kepler-Bouwkamp engine. Nested polygon spiral emitting X/Y motion signal.",
+    label: "Jerobeam Kepler-Bouwkamp",
+    notes: ["nested polygons", "spiral", "jerobeam"],
   },
   mushroom: {
     category: "Jerobeam",

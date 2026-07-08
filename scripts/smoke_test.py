@@ -17254,6 +17254,8 @@ def require_native_module_contract(base_url: str) -> None:
         "jerobeam_kepler_bouwkamp": ["soemdsp_jbkepler_create", "soemdsp_jbkepler_destroy", "soemdsp_jbkepler_sample", "soemdsp_jbkepler_x", "soemdsp_jbkepler_y"],
         "jerobeam_nyquist_shannon": ["soemdsp_jbnyquist_create", "soemdsp_jbnyquist_destroy", "soemdsp_jbnyquist_sample", "soemdsp_jbnyquist_x", "soemdsp_jbnyquist_y"],
         "jerobeam_radar": ["soemdsp_jbradar_create", "soemdsp_jbradar_destroy", "soemdsp_jbradar_sample", "soemdsp_jbradar_x", "soemdsp_jbradar_y"],
+        "archimedes": ["soemdsp_archimedes_create", "soemdsp_archimedes_destroy", "soemdsp_archimedes_step", "soemdsp_archimedes_sine", "soemdsp_archimedes_cosine"],
+        "blit": ["soemdsp_blit_create", "soemdsp_blit_destroy", "soemdsp_blit_sample"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",

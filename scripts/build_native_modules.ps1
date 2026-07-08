@@ -639,3 +639,52 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\jerobeam_radar\jerobeam_radar.wasm" `
   "$root\native_modules\jerobeam_radar\jerobeam_radar.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_archimedes_create" `
+  "-Wl,--export=soemdsp_archimedes_destroy" `
+  "-Wl,--export=soemdsp_archimedes_reset" `
+  "-Wl,--export=soemdsp_archimedes_reset_counters" `
+  "-Wl,--export=soemdsp_archimedes_step" `
+  "-Wl,--export=soemdsp_archimedes_sine" `
+  "-Wl,--export=soemdsp_archimedes_cosine" `
+  "-Wl,--export=soemdsp_archimedes_extract_pi" `
+  "-Wl,--export=soemdsp_archimedes_total_steps" `
+  "-Wl,--export=soemdsp_archimedes_zero_crossings" `
+  "-Wl,--export=soemdsp_archimedes_set_profile" `
+  "-Wl,--export=soemdsp_archimedes_set_frequency" `
+  "-Wl,--export=soemdsp_archimedes_set_amplitude" `
+  "-Wl,--export=soemdsp_archimedes_set_phase" `
+  "-Wl,--export=soemdsp_archimedes_shift_phase" `
+  "-Wl,--export=soemdsp_archimedes_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\archimedes\archimedes.wasm" `
+  "$root\native_modules\archimedes\archimedes.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_blit_create" `
+  "-Wl,--export=soemdsp_blit_destroy" `
+  "-Wl,--export=soemdsp_blit_reset" `
+  "-Wl,--export=soemdsp_blit_sample" `
+  "-Wl,--export=soemdsp_blit_out" `
+  "-Wl,--export=soemdsp_blit_saw" `
+  "-Wl,--export=soemdsp_blit_square" `
+  "-Wl,--export=soemdsp_blit_tri" `
+  "-Wl,--export=soemdsp_blit_sine" `
+  "-Wl,--export=soemdsp_blit_ramp" `
+  "-Wl,--export=soemdsp_blit_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\blit\blit.wasm" `
+  "$root\native_modules\blit\blit.cpp"
