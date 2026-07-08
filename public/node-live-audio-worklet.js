@@ -1000,6 +1000,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "pluck_envelope" || targetType === "pluckEnvelope") {
+        for (const state of this.pluckEnvelopeStates.values()) {
+          this.destroyPluckEnvelopeNativeState(state);
+        }
+        this.nativePluckEnvelope = exports;
+        this.nativePluckEnvelopeReady = Boolean(
+          this.nativePluckEnvelope?.soemdsp_pluck_envelope_create &&
+          this.nativePluckEnvelope?.soemdsp_pluck_envelope_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pluck_envelope",
+          status: this.nativePluckEnvelopeReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1899,6 +1915,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.pluckEnvelopeStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyPluckEnvelopeNativeState(this.pluckEnvelopeStates.get(id));
         this.pluckEnvelopeStates.delete(id);
       }
     }
@@ -3896,6 +3913,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       releaseIncrement: 0,
       secondsPassed: 0,
       state: "off",
+      nativeHandle: 0,
     };
   }
 
@@ -6803,6 +6821,52 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   pluckEnvelopeSample(state, trigger, release, params, rate = sampleRate) {
+    if (
+      this.nativePluckEnvelopeReady &&
+      this.nativePluckEnvelope?.soemdsp_pluck_envelope_create &&
+      this.nativePluckEnvelope?.soemdsp_pluck_envelope_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativePluckEnvelope.soemdsp_pluck_envelope_create();
+        }
+        if (state.nativeHandle) {
+          const safeRate = Number(rate) > 1 ? Number(rate) : sampleRate;
+          const out = this.nativePluckEnvelope.soemdsp_pluck_envelope_sample(
+            state.nativeHandle,
+            Number(trigger) || 0,
+            Number(release) || 0,
+            Math.max(0, Number(params.delayTime) || 0),
+            Math.max(0, Number(params.attackFeedback) || 0),
+            this.clampValue(Number(params.decay) || 0, 0.1, 1),
+            this.clampValue(Number(params.decayModStart) || 0, 0.001, 1.8),
+            this.clampValue(Number(params.decayModEnd) || 0, 0.01, 3),
+            this.clampValue(Number(params.endingDecay) || 0, 0, 1.4),
+            this.clampValue(Number(params.decayModCurve) || 0, -1, 1),
+            this.clampValue(Number(params.decayModFrequency) || 0, 0, 100),
+            Math.max(0, Number(params.autoReleaseTime) || 0),
+            this.clampValue(Number(params.releaseFeedback) || 0, 0, 1),
+            this.clampValue(Number(params.velocity) || 0, 0, 1),
+            this.clampValue(Number(params.velocitySensitivity) || 0, 0, 1),
+            this.clampValue(Number(params.level) || 0, 0, 1),
+            safeRate,
+          );
+          return this.safeFilterNumber(out, null);
+        }
+      } catch (error) {
+        this.nativePluckEnvelopeReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pluck_envelope",
+          status: "disabled",
+          message: String(error?.message || error || "native Pluck Envelope failed"),
+        });
+      }
+    }
+    return this.pluckEnvelopeSampleJs(state, trigger, release, params, rate);
+  }
+
+  pluckEnvelopeSampleJs(state, trigger, release, params, rate = sampleRate) {
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
     const period = 1 / safeRate;
     const safeTrigger = this.safeFilterNumber(trigger, null);
@@ -9637,6 +9701,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyLinearEnvelopeNativeState(state) {
     if (state?.nativeHandle && this.nativeLinearEnvelope?.soemdsp_linear_envelope_destroy) {
       this.nativeLinearEnvelope.soemdsp_linear_envelope_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyPluckEnvelopeNativeState(state) {
+    if (state?.nativeHandle && this.nativePluckEnvelope?.soemdsp_pluck_envelope_destroy) {
+      this.nativePluckEnvelope.soemdsp_pluck_envelope_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

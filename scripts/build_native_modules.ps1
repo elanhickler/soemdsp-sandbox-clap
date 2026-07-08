@@ -705,3 +705,20 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\linear_envelope\linear_envelope.wasm" `
   "$root\native_modules\linear_envelope\linear_envelope.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_pluck_envelope_create" `
+  "-Wl,--export=soemdsp_pluck_envelope_destroy" `
+  "-Wl,--export=soemdsp_pluck_envelope_sample" `
+  "-Wl,--export=soemdsp_pluck_envelope_version" `
+  "-Wl,--export=soemdsp_pluck_envelope_metadata_json" `
+  "-Wl,--export=soemdsp_pluck_envelope_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\pluck_envelope\pluck_envelope.wasm" `
+  "$root\native_modules\pluck_envelope\pluck_envelope.cpp"

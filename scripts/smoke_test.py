@@ -17257,6 +17257,7 @@ def require_native_module_contract(base_url: str) -> None:
         "archimedes": ["soemdsp_archimedes_create", "soemdsp_archimedes_destroy", "soemdsp_archimedes_step", "soemdsp_archimedes_sine", "soemdsp_archimedes_cosine"],
         "blit": ["soemdsp_blit_create", "soemdsp_blit_destroy", "soemdsp_blit_sample"],
         "linear_envelope": ["soemdsp_linear_envelope_create", "soemdsp_linear_envelope_destroy", "soemdsp_linear_envelope_sample"],
+        "pluck_envelope": ["soemdsp_pluck_envelope_create", "soemdsp_pluck_envelope_destroy", "soemdsp_pluck_envelope_sample"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",

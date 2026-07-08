@@ -950,9 +950,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   pluckEnvelope: {
     category: "Envelope",
-    description: "Fast feedback pluck contour for struck, picked, pinged, and percussive behaviors.",
+    description: "Fast feedback pluck contour for struck, picked, pinged, and percussive behaviors. Native C++/WASM.",
     label: "PluckEnvelope",
-    notes: ["trigger input", "decay energy", "auto release"],
+    notes: ["trigger input", "decay energy", "auto release", "native"],
   },
   vactrolEnvelope: {
     category: "Envelope",

@@ -288,6 +288,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "pluck_envelope",
+      "label": "Pluck Envelope",
+      "targetType": "pluckEnvelope",
+      "kind": "envelope",
+      "source": "native_modules/pluck_envelope/pluck_envelope.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pluck_envelope/pluck_envelope.cpp",
+      "wasm": "native_modules/pluck_envelope/pluck_envelope.wasm",
+      "wasmUrl": "native_modules/pluck_envelope/pluck_envelope.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "polyblep",
       "label": "PolyBLEP",
       "targetType": "polyBlep",
