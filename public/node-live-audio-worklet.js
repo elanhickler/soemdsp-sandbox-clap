@@ -1139,6 +1139,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "delay_effect" || targetType === "delayEffect") {
+        for (const state of this.delayEffectStates.values()) {
+          this.destroyDelayEffectNativeState(state);
+        }
+        this.nativeDelayEffect = exports;
+        this.nativeDelayEffectReady = Boolean(
+          this.nativeDelayEffect?.soemdsp_delay_effect_create &&
+          this.nativeDelayEffect?.soemdsp_delay_effect_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "delay_effect",
+          status: this.nativeDelayEffectReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1974,6 +1990,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.delayEffectStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyDelayEffectNativeState(this.delayEffectStates.get(id));
         this.delayEffectStates.delete(id);
       }
     }
@@ -4001,6 +4018,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       lfoVariationState: 0,
       position: 0,
       wet: 0,
+      nativeHandle: 0,
+      nativeSeed: 0,
+      nativeSeedKey: "",
     };
   }
 
@@ -6535,6 +6555,56 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   delayEffectSample(state, input, params, rateHz = sampleRate, nodeId = "") {
+    if (
+      this.nativeDelayEffectReady &&
+      this.nativeDelayEffect?.soemdsp_delay_effect_create &&
+      this.nativeDelayEffect?.soemdsp_delay_effect_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeDelayEffect.soemdsp_delay_effect_create();
+        }
+        if (state.nativeHandle) {
+          const seedKey = `${nodeId}:delayVariation`;
+          if (state.nativeSeedKey !== seedKey) {
+            state.nativeSeedKey = seedKey;
+            state.nativeSeed = this.stableSeed(seedKey);
+          }
+          const safeRateValue = Math.max(1, Number(rateHz) || 44100);
+          const modeValue = Math.round(this.safeFilterNumber(params.mode, null)) >= 1 ? 1 : 0;
+          this.nativeDelayEffect.soemdsp_delay_effect_sample(
+            state.nativeHandle,
+            Number(input) || 0,
+            this.clampValue(Number(params.time) || 0, 0.001, 4.25),
+            this.clampValue(Number(params.feedback) || 0, 0, 0.95),
+            this.clampValue(Number(params.mix) || 0, 0, 1),
+            this.clampValue(Number(params.level) || 0, 0, 2),
+            this.clampValue(Number(params.modAmount) || 0, 0, 0.5),
+            this.clampValue(Number(params.modRate) || 0, 0, 90),
+            this.clampValue(Number(params.modVariation) || 0, 0, 1),
+            modeValue,
+            state.nativeSeed >>> 0,
+            safeRateValue,
+          );
+          return {
+            Out: this.nativeDelayEffect.soemdsp_delay_effect_out(state.nativeHandle),
+            Wet: this.nativeDelayEffect.soemdsp_delay_effect_wet(state.nativeHandle),
+          };
+        }
+      } catch (error) {
+        this.nativeDelayEffectReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "delay_effect",
+          status: "disabled",
+          message: String(error?.message || error || "native Delay Effect failed"),
+        });
+      }
+    }
+    return this.delayEffectSampleJs(state, input, params, rateHz, nodeId);
+  }
+
+  delayEffectSampleJs(state, input, params, rateHz = sampleRate, nodeId = "") {
     const safeRate = Math.max(1, Number(rateHz) || 44100);
     const maxDelaySeconds = 4.25;
     const requiredSize = Math.max(2, Math.ceil(safeRate * maxDelaySeconds) + 2);
@@ -10121,6 +10191,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyJerobeamSpiralNativeState(state) {
     if (state?.nativeHandle && this.nativeJerobeamSpiral?.soemdsp_jerobeam_spiral_destroy) {
       this.nativeJerobeamSpiral.soemdsp_jerobeam_spiral_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyDelayEffectNativeState(state) {
+    if (state?.nativeHandle && this.nativeDelayEffect?.soemdsp_delay_effect_destroy) {
+      this.nativeDelayEffect.soemdsp_delay_effect_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

@@ -873,3 +873,22 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\additive_osc\additive_osc.wasm" `
   "$root\native_modules\additive_osc\additive_osc.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_delay_effect_create" `
+  "-Wl,--export=soemdsp_delay_effect_destroy" `
+  "-Wl,--export=soemdsp_delay_effect_sample" `
+  "-Wl,--export=soemdsp_delay_effect_out" `
+  "-Wl,--export=soemdsp_delay_effect_wet" `
+  "-Wl,--export=soemdsp_delay_effect_version" `
+  "-Wl,--export=soemdsp_delay_effect_metadata_json" `
+  "-Wl,--export=soemdsp_delay_effect_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\delay_effect\delay_effect.wasm" `
+  "$root\native_modules\delay_effect\delay_effect.cpp"

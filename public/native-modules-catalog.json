@@ -57,6 +57,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "delay_effect",
+      "label": "Delay Effect",
+      "targetType": "delayEffect",
+      "kind": "effect",
+      "source": "native_modules/delay_effect/delay_effect.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/delay_effect/delay_effect.cpp",
+      "wasm": "native_modules/delay_effect/delay_effect.wasm",
+      "wasmUrl": "native_modules/delay_effect/delay_effect.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "dsf_oscillator",
       "label": "DSF Oscillator",
       "targetType": "dsfOscillator",

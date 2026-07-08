@@ -891,9 +891,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   delayEffect: {
     category: "Delay",
-    description: "SOEMDSP-style modulated fractional delay with feedback, wet/dry mix, and diffuse mode.",
+    description: "SOEMDSP-style modulated fractional delay with feedback, wet/dry mix, and diffuse mode. Native C++/WASM.",
     label: "Delay",
-    notes: ["modulated delay", "fractional echo", "diffuse mode"],
+    notes: ["modulated delay", "fractional echo", "diffuse mode", "native"],
   },
   reverbEffect: {
     category: "Delay",
