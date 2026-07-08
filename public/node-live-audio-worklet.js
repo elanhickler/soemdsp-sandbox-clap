@@ -1048,6 +1048,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "lorenz_attractor" || targetType === "lorenzAttractor") {
+        for (const state of this.lorenzAttractorStates.values()) {
+          this.destroyLorenzAttractorNativeState(state);
+        }
+        this.nativeLorenzAttractor = exports;
+        this.nativeLorenzAttractorReady = Boolean(
+          this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_create &&
+          this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "lorenz_attractor",
+          status: this.nativeLorenzAttractorReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1676,6 +1692,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.lorenzAttractorStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyLorenzAttractorNativeState(this.lorenzAttractorStates.get(id));
         this.lorenzAttractorStates.delete(id);
       }
     }
@@ -7771,6 +7788,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       x: 0.1,
       y: 0,
       z: 0,
+      nativeHandle: 0,
     };
   }
 
@@ -7781,6 +7799,50 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   lorenzAttractorSample(options = {}) {
+    const state = options.state || this.createLorenzAttractorState();
+    if (
+      this.nativeLorenzAttractorReady &&
+      this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_create &&
+      this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeLorenzAttractor.soemdsp_lorenz_attractor_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeLorenzAttractor.soemdsp_lorenz_attractor_sample(
+            state.nativeHandle,
+            Number(options.reset) || 0,
+            Math.max(0, Number(options.speed) || 0),
+            Math.max(0, Number(options.sigma) || 10),
+            Number.isFinite(Number(options.rho)) ? Number(options.rho) : 28,
+            Math.max(0, Number(options.beta) || 8 / 3),
+            Number(options.rotate) || 0,
+            Math.max(0, Number(options.scale) || 1),
+            this.clampValue(Number(options.zDepth) || 0, 0, 1),
+            sampleRateValue,
+          );
+          return {
+            x: this.nativeLorenzAttractor.soemdsp_lorenz_attractor_x(state.nativeHandle),
+            y: this.nativeLorenzAttractor.soemdsp_lorenz_attractor_y(state.nativeHandle),
+            z: this.nativeLorenzAttractor.soemdsp_lorenz_attractor_z(state.nativeHandle),
+          };
+        }
+      } catch (error) {
+        this.nativeLorenzAttractorReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "lorenz_attractor",
+          status: "disabled",
+          message: String(error?.message || error || "native Lorenz Attractor failed"),
+        });
+      }
+    }
+    return this.lorenzAttractorSampleJs(options);
+  }
+
+  lorenzAttractorSampleJs(options = {}) {
     const state = options.state || this.createLorenzAttractorState();
     const resetHigh = Number(options.reset) > 0.5;
     if (resetHigh && !state.resetWasHigh) {
@@ -9841,6 +9903,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyRandomWalkNativeState(state) {
     if (state?.nativeHandle && this.nativeRandomWalk?.soemdsp_random_walk_destroy) {
       this.nativeRandomWalk.soemdsp_random_walk_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyLorenzAttractorNativeState(state) {
+    if (state?.nativeHandle && this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_destroy) {
+      this.nativeLorenzAttractor.soemdsp_lorenz_attractor_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

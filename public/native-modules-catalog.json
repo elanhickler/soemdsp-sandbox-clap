@@ -255,6 +255,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "lorenz_attractor",
+      "label": "Lorenz Attractor",
+      "targetType": "lorenzAttractor",
+      "kind": "chaos",
+      "source": "native_modules/lorenz_attractor/lorenz_attractor.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/lorenz_attractor/lorenz_attractor.cpp",
+      "wasm": "native_modules/lorenz_attractor/lorenz_attractor.wasm",
+      "wasmUrl": "native_modules/lorenz_attractor/lorenz_attractor.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "noise_generator",
       "label": "Noise Generator",
       "targetType": "noiseGenerator",

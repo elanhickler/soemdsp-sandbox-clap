@@ -757,3 +757,23 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\random_walk\random_walk.wasm" `
   "$root\native_modules\random_walk\random_walk.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_lorenz_attractor_create" `
+  "-Wl,--export=soemdsp_lorenz_attractor_destroy" `
+  "-Wl,--export=soemdsp_lorenz_attractor_sample" `
+  "-Wl,--export=soemdsp_lorenz_attractor_x" `
+  "-Wl,--export=soemdsp_lorenz_attractor_y" `
+  "-Wl,--export=soemdsp_lorenz_attractor_z" `
+  "-Wl,--export=soemdsp_lorenz_attractor_version" `
+  "-Wl,--export=soemdsp_lorenz_attractor_metadata_json" `
+  "-Wl,--export=soemdsp_lorenz_attractor_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\lorenz_attractor\lorenz_attractor.wasm" `
+  "$root\native_modules\lorenz_attractor\lorenz_attractor.cpp"
