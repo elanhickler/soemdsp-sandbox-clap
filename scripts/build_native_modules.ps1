@@ -777,3 +777,22 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\lorenz_attractor\lorenz_attractor.wasm" `
   "$root\native_modules\lorenz_attractor\lorenz_attractor.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_sine_wavetable_create" `
+  "-Wl,--export=soemdsp_sine_wavetable_destroy" `
+  "-Wl,--export=soemdsp_sine_wavetable_sample" `
+  "-Wl,--export=soemdsp_sine_wavetable_sin" `
+  "-Wl,--export=soemdsp_sine_wavetable_cos" `
+  "-Wl,--export=soemdsp_sine_wavetable_version" `
+  "-Wl,--export=soemdsp_sine_wavetable_metadata_json" `
+  "-Wl,--export=soemdsp_sine_wavetable_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\sine_wavetable\sine_wavetable.wasm" `
+  "$root\native_modules\sine_wavetable\sine_wavetable.cpp"

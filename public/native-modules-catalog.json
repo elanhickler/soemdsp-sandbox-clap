@@ -398,6 +398,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "sine_wavetable",
+      "label": "SinCos",
+      "targetType": "sineWavetable",
+      "kind": "oscillator",
+      "source": "native_modules/sine_wavetable/sine_wavetable.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/sine_wavetable/sine_wavetable.cpp",
+      "wasm": "native_modules/sine_wavetable/sine_wavetable.wasm",
+      "wasmUrl": "native_modules/sine_wavetable/sine_wavetable.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "soft_clipper",
       "label": "Soft Clipper",
       "targetType": "softClipper",

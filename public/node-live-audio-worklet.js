@@ -186,6 +186,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.ladderFilterStates = new Map();
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
+    this.sineWavetableStates = new Map();
     this.lorenzAttractorStates = new Map();
     this.logisticMapStates = new Map();
     this.henonMapStates = new Map();
@@ -1064,6 +1065,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "sine_wavetable" || targetType === "sineWavetable") {
+        for (const state of this.sineWavetableStates.values()) {
+          this.destroySineWavetableNativeState(state);
+        }
+        this.nativeSineWavetable = exports;
+        this.nativeSineWavetableReady = Boolean(
+          this.nativeSineWavetable?.soemdsp_sine_wavetable_create &&
+          this.nativeSineWavetable?.soemdsp_sine_wavetable_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "sine_wavetable",
+          status: this.nativeSineWavetableReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1199,6 +1216,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
+    this.sineWavetableStates = new Map();
     this.lorenzAttractorStates = new Map();
     this.logisticMapStates = new Map();
     this.henonMapStates = new Map();
@@ -1806,6 +1824,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyLinearEnvelopeNativeState(this.linearEnvelopeStates.get(id));
         this.linearEnvelopeStates.delete(id);
+      }
+    }
+    for (const id of [...this.sineWavetableStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroySineWavetableNativeState(this.sineWavetableStates.get(id));
+        this.sineWavetableStates.delete(id);
       }
     }
     for (const id of [...this.clockStates.keys()]) {
@@ -3954,6 +3978,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createSineWavetableState() {
+    return {
+      nativeHandle: 0,
+    };
+  }
+
   createPluckEnvelopeState() {
     return {
       autoReleasePhasor: 0,
@@ -4439,6 +4469,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.resonatorFilterStates = new Map();
     runtime.humanFilterStates = new Map();
     runtime.linearEnvelopeStates = new Map();
+    runtime.sineWavetableStates = new Map();
     runtime.noiseGeneratorStates = new Map();
     runtime.oscResetStates = new Map();
     runtime.graphLfoStates = new Map();
@@ -9886,6 +9917,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroySineWavetableNativeState(state) {
+    if (state?.nativeHandle && this.nativeSineWavetable?.soemdsp_sine_wavetable_destroy) {
+      this.nativeSineWavetable.soemdsp_sine_wavetable_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   destroyPluckEnvelopeNativeState(state) {
     if (state?.nativeHandle && this.nativePluckEnvelope?.soemdsp_pluck_envelope_destroy) {
       this.nativePluckEnvelope.soemdsp_pluck_envelope_destroy(state.nativeHandle);
@@ -10440,7 +10478,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       } else if (node?.type === "sineWavetable") {
-        const phase = this.phases.get(nodeId) || 0;
         const phaseOffset = this.phaseRadians(
           this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
         );
@@ -10468,12 +10505,51 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           frames,
           frameValues,
         ) + ampInput);
-        const phaseIncrement = pitchedFrequency / safeRate;
-        value = nodeLiveSineCosWavetableSample(phase + phaseOffset, pitchedFrequency, amplitude, safeRate);
-        this.phases.set(
-          nodeId,
-          this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-        );
+        if (
+          this.nativeSineWavetableReady &&
+          this.nativeSineWavetable?.soemdsp_sine_wavetable_create &&
+          this.nativeSineWavetable?.soemdsp_sine_wavetable_sample
+        ) {
+          try {
+            const nativeState = this.sineWavetableStates.get(nodeId) || this.createSineWavetableState();
+            this.sineWavetableStates.set(nodeId, nativeState);
+            if (!nativeState.nativeHandle) {
+              nativeState.nativeHandle = this.nativeSineWavetable.soemdsp_sine_wavetable_create();
+            }
+            if (nativeState.nativeHandle) {
+              this.nativeSineWavetable.soemdsp_sine_wavetable_sample(
+                nativeState.nativeHandle,
+                phaseOffset,
+                pitchedFrequency,
+                amplitude,
+                safeRate,
+              );
+              value = {
+                sin: this.nativeSineWavetable.soemdsp_sine_wavetable_sin(nativeState.nativeHandle),
+                cos: this.nativeSineWavetable.soemdsp_sine_wavetable_cos(nativeState.nativeHandle),
+              };
+            } else {
+              throw new Error("native SinCos handle pool exhausted");
+            }
+          } catch (error) {
+            this.nativeSineWavetableReady = false;
+            this.port.postMessage({
+              type: "nativeModuleStatus",
+              name: "sine_wavetable",
+              status: "disabled",
+              message: String(error?.message || error || "native SinCos failed"),
+            });
+          }
+        }
+        if (!this.nativeSineWavetableReady) {
+          const phase = this.phases.get(nodeId) || 0;
+          const phaseIncrement = pitchedFrequency / safeRate;
+          value = nodeLiveSineCosWavetableSample(phase + phaseOffset, pitchedFrequency, amplitude, safeRate);
+          this.phases.set(
+            nodeId,
+            this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
+          );
+        }
       } else if (nodeLiveIsPolyBlepOscillatorType(node?.type)) {
         const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
         this.oscResetStates.set(nodeId, resetState);
