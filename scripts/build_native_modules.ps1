@@ -739,3 +739,21 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\exp_adsr\exp_adsr.wasm" `
   "$root\native_modules\exp_adsr\exp_adsr.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_random_walk_create" `
+  "-Wl,--export=soemdsp_random_walk_destroy" `
+  "-Wl,--export=soemdsp_random_walk_reset_seed" `
+  "-Wl,--export=soemdsp_random_walk_sample" `
+  "-Wl,--export=soemdsp_random_walk_version" `
+  "-Wl,--export=soemdsp_random_walk_metadata_json" `
+  "-Wl,--export=soemdsp_random_walk_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\random_walk\random_walk.wasm" `
+  "$root\native_modules\random_walk\random_walk.cpp"

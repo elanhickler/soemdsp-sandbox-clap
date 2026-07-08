@@ -321,6 +321,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "random_walk",
+      "label": "Random Walk",
+      "targetType": "randomWalk",
+      "kind": "noise",
+      "source": "native_modules/random_walk/random_walk.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/random_walk/random_walk.cpp",
+      "wasm": "native_modules/random_walk/random_walk.wasm",
+      "wasmUrl": "native_modules/random_walk/random_walk.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "resonator_filter",
       "label": "Resonator Filter",
       "targetType": "resonatorFilter",

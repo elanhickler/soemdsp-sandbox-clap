@@ -1032,6 +1032,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "random_walk" || targetType === "randomWalk") {
+        for (const state of this.randomWalkStates.values()) {
+          this.destroyRandomWalkNativeState(state);
+        }
+        this.nativeRandomWalk = exports;
+        this.nativeRandomWalkReady = Boolean(
+          this.nativeRandomWalk?.soemdsp_random_walk_create &&
+          this.nativeRandomWalk?.soemdsp_random_walk_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "random_walk",
+          status: this.nativeRandomWalkReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1911,6 +1927,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.randomWalkStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyRandomWalkNativeState(this.randomWalkStates.get(id));
         this.randomWalkStates.delete(id);
       }
     }
@@ -4086,6 +4103,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       out: 0,
       seed: 0,
       seedKey: "",
+      nativeHandle: 0,
+      nativeSeedKey: "",
     };
   }
 
@@ -7074,6 +7093,47 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   randomWalkSample(state, params, rate = sampleRate, nodeId = "") {
+    if (
+      this.nativeRandomWalkReady &&
+      this.nativeRandomWalk?.soemdsp_random_walk_create &&
+      this.nativeRandomWalk?.soemdsp_random_walk_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeRandomWalk.soemdsp_random_walk_create();
+        }
+        if (state.nativeHandle) {
+          const key = this.seededKey(nodeId, params.seed, "randomWalk");
+          if (state.nativeSeedKey !== key) {
+            state.nativeSeedKey = key;
+            this.nativeRandomWalk.soemdsp_random_walk_reset_seed(state.nativeHandle, this.stableSeed(key));
+          }
+          const safeRate = Number(rate) > 1 ? Number(rate) : sampleRate;
+          const method = Math.max(0, Math.min(3, Math.round(Number(params.method) || 0)));
+          const out = this.nativeRandomWalk.soemdsp_random_walk_sample(
+            state.nativeHandle,
+            method,
+            Math.max(0, Number(params.frequency) || 0),
+            Math.max(0, Number(params.jitter) || 0),
+            Number(params.level) || 0,
+            safeRate,
+          );
+          return this.safeFilterNumber(out, null);
+        }
+      } catch (error) {
+        this.nativeRandomWalkReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "random_walk",
+          status: "disabled",
+          message: String(error?.message || error || "native Random Walk failed"),
+        });
+      }
+    }
+    return this.randomWalkSampleJs(state, params, rate, nodeId);
+  }
+
+  randomWalkSampleJs(state, params, rate = sampleRate, nodeId = "") {
     this.resetSeededState(state, nodeId, params.seed, "randomWalk");
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
     const method = Math.max(0, Math.min(3, Math.round(this.safeFilterNumber(params.method, null))));
@@ -9774,6 +9834,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyExpAdsrNativeState(state) {
     if (state?.nativeHandle && this.nativeExpAdsr?.soemdsp_exp_adsr_destroy) {
       this.nativeExpAdsr.soemdsp_exp_adsr_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyRandomWalkNativeState(state) {
+    if (state?.nativeHandle && this.nativeRandomWalk?.soemdsp_random_walk_destroy) {
+      this.nativeRandomWalk.soemdsp_random_walk_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

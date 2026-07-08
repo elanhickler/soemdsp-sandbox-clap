@@ -558,8 +558,8 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   randomWalk: {
     category: "Modulators",
-    description: "Flexible soemdsp-style random walk with white, filtered, random-step, and fixed-step motion modes.",
-    notes: ["bounded walk", "jitter curve", "one-pole smoothing"],
+    description: "Flexible soemdsp-style random walk with white, filtered, random-step, and fixed-step motion modes. Native C++/WASM.",
+    notes: ["bounded walk", "jitter curve", "one-pole smoothing", "native"],
   },
   fractalBrownianNoise: {
     category: "Noise",
