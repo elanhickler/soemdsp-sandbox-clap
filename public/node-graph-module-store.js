@@ -932,9 +932,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   expAdsr: {
     category: "Envelope",
-    description: "Soundemote-style exponential ADSR. Gate it with a clock or pulse and shape the rise and fall curves.",
+    description: "Soundemote-style exponential ADSR. Gate it with a clock or pulse and shape the rise and fall curves. Native C++/WASM.",
     label: "ExponentialEnvelope",
-    notes: ["gate input", "target-ratio curves", "loopable envelope"],
+    notes: ["gate input", "target-ratio curves", "loopable envelope", "native"],
   },
   flowerChildEnvelopeFollower: {
     category: "Envelope",

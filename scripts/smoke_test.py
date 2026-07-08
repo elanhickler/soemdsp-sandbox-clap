@@ -17258,6 +17258,7 @@ def require_native_module_contract(base_url: str) -> None:
         "blit": ["soemdsp_blit_create", "soemdsp_blit_destroy", "soemdsp_blit_sample"],
         "linear_envelope": ["soemdsp_linear_envelope_create", "soemdsp_linear_envelope_destroy", "soemdsp_linear_envelope_sample"],
         "pluck_envelope": ["soemdsp_pluck_envelope_create", "soemdsp_pluck_envelope_destroy", "soemdsp_pluck_envelope_sample"],
+        "exp_adsr": ["soemdsp_exp_adsr_create", "soemdsp_exp_adsr_destroy", "soemdsp_exp_adsr_sample"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",

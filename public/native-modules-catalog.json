@@ -68,6 +68,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "exp_adsr",
+      "label": "Exp ADSR",
+      "targetType": "expAdsr",
+      "kind": "envelope",
+      "source": "native_modules/exp_adsr/exp_adsr.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/exp_adsr/exp_adsr.cpp",
+      "wasm": "native_modules/exp_adsr/exp_adsr.wasm",
+      "wasmUrl": "native_modules/exp_adsr/exp_adsr.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "flower_child_filter",
       "label": "Flower Child Filter",
       "targetType": "flowerChildFilter",
