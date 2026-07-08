@@ -17267,6 +17267,7 @@ def require_native_module_contract(base_url: str) -> None:
         "jerobeam_spiral": ["soemdsp_jerobeam_spiral_create", "soemdsp_jerobeam_spiral_destroy", "soemdsp_jerobeam_spiral_sample", "soemdsp_jerobeam_spiral_x", "soemdsp_jerobeam_spiral_y", "soemdsp_jerobeam_spiral_z", "soemdsp_jerobeam_spiral_left", "soemdsp_jerobeam_spiral_right"],
         "additive_osc": ["soemdsp_additive_osc_sample"],
         "delay_effect": ["soemdsp_delay_effect_create", "soemdsp_delay_effect_destroy", "soemdsp_delay_effect_sample", "soemdsp_delay_effect_out", "soemdsp_delay_effect_wet"],
+        "basic_oscillator": ["soemdsp_basic_oscillator_create", "soemdsp_basic_oscillator_destroy", "soemdsp_basic_oscillator_sample"],
         "helmholtz": [
             "soemdsp_helmholtz_create",
             "soemdsp_helmholtz_destroy",

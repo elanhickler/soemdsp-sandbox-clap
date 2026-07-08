@@ -113,6 +113,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nodes = new Map();
     this.noiseSeedKeys = new Map();
     this.noiseSeeds = new Map();
+    this.basicOscillatorNativeHandles = new Map();
     this.order = [];
     this.engineSampleRate = sampleRate;
     this.hostSampleRate = sampleRate;
@@ -1155,6 +1156,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "basic_oscillator" || targetType === "osc" || targetType === "fbPolyBlepOsc") {
+        for (const handle of this.basicOscillatorNativeHandles.values()) {
+          if (this.nativeBasicOscillator?.soemdsp_basic_oscillator_destroy) {
+            this.nativeBasicOscillator.soemdsp_basic_oscillator_destroy(handle);
+          }
+        }
+        this.basicOscillatorNativeHandles.clear();
+        this.nativeBasicOscillator = exports;
+        this.nativeBasicOscillatorReady = Boolean(
+          this.nativeBasicOscillator?.soemdsp_basic_oscillator_create &&
+          this.nativeBasicOscillator?.soemdsp_basic_oscillator_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "basic_oscillator",
+          status: this.nativeBasicOscillatorReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1754,6 +1774,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       const nodeId = String(id).split(":")[0];
       if (!ids.has(nodeId)) {
         this.noiseSeeds.delete(id);
+      }
+    }
+    for (const id of [...this.basicOscillatorNativeHandles.keys()]) {
+      const nodeId = String(id).split(":")[0];
+      if (!ids.has(nodeId)) {
+        const handle = this.basicOscillatorNativeHandles.get(id);
+        if (handle && this.nativeBasicOscillator?.soemdsp_basic_oscillator_destroy) {
+          this.nativeBasicOscillator.soemdsp_basic_oscillator_destroy(handle);
+        }
+        this.basicOscillatorNativeHandles.delete(id);
       }
     }
     for (const id of [...this.noiseSeedKeys.keys()]) {
@@ -3469,6 +3499,41 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   oscillatorSample(nodeId, phase, phaseIncrement, waveform) {
+    if (
+      this.nativeBasicOscillatorReady &&
+      this.nativeBasicOscillator?.soemdsp_basic_oscillator_create &&
+      this.nativeBasicOscillator?.soemdsp_basic_oscillator_sample
+    ) {
+      try {
+        let handle = this.basicOscillatorNativeHandles.get(nodeId);
+        if (!handle) {
+          handle = this.nativeBasicOscillator.soemdsp_basic_oscillator_create();
+          if (handle) {
+            this.basicOscillatorNativeHandles.set(nodeId, handle);
+          }
+        }
+        if (handle) {
+          return this.nativeBasicOscillator.soemdsp_basic_oscillator_sample(
+            handle,
+            Number(phase) || 0,
+            Number(phaseIncrement) || 0,
+            Math.round(Number(waveform) || 0),
+          );
+        }
+      } catch (error) {
+        this.nativeBasicOscillatorReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "basic_oscillator",
+          status: "disabled",
+          message: String(error?.message || error || "native Basic Oscillator failed"),
+        });
+      }
+    }
+    return this.oscillatorSampleJs(nodeId, phase, phaseIncrement, waveform);
+  }
+
+  oscillatorSampleJs(nodeId, phase, phaseIncrement, waveform) {
     const phaseDelta = Number(phaseIncrement) || 0;
     const phaseStopped = Math.abs(phaseDelta) <= 1e-12;
     if (phaseStopped && this.oscillatorStoppedSamples.has(nodeId)) {

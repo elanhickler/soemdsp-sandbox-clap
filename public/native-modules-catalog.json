@@ -24,6 +24,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "basic_oscillator",
+      "label": "Basic Oscillator",
+      "targetType": "osc",
+      "kind": "oscillator",
+      "source": "native_modules/basic_oscillator/basic_oscillator.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/basic_oscillator/basic_oscillator.cpp",
+      "wasm": "native_modules/basic_oscillator/basic_oscillator.wasm",
+      "wasmUrl": "native_modules/basic_oscillator/basic_oscillator.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "blit",
       "label": "BLIT Oscillator",
       "targetType": "blit",

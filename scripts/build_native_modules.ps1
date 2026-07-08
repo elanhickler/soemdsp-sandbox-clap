@@ -892,3 +892,20 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\delay_effect\delay_effect.wasm" `
   "$root\native_modules\delay_effect\delay_effect.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_basic_oscillator_create" `
+  "-Wl,--export=soemdsp_basic_oscillator_destroy" `
+  "-Wl,--export=soemdsp_basic_oscillator_sample" `
+  "-Wl,--export=soemdsp_basic_oscillator_version" `
+  "-Wl,--export=soemdsp_basic_oscillator_metadata_json" `
+  "-Wl,--export=soemdsp_basic_oscillator_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\basic_oscillator\basic_oscillator.wasm" `
+  "$root\native_modules\basic_oscillator\basic_oscillator.cpp"
