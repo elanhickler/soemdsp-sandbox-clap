@@ -1097,6 +1097,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "fractal_spiral" || targetType === "fractalSpiral") {
+        for (const state of this.fractalSpiralStates.values()) {
+          this.destroyFractalSpiralNativeState(state);
+        }
+        this.nativeFractalSpiral = exports;
+        this.nativeFractalSpiralReady = Boolean(
+          this.nativeFractalSpiral?.soemdsp_fractal_spiral_create &&
+          this.nativeFractalSpiral?.soemdsp_fractal_spiral_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "fractal_spiral",
+          status: this.nativeFractalSpiralReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1711,6 +1727,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.fractalSpiralStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyFractalSpiralNativeState(this.fractalSpiralStates.get(id));
         this.fractalSpiralStates.delete(id);
       }
     }
@@ -7727,6 +7744,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return {
       phase: 0,
       spinPhase: 0,
+      nativeHandle: 0,
     };
   }
 
@@ -7738,6 +7756,49 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // public/node-graph-fractal-spiral.js for the full derivation. Mirrors
   // that file exactly.
   fractalSpiralSample(state, options = {}) {
+    if (
+      this.nativeFractalSpiralReady &&
+      this.nativeFractalSpiral?.soemdsp_fractal_spiral_create &&
+      this.nativeFractalSpiral?.soemdsp_fractal_spiral_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeFractalSpiral.soemdsp_fractal_spiral_create();
+        }
+        if (state.nativeHandle) {
+          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
+          this.nativeFractalSpiral.soemdsp_fractal_spiral_sample(
+            state.nativeHandle,
+            Number(options.frequency) || 0,
+            Number(options.spin) || 0,
+            Math.max(0, Number(options.size) || 0),
+            Number(options.growth) || 0,
+            Math.max(0.001, Math.min(0.98, Number(options.gain))),
+            Math.max(1.0001, Number(options.lacunarity) || 1),
+            Math.max(1, Math.min(16, Math.round(Number(options.octaves) || 1))),
+            Number(options.twist) || 0,
+            sampleRateValue,
+          );
+          return {
+            x: this.nativeFractalSpiral.soemdsp_fractal_spiral_x(state.nativeHandle),
+            y: this.nativeFractalSpiral.soemdsp_fractal_spiral_y(state.nativeHandle),
+            z: this.nativeFractalSpiral.soemdsp_fractal_spiral_z(state.nativeHandle),
+          };
+        }
+      } catch (error) {
+        this.nativeFractalSpiralReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "fractal_spiral",
+          status: "disabled",
+          message: String(error?.message || error || "native Fractal Spiral failed"),
+        });
+      }
+    }
+    return this.fractalSpiralSampleJs(state, options);
+  }
+
+  fractalSpiralSampleJs(state, options = {}) {
     const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
     const frequency = Number(options.frequency) || 0;
     const spin = Number(options.spin) || 0;
@@ -9985,6 +10046,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyLogSpiralNativeState(state) {
     if (state?.nativeHandle && this.nativeLogSpiral?.soemdsp_log_spiral_destroy) {
       this.nativeLogSpiral.soemdsp_log_spiral_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyFractalSpiralNativeState(state) {
+    if (state?.nativeHandle && this.nativeFractalSpiral?.soemdsp_fractal_spiral_destroy) {
+      this.nativeFractalSpiral.soemdsp_fractal_spiral_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

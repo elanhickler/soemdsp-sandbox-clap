@@ -101,6 +101,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "fractal_spiral",
+      "label": "Fractal Spiral",
+      "targetType": "fractalSpiral",
+      "kind": "jerobeam",
+      "source": "native_modules/fractal_spiral/fractal_spiral.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/fractal_spiral/fractal_spiral.cpp",
+      "wasm": "native_modules/fractal_spiral/fractal_spiral.wasm",
+      "wasmUrl": "native_modules/fractal_spiral/fractal_spiral.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "helmholtz",
       "label": "Helmholtz Pitch",
       "targetType": "helmholtzPitch",

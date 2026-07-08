@@ -445,9 +445,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   fractalSpiral: {
     category: "Jerobeam",
-    description: "Self-affine Weierstrass-style fractal spiral: N rotating copies of itself, each spun faster and scaled down, summed into one curve with a real, tunable Hausdorff dimension.",
+    description: "Self-affine Weierstrass-style fractal spiral: N rotating copies of itself, each spun faster and scaled down, summed into one curve with a real, tunable Hausdorff dimension. Native C++/WASM.",
     label: "Fractal Spiral",
-    notes: ["fractal", "self-similar", "logarithmic spiral", "Weierstrass function"],
+    notes: ["fractal", "self-similar", "logarithmic spiral", "Weierstrass function", "native"],
   },
   logSpiral: {
     category: "Jerobeam",
