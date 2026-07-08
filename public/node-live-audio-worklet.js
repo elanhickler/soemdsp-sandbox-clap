@@ -984,6 +984,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "linear_envelope" || targetType === "linearEnvelope") {
+        for (const state of this.linearEnvelopeStates.values()) {
+          this.destroyLinearEnvelopeNativeState(state);
+        }
+        this.nativeLinearEnvelope = exports;
+        this.nativeLinearEnvelopeReady = Boolean(
+          this.nativeLinearEnvelope?.soemdsp_linear_envelope_create &&
+          this.nativeLinearEnvelope?.soemdsp_linear_envelope_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "linear_envelope",
+          status: this.nativeLinearEnvelopeReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "shooting_star_explosion" || targetType === "shootingStarExplosion") {
         this.nativeShootingStarExplosion = exports;
         this.nativeShootingStarExplosionReady = Boolean(
@@ -1723,6 +1739,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.linearEnvelopeStates.keys()]) {
       if (!ids.has(id)) {
+        this.destroyLinearEnvelopeNativeState(this.linearEnvelopeStates.get(id));
         this.linearEnvelopeStates.delete(id);
       }
     }
@@ -3864,6 +3881,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       releaseDecrement: 0,
       secondsPassed: 0,
       state: "off",
+      nativeHandle: 0,
     };
   }
 
@@ -7224,6 +7242,45 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   linearEnvelopeSample(state, gate, params, rate = sampleRate) {
+    if (
+      this.nativeLinearEnvelopeReady &&
+      this.nativeLinearEnvelope?.soemdsp_linear_envelope_create &&
+      this.nativeLinearEnvelope?.soemdsp_linear_envelope_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeLinearEnvelope.soemdsp_linear_envelope_create();
+        }
+        if (state.nativeHandle) {
+          const safeRate = Number(rate) > 1 ? Number(rate) : sampleRate;
+          const out = this.nativeLinearEnvelope.soemdsp_linear_envelope_sample(
+            state.nativeHandle,
+            Number(gate) || 0,
+            Math.max(0, Number(params.delay) || 0),
+            Math.max(0, Number(params.attack) || 0),
+            Math.max(0, Number(params.decay) || 0),
+            this.clampValue(Number(params.sustain) || 0, 0, 1),
+            Math.max(0, Number(params.release) || 0),
+            Number(params.loop) || 0,
+            Number(params.level) || 0,
+            safeRate,
+          );
+          return this.safeFilterNumber(out, null);
+        }
+      } catch (error) {
+        this.nativeLinearEnvelopeReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "linear_envelope",
+          status: "disabled",
+          message: String(error?.message || error || "native Linear Envelope failed"),
+        });
+      }
+    }
+    return this.linearEnvelopeSampleJs(state, gate, params, rate);
+  }
+
+  linearEnvelopeSampleJs(state, gate, params, rate = sampleRate) {
     const safeGate = this.safeFilterNumber(gate, null);
     const delay = Math.max(0, this.safeFilterNumber(params.delay, null));
     const attack = Math.max(0, this.safeFilterNumber(params.attack, null));
@@ -9573,6 +9630,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyDsfOscillatorNativeState(state) {
     if (state?.nativeHandle && this.nativeDsfOscillator?.soemdsp_dsf_oscillator_destroy) {
       this.nativeDsfOscillator.soemdsp_dsf_oscillator_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyLinearEnvelopeNativeState(state) {
+    if (state?.nativeHandle && this.nativeLinearEnvelope?.soemdsp_linear_envelope_destroy) {
+      this.nativeLinearEnvelope.soemdsp_linear_envelope_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

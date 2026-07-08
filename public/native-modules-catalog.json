@@ -222,6 +222,17 @@
       "wasmAvailable": true
     },
     {
+      "name": "linear_envelope",
+      "label": "Linear Envelope",
+      "targetType": "linearEnvelope",
+      "kind": "envelope",
+      "source": "native_modules/linear_envelope/linear_envelope.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/linear_envelope/linear_envelope.cpp",
+      "wasm": "native_modules/linear_envelope/linear_envelope.wasm",
+      "wasmUrl": "native_modules/linear_envelope/linear_envelope.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "logistic_map",
       "label": "Logistic Map",
       "targetType": "logisticMap",

@@ -944,9 +944,9 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
   },
   linearEnvelope: {
     category: "Envelope",
-    description: "Straight-line envelope for predictable ramps, fades, gates, and simple motion.",
+    description: "Straight-line envelope for predictable ramps, fades, gates, and simple motion. Native C++/WASM.",
     label: "LinearEnvelope",
-    notes: ["gate input", "linear DADSR", "loopable ramp"],
+    notes: ["gate input", "linear DADSR", "loopable ramp", "native"],
   },
   pluckEnvelope: {
     category: "Envelope",
