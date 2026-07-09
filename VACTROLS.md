@@ -8,6 +8,21 @@ modules in `soemdsp-sandbox` (🐢 `VTL5C3` and 🐌 `VTL5C4`). It explains what
 vactrol physically is, why it sounds the way it does, how that maps onto the
 module's knobs, and where the numbers came from.
 
+## 🔊 Listen: real-hardware vactrol recordings
+
+Three takes on the same real vactrol under CV control — the fast turn-on /
+slow, lingering release you hear is exactly the asymmetric photoconductive
+persistence described below. Not a filter sweep, not an envelope generator —
+just a photoresistor genuinely taking its time to let go of the light it
+saw. 🎧
+
+- 🎛️ **[`vactrol_speed_test(cv).wav`](https://drive.google.com/file/d/1pIIddKLbYH8M8E1G6PcH-F1zifknBiIn/view?usp=drive_link)**
+  — driven directly by CV, the baseline response.
+- 🐌 **[`vactrol_speed_test(slow).wav`](https://drive.google.com/file/d/1q3_TV43KSkOH8tFBpTcoBHg0cgvoh4CY/view?usp=drive_link)**
+  — the same cell pushed toward its slow, swelling release.
+- 🐢 **[`vactrol_speed_test(fast).wav`](https://drive.google.com/file/d/11xbIYxlobjik55lM_NmLfSVu7C5XClt2/view?usp=drive_link)**
+  — and toward its fast, plucky release, for comparison.
+
 ---
 
 ## 📖 Table of contents
