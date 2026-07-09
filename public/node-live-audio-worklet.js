@@ -139,6 +139,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.cookbookFilterStates = new Map();
     this.delayedTriggerStates = new Map();
     this.delayEffectStates = new Map();
+    this.pingPongDelayStates = new Map();
     this.expAdsrStates = new Map();
     this.ellipsoidOutputFrames = new Map();
     this.nativeEllipsoid = null;
@@ -1316,6 +1317,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.cookbookFilterStates = new Map();
     this.delayedTriggerStates = new Map();
     this.delayEffectStates = new Map();
+    this.pingPongDelayStates = new Map();
     this.expAdsrStates = new Map();
     for (const state of this.fractalBrownianNoiseStates.values()) {
       this.destroyFbmNativeState(state);
@@ -1713,6 +1715,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "delayEffect" && !this.delayEffectStates.has(id)) {
         this.delayEffectStates.set(id, this.createDelayEffectState());
       }
+      if (node?.type === "pingPongDelay" && !this.pingPongDelayStates.has(id)) {
+        this.pingPongDelayStates.set(id, this.createPingPongDelayState());
+      }
       if (node?.type === "reverbEffect" && !this.reverbEffectStates.has(id)) {
         this.reverbEffectStates.set(id, this.createSabrinaReverbState());
       }
@@ -2080,6 +2085,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyDelayEffectNativeState(this.delayEffectStates.get(id));
         this.delayEffectStates.delete(id);
+      }
+    }
+    for (const id of [...this.pingPongDelayStates.keys()]) {
+      if (!ids.has(id)) {
+        this.pingPongDelayStates.delete(id);
       }
     }
     for (const id of [...this.reverbEffectStates.keys()]) {
@@ -4371,6 +4381,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createPingPongDelayState() {
+    return {
+      bufferL: new Float32Array(1),
+      bufferR: new Float32Array(1),
+      bufferSize: 1,
+      position: 0,
+      wetL: 0,
+      wetR: 0,
+    };
+  }
+
   createSampleHoldState() {
     return {
       clockPhase: 0,
@@ -4960,6 +4981,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.cookbookFilterStates = new Map();
     runtime.delayedTriggerStates = new Map();
     runtime.delayEffectStates = new Map();
+    runtime.pingPongDelayStates = new Map();
     runtime.expAdsrStates = new Map();
     runtime.fractalBrownianNoiseStates = new Map();
     runtime.flowerChildEnvelopeFollowerStates = new Map();
@@ -5090,6 +5112,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "clockDivider") this.clockDividerStates.set(id, this.createTriggerDividerState());
       if (node?.type === "delayedTrigger") this.delayedTriggerStates.set(id, this.createDelayedTriggerState());
       if (node?.type === "delayEffect") this.delayEffectStates.set(id, this.createDelayEffectState());
+      if (node?.type === "pingPongDelay") this.pingPongDelayStates.set(id, this.createPingPongDelayState());
       if (node?.type === "reverbEffect") this.reverbEffectStates.set(id, this.createSabrinaReverbState());
       if (node?.type === "pll") this.pllStates.set(id, this.createPllState());
       if (node?.type === "helmholtzPitch") this.helmholtzStates.set(id, this.createHelmholtzState());
@@ -7038,6 +7061,87 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return {
       Out: (dry * (1 - mix) + state.wet * mix) * level,
       Wet: state.wet * level,
+    };
+  }
+
+  pingPongTimingModeMultiplier(mode) {
+    const rounded = Math.round(Number(mode) || 0);
+    if (rounded === 1) {
+      return 1.5; // Dotted
+    }
+    if (rounded === 2) {
+      return 2 / 3; // Triplet: three fit in the space of two normal notes
+    }
+    return 1; // Normal
+  }
+
+  // X/Y as a fraction of a whole note. Both are free metaparameters -- never
+  // clamped or rejected here, only floored for this one computation:
+  // - Negative numerator or denominator behaves like 0.
+  // - A numerator of 0 (or negative) always means "no time", for any
+  //   denominator including 0 -- this also sidesteps 0/0 producing NaN.
+  // - A non-zero numerator over a 0 (or negative) denominator falls back to
+  //   a denominator of 1, i.e. "X/0" reads as "X whole notes", rather than
+  //   dividing by zero.
+  pingPongDelayFraction(numerator, denominator) {
+    const effectiveNumerator = Math.max(0, Number(numerator) || 0);
+    if (effectiveNumerator === 0) {
+      return 0;
+    }
+    const effectiveDenominator = Math.max(0, Number(denominator) || 0);
+    return effectiveNumerator / Math.max(1, effectiveDenominator);
+  }
+
+  pingPongDelaySeconds(params) {
+    const secondsPerWholeNote = 240 / Math.max(1, Number(this.timing?.tempoBpm) || 120);
+    const fraction = this.pingPongDelayFraction(params.timeNumerator, params.timeDenominator);
+    const syncedSeconds = secondsPerWholeNote * fraction * this.pingPongTimingModeMultiplier(params.timingMode);
+    const offsetSeconds = (Number(params.offsetMs) || 0) / 1000;
+    return syncedSeconds + offsetSeconds;
+  }
+
+  pingPongDelaySample(state, input, params, rateHz = sampleRate) {
+    const safeRate = Math.max(1, Number(rateHz) || 44100);
+    const maxDelaySeconds = 8;
+    const requiredSize = Math.max(2, Math.ceil(safeRate * maxDelaySeconds) + 2);
+    if (!state.bufferL || state.bufferSize !== requiredSize) {
+      state.bufferL = new Float32Array(requiredSize);
+      state.bufferR = new Float32Array(requiredSize);
+      state.bufferSize = requiredSize;
+      state.position = 0;
+      state.wetL = 0;
+      state.wetR = 0;
+    }
+    const dry = this.safeFilterNumber(input, null);
+    const feedback = this.clampValue(this.safeFilterNumber(params.feedback, null), 0, 0.95);
+    const mix = this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1);
+    const level = this.clampValue(this.safeFilterNumber(params.level, null), 0, 2);
+
+    // The computed time is what gets bounded to fit the (necessarily finite)
+    // delay buffer -- timeNumerator/timeDenominator/offsetMs themselves are
+    // read as-is above, in pingPongDelaySeconds, with no clamp.
+    const rawSeconds = this.pingPongDelaySeconds(params);
+    const safeSeconds = Number.isFinite(rawSeconds) ? Math.max(0, rawSeconds) : 0;
+    const delaySamples = this.clampValue(safeSeconds * safeRate, 1, state.bufferSize - 2);
+
+    state.position = (state.position + 1) % state.bufferSize;
+    const readPosition = (state.position + state.bufferSize - delaySamples) % state.bufferSize;
+    const readL = this.delayInterpolateLinear(state.bufferL, readPosition);
+    const readR = this.delayInterpolateLinear(state.bufferR, readPosition);
+
+    // Classic ping-pong topology: the input only ever enters the left line;
+    // the right line is driven purely by the left line's own feedback, so a
+    // single input bounces left -> right -> left -> right as it decays.
+    const writeL = dry + readR * feedback;
+    const writeR = readL * feedback;
+    state.bufferL[state.position] = this.clampValue(writeL, -8, 8);
+    state.bufferR[state.position] = this.clampValue(writeR, -8, 8);
+    state.wetL = readL;
+    state.wetR = readR;
+
+    return {
+      Left: (dry * (1 - mix) + state.wetL * mix) * level,
+      Right: (dry * (1 - mix) + state.wetR * mix) * level,
     };
   }
 
@@ -12613,6 +12717,24 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           },
           safeRate,
           nodeId,
+        );
+      } else if (node?.type === "pingPongDelay") {
+        const state = this.pingPongDelayStates.get(nodeId) || this.createPingPongDelayState();
+        this.pingPongDelayStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = this.pingPongDelaySample(
+          state,
+          mixInput(nodeId),
+          {
+            feedback: read("feedback", 0.35),
+            level: read("level", 1),
+            mix: read("mix", 0.35),
+            offsetMs: read("offsetMs", 0),
+            timeDenominator: read("timeDenominator", 4),
+            timeNumerator: read("timeNumerator", 1),
+            timingMode: read("timingMode", 0),
+          },
+          safeRate,
         );
       } else if (node?.type === "reverbEffect") {
         const state = this.reverbEffectStates.get(nodeId) || this.createSabrinaReverbState();

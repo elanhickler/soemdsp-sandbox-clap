@@ -101,6 +101,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "tb303Filter",
   "slewLimiter",
   "delayEffect",
+  "pingPongDelay",
   "reverbEffect",
   "pll",
   "helmholtzPitch",
@@ -908,6 +909,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "SOEMDSP-style modulated fractional delay with feedback, wet/dry mix, and diffuse mode. Native C++/WASM.",
     label: "Delay",
     notes: ["modulated delay", "fractional echo", "diffuse mode", "native"],
+  },
+  pingPongDelay: {
+    category: "Delay",
+    description: "Basic stereo ping-pong delay, tempo-synced to the patch transport as a free X/Y fraction of a whole note (with Normal/Dotted/Triplet), plus a millisecond offset as a modulation entry.",
+    label: "Ping Pong Delay",
+    notes: ["ping pong", "tempo sync", "X/Y division", "dotted/triplet"],
   },
   reverbEffect: {
     category: "Delay",

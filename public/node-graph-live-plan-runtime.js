@@ -241,6 +241,7 @@ function createNodeGraphLiveRuntime(plan) {
   const clockDividerStates = new Map();
   const delayedTriggerStates = new Map();
   const delayEffectStates = new Map();
+  const pingPongDelayStates = new Map();
   const expAdsrStates = new Map();
   const fractalBrownianNoiseStates = new Map();
   const flowerChildEnvelopeFollowerStates = new Map();
@@ -417,6 +418,9 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "delayEffect") {
       delayEffectStates.set(node.id, createNodeGraphDelayEffectState());
     }
+    if (node.type === "pingPongDelay") {
+      pingPongDelayStates.set(node.id, createNodeGraphPingPongDelayState());
+    }
     if (node.type === "reverbEffect") {
       reverbEffectStates.set(node.id, createNodeGraphSabrinaReverbState());
     }
@@ -501,6 +505,7 @@ function createNodeGraphLiveRuntime(plan) {
     cookbookFilterStates,
     delayedTriggerStates,
     delayEffectStates,
+    pingPongDelayStates,
     expAdsrStates,
     fractalBrownianNoiseStates,
     flowerChildEnvelopeFollowerStates,
@@ -757,6 +762,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.delayEffectStates) {
     runtime.delayEffectStates = new Map();
   }
+  if (!runtime.pingPongDelayStates) {
+    runtime.pingPongDelayStates = new Map();
+  }
   if (!runtime.reverbEffectStates) {
     runtime.reverbEffectStates = new Map();
   }
@@ -938,6 +946,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "delayEffect" && !runtime.delayEffectStates.has(node.id)) {
       runtime.delayEffectStates.set(node.id, createNodeGraphDelayEffectState());
+    }
+    if (node.type === "pingPongDelay" && !runtime.pingPongDelayStates.has(node.id)) {
+      runtime.pingPongDelayStates.set(node.id, createNodeGraphPingPongDelayState());
     }
     if (node.type === "reverbEffect" && !runtime.reverbEffectStates.has(node.id)) {
       runtime.reverbEffectStates.set(node.id, createNodeGraphSabrinaReverbState());
@@ -1261,6 +1272,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.delayEffectStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.delayEffectStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.pingPongDelayStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.pingPongDelayStates.delete(id);
     }
   }
   for (const id of [...runtime.reverbEffectStates.keys()]) {

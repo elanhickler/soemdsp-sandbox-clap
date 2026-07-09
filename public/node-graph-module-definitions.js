@@ -67,6 +67,7 @@ const nodeGraphNodeLabels = Object.freeze({
   ladderFilter: "Ladder Filter",
   tb303Filter: "TB-303 Filter",
   delayEffect: "Delay",
+  pingPongDelay: "Ping Pong Delay",
   reverbEffect: "Sabrina Reverb",
   pll: "PLL",
   helmholtzPitch: "Pitch Detector",
@@ -2212,6 +2213,19 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "0.1", key: "modRate", kind: "frequency", label: "Mod Rate", max: "90", maxDigits: 5, mid: "0.1", min: "0", step: "any", unit: "Hz" },
       { defaultValue: "0", key: "modVariation", label: "Variation", max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "any" },
       { choices: ["Delay", "Diffuse"], defaultValue: "0", displayChoices: true, divideChoicesVisibly: true, key: "mode", label: "Mode", linearSmoothing: false, max: "1", mid: "0", min: "0", nonlinearSlider: false, step: "1" },
+    ],
+  },
+  pingPongDelay: {
+    inputs: ["In"],
+    outputs: ["Left", "Right"],
+    parameters: [
+      { control: "number", defaultValue: "1", key: "timeNumerator", label: "X", linearSmoothing: false, max: "16", maxDigits: 0, mid: "1", min: "0", nonlinearSlider: false, step: "1", tooltip: "Numerator of the tempo-synced time fraction (X/Y of a whole note). Never clamped -- 0 or negative means no time, and this can be pushed past its slider range by automation/modulation." },
+      { control: "number", defaultValue: "4", key: "timeDenominator", label: "Y", linearSmoothing: false, max: "16", maxDigits: 0, mid: "4", min: "0", nonlinearSlider: false, step: "1", tooltip: "Denominator of the tempo-synced time fraction. X/0 is treated as X/1 for the actual computed time (denominator floored to 1 so it's never a divide-by-zero), but the Y value itself is never rejected or clamped." },
+      { choices: ["Normal", "Dotted", "Triplet"], defaultValue: "0", displayChoices: true, divideChoicesVisibly: true, key: "timingMode", label: "Sync", linearSmoothing: false, max: "2", mid: "0", min: "0", nonlinearSlider: false, step: "1", tooltip: "Normal = X/Y as written. Dotted = 1.5x that duration. Triplet = 2/3 that duration (three fit in the space of two normal notes)." },
+      { defaultValue: "0", key: "offsetMs", kind: "time", label: "Offset", max: "500", maxDigits: 5, mid: "0", min: "-500", nonlinearSlider: false, step: "any", unit: "ms", tooltip: "Added on top of the tempo-synced time in milliseconds. This is the modulation entry point -- patch an LFO/envelope here to push the ping-pong ahead of or behind the synced beat." },
+      { defaultValue: "0.35", key: "feedback", label: "Feedback", max: "0.95", mid: "0.35", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "0.35", key: "mix", label: "Mix", max: "1", mid: "0.35", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "1", key: "level", label: "Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
   reverbEffect: {
