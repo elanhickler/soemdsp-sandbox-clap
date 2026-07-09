@@ -328,6 +328,13 @@ function createNodeGraphVactrolEnvelopeState() {
   };
 }
 
+function createNodeGraphImpulseButtonState() {
+  return {
+    amplitude: 1,
+    pulseSamples: 0,
+  };
+}
+
 function createNodeGraphFlowerChildEnvelopeFollowerState() {
   return {
     currentSlewedValue: 0,
@@ -4780,26 +4787,36 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         runtime,
         nodeId,
       );
-    } else if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") {
+    } else if (node?.type === "vactrolEnvelopeSeries" || node?.type === "vactrolEnvelopeCustom") {
       const state = runtime.vactrolEnvelopeStates.get(nodeId) || createNodeGraphVactrolEnvelopeState();
       runtime.vactrolEnvelopeStates.set(nodeId, state);
       const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
-      const isC4 = node?.type === "vactrolEnvelopeC4";
+      const isSeries = node?.type === "vactrolEnvelopeSeries";
+      const seriesSpec = isSeries ? nodeGraphVactrolSeriesSpec(read("part", 2)) : null;
       value = nodeGraphVactrolEnvelopeSample(
         state,
         mixInput(nodeId, "Light"),
         {
-          attack: read("attack", isC4 ? 0.006 : 0.0025),
+          attack: isSeries ? seriesSpec.attack : read("attack", 0.01),
           curve: read("curve", 1),
           darkCurrent: read("darkCurrent", 0),
           lightOffset: read("lightOffset", 0),
-          release: read("release", isC4 ? 1.5 : 0.035),
+          release: isSeries ? seriesSpec.release : read("release", 0.1),
           sensitivity: read("sensitivity", 1),
         },
         sampleRate,
         runtime,
         nodeId,
       );
+    } else if (node?.type === "impulseButton") {
+      const states = runtime.impulseButtonStates instanceof Map ? runtime.impulseButtonStates : new Map();
+      runtime.impulseButtonStates = states;
+      const state = states.get(nodeId) || createNodeGraphImpulseButtonState();
+      states.set(nodeId, state);
+      const pulseSamples = Math.max(0, Number(state.pulseSamples) || 0);
+      const amplitude = Math.max(0, Math.min(1, Number(state.amplitude ?? 1)));
+      state.pulseSamples = Math.max(0, pulseSamples - 1);
+      value = { Pulse: pulseSamples > 0 ? amplitude : 0 };
     } else if (node?.type === "flowerChildEnvelopeFollower") {
       const state = runtime.flowerChildEnvelopeFollowerStates.get(nodeId) || createNodeGraphFlowerChildEnvelopeFollowerState();
       runtime.flowerChildEnvelopeFollowerStates.set(nodeId, state);

@@ -1,5 +1,29 @@
 const nodeLiveAdditiveHardMaxHarmonics = 1024;
 
+// Duplicated from node-graph-module-definitions.js -- the AudioWorkletGlobalScope
+// doesn't share globals with the main thread, so the vactrolEnvelopeSeries "Part"
+// spec table has to be redeclared here for the realtime DSP path. Keep in sync.
+//
+// Easter egg: VTL5C5 below is NOT a real PerkinElmer part -- see the matching
+// comment in node-graph-module-definitions.js for the full (fictional) story.
+const nodeGraphVactrolSeriesSpecs = Object.freeze([
+  { attack: 0.0025, darkKohm: 50000, label: "VTL5C1", litKohm: 0.2, release: 0.035 },
+  { attack: 0.0035, darkKohm: 1000, label: "VTL5C2", litKohm: 0.2, release: 0.5 },
+  { attack: 0.0025, darkKohm: 10000, label: "VTL5C3", litKohm: 0.0015, release: 0.035 },
+  { attack: 0.006, darkKohm: 400, label: "VTL5C4", litKohm: 0.075, release: 1.5 },
+  { attack: 0.005, darkKohm: 6000, label: "VTL5C5", litKohm: 0.4, release: 0.2 },
+  { attack: 0.0035, darkKohm: 100000, label: "VTL5C6", litKohm: 2, release: 0.05 },
+  { attack: 0.006, darkKohm: 1000, label: "VTL5C7", litKohm: 1.1, release: 1.0 },
+  { attack: 0.004, darkKohm: 10000, label: "VTL5C8", litKohm: 1, release: 0.06 },
+  { attack: 0.004, darkKohm: 50000, label: "VTL5C9", litKohm: 0.63, release: 0.05 },
+  { attack: 0.001, darkKohm: 400, label: "VTL5C10", litKohm: 0.4, release: 1.5 },
+]);
+
+function nodeGraphVactrolSeriesSpec(partIndex) {
+  const index = Math.round(Number(partIndex));
+  return nodeGraphVactrolSeriesSpecs[index] || nodeGraphVactrolSeriesSpecs[0];
+}
+
 const nodeSmoothingModes = Object.freeze(["global", "blockSize", "internal", "internalGlobal", "off"]);
 
 function nodeSmoothingModeNormalize(value) {
@@ -258,6 +282,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.triggerDividerStates = new Map();
     this.triangleStates = new Map();
     this.vactrolEnvelopeStates = new Map();
+    this.impulseButtonStates = new Map();
     this.visualInputBuffers = new Map();
     this.visualSinks = [];
     this.resetVisualControls();
@@ -445,6 +470,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.setShootingStarExplosionEvent(message.speed);
       return;
     }
+    if (message.type === "impulseButtonTrigger") {
+      this.setImpulseButtonTrigger(message.nodeId, message.amplitude);
+      return;
+    }
+  }
+
+  setImpulseButtonTrigger(nodeId, amplitude) {
+    if (!nodeId) return;
+    const state = this.impulseButtonStates.get(nodeId) || this.createImpulseButtonState();
+    state.pulseSamples = Math.max(0, Number(state.pulseSamples) || 0) + 1;
+    const normalized = Number(amplitude);
+    state.amplitude = Number.isFinite(normalized) ? Math.max(0, Math.min(1, normalized)) : 1;
+    this.impulseButtonStates.set(nodeId, state);
   }
 
   async setNativeModuleWasm(message) {
@@ -728,7 +766,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
-      if (name === "vactrol_envelope" || targetType === "vactrolEnvelope" || targetType === "vactrolEnvelopeC4") {
+      if (name === "vactrol_envelope" || targetType === "vactrolEnvelopeSeries" || targetType === "vactrolEnvelopeCustom") {
         for (const state of this.vactrolEnvelopeStates.values()) {
           this.destroyVactrolEnvelopeNativeState(state);
         }
@@ -1416,6 +1454,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.triggerDividerStates = new Map();
     this.triangleStates = new Map();
     this.vactrolEnvelopeStates = new Map();
+    this.impulseButtonStates = new Map();
     this.polyBlepStates = new Map();
     this.visualSinks = [];
     this.resetVisualControls();
@@ -1775,8 +1814,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "triggerDivider" && !this.triggerDividerStates.has(id)) {
         this.triggerDividerStates.set(id, this.createTriggerDividerState());
       }
-      if ((node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") && !this.vactrolEnvelopeStates.has(id)) {
+      if ((node?.type === "vactrolEnvelopeSeries" || node?.type === "vactrolEnvelopeCustom") && !this.vactrolEnvelopeStates.has(id)) {
         this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
+      }
+      if (node?.type === "impulseButton" && !this.impulseButtonStates.has(id)) {
+        this.impulseButtonStates.set(id, this.createImpulseButtonState());
       }
       if (node?.type === "polyBlep" && !this.polyBlepStates.has(id)) {
         this.polyBlepStates.set(id, this.createPolyBlepState());
@@ -2189,6 +2231,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyVactrolEnvelopeNativeState(this.vactrolEnvelopeStates.get(id));
         this.vactrolEnvelopeStates.delete(id);
+      }
+    }
+    for (const id of [...this.impulseButtonStates.keys()]) {
+      if (!ids.has(id)) {
+        this.impulseButtonStates.delete(id);
       }
     }
     for (const id of [...this.polyBlepStates.keys()]) {
@@ -4489,6 +4536,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createImpulseButtonState() {
+    return {
+      amplitude: 1,
+      pulseSamples: 0,
+    };
+  }
+
   createPolyBlepState() {
     return {
       nativeHandle: 0,
@@ -5040,6 +5094,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.triggerDividerStates = new Map();
     runtime.triangleStates = new Map();
     runtime.vactrolEnvelopeStates = new Map();
+    runtime.impulseButtonStates = new Map();
     runtime.polyBlepStates = new Map();
     runtime.resetVisualControls();
     runtime.setNestedPlan(plan);
@@ -5133,7 +5188,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "stepSequencer") this.stepSequencerStates.set(id, this.createStepSequencerState());
       if (node?.type === "triggerCounter") this.triggerCounterStates.set(id, this.createTriggerCounterState());
       if (node?.type === "triggerDivider") this.triggerDividerStates.set(id, this.createTriggerDividerState());
-      if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
+      if (node?.type === "vactrolEnvelopeSeries" || node?.type === "vactrolEnvelopeCustom") this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
+      if (node?.type === "impulseButton") this.impulseButtonStates.set(id, this.createImpulseButtonState());
       if (node?.type === "polyBlep") this.polyBlepStates.set(id, this.createPolyBlepState());
       if (node?.type === "blit") this.blitStates.set(id, this.createBlitState());
       if (node?.type === "archimedes") this.archimedesStates.set(id, this.createArchimedesState());
@@ -12879,24 +12935,32 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           },
           safeRate,
         );
-      } else if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") {
+      } else if (node?.type === "vactrolEnvelopeSeries" || node?.type === "vactrolEnvelopeCustom") {
         const state = this.vactrolEnvelopeStates.get(nodeId) || this.createVactrolEnvelopeState();
         this.vactrolEnvelopeStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const isC4 = node?.type === "vactrolEnvelopeC4";
+        const isSeries = node?.type === "vactrolEnvelopeSeries";
+        const seriesSpec = isSeries ? nodeGraphVactrolSeriesSpec(read("part", 2)) : null;
         value = this.vactrolEnvelopeSample(
           state,
           mixInput(nodeId, "Light"),
           {
-            attack: read("attack", isC4 ? 0.006 : 0.0025),
+            attack: isSeries ? seriesSpec.attack : read("attack", 0.01),
             curve: read("curve", 1),
             darkCurrent: read("darkCurrent", 0),
             lightOffset: read("lightOffset", 0),
-            release: read("release", isC4 ? 1.5 : 0.035),
+            release: isSeries ? seriesSpec.release : read("release", 0.1),
             sensitivity: read("sensitivity", 1),
           },
           safeRate,
         );
+      } else if (node?.type === "impulseButton") {
+        const state = this.impulseButtonStates.get(nodeId) || this.createImpulseButtonState();
+        this.impulseButtonStates.set(nodeId, state);
+        const pulseSamples = Math.max(0, Number(state.pulseSamples) || 0);
+        const amplitude = Math.max(0, Math.min(1, Number(state.amplitude ?? 1)));
+        state.pulseSamples = Math.max(0, pulseSamples - 1);
+        value = { Pulse: pulseSamples > 0 ? amplitude : 0 };
       } else if (node?.type === "flowerChildEnvelopeFollower") {
         const state = this.flowerChildEnvelopeFollowerStates.get(nodeId) ||
           this.createFlowerChildEnvelopeFollowerState();

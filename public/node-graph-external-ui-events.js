@@ -367,6 +367,30 @@ function triggerNodeGraphGameEvent(name, payload = {}) {
   return false;
 }
 
+function triggerNodeGraphImpulseButton(nodeId) {
+  const patchNode = nodeGraphPatchNode(nodeId);
+  const rawAmplitude = Number(patchNode?.params?.amplitude);
+  const amplitude = Number.isFinite(rawAmplitude) ? Math.max(0, Math.min(1, rawAmplitude)) : 1;
+  if (nodeGraphMvp.live.runtime) {
+    const states = nodeGraphMvp.live.runtime.impulseButtonStates instanceof Map
+      ? nodeGraphMvp.live.runtime.impulseButtonStates
+      : new Map();
+    nodeGraphMvp.live.runtime.impulseButtonStates = states;
+    const state = states.get(nodeId) || { amplitude: 1, pulseSamples: 0 };
+    state.pulseSamples = Math.max(0, Number(state.pulseSamples) || 0) + 1;
+    state.amplitude = amplitude;
+    states.set(nodeId, state);
+  }
+  if (nodeGraphMvp.live.usesWorklet && nodeGraphMvp.live.node?.port) {
+    nodeGraphMvp.live.node.port.postMessage({
+      amplitude,
+      nodeId,
+      type: "impulseButtonTrigger",
+    });
+  }
+  return true;
+}
+
 function nodeGraphExternalMessageOriginAllowed(event) {
   if (!event || !event.origin) {
     return true;

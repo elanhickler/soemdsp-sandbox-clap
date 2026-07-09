@@ -125,8 +125,8 @@ const nodeGraphModuleScopeUnipolarTypes = new Set([
   "stepSequencer",
   "triggerCounter",
   "triggerDivider",
-  "vactrolEnvelope",
-  "vactrolEnvelopeC4",
+  "vactrolEnvelopeSeries",
+  "vactrolEnvelopeCustom",
 ]);
 
 function normalizeNodeGraphModuleScopeSetting(value = {}) {

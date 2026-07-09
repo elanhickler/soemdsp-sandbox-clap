@@ -239,11 +239,37 @@ function createNodeGraphSliderWidgetBody(node, type) {
   return body;
 }
 
+function createNodeGraphButtonWidgetBody(node, type) {
+  const definition = nodeGraphModuleDefinitions[type];
+  const body = document.createElement("div");
+  body.className = "node-button-widget-body";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "node-button-widget-trigger";
+  button.textContent = "TRIGGER";
+  button.setAttribute("aria-label", `${nodeGraphNodeLabels[type] || "Button"} trigger`);
+  button.addEventListener("click", () => {
+    triggerNodeGraphImpulseButton(node);
+    button.classList.remove("pulsing");
+    void button.offsetWidth;
+    button.classList.add("pulsing");
+  });
+  body.append(button);
+
+  for (const parameter of definition?.parameters || []) {
+    const row = createNodeGraphParameter(node, type, parameter);
+    row.classList.add("node-button-widget-row");
+    body.append(row);
+  }
+  return body;
+}
+
 function createNodeGraphPatchCommandBody(node) {
   const body = document.createElement("div");
   body.className = "node-patch-command-body";
   body.dataset.node = node;
-  const patchNode = nodeGraphPatchNodeById(node);
+  const patchNode = nodeGraphPatchNode(node);
   const previous = patchNode?.type === "previousPatch";
   const label = document.createElement("strong");
   label.textContent = previous ? "PREVIOUS PATCH" : "NEXT PATCH";

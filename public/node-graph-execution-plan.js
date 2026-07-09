@@ -474,7 +474,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       if (!triggerCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} trigger`);
       }
-    } else if (type === "vactrolEnvelope" || type === "vactrolEnvelopeC4") {
+    } else if (type === "vactrolEnvelopeSeries" || type === "vactrolEnvelopeCustom") {
       const lightCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Light")) || []).length;
       if (!lightCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} light`);
@@ -563,6 +563,7 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       type === "dsfOscillator" ||
       type === "ellipsoid" ||
       type === "macroKnob" ||
+      type === "impulseButton" ||
       type === "macroControls" ||
       type === "midiOut" ||
       type === "noiseGenerator" ||

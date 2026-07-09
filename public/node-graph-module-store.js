@@ -67,6 +67,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "macroKnob",
   "bipolarKnob",
   "valueSlider",
+  "impulseButton",
   "rangeSlider",
   "midiOut",
   "midiNotePitch",
@@ -112,8 +113,8 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "flowerChildEnvelopeFollower",
   "linearEnvelope",
   "pluckEnvelope",
-  "vactrolEnvelope",
-  "vactrolEnvelopeC4",
+  "vactrolEnvelopeSeries",
+  "vactrolEnvelopeCustom",
   "sandboxVisuals",
   "screenSpaceShader",
   "bloomGlow",
@@ -656,6 +657,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Value Slider",
     notes: ["bias output", "resizable widget", "manual control"],
   },
+  impulseButton: {
+    category: "Controllers",
+    description: "Click to fire a single-sample impulse at the amplitude set by the adjacent slider (0 to 1). A manual, on-demand trigger for auditioning envelopes and other transient-driven modules.",
+    label: "Impulse Button",
+    notes: ["manual trigger", "one-sample pulse", "amplitude slider"],
+  },
   rangeSlider: {
     category: "Controllers",
     description: "Placeholder for paired minimum/maximum slider control for constraining modulation ranges.",
@@ -975,15 +982,15 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "PluckEnvelope",
     notes: ["trigger input", "decay energy", "auto release", "native"],
   },
-  vactrolEnvelope: {
+  vactrolEnvelopeSeries: {
     category: "Envelope",
-    description: "Optical-style control shaper modeled on the PerkinElmer VTL5C3, the classic fast Buchla/Serge-style LPG vactrol. Feed it light and get its 2.5ms attack, 35ms release response. Native C++/WASM.",
-    notes: ["light input", "attack/release lag", "dark current", "native"],
+    description: "Optical-style control shaper with a 10-way Part switch selecting PerkinElmer VTL5C-series datasheet timing and resistance figures (VTL5C1 through VTL5C10), from the classic fast VTL5C3 to the ~40x-slower VTL5C4. Native C++/WASM.",
+    notes: ["light input", "part switch", "dark current", "native"],
   },
-  vactrolEnvelopeC4: {
+  vactrolEnvelopeCustom: {
     category: "Envelope",
-    description: "Optical-style control shaper modeled on the PerkinElmer VTL5C4, the well-known slow vactrol with a ~1.5s release -- roughly 40x longer than the VTL5C3. Shares its native module with VTL5C3. Native C++/WASM.",
-    notes: ["light input", "slow release", "dark current", "native"],
+    description: "Optical-style control shaper with the same attack/release/curve/sensitivity/light offset/dark current knobs as the VTL5C Series module, but not tied to a named real part -- roll your own hypothetical vactrol. Native C++/WASM.",
+    notes: ["light input", "custom vactrol", "dark current", "native"],
   },
   sandboxVisuals: {
     category: "Visual",
