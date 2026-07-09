@@ -23,6 +23,22 @@ saw. 🎧
 - 🐢 **[`vactrol_speed_test(fast).wav`](https://drive.google.com/file/d/11xbIYxlobjik55lM_NmLfSVu7C5XClt2/view?usp=drive_link)**
   — and toward its fast, plucky release, for comparison.
 
+And two demos of the **Buchla-style resonant low-pass gate** ([why LPGs love
+vactrols](#️-why-lpgs-love-vactrols)) in its two modes — bandpass and
+lowpass — showing the same vactrol simultaneously shaping amplitude and
+timbre from one control signal:
+
+- 🎚️ **[`buchla_badpass.flac`](https://drive.google.com/file/d/1ZNMxsp3G-EnbpTmFFS3RJ9u1PjOVMTsJ/view?usp=drive_link)**
+  — Buchla-style bandpass LPG mode.
+- 🎚️ **[`Buchla-LoPass.flac`](https://drive.google.com/file/d/1ae_8SFkIKIuHRL0LX35xUoCySTBnDLQQ/view?usp=drive_link)**
+  — Buchla-style lowpass LPG mode.
+
+> ⚖️ "Buchla" is used here purely descriptively, to name a well-known circuit
+> topology (the resonant low-pass gate) associated with that historic design
+> style — not as a claim of association. This project and these recordings
+> are **not affiliated with, endorsed by, or sponsored by Buchla Electronic
+> Musical Instruments** or any successor entity.
+
 ---
 
 ## 📖 Table of contents
