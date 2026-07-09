@@ -83,6 +83,13 @@ struct ArchimedesState {
   int32_t freqHz;       // current target frequency
   uint32_t totalSteps;
   uint32_t zeroCrossings;
+  // The xorshift stream already updates once per step for dithering -- these
+  // two just re-read that same stream as a broadband noise sample and split
+  // it with a single one-pole lowpass: noiseLow is the smoothed/below-band
+  // half, noiseRaw-minus-noiseLow is the fast-changing/above-band half. No
+  // second PRNG, no new per-sample cost beyond one multiply-add.
+  double noiseRaw;
+  double noiseLow;
 };
 
 static ArchimedesState gPool[kMaxInstances];
@@ -111,6 +118,8 @@ ArchimedesState makeState() {
   s.freqHz = 440;
   s.totalSteps = 0;
   s.zeroCrossings = 0;
+  s.noiseRaw = 0.0;
+  s.noiseLow = 0.0;
   recomputeTiming(s);
   computePhaseInc(s);
   return s;
@@ -144,7 +153,8 @@ extern "C" void soemdsp_archimedes_reset(int handle) {
 }
 
 // dtShift picks the base sample rate (rate = 1 << dtShift). Profiles:
-//   10 = Wavetable Emulator, 12 = Fast Sin, 16 = Standard std::sin.
+//   10 = Wavetable Emulator, 12 = Fast Sin, 16 = Standard std::sin,
+//   6 = Lo-Fi (coarsest steps -- cheapest and roughest of the four).
 extern "C" void soemdsp_archimedes_set_profile(int handle, int dtShift) {
   if (handle < 1 || handle > kMaxInstances) return;
   ArchimedesState& s = gPool[handle - 1];
@@ -193,6 +203,12 @@ extern "C" double soemdsp_archimedes_step(int handle, int ditherBits) {
   s.totalSteps += 1;
   s.lastSign = sign;
 
+  // Re-read the same xorshift stream as a broadband noise sample and split
+  // it with a one-pole lowpass: the smoothed half is "below Nyquist", the
+  // residual (raw minus smoothed) is the fast/aliased-looking half above it.
+  s.noiseRaw = ((double)s.rng / 4294967295.0) * 2.0 - 1.0;
+  s.noiseLow += 0.01 * (s.noiseRaw - s.noiseLow);
+
   return (double)s.x / 65536.0;
 }
 
@@ -204,6 +220,19 @@ extern "C" double soemdsp_archimedes_sine(int handle) {
 extern "C" double soemdsp_archimedes_cosine(int handle) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   return (double)gPool[handle - 1].y / 65536.0;
+}
+
+// Below-Nyquist half of the dither noise stream (one-pole lowpassed).
+extern "C" double soemdsp_archimedes_noise_below(int handle) {
+  if (handle < 1 || handle > kMaxInstances) return 0.0;
+  return gPool[handle - 1].noiseLow;
+}
+
+// Above-Nyquist half: whatever the lowpass above rejected.
+extern "C" double soemdsp_archimedes_noise_above(int handle) {
+  if (handle < 1 || handle > kMaxInstances) return 0.0;
+  const ArchimedesState& s = gPool[handle - 1];
+  return s.noiseRaw - s.noiseLow;
 }
 
 // Jump to an absolute phase angle, preserving current amplitude.
@@ -248,4 +277,4 @@ extern "C" double soemdsp_archimedes_extract_pi(int handle) {
   return (avgStepsPerHalfCycle * s.dtFloat) * s.freqHz * kPi;
 }
 
-extern "C" int soemdsp_archimedes_version() { return 1; }
+extern "C" int soemdsp_archimedes_version() { return 2; }

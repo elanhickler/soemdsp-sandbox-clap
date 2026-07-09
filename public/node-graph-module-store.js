@@ -1,5 +1,7 @@
 const nodeGraphModuleStoreTypes = Object.freeze([
   "polyBlep",
+  "blit",
+  "archimedes",
   "sineWavetable",
   "drumMachine",
   "kickDrum",
@@ -317,6 +319,18 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Anti-aliased PolyBLEP oscillator for clean saw, ramp, square, triangle, sine, and noise waveform outputs.",
     label: "PolyBLEP",
     notes: ["anti-aliasing", "polyblep", "realtime oscillator"],
+  },
+  blit: {
+    category: "Oscillator",
+    description: "Band-Limited Impulse Train oscillator (Stilson/Smith style) -- alias-suppressed saw, ramp, square, triangle, and sine, derived from a closed-form impulse train instead of PolyBLEP correction polynomials.",
+    label: "BLIT",
+    notes: ["anti-aliasing", "blit", "realtime oscillator"],
+  },
+  archimedes: {
+    category: "Oscillator",
+    description: "A 2-cycle integer symplectic sine/cosine engine that also extracts pi from its own dithered clock -- a self-oscillating quadrature pair with a bonus pi-estimation output.",
+    label: "Archimedes",
+    notes: ["quadrature", "fixed-point", "realtime oscillator"],
   },
   sineWavetable: {
     category: "Oscillator",

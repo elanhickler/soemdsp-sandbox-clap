@@ -16,7 +16,7 @@ const nodeLiveRaptEllipticQuarterbandSos = Object.freeze([
 ]);
 
 function nodeLiveIsPolyBlepOscillatorType(type) {
-  return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc" || type === "sineWavetable";
+  return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc" || type === "sineWavetable" || type === "blit";
 }
 
 const nodeLiveSineWavetableSize = 2048;
@@ -181,6 +181,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativePolyBlep = null;
     this.nativePolyBlepReady = false;
     this.polyBlepStates = new Map();
+    this.nativeBlit = null;
+    this.nativeBlitReady = false;
+    this.blitStates = new Map();
+    this.blitJsIntegrators = new Map();
+    this.nativeArchimedes = null;
+    this.nativeArchimedesReady = false;
+    this.archimedesStates = new Map();
     this.pllStates = new Map();
     this.fractalBrownianNoiseStates = new Map();
     this.graphInputConnections = new Map();
@@ -1215,6 +1222,40 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "blit" || targetType === "blit") {
+        for (const state of this.blitStates.values()) {
+          this.destroyBlitNativeState(state);
+        }
+        this.nativeBlit = exports;
+        this.nativeBlitReady = Boolean(
+          this.nativeBlit?.soemdsp_blit_create &&
+          this.nativeBlit?.soemdsp_blit_sample &&
+          this.nativeBlit?.soemdsp_blit_out,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "blit",
+          status: this.nativeBlitReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "archimedes" || targetType === "archimedes") {
+        for (const state of this.archimedesStates.values()) {
+          this.destroyArchimedesNativeState(state);
+        }
+        this.nativeArchimedes = exports;
+        this.nativeArchimedesReady = Boolean(
+          this.nativeArchimedes?.soemdsp_archimedes_create &&
+          this.nativeArchimedes?.soemdsp_archimedes_step &&
+          this.nativeArchimedes?.soemdsp_archimedes_sine,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "archimedes",
+          status: this.nativeArchimedesReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       this.port.postMessage({
         type: "nativeModuleStatus",
         name,
@@ -1735,6 +1776,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "polyBlep" && !this.polyBlepStates.has(id)) {
         this.polyBlepStates.set(id, this.createPolyBlepState());
       }
+      if (node?.type === "blit" && !this.blitStates.has(id)) {
+        this.blitStates.set(id, this.createBlitState());
+      }
+      if (node?.type === "archimedes" && !this.archimedesStates.has(id)) {
+        this.archimedesStates.set(id, this.createArchimedesState());
+      }
       if (node?.type === "moduleGroup" && node.moduleGroupPlan && !this.moduleGroupRuntimes.has(id)) {
         this.moduleGroupRuntimes.set(id, this.createNestedRuntime(node.moduleGroupPlan));
       }
@@ -2138,6 +2185,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyPolyBlepNativeState(this.polyBlepStates.get(id));
         this.polyBlepStates.delete(id);
+      }
+    }
+    for (const id of [...this.blitStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyBlitNativeState(this.blitStates.get(id));
+        this.blitStates.delete(id);
+      }
+    }
+    for (const id of [...this.archimedesStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyArchimedesNativeState(this.archimedesStates.get(id));
+        this.archimedesStates.delete(id);
       }
     }
     for (const id of [...this.moduleGroupRuntimes.keys()]) {
@@ -3639,6 +3698,218 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  blitNativeVectorSample(state, phase, phaseIncrement, waveform, level, resetEdge) {
+    if (!this.nativeBlitReady) {
+      return null;
+    }
+    try {
+      if (!state.nativeHandle) {
+        state.nativeHandle = this.nativeBlit.soemdsp_blit_create();
+      }
+      if (!state.nativeHandle) {
+        return null;
+      }
+      if (resetEdge) {
+        this.nativeBlit.soemdsp_blit_reset(state.nativeHandle);
+      }
+      this.nativeBlit.soemdsp_blit_sample(
+        state.nativeHandle,
+        Number(phase) || 0,
+        Number(phaseIncrement) || 0,
+        Math.round(Number(waveform) || 0),
+        Number(level) || 0,
+      );
+      return {
+        out: this.safeFilterNumber(this.nativeBlit.soemdsp_blit_out(state.nativeHandle), null),
+        saw: this.safeFilterNumber(this.nativeBlit.soemdsp_blit_saw(state.nativeHandle), null),
+        ramp: this.safeFilterNumber(this.nativeBlit.soemdsp_blit_ramp(state.nativeHandle), null),
+        square: this.safeFilterNumber(this.nativeBlit.soemdsp_blit_square(state.nativeHandle), null),
+        tri: this.safeFilterNumber(this.nativeBlit.soemdsp_blit_tri(state.nativeHandle), null),
+        sine: this.safeFilterNumber(this.nativeBlit.soemdsp_blit_sine(state.nativeHandle), null),
+      };
+    } catch (error) {
+      this.nativeBlitReady = false;
+      this.port.postMessage({
+        type: "nativeModuleStatus",
+        name: "blit",
+        status: "disabled",
+        message: String(error?.message || error || "native BLIT failed"),
+      });
+      return null;
+    }
+  }
+
+  // JS fallback mirroring native_modules/blit/blit.cpp: a closed-form
+  // Band-Limited Impulse Train (Stilson/Smith style) instead of PolyBLEP
+  // correction polynomials. Each waveform tap (Saw/Ramp/Square/Tri/Sine) keeps
+  // its own leaky integrator, keyed by the sub-id the caller passes in --
+  // mirrors how polyBlep's JS fallback separates its always-on taps.
+  blitImpulse(phaseCycle, harmonics) {
+    const denomArg = Math.PI * phaseCycle;
+    const s = Math.sin(denomArg);
+    const num = Math.sin(denomArg * harmonics);
+    if (s < 1e-9 && s > -1e-9) {
+      return 1.0;
+    }
+    return num / (harmonics * s);
+  }
+
+  blitHarmonics(dt) {
+    const freqRatio = this.clampValue(Math.abs(Number(dt) || 0), 1e-6, 0.5);
+    let m = Math.floor(1 / (2 * freqRatio));
+    if (m < 1) m = 1;
+    return 2 * m + 1;
+  }
+
+  blitBipolar(phaseCycle, harmonics) {
+    return this.blitImpulse(phaseCycle, harmonics) - this.blitImpulse(this.wrapValue(phaseCycle + 0.5, 0, 1), harmonics);
+  }
+
+  blitJsIntegratorState(key) {
+    let state = this.blitJsIntegrators.get(key);
+    if (!state) {
+      state = { saw: 0, sq: 0, tri: 0 };
+      this.blitJsIntegrators.set(key, state);
+    }
+    return state;
+  }
+
+  blitRenderSaw(key, phaseCycle, dt, harmonics) {
+    const state = this.blitJsIntegratorState(key);
+    const leak = 0.999;
+    let integ = state.saw * leak + (this.blitImpulse(phaseCycle, harmonics) - 1.0) * dt;
+    integ = this.clampValue(integ, -1.5, 1.5);
+    state.saw = integ;
+    return this.clampValue(integ * 2.0, -1.0, 1.0);
+  }
+
+  blitRenderSquare(key, phaseCycle, dt, harmonics) {
+    const state = this.blitJsIntegratorState(key);
+    const leak = 0.999;
+    let integ = state.sq * leak + this.blitBipolar(phaseCycle, harmonics) * dt * 2.0;
+    integ = this.clampValue(integ, -1.5, 1.5);
+    state.sq = integ;
+    return this.clampValue(integ * 2.0, -1.0, 1.0);
+  }
+
+  blitRenderTriangle(key, phaseCycle, dt, harmonics) {
+    const square = this.blitRenderSquare(key, phaseCycle, dt, harmonics);
+    const state = this.blitJsIntegratorState(key);
+    const leak = 0.9995;
+    let integ = (state.tri + square * dt * 4.0) * leak;
+    integ = this.clampValue(integ, -1.0, 1.0);
+    state.tri = integ;
+    return integ;
+  }
+
+  blitOscillatorSample(key, phase, phaseIncrement, waveform) {
+    const dt = this.clampValue(Math.abs(Number(phaseIncrement) || 0), 1e-6, 0.5);
+    const harmonics = this.blitHarmonics(dt);
+    const phaseCycle = this.wrapValue(phase / (Math.PI * 2), 0, 1);
+    switch (Math.round(Number(waveform) || 0)) {
+      case 1:
+        return -this.blitRenderSaw(key, phaseCycle, dt, harmonics);
+      case 2:
+        return this.blitRenderSquare(key, phaseCycle, dt, harmonics);
+      case 3:
+        return this.blitRenderTriangle(key, phaseCycle, dt, harmonics);
+      case 4:
+        return Math.sin(phase);
+      case 0:
+      default:
+        return this.blitRenderSaw(key, phaseCycle, dt, harmonics);
+    }
+  }
+
+  // JS fallback mirroring native_modules/archimedes/archimedes.cpp's
+  // symplectic Euler sine/cosine engine, kept in plain floating point here
+  // (the native module runs the same recurrence in 16.16 fixed point) --
+  // fidelity of the fallback is "same math", not "bit-identical output".
+  archimedesSample(options = {}) {
+    const state = options.state || this.createArchimedesState();
+    const profile = this.clampValue(Math.round(Number(options.profile) || 0), 0, 3);
+    const dtShift = [10, 12, 16, 6][profile] ?? 12;
+    const freqHz = Math.max(0, Math.round(Number(options.frequency) || 0));
+    const ditherBits = Math.max(0, Math.round(Number(options.dither) || 0));
+    if (
+      this.nativeArchimedesReady &&
+      this.nativeArchimedes?.soemdsp_archimedes_create &&
+      this.nativeArchimedes?.soemdsp_archimedes_step
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeArchimedes.soemdsp_archimedes_create();
+        }
+        if (state.nativeHandle) {
+          const resetHigh = Number(options.reset) > 0.5;
+          if (resetHigh && !state.resetWasHigh) {
+            this.nativeArchimedes.soemdsp_archimedes_reset(state.nativeHandle);
+            this.nativeArchimedes.soemdsp_archimedes_reset_counters(state.nativeHandle);
+          }
+          state.resetWasHigh = resetHigh;
+          this.nativeArchimedes.soemdsp_archimedes_set_profile(state.nativeHandle, dtShift);
+          this.nativeArchimedes.soemdsp_archimedes_set_frequency(state.nativeHandle, freqHz);
+          this.nativeArchimedes.soemdsp_archimedes_step(state.nativeHandle, ditherBits);
+          return {
+            sine: this.safeFilterNumber(this.nativeArchimedes.soemdsp_archimedes_sine(state.nativeHandle), 0),
+            cosine: this.safeFilterNumber(this.nativeArchimedes.soemdsp_archimedes_cosine(state.nativeHandle), 0),
+            pi: this.safeFilterNumber(this.nativeArchimedes.soemdsp_archimedes_extract_pi(state.nativeHandle), 0),
+            noiseBelow: this.safeFilterNumber(this.nativeArchimedes.soemdsp_archimedes_noise_below?.(state.nativeHandle), 0),
+            noiseAbove: this.safeFilterNumber(this.nativeArchimedes.soemdsp_archimedes_noise_above?.(state.nativeHandle), 0),
+          };
+        }
+      } catch (error) {
+        this.nativeArchimedesReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "archimedes",
+          status: "disabled",
+          message: String(error?.message || error || "native Archimedes Oscillator failed"),
+        });
+      }
+    }
+    return this.archimedesSampleJs(options);
+  }
+
+  archimedesSampleJs(options = {}) {
+    const state = options.state || this.createArchimedesState();
+    const resetHigh = Number(options.reset) > 0.5;
+    if (resetHigh && !state.resetWasHigh) {
+      this.resetArchimedesState(state);
+    }
+    state.resetWasHigh = resetHigh;
+    const profile = this.clampValue(Math.round(Number(options.profile) || 0), 0, 3);
+    const dtShift = [10, 12, 16, 6][profile] ?? 12;
+    const dtFloat = 1 / (2 ** dtShift);
+    const freqHz = Math.max(0, Number(options.frequency) || 0);
+    const phaseInc = freqHz <= 0 ? 0 : Math.PI * 2 * freqHz * dtFloat;
+    const ditherBits = Math.max(0, Number(options.dither) || 0);
+    const ditherAmount = ditherBits / 65536;
+    const dither = ditherAmount > 0 ? (Math.random() - 0.5) * ditherAmount : 0;
+    state.x -= state.y * phaseInc + dither;
+    state.y += state.x * phaseInc;
+    const sign = state.x < 0 ? 1 : 0;
+    state.zeroCrossings += sign ^ state.lastSign;
+    state.totalSteps += 1;
+    state.lastSign = sign;
+    // Same broadband-noise-then-one-pole-split idea as the native module,
+    // just driven by Math.random() instead of re-reading a dither PRNG.
+    const noiseRaw = Math.random() * 2 - 1;
+    state.noiseLow += 0.01 * (noiseRaw - state.noiseLow);
+    let pi = 0;
+    if (state.zeroCrossings > 0 && freqHz > 0) {
+      const avgStepsPerHalfCycle = state.totalSteps / state.zeroCrossings;
+      pi = avgStepsPerHalfCycle * dtFloat * freqHz * Math.PI;
+    }
+    return {
+      sine: this.clampValue(state.x, -4, 4),
+      cosine: this.clampValue(state.y, -4, 4),
+      pi,
+      noiseBelow: state.noiseLow,
+      noiseAbove: noiseRaw - state.noiseLow,
+    };
+  }
+
   ellipsoidSample(phase, offset = 0, shape = 0, scale = 1) {
     const phaseRadians = Number(phase) || 0;
     const sinPhase = Math.sin(phaseRadians);
@@ -4201,6 +4472,33 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return {
       nativeHandle: 0,
     };
+  }
+
+  createBlitState() {
+    return {
+      nativeHandle: 0,
+    };
+  }
+
+  createArchimedesState() {
+    return {
+      nativeHandle: 0,
+      x: 0,
+      y: 1,
+      lastSign: 0,
+      totalSteps: 0,
+      zeroCrossings: 0,
+      resetWasHigh: false,
+      noiseLow: 0,
+    };
+  }
+
+  resetArchimedesState(state) {
+    state.x = 0;
+    state.y = 1;
+    state.lastSign = 0;
+    state.totalSteps = 0;
+    state.zeroCrossings = 0;
   }
 
   createFlowerChildEnvelopeFollowerState() {
@@ -4814,6 +5112,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "triggerDivider") this.triggerDividerStates.set(id, this.createTriggerDividerState());
       if (node?.type === "vactrolEnvelope" || node?.type === "vactrolEnvelopeC4") this.vactrolEnvelopeStates.set(id, this.createVactrolEnvelopeState());
       if (node?.type === "polyBlep") this.polyBlepStates.set(id, this.createPolyBlepState());
+      if (node?.type === "blit") this.blitStates.set(id, this.createBlitState());
+      if (node?.type === "archimedes") this.archimedesStates.set(id, this.createArchimedesState());
       if (node?.type === "moduleGroup" && node.moduleGroupPlan) {
         this.moduleGroupRuntimes.set(id, this.createNestedRuntime(node.moduleGroupPlan));
       }
@@ -7956,6 +8256,20 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyPolyBlepNativeState(state) {
     if (state?.nativeHandle && this.nativePolyBlep?.soemdsp_polyblep_destroy) {
       this.nativePolyBlep.soemdsp_polyblep_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyBlitNativeState(state) {
+    if (state?.nativeHandle && this.nativeBlit?.soemdsp_blit_destroy) {
+      this.nativeBlit.soemdsp_blit_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyArchimedesNativeState(state) {
+    if (state?.nativeHandle && this.nativeArchimedes?.soemdsp_archimedes_destroy) {
+      this.nativeArchimedes.soemdsp_archimedes_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }
@@ -11117,6 +11431,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             level,
             resetEdge,
           );
+        } else if (node?.type === "blit") {
+          const blitState = this.blitStates.get(nodeId) || this.createBlitState();
+          this.blitStates.set(nodeId, blitState);
+          nativeVector = this.blitNativeVectorSample(
+            blitState,
+            phase + phaseOffset,
+            phaseIncrement,
+            waveform,
+            level,
+            resetEdge,
+          );
         }
         if (nativeVector) {
           value = {
@@ -11130,11 +11455,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             Noise: nativeVector.out,
           };
         } else {
-          const sampleOscillator = (sampleNodeId, sampleWaveform) => (
-            node?.type === "fbPolyBlepOsc"
-              ? this.forwardBackwardPolyBlepOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform)
-              : this.oscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform)
-          );
+          const sampleOscillator = (sampleNodeId, sampleWaveform) => {
+            if (node?.type === "fbPolyBlepOsc") {
+              return this.forwardBackwardPolyBlepOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
+            }
+            if (node?.type === "blit") {
+              return this.blitOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
+            }
+            return this.oscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
+          };
           const selected = sampleOscillator(nodeId, waveform) * level;
           value = {
             Out: selected,
@@ -11548,6 +11877,32 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           X: lorenz.x * level,
           Y: lorenz.y * level,
           Z: lorenz.z * level,
+        };
+      } else if (node?.type === "archimedes") {
+        const state = this.archimedesStates.get(nodeId) || this.createArchimedesState();
+        this.archimedesStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const frequency = read("frequency", 100);
+        const pitchInput = this.clampValue(
+          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
+          -1,
+          1,
+        );
+        const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+        const archimedes = this.archimedesSample({
+          dither: read("dither", 3),
+          frequency: pitchedFrequency,
+          profile: read("profile", 1),
+          reset: mixInput(nodeId, "Reset"),
+          state,
+        });
+        const archimedesLevel = read("level", 1);
+        value = {
+          Sine: archimedes.sine * archimedesLevel,
+          Cosine: archimedes.cosine * archimedesLevel,
+          Pi: archimedes.pi,
+          "Noise Below": archimedes.noiseBelow,
+          "Noise Above": archimedes.noiseAbove,
         };
       } else if (node?.type === "logisticMap") {
         const state = this.logisticMapStates.get(nodeId) || this.createLogisticMapState();
