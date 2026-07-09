@@ -72,30 +72,88 @@ async function fetchNodeGraphLiveNativeModuleBytes(entry) {
   return nodeGraphLiveNativeModuleBytes[wasmUrl];
 }
 
-async function sendNodeGraphLiveNativeModules(liveNode) {
+// A few native modules serve more than one node type (see the worklet's own
+// nativeModuleStatus alias checks, e.g. "name === 'basic_oscillator' ||
+// targetType === 'osc' || targetType === 'fbPolyBlepOsc'"). The catalog only
+// records one targetType per entry, so a patch using the aliased type would
+// otherwise miss the priority boost below.
+const nodeGraphLiveNativeModuleTypeAliases = Object.freeze({
+  osc: ["fbPolyBlepOsc"],
+  vactrolEnvelope: ["vactrolEnvelopeC4"],
+});
+
+function nodeGraphLiveActivePatchNativeTargetTypes(plan) {
+  const types = new Set();
+  for (const node of plan?.nodes || []) {
+    if (node?.type) {
+      types.add(node.type);
+    }
+  }
+  return types;
+}
+
+function nodeGraphLiveNativeModuleIsUsedByPatch(entry, activeTypes) {
+  const targetType = entry?.targetType || "";
+  if (!targetType) {
+    return false;
+  }
+  if (activeTypes.has(targetType)) {
+    return true;
+  }
+  const aliases = nodeGraphLiveNativeModuleTypeAliases[targetType];
+  return Array.isArray(aliases) && aliases.some((type) => activeTypes.has(type));
+}
+
+async function sendNodeGraphLiveNativeModule(liveNode, entry) {
+  const bytes = await fetchNodeGraphLiveNativeModuleBytes(entry);
+  if (!(bytes instanceof ArrayBuffer)) {
+    return;
+  }
+  const transferableBytes = bytes.slice(0);
+  liveNode.port.postMessage(
+    {
+      type: "setNativeModuleWasm",
+      name: entry.name || entry.targetType || "",
+      targetType: entry.targetType || "",
+      bytes: transferableBytes,
+    },
+    [transferableBytes],
+  );
+}
+
+// Loads every native module's wasm and hands it to the worklet. Modules the
+// current patch actually references are fetched concurrently and sent as
+// soon as each arrives -- fetch is network I/O, not CPU, so this costs
+// nothing extra, and it means whatever the patch needs is ready in roughly
+// one fetch's worth of time instead of waiting behind however many other
+// modules happen to sort earlier in the (alphabetical) catalog. Everything
+// else stays on the original one-at-a-time path: the worklet compiles
+// WebAssembly on a single JS thread regardless of send order, so racing
+// dozens of irrelevant modules in at once wouldn't load them any faster --
+// it would just pack their compiles into one uninterrupted burst on the
+// audio thread while live audio may already be running.
+async function sendNodeGraphLiveNativeModules(liveNode, plan = null) {
   if (!liveNode?.port) {
     return;
   }
   const catalog = await fetchNodeGraphLiveNativeModuleCatalog();
   const nativeModules = Array.isArray(catalog?.modules) ? catalog.modules : [];
+  const activeTargetTypes = nodeGraphLiveActivePatchNativeTargetTypes(plan);
+  const priorityEntries = [];
+  const deferredEntries = [];
   for (const entry of nativeModules) {
     if (!entry?.wasmAvailable) {
       continue;
     }
-    const bytes = await fetchNodeGraphLiveNativeModuleBytes(entry);
-    if (!(bytes instanceof ArrayBuffer)) {
-      continue;
+    if (nodeGraphLiveNativeModuleIsUsedByPatch(entry, activeTargetTypes)) {
+      priorityEntries.push(entry);
+    } else {
+      deferredEntries.push(entry);
     }
-    const transferableBytes = bytes.slice(0);
-    liveNode.port.postMessage(
-      {
-        type: "setNativeModuleWasm",
-        name: entry.name || entry.targetType || "",
-        targetType: entry.targetType || "",
-        bytes: transferableBytes,
-      },
-      [transferableBytes],
-    );
+  }
+  await Promise.all(priorityEntries.map((entry) => sendNodeGraphLiveNativeModule(liveNode, entry)));
+  for (const entry of deferredEntries) {
+    await sendNodeGraphLiveNativeModule(liveNode, entry);
   }
 }
 
@@ -1679,7 +1737,7 @@ async function stopNodeGraphLiveAudio() {
   renderNodeGraphLiveControls(false);
 }
 
-async function createNodeGraphLiveWorkletNode(context) {
+async function createNodeGraphLiveWorkletNode(context, plan = null) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
@@ -1700,7 +1758,7 @@ async function createNodeGraphLiveWorkletNode(context) {
   workletNode.onprocessorerror = () => {
     setNodeGraphLiveProcessorError("AudioWorklet processor crashed");
   };
-  sendNodeGraphLiveNativeModules(workletNode);
+  sendNodeGraphLiveNativeModules(workletNode, plan);
   return workletNode;
 }
 
@@ -1863,7 +1921,7 @@ async function startNodeGraphLiveAudio(outputSerial = nodeGraphMvp.live.outputTo
     let liveNode = null;
     let usesWorklet = false;
     try {
-      liveNode = await createNodeGraphLiveWorkletNode(context);
+      liveNode = await createNodeGraphLiveWorkletNode(context, plan);
       usesWorklet = true;
     } catch (error) {
       liveNode = createNodeGraphLiveScriptProcessorNode(context, plan);

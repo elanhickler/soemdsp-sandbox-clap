@@ -10722,7 +10722,7 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphRecordBadValueEvent({",
         "lastBadValueNodeId",
         "lastBadValueSource",
-        "function createNodeGraphLiveWorkletNode(context)",
+        "function createNodeGraphLiveWorkletNode(context, plan = null)",
         'context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=',
         "new AudioWorkletNode(",
         "numberOfInputs: 1",
