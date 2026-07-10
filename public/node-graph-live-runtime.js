@@ -79,7 +79,7 @@ async function fetchNodeGraphLiveNativeModuleBytes(entry) {
 // otherwise miss the priority boost below.
 const nodeGraphLiveNativeModuleTypeAliases = Object.freeze({
   osc: ["fbPolyBlepOsc"],
-  vactrolEnvelope: ["vactrolEnvelopeC4"],
+  vactrolEnvelopeSeries: ["vactrolEnvelopeCustom"],
 });
 
 function nodeGraphLiveActivePatchNativeTargetTypes(plan) {

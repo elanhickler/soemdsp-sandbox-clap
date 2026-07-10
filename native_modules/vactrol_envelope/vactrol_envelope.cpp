@@ -3,12 +3,13 @@
 // soemdsp-native-target: vactrolEnvelope
 // soemdsp-native-kind: envelope
 
-// Shared DSP for both vactrol modules (VTL5C3 "vactrolEnvelope" and VTL5C4
-// "vactrolEnvelopeC4" on the JS side). The two parts differ only in their
-// default attack/release/resistance figures, which live in the JS module
-// definitions -- this binary just runs whatever attack/release/curve/
-// sensitivity/lightOffset/darkCurrent values a given node instance passes in,
-// exactly like passive_filter's single WASM serving LP/BP/HP via a mode param.
+// Shared DSP for both vactrol modules (the VTL5C Series selector
+// "vactrolEnvelopeSeries" and "vactrolEnvelopeCustom" on the JS side). The
+// parts differ only in their default attack/release/resistance figures,
+// which live in the JS module definitions -- this binary just runs whatever
+// attack/release/curve/sensitivity/lightOffset/darkCurrent values a given
+// node instance passes in, exactly like passive_filter's single WASM serving
+// LP/BP/HP via a mode param.
 
 namespace {
 
