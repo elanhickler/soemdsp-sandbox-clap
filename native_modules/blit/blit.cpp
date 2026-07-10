@@ -3,25 +3,132 @@
 // soemdsp-native-target: blit
 // soemdsp-native-kind: oscillator
 //
-// Band-Limited Impulse Train (BLIT) oscillator, Stilson/Smith style.
-// Mirrors the PolyBLEP module's output taps (Saw / Ramp / Square / Tri / Sine
-// / Wave Out) so it can drop into the same node-graph slots, but derives its
-// alias-suppressed waveforms by integrating a closed-form BLIT impulse train
-// instead of adding PolyBLEP correction polynomials.
+// Band-Limited Impulse Train (BLIT) oscillator -- the actual Stilson &
+// Smith closed-form algorithm ("Alias-Free Digital Synthesis of Classic
+// Analog Waveforms", 1996), following the same structure as the Synthesis
+// ToolKit's (STK) BlitSaw/BlitSquare classes (Cook & Scavone), which have
+// been in production DSP use for ~25 years.
+//
+// v2/v3/v4 all point-sampled or reconstructed a Dirichlet kernel with a
+// FLOATING-POINT harmonic count and a near-true-integrator leak, which
+// turned out to be extremely sensitive to tiny numerical error (see git
+// history) -- every fix uncovered a new precision-amplification bug.
+//
+// v5 (this version) goes back to the actual textbook algorithm instead of
+// improvising a variant of it:
+//   - The harmonic count m is an INTEGER, always odd, chosen as the most
+//     harmonics that fit under Nyquist: m = 2*floor(period/2) + 1.
+//   - The impulse: blit(phase) = sin(m*phase) / (p*sin(phase)), with phase
+//     running 0..pi (not 0..2pi) and p = samples-per-period. This is a
+//     closed form for a sum of m equal-amplitude harmonics -- exact, no
+//     approximation, no exp()/pow() rolloff parameter to compute.
+//   - DC removed by subtracting the impulse's known average (1/p) every
+//     sample, then leaky-integrated with a FIXED, FAST leak (0.995, per
+//     STK) -- not a near-1 "true integrator" gain, which is what kept
+//     amplifying small errors into large ones in every earlier version.
+// Square is formed the way the original paper itself describes: two BLIT
+// saws a half-cycle apart, subtracted (the ramp cancels, the step remains).
+// Triangle leaky-integrates that clean square through a gentle frequency-
+// tracking one-pole (cutoff scales with the note's own frequency, gain
+// tuned low enough to stay stable through 20kHz).
+//
+// All three verified numerically in Python against this exact formula
+// before porting: flat, bounded amplitude and near-zero DC from 10Hz to
+// 20kHz, no blowups, no low-frequency beat.
 
 namespace {
 
 constexpr double kPi = 3.1415926535897932384626433832795;
 constexpr double kTwoPi = kPi * 2.0;
+constexpr double kHalfPi = kPi * 0.5;
 constexpr int kMaxInstances = 16;
+
+double clampD(double value, double lo, double hi) {
+  return value < lo ? lo : (value > hi ? hi : value);
+}
+
+// Single-shot modulo instead of iterative subtraction -- keeps full
+// precision regardless of how large the argument gets.
+double wrapRadiansGeneric(double value, double period) {
+  const double turns = value / period;
+  const double n = __builtin_floor(turns + 0.5);
+  return value - n * period;
+}
+
+double wrapRadians(double value) { return wrapRadiansGeneric(value, kTwoPi); }
+
+// Taylor series through x^17, Horner-evaluated (~2e-8 worst-case error).
+double sinApprox(double value) {
+  const double x = wrapRadians(value);
+  const double x2 = x * x;
+  double acc = 1.0 / 355687428096000.0;       // 1/17!
+  acc = -1.0 / 1307674368000.0 + x2 * acc;    // -1/15!
+  acc = 1.0 / 6227020800.0 + x2 * acc;        // 1/13!
+  acc = -1.0 / 39916800.0 + x2 * acc;         // -1/11!
+  acc = 1.0 / 362880.0 + x2 * acc;            // 1/9!
+  acc = -1.0 / 5040.0 + x2 * acc;             // -1/7!
+  acc = 1.0 / 120.0 + x2 * acc;               // 1/5!
+  acc = -1.0 / 6.0 + x2 * acc;                // -1/3!
+  return x * (1.0 + x2 * acc);
+}
+
+double cosApprox(double value) { return sinApprox(value + kHalfPi); }
+
+// One Stilson/Smith BLIT-saw oscillator: integer odd harmonic count m,
+// closed-form impulse train, DC removed by its known average (1/p), leaky-
+// integrated with a fixed fast leak. Runs its own phase 0..pi (this
+// algorithm's native convention, half the usual 0..2pi audio phase) so a
+// second instance can be offset by half a cycle for Square.
+struct BlitSaw {
+  double phase;
+  double phaseOffset;  // in this oscillator's own pi-periodic units
+  double state;
+  double leak;
+
+  void init(double phaseOffsetCycles, double leak_) {
+    phaseOffset = phaseOffsetCycles * kPi;
+    phase = phaseOffset;
+    state = 0.0;
+    leak = leak_;
+  }
+
+  double update(double periodSamples) {
+    const double p = periodSamples;
+    const double maxHarmonics = __builtin_floor(0.5 * p);
+    const double m = 2.0 * maxHarmonics + 1.0;
+    const double a = m / p;   // limiting value of the kernel at phase 0
+    const double c2 = 1.0 / p;
+
+    const double denom = sinApprox(phase);
+    double tmp;
+    if (denom > -1.0e-9 && denom < 1.0e-9) {
+      tmp = a;
+    } else {
+      tmp = sinApprox(m * phase) / (p * denom);
+    }
+    tmp += state - c2;
+    state = tmp * leak;
+
+    phase += kPi / p;
+    phase = wrapRadiansGeneric(phase, kPi);
+
+    return tmp;
+  }
+};
+
+struct SlotState {
+  BlitSaw sawA;   // phase offset 0 -- feeds Saw directly.
+  BlitSaw sawB;   // phase offset 0.5 cycle -- subtracted to form Square.
+  double triState;
+  bool initialized;
+};
 
 struct BlitState {
   bool active;
-  // Per-waveform leaky integrators. Slot layout matches the PolyBLEP taps:
-  // 0 = selected/out, 1 = saw, 2 = ramp, 3 = square, 4 = tri.
-  double sawIntegrator[5];
-  double sqIntegrator[5];
-  double triIntegrator[5];
+  // Slot layout matches the PolyBLEP taps: 0 = selected/out, 1 = saw,
+  // 2 = ramp, 3 = square, 4 = tri. Each slot tracks its own filter state
+  // independently even though they all follow the same phase.
+  SlotState slots[5];
   double out;
   double saw;
   double ramp;
@@ -32,104 +139,49 @@ struct BlitState {
 
 static BlitState gPool[kMaxInstances];
 
-double clampD(double value, double lo, double hi) {
-  return value < lo ? lo : (value > hi ? hi : value);
-}
+constexpr double kBlitLeak = 0.995;     // fixed, fast -- per STK's own tuning.
+constexpr double kSawGain = 1.6;        // makeup gain to bring ptp near +-1.
+constexpr double kTriTrackGain = 2.0;   // frequency-tracking one-pole gain.
 
-double wrap01(double value) {
-  double f = value - __builtin_floor(value);
-  if (f < 0.0) f += 1.0;
-  if (f >= 1.0) f -= 1.0;
-  return f;
-}
-
-double wrapRadians(double value) {
-  while (value > kPi) value -= kTwoPi;
-  while (value < -kPi) value += kTwoPi;
-  return value;
-}
-
-double sinApprox(double value) {
-  const double x = wrapRadians(value);
-  const double x2 = x * x;
-  return x * (1.0 + x2 * (-1.0 / 6.0 + x2 * (1.0 / 120.0 + x2 * (-1.0 / 5040.0 + x2 * (1.0 / 362880.0)))));
-}
-
-// Number of harmonics that fit under Nyquist for the given normalized
-// increment (cycles/sample). BLIT uses an odd harmonic count M = 2*floor(...)+1.
-int blitHarmonics(double dt) {
-  const double freqRatio = clampD(dt < 0.0 ? -dt : dt, 1.0e-6, 0.5);
-  int m = (int)(1.0 / (2.0 * freqRatio));
-  if (m < 1) m = 1;
-  return 2 * m + 1;
-}
-
-// Closed-form band-limited impulse train sample for phase in [0,1).
-// blit(t) = (M/N) * sinc_N(M*t) with the classic Dirichlet-kernel form
-// sin(pi*M*x) / (N*sin(pi*x)); N normalizes DC to unity impulses.
-double blitImpulse(double phaseCycle, int harmonics) {
-  const double denomArg = kPi * phaseCycle;
-  const double s = sinApprox(denomArg);
-  const double num = sinApprox(denomArg * harmonics);
-  const double eps = 1.0e-9;
-  if (s < eps && s > -eps) {
-    // L'Hopital limit at the singularity -> +/- M / N (peak of the train).
-    return 1.0;
-  }
-  return (num / (harmonics * s));
-}
-
-// Bipolar impulse pair for square/triangle: impulses of alternating sign a
-// half period apart, integrated to a band-limited square wave.
-double blitBipolar(double phaseCycle, int harmonics) {
-  return blitImpulse(phaseCycle, harmonics) - blitImpulse(wrap01(phaseCycle + 0.5), harmonics);
-}
-
-double renderSaw(BlitState& s, int slot, double phaseCycle, double dt, int harmonics) {
-  const double leak = 0.999;
-  const double dc = dt; // average impulse contribution to subtract for zero DC
-  double integ = s.sawIntegrator[slot] * leak + (blitImpulse(phaseCycle, harmonics) - 1.0) * dt;
-  integ = clampD(integ, -1.5, 1.5);
-  s.sawIntegrator[slot] = integ;
-  (void)dc;
-  // Scale/centre into roughly [-1,1].
-  return clampD(integ * 2.0, -1.0, 1.0);
-}
-
-double renderSquare(BlitState& s, int slot, double phaseCycle, double dt, int harmonics) {
-  const double leak = 0.999;
-  double integ = s.sqIntegrator[slot] * leak + blitBipolar(phaseCycle, harmonics) * dt * 2.0;
-  integ = clampD(integ, -1.5, 1.5);
-  s.sqIntegrator[slot] = integ;
-  return clampD(integ * 2.0, -1.0, 1.0);
-}
-
-double renderTriangle(BlitState& s, int slot, double phaseCycle, double dt, int harmonics) {
-  const double square = renderSquare(s, slot, phaseCycle, dt, harmonics);
-  const double leak = 0.9995;
-  double integ = (s.triIntegrator[slot] + square * dt * 4.0) * leak;
-  integ = clampD(integ, -1.0, 1.0);
-  s.triIntegrator[slot] = integ;
-  return integ;
+void initSlot(SlotState& slot) {
+  slot.sawA.init(0.0, kBlitLeak);
+  slot.sawB.init(0.5, kBlitLeak);
+  slot.triState = 0.0;
+  slot.initialized = true;
 }
 
 // waveform: 0 Saw, 1 Ramp, 2 Square, 3 Triangle, 4 Sine (matches PolyBLEP)
-double oscillatorSample(BlitState& s, int slot, double phase, double phaseIncrement, int waveform) {
-  const double dt = clampD(phaseIncrement < 0.0 ? -phaseIncrement : phaseIncrement, 1.0e-6, 0.5);
-  const int harmonics = blitHarmonics(dt);
-  const double phaseCycle = wrap01(phase / kTwoPi);
+double oscillatorSample(BlitState& s, int slotIndex, double phase, double phaseIncrement, int waveform) {
+  SlotState& slot = s.slots[slotIndex];
+  if (!slot.initialized) initSlot(slot);
+  // phaseIncrement is cycles-per-sample (dt) directly, per the shared
+  // convention used by every other oscillator in this codebase (see
+  // polyblep.cpp's identical clamp) -- NOT radians-per-sample. An earlier
+  // version divided this by 2*pi here, which silently detuned every note by
+  // a factor of ~6.28 (requesting 20000Hz produced ~3183Hz).
+  const double phaseIncMag = phaseIncrement < 0.0 ? -phaseIncrement : phaseIncrement;
+  const double dt = clampD(phaseIncMag, 1.0e-6, 0.5);
+  const double periodSamples = 1.0 / dt;
+
+  const double sawARaw = slot.sawA.update(periodSamples) * kSawGain;
+  const double sawBRaw = slot.sawB.update(periodSamples) * kSawGain;
+
   switch (waveform) {
     case 1:
-      return -renderSaw(s, slot, phaseCycle, dt, harmonics);
-    case 2:
-      return renderSquare(s, slot, phaseCycle, dt, harmonics);
-    case 3:
-      return renderTriangle(s, slot, phaseCycle, dt, harmonics);
+      return -clampD(sawARaw, -1.0, 1.0);
+    case 2: {
+      return clampD(sawARaw - sawBRaw, -1.0, 1.0);
+    }
+    case 3: {
+      const double sqOut = clampD(sawARaw - sawBRaw, -1.0, 1.0);
+      slot.triState += dt * kTriTrackGain * (sqOut - slot.triState);
+      return clampD(slot.triState, -1.0, 1.0);
+    }
     case 4:
       return sinApprox(phase);
     case 0:
     default:
-      return renderSaw(s, slot, phaseCycle, dt, harmonics);
+      return clampD(sawARaw, -1.0, 1.0);
   }
 }
 
@@ -155,9 +207,7 @@ extern "C" void soemdsp_blit_reset(int handle) {
   if (handle < 1 || handle > kMaxInstances) return;
   BlitState& s = gPool[handle - 1];
   for (int i = 0; i < 5; i++) {
-    s.sawIntegrator[i] = 0.0;
-    s.sqIntegrator[i] = 0.0;
-    s.triIntegrator[i] = 0.0;
+    initSlot(s.slots[i]);
   }
 }
 
@@ -210,5 +260,5 @@ extern "C" double soemdsp_blit_sine(int handle) {
 }
 
 extern "C" int soemdsp_blit_version() {
-  return 1;
+  return 5;
 }

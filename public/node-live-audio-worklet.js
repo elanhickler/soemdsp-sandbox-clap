@@ -3982,85 +3982,80 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  // JS fallback mirroring native_modules/blit/blit.cpp: a closed-form
-  // Band-Limited Impulse Train (Stilson/Smith style) instead of PolyBLEP
-  // correction polynomials. Each waveform tap (Saw/Ramp/Square/Tri/Sine) keeps
-  // its own leaky integrator, keyed by the sub-id the caller passes in --
-  // mirrors how polyBlep's JS fallback separates its always-on taps.
-  blitImpulse(phaseCycle, harmonics) {
-    const denomArg = Math.PI * phaseCycle;
-    const s = Math.sin(denomArg);
-    const num = Math.sin(denomArg * harmonics);
-    if (s < 1e-9 && s > -1e-9) {
-      return 1.0;
+  // JS fallback mirroring native_modules/blit/blit.cpp (v5): the actual
+  // Stilson & Smith closed-form BLIT algorithm, following the structure of
+  // the Synthesis ToolKit's (STK) BlitSaw/BlitSquare classes -- an integer
+  // odd harmonic count (no exp()/pow() rolloff parameter), DC removed by
+  // subtracting the impulse's known average (1/period), and a fixed fast
+  // leak (0.995, per STK) rather than a near-true-integrator gain. Square
+  // is two saws a half-cycle apart, subtracted (per the original paper).
+  // Triangle leaky-integrates that square through a gentle frequency-
+  // tracking one-pole. Each tap (Saw/Ramp/Square/Tri/Sine) keeps its own
+  // filter state, keyed by the sub-id the caller passes in.
+  blitSawUpdate(state, periodSamples) {
+    const p = periodSamples;
+    const maxHarmonics = Math.floor(0.5 * p);
+    const m = 2 * maxHarmonics + 1;
+    const a = m / p;
+    const c2 = 1.0 / p;
+
+    const denom = Math.sin(state.phase);
+    let tmp;
+    if (denom > -1e-9 && denom < 1e-9) {
+      tmp = a;
+    } else {
+      tmp = Math.sin(m * state.phase) / (p * denom);
     }
-    return num / (harmonics * s);
+    tmp += state.state - c2;
+    state.state = tmp * state.leak;
+
+    state.phase += Math.PI / p;
+    state.phase = this.wrapValue(state.phase, 0, Math.PI);
+
+    return tmp;
   }
 
-  blitHarmonics(dt) {
-    const freqRatio = this.clampValue(Math.abs(Number(dt) || 0), 1e-6, 0.5);
-    let m = Math.floor(1 / (2 * freqRatio));
-    if (m < 1) m = 1;
-    return 2 * m + 1;
-  }
-
-  blitBipolar(phaseCycle, harmonics) {
-    return this.blitImpulse(phaseCycle, harmonics) - this.blitImpulse(this.wrapValue(phaseCycle + 0.5, 0, 1), harmonics);
-  }
-
-  blitJsIntegratorState(key) {
+  blitJsState(key) {
     let state = this.blitJsIntegrators.get(key);
     if (!state) {
-      state = { saw: 0, sq: 0, tri: 0 };
+      state = {
+        sawA: { phase: 0, state: 0, leak: 0.995 },
+        sawB: { phase: Math.PI * 0.5, state: 0, leak: 0.995 },
+        triState: 0,
+      };
       this.blitJsIntegrators.set(key, state);
     }
     return state;
   }
 
-  blitRenderSaw(key, phaseCycle, dt, harmonics) {
-    const state = this.blitJsIntegratorState(key);
-    const leak = 0.999;
-    let integ = state.saw * leak + (this.blitImpulse(phaseCycle, harmonics) - 1.0) * dt;
-    integ = this.clampValue(integ, -1.5, 1.5);
-    state.saw = integ;
-    return this.clampValue(integ * 2.0, -1.0, 1.0);
-  }
-
-  blitRenderSquare(key, phaseCycle, dt, harmonics) {
-    const state = this.blitJsIntegratorState(key);
-    const leak = 0.999;
-    let integ = state.sq * leak + this.blitBipolar(phaseCycle, harmonics) * dt * 2.0;
-    integ = this.clampValue(integ, -1.5, 1.5);
-    state.sq = integ;
-    return this.clampValue(integ * 2.0, -1.0, 1.0);
-  }
-
-  blitRenderTriangle(key, phaseCycle, dt, harmonics) {
-    const square = this.blitRenderSquare(key, phaseCycle, dt, harmonics);
-    const state = this.blitJsIntegratorState(key);
-    const leak = 0.9995;
-    let integ = (state.tri + square * dt * 4.0) * leak;
-    integ = this.clampValue(integ, -1.0, 1.0);
-    state.tri = integ;
-    return integ;
-  }
-
   blitOscillatorSample(key, phase, phaseIncrement, waveform) {
+    const BLIT_SAW_GAIN = 1.6;
+    const BLIT_TRI_GAIN = 2.0;
+
+    // phaseIncrement is cycles-per-sample directly (matches every other
+    // oscillator's convention here, e.g. polyBlepOscillatorSample) -- not
+    // radians-per-sample, so no /(2*pi) conversion belongs here.
+    const state = this.blitJsState(key);
     const dt = this.clampValue(Math.abs(Number(phaseIncrement) || 0), 1e-6, 0.5);
-    const harmonics = this.blitHarmonics(dt);
-    const phaseCycle = this.wrapValue(phase / (Math.PI * 2), 0, 1);
+    const periodSamples = 1.0 / dt;
+    const sawARaw = this.blitSawUpdate(state.sawA, periodSamples) * BLIT_SAW_GAIN;
+    const sawBRaw = this.blitSawUpdate(state.sawB, periodSamples) * BLIT_SAW_GAIN;
+
     switch (Math.round(Number(waveform) || 0)) {
       case 1:
-        return -this.blitRenderSaw(key, phaseCycle, dt, harmonics);
+        return -this.clampValue(sawARaw, -1.0, 1.0);
       case 2:
-        return this.blitRenderSquare(key, phaseCycle, dt, harmonics);
-      case 3:
-        return this.blitRenderTriangle(key, phaseCycle, dt, harmonics);
+        return this.clampValue(sawARaw - sawBRaw, -1.0, 1.0);
+      case 3: {
+        const sqOut = this.clampValue(sawARaw - sawBRaw, -1.0, 1.0);
+        state.triState += dt * BLIT_TRI_GAIN * (sqOut - state.triState);
+        return this.clampValue(state.triState, -1.0, 1.0);
+      }
       case 4:
         return Math.sin(phase);
       case 0:
       default:
-        return this.blitRenderSaw(key, phaseCycle, dt, harmonics);
+        return this.clampValue(sawARaw, -1.0, 1.0);
     }
   }
 
@@ -4070,8 +4065,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // fidelity of the fallback is "same math", not "bit-identical output".
   archimedesSample(options = {}) {
     const state = options.state || this.createArchimedesState();
-    const profile = this.clampValue(Math.round(Number(options.profile) || 0), 0, 3);
-    const dtShift = [10, 12, 16, 6][profile] ?? 12;
+    const dtShift = this.clampValue(Math.round(Number(options.profile) || 12), 4, 24);
     const freqHz = Math.max(0, Math.round(Number(options.frequency) || 0));
     const ditherBits = Math.max(0, Math.round(Number(options.dither) || 0));
     if (
@@ -4121,8 +4115,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.resetArchimedesState(state);
     }
     state.resetWasHigh = resetHigh;
-    const profile = this.clampValue(Math.round(Number(options.profile) || 0), 0, 3);
-    const dtShift = [10, 12, 16, 6][profile] ?? 12;
+    const dtShift = this.clampValue(Math.round(Number(options.profile) || 12), 4, 24);
     const dtFloat = 1 / (2 ** dtShift);
     const freqHz = Math.max(0, Number(options.frequency) || 0);
     const phaseInc = freqHz <= 0 ? 0 : Math.PI * 2 * freqHz * dtFloat;
@@ -13002,7 +12995,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const archimedes = this.archimedesSample({
           dither: read("dither", 3),
           frequency: pitchedFrequency,
-          profile: read("profile", 1),
+          profile: read("profile", 12),
           reset: mixInput(nodeId, "Reset"),
           state,
         });

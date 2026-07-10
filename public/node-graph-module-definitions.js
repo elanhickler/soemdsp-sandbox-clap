@@ -583,17 +583,12 @@ const nodeGraphModuleDefinitions = Object.freeze({
     outputs: ["Sine", "Cosine", "Pi", "Noise Below", "Noise Above"],
     parameters: [
       {
-        choices: ["Wavetable Emulator", "Fast Sin", "Standard", "Lo-Fi"],
-        defaultValue: "1",
-        displayChoices: true,
-        divideChoicesVisibly: true,
+        defaultValue: "12",
         key: "profile",
-        kind: "waveform",
         label: "Profile",
-        linearSmoothing: false,
-        max: "3",
-        mid: "1",
-        min: "0",
+        max: "24",
+        mid: "14",
+        min: "4",
         step: "1",
       },
       {
@@ -2489,6 +2484,11 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "Pitch View", kind: "scalar" },
     ],
     inputs: ["In"],
+    // Like badvalMonitor: an analysis/monitor tool should keep running and
+    // updating its outputs as soon as something is wired into "In", even if
+    // nothing downstream routes to Output -- that's the whole point of a
+    // meter you read directly off the node.
+    monitorSink: true,
     outputs: ["Frequency", "Fidelity"],
     parameters: [
       {
