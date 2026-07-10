@@ -178,6 +178,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeHelmholtz = null;
     this.nativeHelmholtzReady = false;
     this.nativeHelmholtzStatusKey = "";
+    this.helmholtzStates = new Map();
     this.nativeNoiseGenerator = null;
     this.nativeNoiseGeneratorReady = false;
     this.nativeFbm = null;
