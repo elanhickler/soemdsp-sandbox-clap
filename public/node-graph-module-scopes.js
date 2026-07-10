@@ -1072,6 +1072,9 @@ function unregisterNodeGraphModuleScopeSlot(nodeId) {
   nodeGraphModuleScopeState.modelFrameTimes.delete(nodeId);
   nodeGraphModuleScopeState.clockPhasors.delete(nodeId);
   nodeGraphModuleScopeState.oscillatorPhasors.delete(nodeId);
+  if (typeof nodeGraphPhosphorWaveformViewStates !== "undefined") {
+    nodeGraphPhosphorWaveformViewStates.delete(nodeId);
+  }
 }
 
 function nodeGraphModuleScopeSlots() {
