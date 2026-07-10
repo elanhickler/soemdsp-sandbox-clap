@@ -1364,6 +1364,106 @@ function setNodeGraphCodeblockSourceFromContext({ record = true } = {}) {
   }
 }
 
+function nodeGraphScriptBoxPortsFromInput(id, fallbackPrefix) {
+  return normalizeNodeGraphCodeblockPortList(
+    document.getElementById(id)?.value,
+    fallbackPrefix,
+  );
+}
+
+function pruneNodeGraphConnectionsForScriptBoxPortChange(patch, nodeId, inputs, outputs) {
+  pruneNodeGraphConnectionsForCodeblockPortChange(patch, nodeId, inputs, outputs);
+}
+
+function applyNodeGraphScriptBoxPortsFromContext() {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "scriptBox") {
+    return;
+  }
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const current = normalizeNodeGraphScriptBox(targetNode.scriptBox);
+  const next = normalizeNodeGraphScriptBox({
+    ...current,
+    inputs: nodeGraphScriptBoxPortsFromInput("nodeSceneScriptBoxInputs", "In"),
+    outputs: nodeGraphScriptBoxPortsFromInput("nodeSceneScriptBoxOutputs", "Out"),
+  });
+  targetNode.scriptBox = next;
+  pruneNodeGraphConnectionsForScriptBoxPortChange(patch, targetNode.id, next.inputs, next.outputs);
+  commitNodeGraphPatch(patch, { status: "script box ports changed" });
+  configureNodeSceneContextMenu("module");
+}
+
+function setNodeGraphScriptBoxSourceFromContext({ record = true } = {}) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "scriptBox") {
+    return;
+  }
+  const sourceInput = document.getElementById("nodeSceneScriptBoxSource");
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const scriptBox = normalizeNodeGraphScriptBox(targetNode.scriptBox);
+  targetNode.scriptBox = normalizeNodeGraphScriptBox({
+    ...scriptBox,
+    code: sourceInput?.value ?? nodeGraphScriptBoxDefaultCode,
+  });
+  const status = nodeGraphScriptBoxCompileStatus(targetNode.scriptBox);
+  const statusOutput = document.getElementById("nodeSceneScriptBoxStatus");
+  if (statusOutput) {
+    statusOutput.textContent = status.ok ? "code ok" : `compile error: ${status.message}`;
+  }
+  commitNodeGraphPatch(patch, {
+    record,
+    status: status.ok ? "script box code changed" : "script box compile error",
+  });
+  if (document.activeElement === sourceInput) {
+    sourceInput.focus();
+  }
+}
+
+function setNodeGraphTextBoxPortScriptFromContext(port, { record = true } = {}) {
+  const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
+  if (!sourceNode || sourceNode.type !== "textBox") {
+    return;
+  }
+  const elementId = port === "Title" ? "nodeSceneTextBoxTitleScript" : "nodeSceneTextBoxTextScript";
+  const sourceInput = document.getElementById(elementId);
+  const patch = cloneNodeGraphPatch(nodeGraphMvp.patch);
+  const targetNode = patch.nodes.find((node) => node.id === sourceNode.id);
+  if (!targetNode) {
+    return;
+  }
+  const nextScripts = { ...(targetNode.portScripts || {}) };
+  const source = sourceInput?.value ?? "";
+  if (source.trim()) {
+    nextScripts[port] = source;
+  } else {
+    delete nextScripts[port];
+  }
+  targetNode.portScripts = nextScripts;
+  const statusOutput = document.getElementById(
+    port === "Title" ? "nodeSceneTextBoxTitleScriptStatus" : "nodeSceneTextBoxTextScriptStatus",
+  );
+  if (statusOutput) {
+    if (!source.trim()) {
+      statusOutput.textContent = "";
+    } else {
+      const compiled = compileNodeGraphPortScript(source);
+      statusOutput.textContent = compiled ? "code ok" : "compile error";
+    }
+  }
+  commitNodeGraphPatch(patch, { record, status: `text box ${port.toLowerCase()} script changed` });
+  if (document.activeElement === sourceInput) {
+    sourceInput.focus();
+  }
+}
+
 function setNodeGraphTextBoxModeFromContext(textMode) {
   const sourceNode = nodeGraphPatchNode(nodeGraphModuleActionTargetNodeId());
   if (!sourceNode || sourceNode.type !== "textBox") {

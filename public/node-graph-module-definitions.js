@@ -7,6 +7,7 @@ const nodeGraphNodeLabels = Object.freeze({
   groupOutput: "Group Output",
   moduleGroup: "Module Group",
   nextPatch: "Next Patch",
+  scriptBox: "Script Box",
   previousPatch: "Previous Patch",
   osc: "Osc",
   polyBlep: "PolyBLEP",
@@ -198,6 +199,9 @@ const nodeGraphModuleDefinitions = Object.freeze({
   codeblock: {
     inputs: ["In1"],
     outputs: ["Out1"],
+    parameters: [],
+  },
+  scriptBox: {
     parameters: [],
   },
   graph: {

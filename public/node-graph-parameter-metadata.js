@@ -309,6 +309,9 @@ function nodeGraphPatchNodeInputPorts(node) {
   if (patchNode?.type === "codeblock") {
     return normalizeNodeGraphCodeblock(patchNode.codeblock).inputs;
   }
+  if (patchNode?.type === "scriptBox") {
+    return normalizeNodeGraphScriptBox(patchNode.scriptBox).inputs;
+  }
   if (patchNode?.type === "moduleGroup") {
     return normalizeNodeGraphModuleGroup(patchNode.moduleGroup).inputs.map((input) => input.name);
   }
@@ -335,6 +338,9 @@ function nodeGraphPatchNodeOutputPorts(node) {
   const patchNode = typeof node === "string" ? nodeGraphPatchNode(node) : node;
   if (patchNode?.type === "codeblock") {
     return normalizeNodeGraphCodeblock(patchNode.codeblock).outputs;
+  }
+  if (patchNode?.type === "scriptBox") {
+    return normalizeNodeGraphScriptBox(patchNode.scriptBox).outputs;
   }
   if (patchNode?.type === "moduleGroup") {
     return normalizeNodeGraphModuleGroup(patchNode.moduleGroup).outputs.map((output) => output.name);

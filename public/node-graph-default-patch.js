@@ -33,6 +33,9 @@ function createNodeGraphPatchNode(type, options = {}) {
   if (type === "codeblock") {
     node.codeblock = normalizeNodeGraphCodeblock(options.codeblock);
   }
+  if (type === "scriptBox") {
+    node.scriptBox = normalizeNodeGraphScriptBox(options.scriptBox);
+  }
   if (type === "canvas") {
     node.canvasScript = normalizeNodeGraphCanvasScript(options.canvasScript);
   }

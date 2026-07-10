@@ -174,6 +174,9 @@ function validateNodeGraphPatch(patch) {
     if (type === "codeblock") {
       normalizedNode.codeblock = normalizeNodeGraphCodeblock(node.codeblock);
     }
+    if (type === "scriptBox") {
+      normalizedNode.scriptBox = normalizeNodeGraphScriptBox(node.scriptBox);
+    }
     const normalizedPortScripts = normalizeNodeGraphPortScripts(type, node.portScripts);
     if (normalizedPortScripts) {
       normalizedNode.portScripts = normalizedPortScripts;
@@ -558,6 +561,9 @@ function applyNodeGraphPatchToDom() {
     }
     if (typeof syncNodeGraphModulePortLabels === "function") {
       syncNodeGraphModulePortLabels(element, patchNode);
+    }
+    if (patchNode.type === "scriptBox" && typeof evaluateNodeGraphScriptBoxNode === "function") {
+      evaluateNodeGraphScriptBoxNode(patchNode);
     }
     if (nodeGraphModuleDefinitions[patchNode.type]?.layout === "textBox") {
       syncNodeGraphTextBoxElement(element, patchNode);

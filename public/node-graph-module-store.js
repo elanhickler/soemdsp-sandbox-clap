@@ -57,6 +57,7 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "fractalBrownianNoise",
   "clapPlugin",
   "codeblock",
+  "scriptBox",
   "graph",
   "graph2",
   "gain",
@@ -603,6 +604,11 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Controllers",
     description: "Patch-local JavaScript signal processor with editable input and output ports.",
     notes: ["dynamic ports", "JavaScript body", "local patch code"],
+  },
+  scriptBox: {
+    category: "Controllers",
+    description: "Data-plane JavaScript transform with editable input and output ports -- runs on whole values (arrays, strings, numbers), not per-sample audio.",
+    notes: ["dynamic ports", "data-plane script", "port script node"],
   },
   graph: {
     category: "Visual",

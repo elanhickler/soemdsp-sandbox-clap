@@ -291,6 +291,9 @@ function cloneNodeGraphPatch(patch) {
         ...(node.type === "codeblock"
           ? { codeblock: normalizeNodeGraphCodeblock(node.codeblock) }
           : {}),
+        ...(node.type === "scriptBox"
+          ? { scriptBox: normalizeNodeGraphScriptBox(node.scriptBox) }
+          : {}),
         ...(node.type === "canvas"
           ? { canvasScript: normalizeNodeGraphCanvasScript(node.canvasScript) }
           : {}),
