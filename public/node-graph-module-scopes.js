@@ -2712,7 +2712,7 @@ function nodeGraphTraceDisplaySettingsEditingTraceDefaults() {
   return nodeGraphModuleDisplaySettingsSchemaForNode(node) === "trace";
 }
 
-const nodeGraphDisplayModeRenderers = Object.freeze(["trace", "clock", "dot", "value", "lineBurn", "hypersawBurn", "oscilloscopeBankBurn", "scope2d", "scope2dTrace", "numberReadout"]);
+const nodeGraphDisplayModeRenderers = Object.freeze(["trace", "clock", "dot", "value", "lineBurn", "hypersawBurn", "oscilloscopeBankBurn", "scope2d", "scope2dTrace", "numberReadout", "spectrum"]);
 const nodeGraphDisplayModeSignalKinds = Object.freeze(["scalar", "xy", "buffer"]);
 
 function nodeGraphDisplayModeSettingsSchemaForRenderer(renderer) {
@@ -2819,16 +2819,36 @@ function nodeGraphModuleImplicitDisplayModeForType(type) {
   }, type, 0);
 }
 
+function nodeGraphModuleWithSpectrumCompanionMode(modes) {
+  if (!Array.isArray(modes) || !modes.length || modes.some((mode) => mode.renderer === "spectrum")) {
+    return modes;
+  }
+  const traceMode = modes.find((mode) => mode.renderer === "trace");
+  if (!traceMode) {
+    return modes;
+  }
+  return [
+    ...modes,
+    {
+      key: `${traceMode.key}Spectrum`,
+      label: `${traceMode.label} (Spectrum)`,
+      renderer: "spectrum",
+      settingsSchema: "trace",
+      source: { ...traceMode.source },
+    },
+  ];
+}
+
 function nodeGraphModuleDisplayModesForType(type) {
   const declared = nodeGraphModuleDefinitions?.[type]?.displayModes;
   const modes = Array.isArray(declared)
     ? declared.map((mode, index) => normalizeNodeGraphDisplayMode(mode, type, index)).filter(Boolean)
     : [];
   if (modes.length) {
-    return modes;
+    return nodeGraphModuleWithSpectrumCompanionMode(modes);
   }
   const implicit = nodeGraphModuleImplicitDisplayModeForType(type);
-  return implicit ? [implicit] : [];
+  return nodeGraphModuleWithSpectrumCompanionMode(implicit ? [implicit] : []);
 }
 
 function nodeGraphModuleDefaultDisplayModeKeyForType(type) {
@@ -3285,6 +3305,110 @@ function nodeGraphModuleScopeOfflineConnectionSum(context, connections, localTim
   ), 0);
 }
 
+const nodeGraphSpectrumFftSize = 1024;
+const nodeGraphSpectrumBarCount = 160;
+
+function nodeGraphSpectrumHannWindow(size) {
+  const window = new Float64Array(size);
+  for (let i = 0; i < size; i += 1) {
+    window[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (size - 1));
+  }
+  return window;
+}
+
+const nodeGraphSpectrumHannWindowCache = nodeGraphSpectrumHannWindow(nodeGraphSpectrumFftSize);
+
+// Iterative in-place radix-2 Cooley-Tukey FFT. `real`/`imag` must be
+// same-length power-of-two Float64Arrays; results are written back in place.
+function nodeGraphSpectrumFftInPlace(real, imag) {
+  const n = real.length;
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) {
+      j ^= bit;
+    }
+    j ^= bit;
+    if (i < j) {
+      const tempReal = real[i];
+      real[i] = real[j];
+      real[j] = tempReal;
+      const tempImag = imag[i];
+      imag[i] = imag[j];
+      imag[j] = tempImag;
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const halfLen = len >> 1;
+    const angleStep = (-2 * Math.PI) / len;
+    for (let start = 0; start < n; start += len) {
+      for (let k = 0; k < halfLen; k += 1) {
+        const angle = angleStep * k;
+        const wr = Math.cos(angle);
+        const wi = Math.sin(angle);
+        const evenIndex = start + k;
+        const oddIndex = start + k + halfLen;
+        const oddR = real[oddIndex] * wr - imag[oddIndex] * wi;
+        const oddI = real[oddIndex] * wi + imag[oddIndex] * wr;
+        real[oddIndex] = real[evenIndex] - oddR;
+        imag[oddIndex] = imag[evenIndex] - oddI;
+        real[evenIndex] += oddR;
+        imag[evenIndex] += oddI;
+      }
+    }
+  }
+}
+
+// Builds a bar-height buffer (values 0..1, tagged nodeGraphScopeSpectrum) from
+// the same raw time-domain sample buffer the waveform trace renderer reads,
+// so switching a node's display mode to "Spectrum" needs no separate capture
+// path. Magnitude is mapped from a -100..0 dB window, matching typical scope
+// analyzer floor/ceiling defaults.
+function nodeGraphModuleScopeSpectrumBuffer(capturedBuffer) {
+  const size = nodeGraphSpectrumFftSize;
+  if (!capturedBuffer?.length) {
+    return capturedBuffer;
+  }
+  const available = Math.min(capturedBuffer.length, size);
+  const offset = capturedBuffer.length - available;
+  const windowOffset = size - available;
+  const real = new Float64Array(size);
+  const imag = new Float64Array(size);
+  for (let i = 0; i < available; i += 1) {
+    real[windowOffset + i] = (Number(capturedBuffer[offset + i]) || 0) *
+      nodeGraphSpectrumHannWindowCache[windowOffset + i];
+  }
+  nodeGraphSpectrumFftInPlace(real, imag);
+  const bins = size / 2;
+  const minDb = -100;
+  const maxDb = 0;
+  const magnitudes = new Float32Array(bins);
+  for (let i = 0; i < bins; i += 1) {
+    const magnitude = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]) / (size / 2);
+    const db = 20 * Math.log10(Math.max(magnitude, 1e-9));
+    magnitudes[i] = clampNodeSliderValue((db - minDb) / (maxDb - minDb), 0, 1);
+  }
+  // Bar geometry is one solid-color rectangle per array entry, so at typical
+  // scope widths (100-700px) 512 raw FFT bins rasterize as far-sub-pixel
+  // slivers -- effectively invisible even though the draw call is correct.
+  // Max-pool down to a fixed, always-visible bar count instead.
+  const barCount = Math.min(bins, nodeGraphSpectrumBarCount);
+  const spectrum = new Float32Array(barCount);
+  const bandSize = bins / barCount;
+  for (let i = 0; i < barCount; i += 1) {
+    const start = Math.floor(i * bandSize);
+    const end = Math.max(start + 1, Math.floor((i + 1) * bandSize));
+    let peak = 0;
+    for (let bin = start; bin < end && bin < bins; bin += 1) {
+      if (magnitudes[bin] > peak) {
+        peak = magnitudes[bin];
+      }
+    }
+    spectrum[i] = peak;
+  }
+  spectrum.nodeGraphScopeSpectrum = true;
+  return spectrum;
+}
+
 function nodeGraphModuleScopeDisplayBuffer(slot, capturedBuffer = null) {
   let buffer = null;
   const renderer = nodeGraphModuleDisplayRendererForSlot(slot);
@@ -3325,6 +3449,8 @@ function nodeGraphModuleScopeDisplayBuffer(slot, capturedBuffer = null) {
       capturedBuffer,
       nodeGraphTraceDisplaySettingsForSlot(slot),
     );
+  } else if (renderer === "spectrum") {
+    buffer = nodeGraphModuleScopeSpectrumBuffer(capturedBuffer);
   } else {
     buffer = nodeGraphModuleScopeOfflineClockBlinkBuffer(slot, capturedBuffer) ||
       nodeGraphModuleScopeOfflineGainAnalyzerBuffer(slot) ||
@@ -10758,12 +10884,23 @@ function drawNodeGraphModuleScopes() {
     const colors = heatmapMode
       ? nodeGraphModuleScopeHeatmapTraceColors()
       : nodeGraphModuleScopeDotStyle(slot, buffer);
-    const haloBrightness = heatmapMode
-      ? (nodeGraphMvp?.moduleScopeDotCore2Enabled === false ? 0 : 1)
-      : colors.haloBrightness / nodeGraphModuleScopeDefaultDotCores.dot2.brightness;
-    const coreBrightness = heatmapMode
-      ? (nodeGraphMvp?.moduleScopeDotCore1Enabled === false ? 0 : 1)
-      : colors.coreBrightness / nodeGraphModuleScopeDefaultDotCores.dot1.brightness;
+    // Spectrum bars are filled shapes, not points/lines, so they shouldn't be
+    // gated by the "Dot 1/2 Core" enable toggles (those exist to turn off the
+    // point-scope glow cores) -- without this, disabling Dot 1 Core zeroes
+    // coreBrightness for every node and leaves bars at halo-only intensity,
+    // which is far too dim to see across a filled area (unlike a thin trace
+    // beam, which still reads as bright at the same intensity via overdraw).
+    const isSpectrumBuffer = buffer?.nodeGraphScopeSpectrum === true;
+    const haloBrightness = isSpectrumBuffer
+      ? 0
+      : heatmapMode
+        ? (nodeGraphMvp?.moduleScopeDotCore2Enabled === false ? 0 : 1)
+        : colors.haloBrightness / nodeGraphModuleScopeDefaultDotCores.dot2.brightness;
+    const coreBrightness = isSpectrumBuffer
+      ? 1
+      : heatmapMode
+        ? (nodeGraphMvp?.moduleScopeDotCore1Enabled === false ? 0 : 1)
+        : colors.coreBrightness / nodeGraphModuleScopeDefaultDotCores.dot1.brightness;
     if (haloBrightness > 0) {
       setNodeGraphModuleScopeDebugPhase(`draw-halo:${slot.type}`);
       applyNodeGraphModuleScopeTraceBlendMode(gl, blendMode);

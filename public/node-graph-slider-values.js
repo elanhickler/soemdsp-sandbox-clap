@@ -43,13 +43,13 @@ function nodeGraphDefaultSmoothingBlockSeconds() {
   return clampNodeGraphAutoSmoothingSeconds(128 / nodeGraphSmoothingSampleRate());
 }
 
-function nodeGraphNumericModifierReserved(event) {
-  return Boolean(event?.shiftKey && (event.ctrlKey || event.metaKey) && event.altKey);
+function nodeGraphNumericModifierReserved() {
+  return false;
 }
 
 function nodeGraphNumericDragMultiplier(event) {
-  if (nodeGraphNumericModifierReserved(event)) {
-    return 0;
+  if (event?.shiftKey && (event.ctrlKey || event.metaKey) && event.altKey) {
+    return 0.001;
   }
   if (event?.shiftKey && (event.ctrlKey || event.metaKey)) {
     return 0.01;

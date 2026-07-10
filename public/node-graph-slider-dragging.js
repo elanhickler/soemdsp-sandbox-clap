@@ -387,7 +387,7 @@ function beginNodeSliderDrag(event) {
 
   const lane = nodeSliderVisualLane(surface, slider);
   const resetToDefaultOnClick = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
-  const jumpToPointerOnClick = event.altKey;
+  const jumpToPointerOnClick = event.altKey && !(event.shiftKey && (event.ctrlKey || event.metaKey));
   const pointerMode = "relative";
   let startTravel = nodeSliderTravelFromValue(slider, Number(slider.value));
   if (jumpToPointerOnClick) {
@@ -438,7 +438,7 @@ function dragNodeSlider(event) {
   if (Math.abs(horizontalDelta) > 1 || Math.abs(verticalDelta) > 1) {
     drag.moved = true;
   }
-  if (event.altKey && (typeof nodeGraphNumericModifierReserved !== "function" || !nodeGraphNumericModifierReserved(event))) {
+  if (event.altKey && !(event.shiftKey && (event.ctrlKey || event.metaKey))) {
     if (setNodeSliderValueAtPointer(drag.slider, drag.surface, event, { interaction: "drag" })) {
       reanchorNodeSliderDragAtPointer(drag, event);
     }

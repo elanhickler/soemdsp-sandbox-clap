@@ -615,7 +615,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "ladder_filter" || targetType === "ladderFilter") {
         for (const state of this.ladderFilterStates.values()) {
-          this.destroyLadderFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyLadderFilterNativeState(s));
         }
         this.nativeLadderFilter = exports;
         this.nativeLadderFilterReady = Boolean(
@@ -631,7 +631,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "flower_child_filter" || targetType === "flowerChildFilter") {
         for (const state of this.flowerChildFilterStates.values()) {
-          this.destroyFlowerChildFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyFlowerChildFilterNativeState(s));
         }
         this.nativeFlowerChildFilter = exports;
         this.nativeFlowerChildFilterReady = Boolean(
@@ -647,7 +647,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "rsmet_filter" || targetType === "rsmetFilter") {
         for (const state of this.rsmetFilterStates.values()) {
-          this.destroyRsmetFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyRsmetFilterNativeState(s));
         }
         this.nativeRsmetFilter = exports;
         this.nativeRsmetFilterReady = Boolean(
@@ -663,7 +663,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "yellowjacket_filter" || targetType === "yellowjacketFilter") {
         for (const state of this.yellowjacketFilterStates.values()) {
-          this.destroyYellowjacketFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyYellowjacketFilterNativeState(s));
         }
         this.nativeYellowjacketFilter = exports;
         this.nativeYellowjacketFilterReady = Boolean(
@@ -679,7 +679,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "superlove_filter" || targetType === "superloveFilter") {
         for (const state of this.superloveFilterStates.values()) {
-          this.destroySuperloveFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroySuperloveFilterNativeState(s));
         }
         this.nativeSuperloveFilter = exports;
         this.nativeSuperloveFilterReady = Boolean(
@@ -695,7 +695,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "chaotic_phase_locking_filter" || targetType === "chaoticPhaseLockingFilter") {
         for (const state of this.chaoticPhaseLockingFilterStates.values()) {
-          this.destroyChaoticPhaseLockingFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyChaoticPhaseLockingFilterNativeState(s));
         }
         this.nativeChaoticPhaseLockingFilter = exports;
         this.nativeChaoticPhaseLockingFilterReady = Boolean(
@@ -711,7 +711,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "resonator_filter" || targetType === "resonatorFilter") {
         for (const state of this.resonatorFilterStates.values()) {
-          this.destroyResonatorFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyResonatorFilterNativeState(s));
         }
         this.nativeResonatorFilter = exports;
         this.nativeResonatorFilterReady = Boolean(
@@ -727,7 +727,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "human_filter" || targetType === "humanFilter") {
         for (const state of this.humanFilterStates.values()) {
-          this.destroyHumanFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyHumanFilterNativeState(s));
         }
         this.nativeHumanFilter = exports;
         this.nativeHumanFilterReady = Boolean(
@@ -759,7 +759,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "tb303_filter" || targetType === "tb303Filter") {
         for (const state of this.tb303FilterStates.values()) {
-          this.destroyTb303FilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyTb303FilterNativeState(s));
         }
         this.nativeTb303Filter = exports;
         this.nativeTb303FilterReady = Boolean(
@@ -775,7 +775,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (name === "passive_filter" || targetType === "passiveFilter") {
         for (const state of this.passiveFilterStates.values()) {
-          this.destroyPassiveFilterNativeState(state);
+          this.destroyStereoFilterNativeState(state, (s) => this.destroyPassiveFilterNativeState(s));
         }
         this.nativePassiveFilter = exports;
         this.nativePassiveFilterReady = Boolean(
@@ -1385,7 +1385,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.hostSampleRate = sampleRate;
     this.oversamplingRatio = 1;
     for (const state of this.passiveFilterStates.values()) {
-      this.destroyPassiveFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyPassiveFilterNativeState(s));
     }
     this.passiveFilterStates = new Map();
     this.papoulisFilterStates = new Map();
@@ -1408,35 +1408,35 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.gpuAdditiveUnderruns = 0;
     this.flowerChildEnvelopeFollowerStates = new Map();
     for (const state of this.ladderFilterStates.values()) {
-      this.destroyLadderFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyLadderFilterNativeState(s));
     }
     this.ladderFilterStates = new Map();
     for (const state of this.flowerChildFilterStates.values()) {
-      this.destroyFlowerChildFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyFlowerChildFilterNativeState(s));
     }
     this.flowerChildFilterStates = new Map();
     for (const state of this.rsmetFilterStates.values()) {
-      this.destroyRsmetFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyRsmetFilterNativeState(s));
     }
     this.rsmetFilterStates = new Map();
     for (const state of this.yellowjacketFilterStates.values()) {
-      this.destroyYellowjacketFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyYellowjacketFilterNativeState(s));
     }
     this.yellowjacketFilterStates = new Map();
     for (const state of this.superloveFilterStates.values()) {
-      this.destroySuperloveFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroySuperloveFilterNativeState(s));
     }
     this.superloveFilterStates = new Map();
     for (const state of this.chaoticPhaseLockingFilterStates.values()) {
-      this.destroyChaoticPhaseLockingFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyChaoticPhaseLockingFilterNativeState(s));
     }
     this.chaoticPhaseLockingFilterStates = new Map();
     for (const state of this.resonatorFilterStates.values()) {
-      this.destroyResonatorFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyResonatorFilterNativeState(s));
     }
     this.resonatorFilterStates = new Map();
     for (const state of this.humanFilterStates.values()) {
-      this.destroyHumanFilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyHumanFilterNativeState(s));
     }
     this.humanFilterStates = new Map();
     for (const state of this.pulseExplosionStates.values()) {
@@ -1444,7 +1444,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     this.pulseExplosionStates = new Map();
     for (const state of this.tb303FilterStates.values()) {
-      this.destroyTb303FilterNativeState(state);
+      this.destroyStereoFilterNativeState(state, (s) => this.destroyTb303FilterNativeState(s));
     }
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
@@ -1757,7 +1757,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.hypersawStates.set(id, this.createHypersawState());
       }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
-        this.passiveFilterStates.set(id, this.createPassiveFilterState());
+        this.passiveFilterStates.set(id, this.createStereoFilterState(() => this.createPassiveFilterState()));
       }
       if (node?.type === "papoulisFilter" && !this.papoulisFilterStates.has(id)) {
         this.papoulisFilterStates.set(id, this.createPapoulisFilterState());
@@ -1766,37 +1766,37 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.phosphillatorPlaybackStates.set(id, this.createPhosphillatorPlaybackState());
       }
       if (node?.type === "cookbookFilter" && !this.cookbookFilterStates.has(id)) {
-        this.cookbookFilterStates.set(id, this.createCookbookFilterState());
+        this.cookbookFilterStates.set(id, this.createStereoFilterState(() => this.createCookbookFilterState()));
       }
       if (node?.type === "ladderFilter" && !this.ladderFilterStates.has(id)) {
-        this.ladderFilterStates.set(id, this.createLadderFilterState());
+        this.ladderFilterStates.set(id, this.createStereoFilterState(() => this.createLadderFilterState()));
       }
       if (node?.type === "flowerChildFilter" && !this.flowerChildFilterStates.has(id)) {
-        this.flowerChildFilterStates.set(id, this.createFlowerChildFilterState());
+        this.flowerChildFilterStates.set(id, this.createStereoFilterState(() => this.createFlowerChildFilterState()));
       }
       if (node?.type === "rsmetFilter" && !this.rsmetFilterStates.has(id)) {
-        this.rsmetFilterStates.set(id, this.createRsmetFilterState());
+        this.rsmetFilterStates.set(id, this.createStereoFilterState(() => this.createRsmetFilterState()));
       }
       if (node?.type === "yellowjacketFilter" && !this.yellowjacketFilterStates.has(id)) {
-        this.yellowjacketFilterStates.set(id, this.createYellowjacketFilterState());
+        this.yellowjacketFilterStates.set(id, this.createStereoFilterState(() => this.createYellowjacketFilterState()));
       }
       if (node?.type === "superloveFilter" && !this.superloveFilterStates.has(id)) {
-        this.superloveFilterStates.set(id, this.createSuperloveFilterState());
+        this.superloveFilterStates.set(id, this.createStereoFilterState(() => this.createSuperloveFilterState()));
       }
       if (node?.type === "chaoticPhaseLockingFilter" && !this.chaoticPhaseLockingFilterStates.has(id)) {
-        this.chaoticPhaseLockingFilterStates.set(id, this.createChaoticPhaseLockingFilterState());
+        this.chaoticPhaseLockingFilterStates.set(id, this.createStereoFilterState(() => this.createChaoticPhaseLockingFilterState()));
       }
       if (node?.type === "resonatorFilter" && !this.resonatorFilterStates.has(id)) {
-        this.resonatorFilterStates.set(id, this.createResonatorFilterState());
+        this.resonatorFilterStates.set(id, this.createStereoFilterState(() => this.createResonatorFilterState()));
       }
       if (node?.type === "humanFilter" && !this.humanFilterStates.has(id)) {
-        this.humanFilterStates.set(id, this.createHumanFilterState());
+        this.humanFilterStates.set(id, this.createStereoFilterState(() => this.createHumanFilterState()));
       }
       if (node?.type === "pulseExplosion" && !this.pulseExplosionStates.has(id)) {
         this.pulseExplosionStates.set(id, this.createPulseExplosionState());
       }
       if (node?.type === "tb303Filter" && !this.tb303FilterStates.has(id)) {
-        this.tb303FilterStates.set(id, this.createTb303FilterState());
+        this.tb303FilterStates.set(id, this.createStereoFilterState(() => this.createTb303FilterState()));
       }
       if (node?.type === "clock" && !this.clockStates.has(id)) {
         this.clockStates.set(id, this.createClockState());
@@ -1811,7 +1811,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.delayedTriggerStates.set(id, this.createDelayedTriggerState());
       }
       if (node?.type === "delayEffect" && !this.delayEffectStates.has(id)) {
-        this.delayEffectStates.set(id, this.createDelayEffectState());
+        this.delayEffectStates.set(id, this.createStereoDelayEffectState());
       }
       if (node?.type === "pingPongDelay" && !this.pingPongDelayStates.has(id)) {
         this.pingPongDelayStates.set(id, this.createPingPongDelayState());
@@ -1829,7 +1829,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.randomClockStates.set(id, this.createRandomClockState());
       }
       if (node?.type === "sampleHold" && !this.sampleHoldStates.has(id)) {
-        this.sampleHoldStates.set(id, this.createSampleHoldState());
+        this.sampleHoldStates.set(id, this.createStereoSampleHoldState());
       }
       if ((node?.type === "samplePlayer" || node?.type === "sampleLooper" || node?.type === "audioPlayer") && !this.samplePlaybackStates.has(id)) {
         this.samplePlaybackStates.set(id, this.createSamplePlaybackState());
@@ -1838,7 +1838,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.patchCommandStates.set(id, this.createPatchCommandState());
       }
       if (node?.type === "slewLimiter" && !this.slewLimiterStates.has(id)) {
-        this.slewLimiterStates.set(id, this.createSlewLimiterState());
+        this.slewLimiterStates.set(id, this.createStereoSlewLimiterState());
       }
       if (node?.type === "expAdsr" && !this.expAdsrStates.has(id)) {
         this.expAdsrStates.set(id, this.createExpAdsrState());
@@ -2093,7 +2093,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.passiveFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyPassiveFilterNativeState(this.passiveFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.passiveFilterStates.get(id), (s) => this.destroyPassiveFilterNativeState(s));
         this.passiveFilterStates.delete(id);
       }
     }
@@ -2137,49 +2137,49 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.ladderFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyLadderFilterNativeState(this.ladderFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.ladderFilterStates.get(id), (s) => this.destroyLadderFilterNativeState(s));
         this.ladderFilterStates.delete(id);
       }
     }
     for (const id of [...this.flowerChildFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyFlowerChildFilterNativeState(this.flowerChildFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.flowerChildFilterStates.get(id), (s) => this.destroyFlowerChildFilterNativeState(s));
         this.flowerChildFilterStates.delete(id);
       }
     }
     for (const id of [...this.rsmetFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyRsmetFilterNativeState(this.rsmetFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.rsmetFilterStates.get(id), (s) => this.destroyRsmetFilterNativeState(s));
         this.rsmetFilterStates.delete(id);
       }
     }
     for (const id of [...this.yellowjacketFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyYellowjacketFilterNativeState(this.yellowjacketFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.yellowjacketFilterStates.get(id), (s) => this.destroyYellowjacketFilterNativeState(s));
         this.yellowjacketFilterStates.delete(id);
       }
     }
     for (const id of [...this.superloveFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroySuperloveFilterNativeState(this.superloveFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.superloveFilterStates.get(id), (s) => this.destroySuperloveFilterNativeState(s));
         this.superloveFilterStates.delete(id);
       }
     }
     for (const id of [...this.chaoticPhaseLockingFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyChaoticPhaseLockingFilterNativeState(this.chaoticPhaseLockingFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.chaoticPhaseLockingFilterStates.get(id), (s) => this.destroyChaoticPhaseLockingFilterNativeState(s));
         this.chaoticPhaseLockingFilterStates.delete(id);
       }
     }
     for (const id of [...this.resonatorFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyResonatorFilterNativeState(this.resonatorFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.resonatorFilterStates.get(id), (s) => this.destroyResonatorFilterNativeState(s));
         this.resonatorFilterStates.delete(id);
       }
     }
     for (const id of [...this.humanFilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyHumanFilterNativeState(this.humanFilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.humanFilterStates.get(id), (s) => this.destroyHumanFilterNativeState(s));
         this.humanFilterStates.delete(id);
       }
     }
@@ -2191,7 +2191,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     for (const id of [...this.tb303FilterStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyTb303FilterNativeState(this.tb303FilterStates.get(id));
+        this.destroyStereoFilterNativeState(this.tb303FilterStates.get(id), (s) => this.destroyTb303FilterNativeState(s));
         this.tb303FilterStates.delete(id);
       }
     }
@@ -4410,6 +4410,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return { y: [0, 0, 0, 0, 0], nativeHandle: 0 };
   }
 
+  // Bundles three independent per-channel filter states (mono/left/right) under
+  // one map entry, so a stereo signal gets three genuinely independent native
+  // handles/filter histories instead of one shared (and thus mono-summed)
+  // instance. `createFn` is one of this class's existing createXState methods.
+  createStereoFilterState(createFn) {
+    return { left: createFn(), mono: createFn(), right: createFn() };
+  }
+
+  // Companion to createStereoFilterState: destroys all three channels'
+  // native handles (if any) via the module's existing destroyXNativeState
+  // method, tolerating a pre-bundle single-state shape defensively.
+  destroyStereoFilterNativeState(bundle, destroyFn) {
+    for (const channelState of [bundle?.mono, bundle?.left, bundle?.right]) {
+      if (channelState) {
+        destroyFn(channelState);
+      }
+    }
+  }
+
   createFlowerChildFilterState() {
     return {
       phase: 0, phaseOffset: 0, stage1: 0, stage2: 0, selfMod: 0,
@@ -4485,6 +4504,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createStereoSlewLimiterState() {
+    return {
+      left: this.createSlewLimiterState(),
+      mono: this.createSlewLimiterState(),
+      right: this.createSlewLimiterState(),
+    };
+  }
+
   createClockState() {
     return {
       hasStarted: false,
@@ -4534,6 +4561,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createStereoDelayEffectState() {
+    return {
+      left: this.createDelayEffectState(),
+      mono: this.createDelayEffectState(),
+      right: this.createDelayEffectState(),
+    };
+  }
+
   createPingPongDelayState() {
     return {
       bufferL: new Float32Array(1),
@@ -4551,6 +4586,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       held: 0,
       lastTrigger: 0,
       noise: this.createNoiseGeneratorChannelState(),
+    };
+  }
+
+  createStereoSampleHoldState() {
+    return {
+      left: this.createSampleHoldState(),
+      mono: this.createSampleHoldState(),
+      right: this.createSampleHoldState(),
     };
   }
 
@@ -5403,36 +5446,36 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "dsfOscillator") this.dsfOscillatorStates.set(id, this.createDsfOscillatorState());
       if (node?.type === "robinSupersaw") this.robinSupersawStates.set(id, this.createRobinSupersawState());
       if (node?.type === "hypersaw") this.hypersawStates.set(id, this.createHypersawState());
-      if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createPassiveFilterState());
       if (node?.type === "papoulisFilter") this.papoulisFilterStates.set(id, this.createPapoulisFilterState());
       if (node?.type === "phosphillator") this.phosphillatorPlaybackStates.set(id, this.createPhosphillatorPlaybackState());
-      if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createCookbookFilterState());
-      if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createLadderFilterState());
-      if (node?.type === "flowerChildFilter") this.flowerChildFilterStates.set(id, this.createFlowerChildFilterState());
-      if (node?.type === "rsmetFilter") this.rsmetFilterStates.set(id, this.createRsmetFilterState());
-      if (node?.type === "yellowjacketFilter") this.yellowjacketFilterStates.set(id, this.createYellowjacketFilterState());
-      if (node?.type === "superloveFilter") this.superloveFilterStates.set(id, this.createSuperloveFilterState());
-      if (node?.type === "chaoticPhaseLockingFilter") this.chaoticPhaseLockingFilterStates.set(id, this.createChaoticPhaseLockingFilterState());
-      if (node?.type === "resonatorFilter") this.resonatorFilterStates.set(id, this.createResonatorFilterState());
-      if (node?.type === "humanFilter") this.humanFilterStates.set(id, this.createHumanFilterState());
       if (node?.type === "pulseExplosion") this.pulseExplosionStates.set(id, this.createPulseExplosionState());
-      if (node?.type === "tb303Filter") this.tb303FilterStates.set(id, this.createTb303FilterState());
+      if (node?.type === "passiveFilter") this.passiveFilterStates.set(id, this.createStereoFilterState(() => this.createPassiveFilterState()));
+      if (node?.type === "cookbookFilter") this.cookbookFilterStates.set(id, this.createStereoFilterState(() => this.createCookbookFilterState()));
+      if (node?.type === "ladderFilter") this.ladderFilterStates.set(id, this.createStereoFilterState(() => this.createLadderFilterState()));
+      if (node?.type === "flowerChildFilter") this.flowerChildFilterStates.set(id, this.createStereoFilterState(() => this.createFlowerChildFilterState()));
+      if (node?.type === "rsmetFilter") this.rsmetFilterStates.set(id, this.createStereoFilterState(() => this.createRsmetFilterState()));
+      if (node?.type === "yellowjacketFilter") this.yellowjacketFilterStates.set(id, this.createStereoFilterState(() => this.createYellowjacketFilterState()));
+      if (node?.type === "superloveFilter") this.superloveFilterStates.set(id, this.createStereoFilterState(() => this.createSuperloveFilterState()));
+      if (node?.type === "chaoticPhaseLockingFilter") this.chaoticPhaseLockingFilterStates.set(id, this.createStereoFilterState(() => this.createChaoticPhaseLockingFilterState()));
+      if (node?.type === "resonatorFilter") this.resonatorFilterStates.set(id, this.createStereoFilterState(() => this.createResonatorFilterState()));
+      if (node?.type === "humanFilter") this.humanFilterStates.set(id, this.createStereoFilterState(() => this.createHumanFilterState()));
+      if (node?.type === "tb303Filter") this.tb303FilterStates.set(id, this.createStereoFilterState(() => this.createTb303FilterState()));
       if (node?.type === "clock") this.clockStates.set(id, this.createClockState());
       if (node?.type === "graph" || node?.type === "graph2") this.graphLfoStates.set(id, this.createGraphLfoState());
       if (node?.type === "clockDivider") this.clockDividerStates.set(id, this.createTriggerDividerState());
       if (node?.type === "delayedTrigger") this.delayedTriggerStates.set(id, this.createDelayedTriggerState());
-      if (node?.type === "delayEffect") this.delayEffectStates.set(id, this.createDelayEffectState());
+      if (node?.type === "delayEffect") this.delayEffectStates.set(id, this.createStereoDelayEffectState());
       if (node?.type === "pingPongDelay") this.pingPongDelayStates.set(id, this.createPingPongDelayState());
       if (node?.type === "reverbEffect") this.reverbEffectStates.set(id, this.createSabrinaReverbState());
       if (node?.type === "pll") this.pllStates.set(id, this.createPllState());
       if (node?.type === "helmholtzPitch") this.helmholtzStates.set(id, this.createHelmholtzState());
       if (node?.type === "randomClock") this.randomClockStates.set(id, this.createRandomClockState());
-      if (node?.type === "sampleHold") this.sampleHoldStates.set(id, this.createSampleHoldState());
+      if (node?.type === "sampleHold") this.sampleHoldStates.set(id, this.createStereoSampleHoldState());
       if (node?.type === "samplePlayer" || node?.type === "sampleLooper" || node?.type === "audioPlayer") {
         this.samplePlaybackStates.set(id, this.createSamplePlaybackState());
       }
       if (node?.type === "nextPatch" || node?.type === "previousPatch") this.patchCommandStates.set(id, this.createPatchCommandState());
-      if (node?.type === "slewLimiter") this.slewLimiterStates.set(id, this.createSlewLimiterState());
+      if (node?.type === "slewLimiter") this.slewLimiterStates.set(id, this.createStereoSlewLimiterState());
       if (node?.type === "expAdsr") this.expAdsrStates.set(id, this.createExpAdsrState());
       if (node?.type === "linearEnvelope") this.linearEnvelopeStates.set(id, this.createLinearEnvelopeState());
       if (node?.type === "noiseGenerator") this.noiseGeneratorStates.set(id, this.createNoiseGeneratorState());
@@ -11269,9 +11312,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   destroyDelayEffectNativeState(state) {
-    if (state?.nativeHandle && this.nativeDelayEffect?.soemdsp_delay_effect_destroy) {
-      this.nativeDelayEffect.soemdsp_delay_effect_destroy(state.nativeHandle);
-      state.nativeHandle = 0;
+    for (const channelState of [state?.mono, state?.left, state?.right]) {
+      if (channelState?.nativeHandle && this.nativeDelayEffect?.soemdsp_delay_effect_destroy) {
+        this.nativeDelayEffect.soemdsp_delay_effect_destroy(channelState.nativeHandle);
+        channelState.nativeHandle = 0;
+      }
     }
   }
 
@@ -13193,8 +13238,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           "Pitch Wheel": this.clampValue(Number.isFinite(pitchWheel) ? pitchWheel : 0, -1, 1),
         };
       } else if (node?.type === "gain") {
-        value = mixInput(nodeId) *
-          this.readEffectiveParameter(node, "amount", 1, frame, frames, frameValues);
+        const gainAmount = this.readEffectiveParameter(node, "amount", 1, frame, frames, frameValues);
+        const gainMono = mixInput(nodeId);
+        value = {
+          Out: gainMono * gainAmount,
+          Left: (mixInput(nodeId, "Left") + gainMono) * gainAmount,
+          Right: (mixInput(nodeId, "Right") + gainMono) * gainAmount,
+        };
       } else if (node?.type === "led") {
         value = {
           Out: this.safeFilterNumber(mixInput(nodeId, "In"), null),
@@ -13206,14 +13256,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "graph" || node?.type === "graph2") {
         value = graphOutputValue(node, nodeId);
       } else if (node?.type === "bias") {
-        value = mixInput(nodeId) +
-          this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
+        const biasOffset = this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
+        const biasMono = mixInput(nodeId);
+        value = {
+          Out: biasMono + biasOffset,
+          Left: mixInput(nodeId, "Left") + biasMono + biasOffset,
+          Right: mixInput(nodeId, "Right") + biasMono + biasOffset,
+        };
       } else if (node?.type === "softClipper") {
-        value = this.nativeSoftClipperSample(
-          mixInput(nodeId),
-          this.readEffectiveParameter(node, "center", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "width", 2, frame, frames, frameValues),
-        );
+        const softClipperCenter = this.readEffectiveParameter(node, "center", 0, frame, frames, frameValues);
+        const softClipperWidth = this.readEffectiveParameter(node, "width", 2, frame, frames, frameValues);
+        const softClipperMono = mixInput(nodeId);
+        value = {
+          Out: this.nativeSoftClipperSample(softClipperMono, softClipperCenter, softClipperWidth),
+          Left: this.nativeSoftClipperSample(mixInput(nodeId, "Left") + softClipperMono, softClipperCenter, softClipperWidth),
+          Right: this.nativeSoftClipperSample(mixInput(nodeId, "Right") + softClipperMono, softClipperCenter, softClipperWidth),
+        };
       } else if (node?.type === "rotate3dTo2d") {
         const angleX = this.readEffectiveParameter(node, "rotateX", 0, frame, frames, frameValues) * Math.PI * 2;
         const angleY = this.readEffectiveParameter(node, "rotateY", 0, frame, frames, frameValues) * Math.PI * 2;
@@ -13245,16 +13303,17 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const knobValue = this.readEffectiveParameter(node, "value", 0, frame, frames, frameValues);
         value = { Out: knobValue, value: knobValue };
       } else if (node?.type === "passiveFilter") {
-        const state = this.passiveFilterStates.get(nodeId) || this.createPassiveFilterState();
+        const state = this.passiveFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createPassiveFilterState());
         this.passiveFilterStates.set(nodeId, state);
-        value = this.passiveFilterSample(
-          state,
-          mixInput(nodeId),
-          this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "lowFrequency", 200, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "highFrequency", 1000, frame, frames, frameValues),
-          safeRate,
-        );
+        const passiveMode = this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues);
+        const passiveLowFrequency = this.readEffectiveParameter(node, "lowFrequency", 200, frame, frames, frameValues);
+        const passiveHighFrequency = this.readEffectiveParameter(node, "highFrequency", 1000, frame, frames, frameValues);
+        const passiveMono = mixInput(nodeId);
+        value = {
+          Out: this.passiveFilterSample(state.mono, passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
+          Left: this.passiveFilterSample(state.left, mixInput(nodeId, "Left") + passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
+          Right: this.passiveFilterSample(state.right, mixInput(nodeId, "Right") + passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
+        };
       } else if (node?.type === "papoulisFilter") {
         const state = this.papoulisFilterStates.get(nodeId) || this.createPapoulisFilterState();
         this.papoulisFilterStates.set(nodeId, state);
@@ -13278,128 +13337,137 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       } else if (node?.type === "cookbookFilter") {
-        const state = this.cookbookFilterStates.get(nodeId) || this.createCookbookFilterState();
+        const state = this.cookbookFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createCookbookFilterState());
         this.cookbookFilterStates.set(nodeId, state);
-        value = this.cookbookFilterSample(
-          state,
-          mixInput(nodeId),
-          this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "q", 1, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "gain", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "stages", 2, frame, frames, frameValues),
-          safeRate,
-        );
+        const cookbookMode = this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues);
+        const cookbookFrequency = this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues);
+        const cookbookQ = this.readEffectiveParameter(node, "q", 1, frame, frames, frameValues);
+        const cookbookGain = this.readEffectiveParameter(node, "gain", 0, frame, frames, frameValues);
+        const cookbookStages = this.readEffectiveParameter(node, "stages", 2, frame, frames, frameValues);
+        const cookbookMono = mixInput(nodeId);
+        value = {
+          Out: this.cookbookFilterSample(state.mono, cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
+          Left: this.cookbookFilterSample(state.left, mixInput(nodeId, "Left") + cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
+          Right: this.cookbookFilterSample(state.right, mixInput(nodeId, "Right") + cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
+        };
       } else if (node?.type === "ladderFilter") {
-        const state = this.ladderFilterStates.get(nodeId) || this.createLadderFilterState();
+        const state = this.ladderFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createLadderFilterState());
         this.ladderFilterStates.set(nodeId, state);
-        value = this.ladderFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            frequency: this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues),
-            mode: this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-            stages: this.readEffectiveParameter(node, "stages", 4, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const ladderParams = {
+          frequency: this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          stages: this.readEffectiveParameter(node, "stages", 4, frame, frames, frameValues),
+        };
+        const ladderMono = mixInput(nodeId);
+        value = {
+          Out: this.ladderFilterSample(state.mono, ladderMono, ladderParams, safeRate),
+          Left: this.ladderFilterSample(state.left, mixInput(nodeId, "Left") + ladderMono, ladderParams, safeRate),
+          Right: this.ladderFilterSample(state.right, mixInput(nodeId, "Right") + ladderMono, ladderParams, safeRate),
+        };
       } else if (node?.type === "flowerChildFilter") {
-        const state = this.flowerChildFilterStates.get(nodeId) || this.createFlowerChildFilterState();
+        const state = this.flowerChildFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createFlowerChildFilterState());
         this.flowerChildFilterStates.set(nodeId, state);
-        value = this.flowerChildFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const flowerChildParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const flowerChildMono = mixInput(nodeId);
+        value = {
+          Out: this.flowerChildFilterSample(state.mono, flowerChildMono, flowerChildParams, safeRate),
+          Left: this.flowerChildFilterSample(state.left, mixInput(nodeId, "Left") + flowerChildMono, flowerChildParams, safeRate),
+          Right: this.flowerChildFilterSample(state.right, mixInput(nodeId, "Right") + flowerChildMono, flowerChildParams, safeRate),
+        };
       } else if (node?.type === "rsmetFilter") {
-        const state = this.rsmetFilterStates.get(nodeId) || this.createRsmetFilterState();
+        const state = this.rsmetFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createRsmetFilterState());
         this.rsmetFilterStates.set(nodeId, state);
-        value = this.rsmetFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const rsmetParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const rsmetMono = mixInput(nodeId);
+        value = {
+          Out: this.rsmetFilterSample(state.mono, rsmetMono, rsmetParams, safeRate),
+          Left: this.rsmetFilterSample(state.left, mixInput(nodeId, "Left") + rsmetMono, rsmetParams, safeRate),
+          Right: this.rsmetFilterSample(state.right, mixInput(nodeId, "Right") + rsmetMono, rsmetParams, safeRate),
+        };
       } else if (node?.type === "yellowjacketFilter") {
-        const state = this.yellowjacketFilterStates.get(nodeId) || this.createYellowjacketFilterState();
+        const state = this.yellowjacketFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createYellowjacketFilterState());
         this.yellowjacketFilterStates.set(nodeId, state);
-        value = this.yellowjacketFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const yellowjacketParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const yellowjacketMono = mixInput(nodeId);
+        value = {
+          Out: this.yellowjacketFilterSample(state.mono, yellowjacketMono, yellowjacketParams, safeRate),
+          Left: this.yellowjacketFilterSample(state.left, mixInput(nodeId, "Left") + yellowjacketMono, yellowjacketParams, safeRate),
+          Right: this.yellowjacketFilterSample(state.right, mixInput(nodeId, "Right") + yellowjacketMono, yellowjacketParams, safeRate),
+        };
       } else if (node?.type === "superloveFilter") {
-        const state = this.superloveFilterStates.get(nodeId) || this.createSuperloveFilterState();
+        const state = this.superloveFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createSuperloveFilterState());
         this.superloveFilterStates.set(nodeId, state);
-        value = this.superloveFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 0.5, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const superloveParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0.5, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const superloveMono = mixInput(nodeId);
+        value = {
+          Out: this.superloveFilterSample(state.mono, superloveMono, superloveParams, safeRate),
+          Left: this.superloveFilterSample(state.left, mixInput(nodeId, "Left") + superloveMono, superloveParams, safeRate),
+          Right: this.superloveFilterSample(state.right, mixInput(nodeId, "Right") + superloveMono, superloveParams, safeRate),
+        };
       } else if (node?.type === "chaoticPhaseLockingFilter") {
-        const state = this.chaoticPhaseLockingFilterStates.get(nodeId) || this.createChaoticPhaseLockingFilterState();
+        const state = this.chaoticPhaseLockingFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createChaoticPhaseLockingFilterState());
         this.chaoticPhaseLockingFilterStates.set(nodeId, state);
-        value = this.chaoticPhaseLockingFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 1, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const chaoticPhaseLockingParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 1, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const chaoticPhaseLockingMono = mixInput(nodeId);
+        value = {
+          Out: this.chaoticPhaseLockingFilterSample(state.mono, chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
+          Left: this.chaoticPhaseLockingFilterSample(state.left, mixInput(nodeId, "Left") + chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
+          Right: this.chaoticPhaseLockingFilterSample(state.right, mixInput(nodeId, "Right") + chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
+        };
       } else if (node?.type === "resonatorFilter") {
-        const state = this.resonatorFilterStates.get(nodeId) || this.createResonatorFilterState();
+        const state = this.resonatorFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createResonatorFilterState());
         this.resonatorFilterStates.set(nodeId, state);
-        value = this.resonatorFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const resonatorParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const resonatorMono = mixInput(nodeId);
+        value = {
+          Out: this.resonatorFilterSample(state.mono, resonatorMono, resonatorParams, safeRate),
+          Left: this.resonatorFilterSample(state.left, mixInput(nodeId, "Left") + resonatorMono, resonatorParams, safeRate),
+          Right: this.resonatorFilterSample(state.right, mixInput(nodeId, "Right") + resonatorMono, resonatorParams, safeRate),
+        };
       } else if (node?.type === "humanFilter") {
-        const state = this.humanFilterStates.get(nodeId) || this.createHumanFilterState();
+        const state = this.humanFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createHumanFilterState());
         this.humanFilterStates.set(nodeId, state);
-        value = this.humanFilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-            frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-            mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-            resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          },
-          safeRate,
-        );
+        const humanFilterParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const humanFilterMono = mixInput(nodeId);
+        value = {
+          Out: this.humanFilterSample(state.mono, humanFilterMono, humanFilterParams, safeRate),
+          Left: this.humanFilterSample(state.left, mixInput(nodeId, "Left") + humanFilterMono, humanFilterParams, safeRate),
+          Right: this.humanFilterSample(state.right, mixInput(nodeId, "Right") + humanFilterMono, humanFilterParams, safeRate),
+        };
       } else if (node?.type === "pulseExplosion") {
         const state = this.pulseExplosionStates.get(nodeId) || this.createPulseExplosionState();
         this.pulseExplosionStates.set(nodeId, state);
@@ -13419,47 +13487,52 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       } else if (node?.type === "tb303Filter") {
-        const state = this.tb303FilterStates.get(nodeId) || this.createTb303FilterState();
+        const state = this.tb303FilterStates.get(nodeId) || this.createStereoFilterState(() => this.createTb303FilterState());
         this.tb303FilterStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.tb303FilterSample(
-          state,
-          mixInput(nodeId),
-          {
-            cutoff: read("cutoff", 1000),
-            drive: read("drive", 0),
-            mode: read("mode", 4),
-            resonance: read("resonance", 0),
-          },
-          safeRate,
-        );
+        const tb303Params = {
+          cutoff: read("cutoff", 1000),
+          drive: read("drive", 0),
+          mode: read("mode", 4),
+          resonance: read("resonance", 0),
+        };
+        const tb303Mono = mixInput(nodeId);
+        value = {
+          Out: this.tb303FilterSample(state.mono, tb303Mono, tb303Params, safeRate),
+          Left: this.tb303FilterSample(state.left, mixInput(nodeId, "Left") + tb303Mono, tb303Params, safeRate),
+          Right: this.tb303FilterSample(state.right, mixInput(nodeId, "Right") + tb303Mono, tb303Params, safeRate),
+        };
       } else if (node?.type === "delayEffect") {
-        const state = this.delayEffectStates.get(nodeId) || this.createDelayEffectState();
+        const state = this.delayEffectStates.get(nodeId) || this.createStereoDelayEffectState();
         this.delayEffectStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.delayEffectSample(
-          state,
-          mixInput(nodeId),
-          {
-            feedback: read("feedback", 0.25),
-            level: read("level", 1),
-            mix: read("mix", 0.35),
-            mode: read("mode", 0),
-            modAmount: read("modAmount", 0.02),
-            modRate: read("modRate", 0.1),
-            modVariation: read("modVariation", 0),
-            time: read("time", 0.18),
-          },
-          safeRate,
-          nodeId,
-        );
+        const delayParams = {
+          feedback: read("feedback", 0.25),
+          level: read("level", 1),
+          mix: read("mix", 0.35),
+          mode: read("mode", 0),
+          modAmount: read("modAmount", 0.02),
+          modRate: read("modRate", 0.1),
+          modVariation: read("modVariation", 0),
+          time: read("time", 0.18),
+        };
+        const delayMono = mixInput(nodeId);
+        const monoResult = this.delayEffectSample(state.mono, delayMono, delayParams, safeRate, `${nodeId}:mono`);
+        const leftResult = this.delayEffectSample(state.left, mixInput(nodeId, "Left") + delayMono, delayParams, safeRate, `${nodeId}:left`);
+        const rightResult = this.delayEffectSample(state.right, mixInput(nodeId, "Right") + delayMono, delayParams, safeRate, `${nodeId}:right`);
+        value = {
+          Out: monoResult.Out,
+          Left: leftResult.Out,
+          Right: rightResult.Out,
+          Wet: monoResult.Wet,
+        };
       } else if (node?.type === "pingPongDelay") {
         const state = this.pingPongDelayStates.get(nodeId) || this.createPingPongDelayState();
         this.pingPongDelayStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
         value = this.pingPongDelaySample(
           state,
-          mixInput(nodeId),
+          mixInput(nodeId) + mixInput(nodeId, "Left") + mixInput(nodeId, "Right"),
           {
             feedback: read("feedback", 0.35),
             level: read("level", 1),
@@ -13529,28 +13602,29 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       } else if (node?.type === "slewLimiter") {
-        const state = this.slewLimiterStates.get(nodeId) || this.createSlewLimiterState();
+        const state = this.slewLimiterStates.get(nodeId) || this.createStereoSlewLimiterState();
         this.slewLimiterStates.set(nodeId, state);
-        value = this.slewLimiterSample(
-          state,
-          mixInput(nodeId),
-          this.readEffectiveParameter(node, "upTime", 0.05, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "downTime", 0.20, frame, frames, frameValues),
-          safeRate,
-        );
+        const slewUpTime = this.readEffectiveParameter(node, "upTime", 0.05, frame, frames, frameValues);
+        const slewDownTime = this.readEffectiveParameter(node, "downTime", 0.20, frame, frames, frameValues);
+        const slewMono = mixInput(nodeId);
+        value = {
+          Out: this.slewLimiterSample(state.mono, slewMono, slewUpTime, slewDownTime, safeRate),
+          Left: this.slewLimiterSample(state.left, mixInput(nodeId, "Left") + slewMono, slewUpTime, slewDownTime, safeRate),
+          Right: this.slewLimiterSample(state.right, mixInput(nodeId, "Right") + slewMono, slewUpTime, slewDownTime, safeRate),
+        };
       } else if (node?.type === "sampleHold") {
-        const state = this.sampleHoldStates.get(nodeId) || this.createSampleHoldState();
+        const state = this.sampleHoldStates.get(nodeId) || this.createStereoSampleHoldState();
         this.sampleHoldStates.set(nodeId, state);
-        value = this.sampleHoldSample(
-          state,
-          mixInput(nodeId, "In"),
-          mixInput(nodeId, "Trigger"),
-          this.readEffectiveParameter(node, "threshold", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "sampleFrequency", 0, frame, frames, frameValues),
-          safeRate,
-          hasInput(nodeId, "In"),
-          nodeId,
-        );
+        const sampleHoldTrigger = mixInput(nodeId, "Trigger");
+        const sampleHoldThreshold = this.readEffectiveParameter(node, "threshold", 0, frame, frames, frameValues);
+        const sampleHoldFrequency = this.readEffectiveParameter(node, "sampleFrequency", 0, frame, frames, frameValues);
+        const sampleHoldMonoHasIn = hasInput(nodeId, "In");
+        const sampleHoldMono = mixInput(nodeId, "In");
+        value = {
+          Out: this.sampleHoldSample(state.mono, sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn, `${nodeId}:mono`),
+          Left: this.sampleHoldSample(state.left, mixInput(nodeId, "Left") + sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn || hasInput(nodeId, "Left"), `${nodeId}:left`),
+          Right: this.sampleHoldSample(state.right, mixInput(nodeId, "Right") + sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn || hasInput(nodeId, "Right"), `${nodeId}:right`),
+        };
       } else if (node?.type === "expAdsr") {
         const state = this.expAdsrStates.get(nodeId) || this.createExpAdsrState();
         this.expAdsrStates.set(nodeId, state);
@@ -13834,7 +13908,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "badvalMonitor") {
         value = this.monitorBadValueSample(mixInput(nodeId), nodeId);
       } else if (node?.type === "speakerProtection") {
-        value = this.speakerProtectionSample(mixInput(nodeId), nodeId);
+        const speakerProtectionMono = mixInput(nodeId);
+        value = {
+          Out: this.speakerProtectionSample(speakerProtectionMono, nodeId),
+          Left: this.speakerProtectionSample(mixInput(nodeId, "Left") + speakerProtectionMono, nodeId),
+          Right: this.speakerProtectionSample(mixInput(nodeId, "Right") + speakerProtectionMono, nodeId),
+        };
       } else if (node?.type === "groupOutput") {
         value = {
           Out: mixInput(nodeId, "In"),

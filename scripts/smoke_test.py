@@ -4251,8 +4251,8 @@ def require_node_graph_mvp_contract() -> None:
             [
                 'delayEffect: "Delay"',
                 "delayEffect: {",
-                'inputs: ["In"]',
-                'outputs: ["Out", "Wet"]',
+                'inputs: ["In", "Left", "Right"]',
+                'outputs: ["Out", "Left", "Right", "Wet"]',
                 'key: "time"',
                 'key: "feedback"',
                 'key: "modAmount"',
@@ -7677,8 +7677,8 @@ def require_node_graph_mvp_contract() -> None:
         "cookbookFilter: \"Multi Stage Filter\"",
         "cookbookFilter: {",
         'layout: "filterCurve"',
-        'inputs: ["In"]',
-        'outputs: ["Out"]',
+        'inputs: ["In", "Left", "Right"]',
+        'outputs: ["Out", "Left", "Right"]',
         "choices: nodeGraphCookbookFilterModes",
         'key: "mode"',
         'key: "frequency"',
@@ -7958,8 +7958,8 @@ def require_node_graph_mvp_contract() -> None:
         "speakerProtection: \"Speaker Protection\"",
         "speakerProtection: {",
         'layout: "speakerProtection"',
-        'inputs: ["In"]',
-        'outputs: ["Out"]',
+        'inputs: ["In", "Left", "Right"]',
+        'outputs: ["Out", "Left", "Right"]',
         "label: \"Frequency\"",
         "maxDigits: 5",
         "osc: {",
@@ -9709,7 +9709,7 @@ def require_node_graph_mvp_contract() -> None:
         "if (typeof scheduleNodeGraphModuleScopeDraw === \"function\")",
         "function beginNodeSliderDrag(event)",
         "function dragNodeSlider(event)",
-        "event.altKey && (typeof nodeGraphNumericModifierReserved !== \"function\" || !nodeGraphNumericModifierReserved(event))",
+        "event.altKey && !(event.shiftKey && (event.ctrlKey || event.metaKey))",
         "setNodeSliderValueAtPointer(drag.slider, drag.surface, event, { interaction: \"drag\" })",
         "function endNodeSliderDrag(event)",
         "let startTravel = nodeSliderTravelFromValue(slider, Number(slider.value))",
@@ -10166,7 +10166,7 @@ def require_node_graph_mvp_contract() -> None:
         "Math.abs(number) > 1",
         "runtime.speakerProtectionMuteCount",
         'node?.type === "speakerProtection"',
-        "nodeGraphSpeakerProtectionSample(mixInput(nodeId), runtime, nodeId)",
+        "nodeGraphSpeakerProtectionSample(speakerProtectionMono, runtime, nodeId",
         "runtime.passiveFilterStates",
         "runtime.cookbookFilterStates",
         "runtime.ladderFilterStates",
@@ -10562,7 +10562,7 @@ def require_node_graph_mvp_contract() -> None:
         "if (!nodeGraphMvp.live.autoSmoothingManual)",
         "nodeGraphMvp.live.autoSmoothingSeconds = clampNodeGraphAutoSmoothingSeconds(",
         "function nodeGraphDefaultSmoothingBlockSeconds()",
-        "function nodeGraphNumericModifierReserved(event)",
+        "function nodeGraphNumericModifierReserved()",
         "function nodeGraphNumericDragMultiplier(event)",
         "function nodeGraphGlobalSmoothingSeconds()",
         "return 0.01 * multiplier;",
@@ -11500,9 +11500,9 @@ def require_node_graph_mvp_contract() -> None:
         "channels: 2",
         "const frameOutput = evaluateNodeGraphPlanFrame(",
         'node?.type === "gain"',
-        'value = mixInput(nodeId) * readNodeGraphLiveEffectiveParam(',
+        'Out: gainMono * gainAmount,',
         'node?.type === "bias"',
-        'value = mixInput(nodeId) + readNodeGraphLiveEffectiveParam(',
+        'Out: biasMono + biasOffset,',
         "disconnect-wire-button",
         "const nodeGraphModuleScopeState",
         "animationDeltaSeconds: 1 / 60",
@@ -12702,12 +12702,12 @@ def require_node_graph_mvp_contract() -> None:
         module_definitions_source.index("rotate3dTo2d: {")
     ]
     require(
-        'inputs: ["In"]' in soft_clipper_definition
-        and 'outputs: ["Out"]' in soft_clipper_definition
+        'inputs: ["In", "Left", "Right"]' in soft_clipper_definition
+        and 'outputs: ["Out", "Left", "Right"]' in soft_clipper_definition
         and 'key: "center"' in soft_clipper_definition
         and 'key: "width"' in soft_clipper_definition
         and 'defaultValue: "2"' in soft_clipper_definition,
-        "Soft Clipper should expose In/Out plus Center and Width controls",
+        "Soft Clipper should expose stereo Mono/Left/Right ports plus Center and Width controls",
     )
     require(
         'softClipper: {\n    category: "Dynamics"' in module_store_source
@@ -13502,8 +13502,9 @@ def require_node_graph_mvp_contract() -> None:
         and "const scaleX = 2 / safeWidth" in live_frame_source
         and "Math.tanh(scaleX * (Number(input) || 0) + shiftX)" in live_frame_source
         and 'node?.type === "softClipper"' in live_frame_source
-        and "nodeGraphSoftClipperSample(" in live_frame_source,
-        "browser fallback should retain a Soft Clipper evaluator for non-worklet fallback",
+        and "Left: nodeGraphSoftClipperSample(mixInput(nodeId, \"Left\") + softClipperMono, softClipperCenter, softClipperWidth)" in live_frame_source
+        and "Right: nodeGraphSoftClipperSample(mixInput(nodeId, \"Right\") + softClipperMono, softClipperCenter, softClipperWidth)" in live_frame_source,
+        "browser fallback should retain a stereo Soft Clipper evaluator for non-worklet fallback",
     )
     require("timing: normalizeNodeGraphPatchTiming(plan.timing)" in live_plan_runtime_source, "fallback runtime should retain plan timing")
     require("transportSample(params, frame" in worklet_source and 'node?.type === "transport"' in worklet_source, "AudioWorklet should evaluate Transport")
@@ -13512,9 +13513,11 @@ def require_node_graph_mvp_contract() -> None:
         and 'name === "soft_clipper" || targetType === "softClipper"' in worklet_source
         and "this.nativeSoftClipper?.soemdsp_soft_clipper_sample" in worklet_source
         and 'node?.type === "softClipper"' in worklet_source
-        and "value = this.nativeSoftClipperSample(" in worklet_source
+        and "Out: this.nativeSoftClipperSample(softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
+        and "Left: this.nativeSoftClipperSample(mixInput(nodeId, \"Left\") + softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
+        and "Right: this.nativeSoftClipperSample(mixInput(nodeId, \"Right\") + softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
         and "softClipperSample(input, center = 0, width = 2)" not in worklet_source,
-        "AudioWorklet should evaluate Soft Clipper through native wasm instead of the old JS DSP branch",
+        "AudioWorklet should evaluate stereo Soft Clipper through native wasm instead of the old JS DSP branch",
     )
     require('"reverbEffect"' in execution_plan_source, "execution plan should treat Sabrina Reverb as a supported passthrough processor")
     require(
@@ -16808,7 +16811,7 @@ def require_node_graph_mvp_contract() -> None:
         "speakerProtectionSample(value, nodeId)",
         "this.meterProtectionMuteCount += 1",
         'node?.type === "speakerProtection"',
-        "this.speakerProtectionSample(mixInput(nodeId), nodeId)",
+        "this.speakerProtectionSample(speakerProtectionMono, nodeId)",
         "normalizeGraph(value = {})",
         "graphEndpointYLockEnabledForNode(node)",
         "graphWithLockedEndpointY(graphValue)",
@@ -17418,8 +17421,8 @@ def require_native_module_contract(base_url: str) -> None:
     require("// soemdsp-native-target: softClipper" in soft_clipper_source, "native Soft Clipper target metadata missing")
     require("extern \"C\" double soemdsp_soft_clipper_sample" in soft_clipper_source, "native Soft Clipper sample export missing")
     require("extern \"C\" const char* soemdsp_soft_clipper_metadata_json()" in soft_clipper_source, "native Soft Clipper metadata export missing")
-    require('"inputs":["In"]' in soft_clipper_metadata_text, "native Soft Clipper metadata should declare In input")
-    require('"outputs":["Out"]' in soft_clipper_metadata_text, "native Soft Clipper metadata should declare Out output")
+    require('"inputs":["Mono","Left","Right"]' in soft_clipper_metadata_text, "native Soft Clipper metadata should declare stereo inputs")
+    require('"outputs":["Mono","Left","Right"]' in soft_clipper_metadata_text, "native Soft Clipper metadata should declare stereo outputs")
     require('"key":"center"' in soft_clipper_metadata_text and '"tooltip":"Moves the soft clipping curve' in soft_clipper_metadata_text, "native Soft Clipper center tooltip metadata missing")
     require('"key":"width"' in soft_clipper_metadata_text and '"tooltip":"Sets the width' in soft_clipper_metadata_text, "native Soft Clipper width tooltip metadata missing")
     ladder_source_path = ROOT / "native_modules" / "ladder_filter" / "ladder_filter.cpp"
@@ -17464,7 +17467,7 @@ def require_native_module_contract(base_url: str) -> None:
     require(
         'name === "soft_clipper" || targetType === "softClipper"' in worklet_source
         and "this.nativeSoftClipper?.soemdsp_soft_clipper_sample" in worklet_source
-        and "value = this.nativeSoftClipperSample(" in worklet_source
+        and "Out: this.nativeSoftClipperSample(softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
         and "softClipperSample(input, center = 0, width = 2)" not in worklet_source,
         "native Soft Clipper should be worklet-backed with old JS worklet DSP removed",
     )
