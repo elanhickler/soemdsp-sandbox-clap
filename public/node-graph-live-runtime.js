@@ -145,6 +145,14 @@ async function sendNodeGraphLiveNativeModules(liveNode, plan = null) {
     if (!entry?.wasmAvailable) {
       continue;
     }
+    // video-poc entries (e.g. video_synth_raster) have their own standalone
+    // demo page that fetches and instantiates their wasm directly -- they
+    // were never wired into the worklet's nativeModuleStatus dispatch, so
+    // preloading them here only produces a false-positive "unsupported
+    // native module" diagnostic.
+    if (entry.kind === "video-poc") {
+      continue;
+    }
     if (nodeGraphLiveNativeModuleIsUsedByPatch(entry, activeTargetTypes)) {
       priorityEntries.push(entry);
     } else {
