@@ -1267,6 +1267,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
       runtime.robinSupersawStates.delete(id);
     }
   }
+  for (const id of [...runtime.hypersawStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.hypersawStates.delete(id);
+    }
+  }
   for (const id of [...runtime.chordSequencerStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.chordSequencerStates.delete(id);

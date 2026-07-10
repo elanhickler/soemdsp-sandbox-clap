@@ -3448,20 +3448,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.scopeBuffers = new Map();
   }
 
-  shortestWrapDelta(from, to, min, max) {
-    const range = max - min;
-    if (!Number.isFinite(range) || range <= 0) {
-      return to - from;
-    }
-    let delta = to - from;
-    if (delta > range / 2) {
-      delta -= range;
-    } else if (delta < -range / 2) {
-      delta += range;
-    }
-    return delta;
-  }
-
   // smoothingSeconds metadata is a SAMPLE COUNT, not seconds: 0 bypasses
   // smoothing entirely, and any N > 0 smooths over exactly N samples.
   smoothingSecondsFromMetadata(metadata = {}) {
