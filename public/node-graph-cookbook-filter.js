@@ -457,6 +457,9 @@ function drawNodeGraphFilterCurveDisplay(section) {
 
 function drawNodeGraphFilterCurveDisplays() {
   document.querySelectorAll(".node-filter-curve-display").forEach(drawNodeGraphFilterCurveDisplay);
+  if (typeof drawNodeGraphPulseCurveDisplay === "function") {
+    document.querySelectorAll(".node-pulse-curve-display").forEach(drawNodeGraphPulseCurveDisplay);
+  }
 }
 
 function scheduleNodeGraphFilterCurveDraw() {

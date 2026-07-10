@@ -28,6 +28,12 @@
 // roll, accept when roll < density(candidate). Accepted times are sorted
 // and each gets an independently randomized amplitude in
 // [lowAmplitude, highAmplitude].
+//
+// seed: 0 means "free-running" (each trigger continues from wherever the
+// instance's RNG left off, matching the original unseeded behavior). Any
+// non-zero seed re-seeds the RNG at the start of every burst, so the same
+// seed + same other parameters always produces the same pulse schedule --
+// this lets the UI display precompute the exact schedule that will play.
 
 namespace {
 
@@ -50,6 +56,7 @@ struct PulseExplosionState {
   int nextPulseIndex;
   ScheduledPulse pulses[kMaxPulses];
   unsigned int rngState;
+  double lastCurve;  // density(elapsed) at the most recent sample -- Curve output
 };
 
 static PulseExplosionState gPool[kMaxInstances];
@@ -118,6 +125,22 @@ static double pulseDensity(double t, double startTime, double centerTime, double
   return clampd(rationalCurve(ease, skew), 0.0, 1.0);
 }
 
+// Deterministic 32-bit mix of a double seed value (murmur3-style finalizer
+// applied to the seed's raw bit pattern). Never returns 0 (0 is reserved to
+// mean "xorshift would get stuck"), so xorshift32 never stalls.
+static inline unsigned int seedHash(double seed) {
+  union { double d; unsigned long long u; } conv;
+  conv.d = seed;
+  unsigned long long bits = conv.u;
+  unsigned int x = (unsigned int)(bits ^ (bits >> 32));
+  x ^= x >> 16;
+  x *= 0x7feb352du;
+  x ^= x >> 15;
+  x *= 0x846ca68bu;
+  x ^= x >> 16;
+  return x == 0 ? 0x9E3779B9u : x;
+}
+
 static void insertSorted(ScheduledPulse* pulses, int count, ScheduledPulse toInsert) {
   int i = count;
   while (i > 0 && pulses[i - 1].time > toInsert.time) {
@@ -139,6 +162,7 @@ extern "C" int soemdsp_pulse_explosion_create() {
       s.pulseCount = 0;
       s.nextPulseIndex = 0;
       s.rngState = 0x9E3779B9u + (unsigned int)(i + 1) * 2654435761u;
+      s.lastCurve = 0.0;
       s.active = true;
       return i + 1;
     }
@@ -161,6 +185,7 @@ extern "C" double soemdsp_pulse_explosion_sample(
   int numberOfPulses,
   double lowAmplitude,
   double highAmplitude,
+  double seed,          // 0 = free-running; non-zero = deterministic per-burst reseed
   double sampleRate
 ) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
@@ -186,6 +211,9 @@ extern "C" double soemdsp_pulse_explosion_sample(
     s.nextPulseIndex = 0;
     s.elapsed = 0.0;
     s.exploding = true;
+    if (seed != 0.0) {
+      s.rngState = seedHash(seed);
+    }
 
     for (int i = 0; i < safeCount; i++) {
       double chosenTime = safeCenter;
@@ -223,7 +251,22 @@ extern "C" double soemdsp_pulse_explosion_sample(
     }
   }
 
+  // Curve output: the same density shape shown in the node's display,
+  // sampled at the current position in the burst -- 0 outside [start, end]
+  // or before any trigger has fired. Lets the shape be patched elsewhere.
+  s.lastCurve = pulseDensity(s.elapsed, safeStart, safeCenter, safeEnd, skew);
+
   return output;
+}
+
+// Accessor for the Curve output (see soemdsp_pulse_explosion_sample's
+// lastCurve comment above). Follows this codebase's established pattern for
+// native modules with more than one output (compare soemdsp_pll_vco_out
+// etc.): the main _sample call updates state, secondary outputs are read via
+// a dedicated query function.
+extern "C" double soemdsp_pulse_explosion_curve(int handle) {
+  if (handle < 1 || handle > kMaxInstances) return 0.0;
+  return gPool[handle - 1].lastCurve;
 }
 
 extern "C" int soemdsp_pulse_explosion_version() {

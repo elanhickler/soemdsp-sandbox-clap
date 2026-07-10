@@ -221,6 +221,9 @@ function nodeGraphDefaultModuleGridWidthUnits(type) {
   if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
     return 8;
   }
+  if (nodeGraphModuleDefinitions[type]?.layout === "pulseCurve") {
+    return 8;
+  }
   return 7;
 }
 
@@ -454,6 +457,16 @@ function nodeGraphModuleHeightWidgetUnits(type, ui = {}) {
     ];
   }
   if (nodeGraphModuleDefinitions[type]?.layout === "filterCurve") {
+    return [
+      { id: "header", heightGu: nodeGraphModuleHeaderHeightUnits(ui), visible: true },
+      { id: "curve", heightGu: nodeGraphModuleDisplayHeightUnits(type, ui) * 1.5, visible: displayVisible },
+      { id: "io", heightGu: ioHeightGu, visible: ioVisible },
+      { id: "params", heightGu: nodeGraphModuleSliderBodyHeightGu(type), visible: slidersVisible },
+      { id: "fit", heightGu: nodeGraphModuleLayout.fitCushionGu, visible: true },
+      { id: "inset", heightGu: nodeGraphModuleLayout.moduleGridInsetGu * 2, visible: true },
+    ];
+  }
+  if (nodeGraphModuleDefinitions[type]?.layout === "pulseCurve") {
     return [
       { id: "header", heightGu: nodeGraphModuleHeaderHeightUnits(ui), visible: true },
       { id: "curve", heightGu: nodeGraphModuleDisplayHeightUnits(type, ui) * 1.5, visible: displayVisible },

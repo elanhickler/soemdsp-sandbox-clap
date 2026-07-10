@@ -7068,6 +7068,40 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return Math.max(0, Math.min(1, this.pulseExplosionRationalCurve(ease, skew)));
   }
 
+  // Deterministic 32-bit mulberry32 PRNG so a non-zero seed reproduces the
+  // same pulse schedule every time (seed 0 keeps the free-running behavior).
+  pulseExplosionMulberry32(seed) {
+    let a = seed >>> 0;
+    return function pulseExplosionNext() {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  pulseExplosionSeedHash(seed) {
+    const buffer = new ArrayBuffer(8);
+    new Float64Array(buffer)[0] = Number(seed) || 0;
+    const words = new Uint32Array(buffer);
+    let x = (words[0] ^ words[1]) >>> 0;
+    x ^= x >>> 16;
+    x = Math.imul(x, 0x7feb352d) >>> 0;
+    x ^= x >>> 15;
+    x = Math.imul(x, 0x846ca68b) >>> 0;
+    x ^= x >>> 16;
+    return (x >>> 0) || 0x9e3779b9;
+  }
+
+  pulseExplosionRandomFn(seed) {
+    const seedNumber = Number(seed) || 0;
+    if (seedNumber === 0) {
+      return Math.random;
+    }
+    return this.pulseExplosionMulberry32(this.pulseExplosionSeedHash(seedNumber));
+  }
+
   pulseExplosionSampleJs(state, trigger, params, rate) {
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
     const safeStart = Math.max(0, this.safeFilterNumber(params.startTime, state));
@@ -7083,25 +7117,27 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
     const high = this.safeFilterNumber(trigger, state) > 0.5;
     if (high && !state.wasHigh) {
-      state.pulses = [];
       state.nextPulseIndex = 0;
       state.elapsed = 0;
       state.exploding = true;
 
+      const random = this.pulseExplosionRandomFn(params.seed);
+      const pulses = [];
       for (let i = 0; i < safeCount; i++) {
         let chosenTime = safeCenter;
         for (let attempt = 0; attempt < 200; attempt++) {
-          const candidate = safeStart + (safeEnd - safeStart) * Math.random();
-          const roll = Math.random();
+          const candidate = safeStart + (safeEnd - safeStart) * random();
+          const roll = random();
           const density = this.pulseExplosionDensity(candidate, safeStart, safeCenter, safeEnd, skew);
           if (roll < density) {
             chosenTime = candidate;
             break;
           }
         }
-        state.pulses.push({ time: chosenTime, amplitude: lo + (hi - lo) * Math.random() });
+        pulses.push({ time: chosenTime, amplitude: lo + (hi - lo) * random() });
       }
-      state.pulses.sort((a, b) => a.time - b.time);
+      pulses.sort((a, b) => a.time - b.time);
+      state.pulses = pulses;
     }
     state.wasHigh = high;
 
@@ -7117,7 +7153,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
     }
 
-    return this.safeFilterNumber(output, state);
+    const curve = this.pulseExplosionDensity(state.elapsed, safeStart, safeCenter, safeEnd, skew);
+    return {
+      Out: this.safeFilterNumber(output, state),
+      Curve: this.safeFilterNumber(curve, state),
+    };
   }
 
   pulseExplosionSample(state, trigger, params, rate = sampleRate) {
@@ -7127,7 +7167,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           state.nativeHandle = this.nativePulseExplosion.soemdsp_pulse_explosion_create();
         }
         if (state.nativeHandle) {
-          return this.safeFilterNumber(
+          const output = this.safeFilterNumber(
             this.nativePulseExplosion.soemdsp_pulse_explosion_sample(
               state.nativeHandle,
               this.safeFilterNumber(trigger, state),
@@ -7138,10 +7178,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
               Math.max(1, Math.min(128, Math.round(Number(params.numberOfPulses) || 1))),
               this.safeFilterNumber(params.lowAmplitude, state),
               this.safeFilterNumber(params.highAmplitude, state),
+              Number(params.seed) || 0,
               Math.max(1, Number(rate) || sampleRate || 44100),
             ),
             state,
           );
+          const curve = this.safeFilterNumber(
+            this.nativePulseExplosion.soemdsp_pulse_explosion_curve?.(state.nativeHandle) || 0,
+            state,
+          );
+          return { Out: output, Curve: curve };
         }
       } catch (error) {
         this.nativePulseExplosionReady = false;
@@ -13368,6 +13414,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             numberOfPulses: this.readEffectiveParameter(node, "numberOfPulses", 20, frame, frames, frameValues),
             lowAmplitude: this.readEffectiveParameter(node, "lowAmplitude", 0.3, frame, frames, frameValues),
             highAmplitude: this.readEffectiveParameter(node, "highAmplitude", 1, frame, frames, frameValues),
+            seed: this.readEffectiveParameter(node, "seed", 0, frame, frames, frameValues),
           },
           safeRate,
         );

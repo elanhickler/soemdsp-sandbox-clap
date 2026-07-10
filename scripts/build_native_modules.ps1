@@ -292,6 +292,7 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export=soemdsp_pulse_explosion_create" `
   "-Wl,--export=soemdsp_pulse_explosion_destroy" `
   "-Wl,--export=soemdsp_pulse_explosion_sample" `
+  "-Wl,--export=soemdsp_pulse_explosion_curve" `
   "-Wl,--export=soemdsp_pulse_explosion_version" `
   "-Wl,--export-memory" `
   -o "$root\native_modules\pulse_explosion\pulse_explosion.wasm" `

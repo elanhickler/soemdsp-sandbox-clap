@@ -736,6 +736,18 @@ function createNodeGraphModuleElement(type, node) {
     ioSection.append(inputColumn || document.createElement("div"));
     ioSection.append(outputColumn || document.createElement("div"));
     appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
+  } else if (definition.layout === "pulseCurve") {
+    if (!patchNodeUi.oscilloscopeHidden) {
+      article.append(createNodeGraphPulseCurveDisplay(node, type));
+    }
+
+    const ioSection = document.createElement("div");
+    ioSection.className = "dsp-node-io-section";
+    const inputColumn = createNodeGraphIoColumn(node, type, inputPorts, "input");
+    const outputColumn = createNodeGraphIoColumn(node, type, outputPorts, "output");
+    ioSection.append(inputColumn || document.createElement("div"));
+    ioSection.append(outputColumn || document.createElement("div"));
+    appendNodeGraphModuleIoSection(article, ioSection, node, inputPorts, outputPorts);
   } else {
     let scopeSection = null;
     if (!patchNodeUi.oscilloscopeHidden) {
