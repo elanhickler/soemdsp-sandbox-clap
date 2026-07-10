@@ -514,6 +514,11 @@ function compileNodeGraphExecutionPlan(patch = nodeGraphMvp.patch) {
       if (!clockCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
         issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} clock`);
       }
+    } else if (type === "turingMachine") {
+      const clockCount = (graph.inputConnections.get(nodeGraphInputKey(nodeId, "Clock")) || []).length;
+      if (!clockCount && nodeGraphNodeSignalOutputRequired(graph, nodeId)) {
+        issues.push(`missing ${nodeGraphNodeDisplayName(nodeId)} clock`);
+      }
     } else if (!nodeGraphModuleProducesOutputWithoutSignalInput(type)) {
       issues.push(`unsupported source ${nodeId}`);
     }
