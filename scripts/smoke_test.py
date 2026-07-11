@@ -242,6 +242,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-slider-event-bindings.js",
     "./public/node-graph-event-bindings.js",
     "./public/node-graph-bootstrap.js",
+    "./public/node-graph-bradley-2a.js",
     "./public/app-event-bindings.js",
     "./public/app.js",
 )

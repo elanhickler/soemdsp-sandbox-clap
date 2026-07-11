@@ -3940,6 +3940,32 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         runtime,
         nodeId,
       );
+    } else if (node?.type === "bradley2a") {
+      const state = runtime.bradley2AStates.get(nodeId) || createNodeGraphBradley2AState();
+      runtime.bradley2AStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphBradley2ASample(
+        state,
+        {
+          carrierFreq: read("carrierFreq", 1004),
+          freqOffset: read("freqOffset", 0),
+          jitterDepth: read("jitterDepth", 0),
+          jitterRate: read("jitterRate", 60),
+          ampDepth: read("ampDepth", 0),
+          ampRate: read("ampRate", 40),
+          interfLevel: read("interfLevel", 0),
+          interfFreq: read("interfFreq", 2600),
+          harm2: read("harm2", 0),
+          harm3: read("harm3", 0),
+          hitRate: read("hitRate", 1),
+          hitDuration: read("hitDuration", 0.005),
+          hitGain: read("hitGain", 1),
+          hitPhase: read("hitPhase", 0),
+          impulseLevel: read("impulseLevel", 0),
+          level: read("level", 1),
+        },
+        sampleRate,
+      );
     } else if (node?.type === "fractalBrownianNoise") {
       const state = runtime.fractalBrownianNoiseStates.get(nodeId) || createNodeGraphFractalBrownianNoiseState();
       runtime.fractalBrownianNoiseStates.set(nodeId, state);
