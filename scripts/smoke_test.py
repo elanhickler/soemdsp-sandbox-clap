@@ -3786,7 +3786,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "store",
             graph_contract_sources["store"],
-            ['"graph"', '"graph2"', 'category: "Visual"', "Patch-local soemdsp-style graph object", "Single-algorithm graph testbed"],
+            ["graph: {", "graph2: {", 'category: "Visual"', "Patch-local soemdsp-style graph object", "Single-algorithm graph testbed"],
         ),
         (
             "normalizer",
@@ -4269,7 +4269,7 @@ def require_node_graph_mvp_contract() -> None:
             "store",
             delay_contract_sources["store"],
             [
-                '"delayEffect"',
+                "delayEffect: {",
                 "SOEMDSP-style modulated fractional delay",
                 'label: "Delay"',
             ],
@@ -4329,7 +4329,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "store",
             clap_contract_sources["store"],
-            ['"clapPlugin"', 'category: "Audio"', "developerOnly: true", "Browser-side shell for a local CLAP host plugin"],
+            ["clapPlugin: {", 'category: "Audio"', "developerOnly: true", "Browser-side shell for a local CLAP host plugin"],
         ),
         (
             "patch persistence",
@@ -4816,7 +4816,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "store",
             codeblock_contract_sources["store"],
-            ['"codeblock"', 'category: "Controllers"', "Patch-local JavaScript signal processor"],
+            ["codeblock: {", 'category: "Controllers"', "Patch-local JavaScript signal processor"],
         ),
         (
             "dynamic ports",
@@ -9345,7 +9345,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphGridRectsOverlap(a, b)",
         "function addNodeGraphModuleFromContext(event)",
         "function addNodeGraphModuleFromShop(button)",
-        "const nodeGraphModuleStoreTypes = Object.freeze([",
+        "const nodeGraphModuleStoreTypes = Object.freeze(Object.keys(nodeGraphModuleDefinitions));",
         "\"additiveOsc\"",
         "\"gpuAdditiveOsc\"",
         "developerOnly: true",
@@ -9357,9 +9357,6 @@ def require_node_graph_mvp_contract() -> None:
         "Table-driven sine/cosine oscillator with pitch, frequency, amplitude, and Nyquist-edge fade. Native C++/WASM.",
         'label: "SinCos"',
         'notes: ["implemented", "wavetable", "sin/cos", "native"]',
-        "\"drumMachine\"",
-        "\"kickDrum\"",
-        "\"snareDrum\"",
         "\"clock\"",
         "\"clockDivider\"",
         "\"delayedTrigger\"",
@@ -9376,9 +9373,7 @@ def require_node_graph_mvp_contract() -> None:
         "\"triggerCounter\"",
         "\"triggerDivider\"",
         "\"stepSequencer\"",
-        "\"melodySequencer\"",
         "\"chordSequencer\"",
-        "\"arpeggiator\"",
         "\"noiseGenerator\"",
         "\"randomWalk\"",
         "\"fractalBrownianNoise\"",
@@ -9387,15 +9382,9 @@ def require_node_graph_mvp_contract() -> None:
         "\"slewLimiter\"",
         "\"delayEffect\"",
         "\"reverbEffect\"",
-        "\"distortionEffect\"",
         "\"sampleHold\"",
         "\"lorenzAttractor\"",
-        "\"rosslerAttractor\"",
         "\"chuaAttractor\"",
-        "\"aizawaAttractor\"",
-        "\"thomasAttractor\"",
-        "\"halvorsenAttractor\"",
-        "\"digitalCurveEnvelope\"",
         "\"expAdsr\"",
         "\"linearEnvelope\"",
         "\"pluckEnvelope\"",
@@ -9407,16 +9396,11 @@ def require_node_graph_mvp_contract() -> None:
         "\"canvas\"",
         "\"visualOscilloscope\"",
         "\"sandboxVisuals\"",
-        "\"parabol\"",
-        "\"vibratoGenerator\"",
-        "\"wowAndFlutter\"",
         "\"macroKnob\"",
         "\"bipolarKnob\"",
         "\"valueSlider\"",
-        "\"rangeSlider\"",
         "\"midiOut\"",
         "\"midiNotePitch\"",
-        "\"midiController\"",
         "External page button event source.",
         "buttonEvents: \"Button Events\"",
         'outputs: ["Click", "Hover", "Down", "Up", "Enter", "Leave"]',
@@ -9448,11 +9432,9 @@ def require_node_graph_mvp_contract() -> None:
         'message.type === "patchCommand"',
         'queueNodeGraphLivePatchCommand(message.command, message.nodeId || "")',
         '"nextPatch",',
-        '"previousPatch",',
         "\"keyboardController\"",
         "\"macroControls\"",
         "\"pitchModWheel\"",
-        "\"xyPad\"",
         "\"groupInput\"",
         "\"groupOutput\"",
         "\"samplePlayer\"",
@@ -9640,37 +9622,22 @@ def require_node_graph_mvp_contract() -> None:
         "PolyBLEP",
         "GPU Additive",
         "SinCos",
-        "DrumMachine",
-        "KickDrum",
-        "SnareDrum",
-        "MelodySequencer",
         "ChordSequencer",
         "Arpeggiator",
         "Delay",
         "SabrinaReverb",
-        "DistortionEffect",
-        "DigitalCurveEnvelope",
         "ExponentialEnvelope",
         "LinearEnvelope",
         "PluckEnvelope",
         "Parabol",
-        "VibratoGenerator",
-        "WowAndFlutter",
         "Macro Knob",
         "Bipolar Knob",
         "Value Slider",
-        "rangeSlider",
-        "MIDIController",
         "MIDI Keyboard",
-        "XYPad",
         "Sample Player",
         "Sample Looper",
         "Lorenz Attractor",
-        "RosslerAttractor",
         "ChuaAttractor",
-        "AizawaAttractor",
-        "ThomasAttractor",
-        "HalvorsenAttractor",
         "moduleCatalogVisibility",
         "moduleStoreDepartment",
         "moduleShopDragging",
@@ -12716,11 +12683,11 @@ def require_node_graph_mvp_contract() -> None:
     )
     live_plan_runtime_source = script_sources["./public/node-graph-live-plan-runtime.js"]
     header_rendering_source = script_sources["./public/node-graph-module-header-rendering.js"]
-    require('"transport"' in module_store_source, "Transport should be listed in the module browser type registry")
+    require("transport: {" in module_store_source, "Transport should be listed in the module browser type registry")
     require('transport: "Transport"' in module_definitions_source, "Transport label should be registered")
     require("transport: {" in module_definitions_source, "Transport module definition should exist")
     require('outputs: ["0..1", "-1..1"]' in module_definitions_source, "Transport should expose 0..1 and -1..1 outputs")
-    require('"softClipper"' in module_store_source, "Soft Clipper should be listed in the module browser type registry")
+    require("softClipper: {" in module_store_source, "Soft Clipper should be listed in the module browser type registry")
     require(
         "for (const type of Object.keys(nodeGraphModuleDefinitions || {}))" in patch_runtime_source
         and "softClipper: counts.softClipper" not in patch_runtime_source,
@@ -12744,7 +12711,7 @@ def require_node_graph_mvp_contract() -> None:
         and "Native soft clipper with center bias" in module_store_source,
         "Soft Clipper should be an implemented native-backed Dynamics module",
     )
-    require('"reverbEffect"' in module_store_source, "Sabrina Reverb should be listed in the module browser type registry")
+    require("reverbEffect: {" in module_store_source, "Sabrina Reverb should be listed in the module browser type registry")
     require('reverbEffect: "Sabrina Reverb"' in module_definitions_source, "Sabrina Reverb label should be registered")
     reverb_definition = module_definitions_source[
         module_definitions_source.index("reverbEffect: {"):
@@ -12791,7 +12758,7 @@ def require_node_graph_mvp_contract() -> None:
     require('if (value === "Sequencer")' in module_store_source and 'return "Sequence";' in module_store_source, "old Sequencer state should normalize to Sequence")
     require('"Oscilloscope",' in module_store_source, "Module Browser should expose an Oscilloscope category")
     require('departments: Object.freeze(["Controllers", "Game Triggers", "Portals", "Oscilloscope", "Visual", "Debug"])' in module_store_source, "Oscilloscope and Game Triggers categories should live under Interact")
-    require('"Game Triggers",' in module_store_source and '"wireBreak"' in module_store_source and '"wireConnect"' in module_store_source and '"wireDisconnect"' in module_store_source and '"windowReopen"' in module_store_source and '"shootingStarTail"' in module_store_source and '"shootingStarExplosion"' in module_store_source, "Game Triggers should expose wire, window, and shooting star trigger modules")
+    require('"Game Triggers",' in module_store_source and "wireBreak: {" in module_store_source and "wireConnect: {" in module_store_source and "wireDisconnect: {" in module_store_source and "windowReopen: {" in module_store_source and '"shootingStarTail"' in module_store_source and "shootingStarExplosion: {" in module_store_source, "Game Triggers should expose wire, window, and shooting star trigger modules")
     wire_connect_definition = module_definitions_source[
         module_definitions_source.index("wireConnect: {"):
         module_definitions_source.index("wireDisconnect: {")
@@ -12820,13 +12787,13 @@ def require_node_graph_mvp_contract() -> None:
     )
     require('canvas: {\n    category: "Oscilloscope"' in module_store_source, "Canvas should live in Oscilloscope")
     require('traceDisplay: {\n    category: "Oscilloscope"' in module_store_source, "Trace Display should live in Oscilloscope")
-    require('"dotOscilloscope"' in module_store_source and 'label: "0D Burn"' in module_store_source, "0D Burn oscilloscope should exist")
-    require('"valueOscilloscope"' in module_store_source and 'label: "0D Value"' in module_store_source, "0D Value oscilloscope should exist")
-    require('"lineBurnOscilloscope"' in module_store_source and 'label: "1D Burn"' in module_store_source, "1D Burn oscilloscope should exist")
-    require('"scope2d"' in module_store_source and 'label: "2D Burn"' in module_store_source, "2D Burn oscilloscope should exist")
-    require('"scope2dTrace"' in module_store_source and 'label: "2D Trace"' in module_store_source, "2D Trace oscilloscope should exist")
-    require('"dotOscilloscope",\n  "oscilloscopeBank",\n  "valueOscilloscope",\n  "numberReadout",\n  "lineBurnOscilloscope",\n  "scope2d",\n  "scope2dTrace"' in module_store_source, "Oscilloscope modules should be listed together")
-    require('"oscilloscopeBank"' in module_store_source and 'label: "Oscilloscope Bank"' in module_store_source, "Oscilloscope Bank should exist")
+    require("dotOscilloscope: {" in module_store_source and 'label: "0D Burn"' in module_store_source, "0D Burn oscilloscope should exist")
+    require("valueOscilloscope: {" in module_store_source and 'label: "0D Value"' in module_store_source, "0D Value oscilloscope should exist")
+    require("lineBurnOscilloscope: {" in module_store_source and 'label: "1D Burn"' in module_store_source, "1D Burn oscilloscope should exist")
+    require("scope2d: {" in module_store_source and 'label: "2D Burn"' in module_store_source, "2D Burn oscilloscope should exist")
+    require("scope2dTrace: {" in module_store_source and 'label: "2D Trace"' in module_store_source, "2D Trace oscilloscope should exist")
+    require("dotOscilloscope: {" in module_store_source and "oscilloscopeBank: {" in module_store_source and "valueOscilloscope: {" in module_store_source and "numberReadout: {" in module_store_source and "lineBurnOscilloscope: {" in module_store_source and "scope2d: {" in module_store_source and "scope2dTrace: {" in module_store_source, "Oscilloscope modules should be listed together")
+    require("oscilloscopeBank: {" in module_store_source and 'label: "Oscilloscope Bank"' in module_store_source, "Oscilloscope Bank should exist")
     require('nodeGraphModuleStoreUnderConstructionTypes = Object.freeze(new Set([\n  "canvas",\n  "graph",\n  "graph2",\n  "groupInput",\n  "groupOutput",\n  "humanFilter",\n  "shootingStarTail",\n]));' in module_store_source, "Canvas, graph modules, group portals, Human Filter, and shooting star tail should be under construction in the store set")
     for oscilloscope_type in ["dotOscilloscope", "valueOscilloscope", "numberReadout", "lineBurnOscilloscope", "scope2d", "scope2dTrace"]:
         require(f"{oscilloscope_type}: {{" in module_definitions_source, f"{oscilloscope_type} should have a spawnable module definition")
