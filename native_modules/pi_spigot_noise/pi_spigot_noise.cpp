@@ -6,12 +6,21 @@
 // Two ways to get pi digits live here, and why both exist:
 //
 // 1) soemdsp_pi_spigot_noise_sample/reset_seed (the real playback path):
-//    slices directly from 1,000,000 real decimal digits of pi (fetched
-//    once from https://api.pi.delivery, a free public API, and embedded
-//    below as kPiDigitSamples -- see pi_digits_data.inc) grouped 3 digits
-//    per sample (1000 quantization levels) and pre-scaled to int16. No
-//    computation at all, just an array index -- this is what makes a long
-//    (333,333-sample, ~7.56s at 44.1kHz), non-repeating buffer affordable.
+//    reads a small 1-second (44,100-sample) buffer of real decimal digits
+//    of pi (fetched once from https://api.pi.delivery, a free public API,
+//    grouped 3 digits per sample -- 1000 quantization levels -- and
+//    embedded below as kPiDigitSamples, see pi_digits_data.inc) as a
+//    circular wavetable, but the read phase advances by kPlaybackStep
+//    (1 + a small irrational fraction) instead of exactly 1.0 per sample.
+//    Since that ratio never divides evenly back into the buffer length,
+//    each lap starts at a slightly different fractional offset than the
+//    last -- the wrap point drifts continuously and, being irrational
+//    relative to the buffer, never exactly realigns. A tiny buffer this
+//    way avoids sounding like a hard, exact, audibly-periodic loop, at a
+//    cost of one linear interpolation per sample instead of a plain array
+//    index -- still effectively free. (An earlier version of this module
+//    used a 333,333-sample/~7.56s buffer with a plain hard loop instead;
+//    this replaced it -- see git history.)
 //
 // 2) soemdsp_pi_spigot_noise_compute_bipolar (kept reachable, not wired to
 //    playback): the actual Bailey-Borwein-Plouffe spigot formula --
@@ -21,7 +30,7 @@
 //    against known pi hex digits ("2 4 3 F 6 A 8 8 8 5..."). Kept exported
 //    (not deleted) because it's a real, distinct, independently-useful
 //    capability -- computing digit N without needing digits 0..N-1 -- even
-//    though it costs O(n) per digit and was never fast enough to be the
+//    though it costs O(n) per digit and was never fast enough to be a
 //    default playback path (filling a useful-length cache this way took
 //    20+ seconds measured wall-clock; see git history on this file).
 
@@ -37,17 +46,22 @@ static const char kMetadataJson[] =
     "\"kind\":\"noise\","
     "\"outputs\":[\"Out\"],"
     "\"parameters\":["
-      "{\"key\":\"start\",\"label\":\"Digit Offset\",\"defaultValue\":0,\"min\":0,\"mid\":166666,\"max\":333332,\"step\":1},"
+      "{\"key\":\"start\",\"label\":\"Digit Offset\",\"defaultValue\":0,\"min\":0,\"mid\":22050,\"max\":44099,\"step\":1},"
       "{\"key\":\"level\",\"label\":\"Level\",\"defaultValue\":1,\"min\":0,\"mid\":0.5,\"max\":1,\"step\":\"any\"}"
     "]"
   "}";
 
 static const int kMaxInstances = 16;
 
+// Golden ratio conjugate (1/phi) as the drift fraction -- the canonical
+// "most irrational" number (worst rational-approximable), so the wrap
+// phase drifts as evenly/slowly-repeating-never as possible rather than
+// happening to land near a simple fraction that would re-align sooner.
+static const double kPlaybackStep = 1.0 + 0.6180339887498949 / (double)44100;
+
 struct PiSpigotNoiseState {
-  int  start;
-  int  readIndex;
-  bool active;
+  double phase;
+  bool   active;
 };
 
 static PiSpigotNoiseState gPool[kMaxInstances];
@@ -99,8 +113,7 @@ extern "C" int soemdsp_pi_spigot_noise_create() {
   for (int i = 0; i < kMaxInstances; i++) {
     if (!gPool[i].active) {
       PiSpigotNoiseState& s = gPool[i];
-      s.start = 0;
-      s.readIndex = 0;
+      s.phase = 0.0;
       s.active = true;
       return i + 1;
     }
@@ -116,16 +129,21 @@ extern "C" void soemdsp_pi_spigot_noise_destroy(int handle) {
 extern "C" void soemdsp_pi_spigot_noise_reset_seed(int handle, double start) {
   if (handle < 1 || handle > kMaxInstances) return;
   PiSpigotNoiseState& s = gPool[handle - 1];
-  s.start = clampi((int)start, 0, kPiDigitSampleCount - 1);
-  s.readIndex = 0;
+  s.phase = clampd(start, 0.0, (double)(kPiDigitSampleCount - 1));
 }
 
 extern "C" double soemdsp_pi_spigot_noise_sample(int handle, double level) {
   if (handle < 1 || handle > kMaxInstances) return 0.0;
   PiSpigotNoiseState& s = gPool[handle - 1];
-  int index = (s.start + s.readIndex) % kPiDigitSampleCount;
-  double value = (double)kPiDigitSamples[index] / 32767.0;
-  s.readIndex = (s.readIndex + 1) % kPiDigitSampleCount;
+  double readPos = s.phase - (double)kPiDigitSampleCount * (double)(long long)(s.phase / (double)kPiDigitSampleCount);
+  if (readPos < 0.0) readPos += (double)kPiDigitSampleCount;
+  int i0 = (int)readPos;
+  int i1 = (i0 + 1) % kPiDigitSampleCount;
+  double frac = readPos - (double)i0;
+  double v0 = (double)kPiDigitSamples[i0] / 32767.0;
+  double v1 = (double)kPiDigitSamples[i1] / 32767.0;
+  double value = v0 + (v1 - v0) * frac;
+  s.phase += kPlaybackStep;
   return value * level;
 }
 
