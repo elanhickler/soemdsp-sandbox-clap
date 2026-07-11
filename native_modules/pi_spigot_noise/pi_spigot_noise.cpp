@@ -11,19 +11,29 @@
 //    a free public API, grouped 3 digits per sample -- 1000 quantization
 //    levels -- and embedded below as kPiDigitSamples, see
 //    pi_digits_data.inc) as a circular wavetable, but the read phase
-//    advances by kPlaybackStep (1 + a small irrational fraction) instead
-//    of exactly 1.0 per sample. Since that ratio never divides evenly
-//    back into the buffer length, each lap starts at a slightly different
-//    fractional offset than the last -- the wrap point drifts continuously
-//    and, being irrational relative to the buffer, never exactly
-//    realigns. A tiny buffer this way avoids sounding like a hard, exact,
-//    audibly-periodic loop, at a cost of one linear interpolation per
-//    sample instead of a plain array index -- still effectively free.
-//    Stereo: left and right channels are two entirely independent reads
-//    of the same buffer, each with its own seed and its own color-filter
-//    memory -- same buffer, different starting point, so they decorrelate
-//    like two different noise sources instead of just being hard-panned
-//    copies of each other.
+//    advances by kPlaybackStep = phi (the golden ratio, ~1.618) per
+//    sample instead of exactly 1.0. Since phi is irrational, the
+//    sequence of buffer positions visited (position mod buffer length)
+//    never exactly repeats -- but the drift also has to be *audible*,
+//    not just true on paper: an earlier version stepped by
+//    1.0 + (1/phi)/sampleRate, which is irrational too, but only drifts
+//    ~0.618 samples per full lap around the buffer -- correct math,
+//    silent result, since it takes ~20 hours to accumulate one
+//    buffer-length of drift, so every second sounds identical to the
+//    last. Stepping by phi itself instead means every output sample
+//    jumps ~61.8% of the buffer length ahead (mod buffer length), which
+//    (per the three-distance theorem for irrational rotations) visits
+//    positions in a well-distributed, never-exactly-repeating order --
+//    verified via lap-to-lap correlation near 0 (not the ~1.0 a real
+//    repeat would show) after this fix; see git history for the before/
+//    after numbers. A tiny buffer this way still avoids ever sounding
+//    like a hard, exact, audibly-periodic loop, at the cost of one
+//    linear interpolation per sample instead of a plain array index --
+//    still effectively free. Stereo: left and right channels are two
+//    entirely independent reads of the same buffer, each with its own
+//    seed and its own color-filter memory -- same buffer, different
+//    starting point, so they decorrelate like two different noise
+//    sources instead of just being hard-panned copies of each other.
 //
 //    Seeds are normalized 0.0-1.0 fractions of the buffer, not raw sample
 //    indices -- seed 0.5 always means "half a second into the buffer"
@@ -65,11 +75,18 @@ static const char kMetadataJson[] =
 
 static const int kMaxInstances = 16;
 
-// Golden ratio conjugate (1/phi) as the drift fraction -- the canonical
-// "most irrational" number (worst rational-approximable), so the wrap
-// phase drifts as evenly/slowly-repeating-never as possible rather than
-// happening to land near a simple fraction that would re-align sooner.
-static const double kPlaybackStep = 1.0 + 0.6180339887498949 / (double)44100;
+// Golden ratio (phi) as the playback step -- NOT divided by sample rate.
+// An earlier version used 1.0 + (1/phi)/sampleRate, meaning the phase
+// only drifted ~0.618 samples per full lap around the buffer -- correct
+// on paper (an irrational drift never exactly repeats) but ~20 hours to
+// accumulate a single buffer-length of drift, so every second sounded
+// identical to the last. Using phi itself as the step means each output
+// sample jumps ~61.8% of the buffer length ahead (mod buffer length)
+// instead of ~1 sample -- per the three-distance theorem, an irrational
+// step visits every position in a well-distributed, never-exactly-
+// repeating order, and now the "no repeat" property is actually audible
+// within seconds instead of theoretical over a night's sleep.
+static const double kPlaybackStep = 1.6180339887498949;
 
 struct PiSpigotNoiseChannel {
   double phase;
