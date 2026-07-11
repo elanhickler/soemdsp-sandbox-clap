@@ -397,13 +397,38 @@ function createNodeGraphPiSpigotNoiseState() {
     cache: null,
     readIndex: 0,
     cacheStart: null,
+    wasmHandle: 0,
+    wasmStart: null,
   };
 }
 
-// Pure-JS mirror of pi_spigot_noise.cpp's BBP digit extraction -- the
-// offline/nested-runtime evaluator has no wasm access, so this is the only
-// implementation this path has (not a fallback). See the .cpp file for the
-// math writeup and the cost/precision reasoning behind these constants.
+// Unlike node-live-audio-worklet.js, this evaluator runs on the main
+// thread (module groups / offline render), which does have fetch -- so
+// rather than duplicate the 333,333-sample pi-digit dataset in JS, it
+// just loads the same pi_spigot_noise.wasm the worklet uses and calls
+// its exports directly. See pi_spigot_noise.cpp for what that dataset is
+// and why it replaced computing every sample live.
+const nodeGraphPiSpigotNoiseWasm = { promise: null, exports: null, failed: false };
+
+function nodeGraphPiSpigotNoiseLoadWasm() {
+  if (nodeGraphPiSpigotNoiseWasm.promise || typeof fetch !== "function" || typeof WebAssembly === "undefined") {
+    return;
+  }
+  nodeGraphPiSpigotNoiseWasm.promise = fetch("/native_modules/pi_spigot_noise/pi_spigot_noise.wasm")
+    .then((response) => response.arrayBuffer())
+    .then((bytes) => WebAssembly.instantiate(bytes, {}))
+    .then((result) => {
+      nodeGraphPiSpigotNoiseWasm.exports = result.instance.exports;
+    })
+    .catch(() => {
+      nodeGraphPiSpigotNoiseWasm.failed = true;
+    });
+}
+
+// Pure-JS mirror of pi_spigot_noise.cpp's BBP digit extraction -- used
+// only as a fallback while the wasm dataset above is still loading (or if
+// it fails to load). See the .cpp file for the math writeup and the
+// cost/precision reasoning behind these constants.
 function nodeGraphPiSpigotPowMod(a, b, m) {
   let result = 1;
   let base = a % m;
@@ -443,7 +468,7 @@ function nodeGraphPiSpigotBipolar(n) {
   return x * 2 - 1;
 }
 
-function fillNodeGraphPiSpigotNoiseCache(state, start) {
+function fillNodeGraphPiSpigotNoiseCacheFallback(state, start) {
   const cacheSize = 1024;
   const maxStart = 256;
   const safeStart = clampNodeSliderValue(Math.floor(Number(start) || 0), 0, maxStart);
@@ -459,9 +484,26 @@ function fillNodeGraphPiSpigotNoiseCache(state, start) {
 function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = "") {
   const start = Math.floor(nodeGraphSafeFilterNumber(params.start, runtime, nodeId, null, "pi spigot noise start"));
   const level = nodeGraphSafeFilterNumber(params.level, runtime, nodeId, null, "pi spigot noise level");
+
+  nodeGraphPiSpigotNoiseLoadWasm();
+  const wasm = nodeGraphPiSpigotNoiseWasm.exports;
+  if (wasm?.soemdsp_pi_spigot_noise_create && wasm?.soemdsp_pi_spigot_noise_sample) {
+    if (!state.wasmHandle) {
+      state.wasmHandle = wasm.soemdsp_pi_spigot_noise_create();
+    }
+    if (state.wasmHandle) {
+      if (state.wasmStart !== start) {
+        state.wasmStart = start;
+        wasm.soemdsp_pi_spigot_noise_reset_seed(state.wasmHandle, start);
+      }
+      const out = wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, level);
+      return nodeGraphSafeFilterNumber(out, runtime, nodeId, null, "pi spigot noise output");
+    }
+  }
+
   const safeStart = clampNodeSliderValue(start, 0, 256);
   if (!state.cache || state.cacheStart !== safeStart) {
-    fillNodeGraphPiSpigotNoiseCache(state, safeStart);
+    fillNodeGraphPiSpigotNoiseCacheFallback(state, safeStart);
   }
   const value = state.cache[state.readIndex];
   state.readIndex = (state.readIndex + 1) % state.cache.length;
