@@ -2,6 +2,9 @@ const nodeGraphModuleStoreTypes = Object.freeze([
   "polyBlep",
   "blit",
   "archimedes",
+  "bradley2a",
+  "antisaw",
+  "piSpigotNoise",
   "sineWavetable",
   "drumMachine",
   "kickDrum",
@@ -343,6 +346,18 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Archimedes",
     notes: ["quadrature", "fixed-point", "realtime oscillator"],
   },
+  bradley2a: {
+    category: "Oscillator",
+    description: "Naive digitization of the Bradley Telcom Jitter and Hit Synthesizer: a test tone impaired by phase/amp jitter, frequency translation, harmonic distortion, single-frequency interference, and periodic gain/dropout/phase/impulse hits. Intentionally aliases -- character first, band-limiting later. Native C++/WASM.",
+    label: "Bradley 2A Jitter/Hit Synth",
+    notes: ["test-tone impairment", "jitter", "frequency translation", "native"],
+  },
+  antisaw: {
+    category: "Oscillator",
+    description: "Additive resynthesis of only the aliased partials of an ideal sawtooth: keeps just the harmonics that would exceed Nyquist, computes exactly where each folds to, and resynthesizes each as a clean, controllable in-band sine there -- simulated aliasing, not real aliasing. Tilt reshapes the 1/n curve toward dark/low or harsh/high folded partials. Native C++/WASM.",
+    label: "Antisaw",
+    notes: ["simulated aliasing", "additive resynthesis", "reflections", "native"],
+  },
   sineWavetable: {
     category: "Oscillator",
     description: "Table-driven sine/cosine oscillator with pitch, frequency, amplitude, and Nyquist-edge fade. Native C++/WASM.",
@@ -608,6 +623,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     category: "Noise",
     description: "Three-axis layered fBm motion source with octave, persistence, scale, and seed controls for rough organic drift.",
     notes: ["out x/y/z", "seeded value noise", "slow terrain motion"],
+  },
+  piSpigotNoise: {
+    category: "Noise",
+    description: "Stereo noise source built from real digits of pi (fetched once, embedded), read via an irrational playback-rate drift so a tiny buffer never sounds like a hard loop. Independent seed per channel, White/Pink/Brown/Blue/Violet color, and a 4-stage one-pole Gaussian-smoothing cascade. Native C++/WASM.",
+    label: "Pi Spigot Noise",
+    notes: ["real pi digits", "stereo independent seeds", "noise color", "gaussian smoothing", "native"],
   },
   clapPlugin: {
     category: "Audio",
