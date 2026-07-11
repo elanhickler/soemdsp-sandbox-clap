@@ -17318,6 +17318,7 @@ def require_native_module_contract(base_url: str) -> None:
         "random_walk": ["soemdsp_random_walk_create", "soemdsp_random_walk_destroy", "soemdsp_random_walk_reset_seed", "soemdsp_random_walk_sample"],
         "pi_spigot_noise": ["soemdsp_pi_spigot_noise_create", "soemdsp_pi_spigot_noise_destroy", "soemdsp_pi_spigot_noise_reset_seed", "soemdsp_pi_spigot_noise_sample"],
         "lorenz_attractor": ["soemdsp_lorenz_attractor_create", "soemdsp_lorenz_attractor_destroy", "soemdsp_lorenz_attractor_sample", "soemdsp_lorenz_attractor_x", "soemdsp_lorenz_attractor_y", "soemdsp_lorenz_attractor_z"],
+        "bradley_2a": ["soemdsp_bradley_2a_create", "soemdsp_bradley_2a_destroy", "soemdsp_bradley_2a_sample"],
         "sine_wavetable": ["soemdsp_sine_wavetable_create", "soemdsp_sine_wavetable_destroy", "soemdsp_sine_wavetable_sample", "soemdsp_sine_wavetable_sin", "soemdsp_sine_wavetable_cos"],
         "log_spiral": ["soemdsp_log_spiral_create", "soemdsp_log_spiral_destroy", "soemdsp_log_spiral_sample", "soemdsp_log_spiral_x", "soemdsp_log_spiral_y", "soemdsp_log_spiral_z"],
         "fractal_spiral": ["soemdsp_fractal_spiral_create", "soemdsp_fractal_spiral_destroy", "soemdsp_fractal_spiral_sample", "soemdsp_fractal_spiral_x", "soemdsp_fractal_spiral_y", "soemdsp_fractal_spiral_z"],

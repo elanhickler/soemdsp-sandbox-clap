@@ -8,6 +8,7 @@
       "kind": "oscillator",
       "source": "native_modules/additive_osc/additive_osc.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/additive_osc/additive_osc.cpp",
+      "libUrl": "",
       "wasm": "native_modules/additive_osc/additive_osc.wasm",
       "wasmUrl": "native_modules/additive_osc/additive_osc.wasm",
       "wasmAvailable": true
@@ -19,6 +20,7 @@
       "kind": "oscillator",
       "source": "native_modules/archimedes/archimedes.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/archimedes/archimedes.cpp",
+      "libUrl": "",
       "wasm": "native_modules/archimedes/archimedes.wasm",
       "wasmUrl": "native_modules/archimedes/archimedes.wasm",
       "wasmAvailable": true
@@ -30,6 +32,7 @@
       "kind": "oscillator",
       "source": "native_modules/basic_oscillator/basic_oscillator.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/basic_oscillator/basic_oscillator.cpp",
+      "libUrl": "",
       "wasm": "native_modules/basic_oscillator/basic_oscillator.wasm",
       "wasmUrl": "native_modules/basic_oscillator/basic_oscillator.wasm",
       "wasmAvailable": true
@@ -41,8 +44,21 @@
       "kind": "oscillator",
       "source": "native_modules/blit/blit.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/blit/blit.cpp",
+      "libUrl": "",
       "wasm": "native_modules/blit/blit.wasm",
       "wasmUrl": "native_modules/blit/blit.wasm",
+      "wasmAvailable": true
+    },
+    {
+      "name": "bradley_2a",
+      "label": "Bradley 2A Jitter/Hit Synth",
+      "targetType": "bradley2a",
+      "kind": "oscillator",
+      "source": "native_modules/bradley_2a/bradley_2a.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/bradley_2a/bradley_2a.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/bradley_2a/bradley_2a.wasm",
+      "wasmUrl": "native_modules/bradley_2a/bradley_2a.wasm",
       "wasmAvailable": true
     },
     {
@@ -52,6 +68,7 @@
       "kind": "filter",
       "source": "native_modules/chaotic_phase_locking_filter/chaotic_phase_locking_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/chaotic_phase_locking_filter/chaotic_phase_locking_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/chaotic_phase_locking_filter/chaotic_phase_locking_filter.wasm",
       "wasmUrl": "native_modules/chaotic_phase_locking_filter/chaotic_phase_locking_filter.wasm",
       "wasmAvailable": true
@@ -63,6 +80,7 @@
       "kind": "pitch",
       "source": "native_modules/chord_sequencer/chord_sequencer.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/chord_sequencer/chord_sequencer.cpp",
+      "libUrl": "",
       "wasm": "native_modules/chord_sequencer/chord_sequencer.wasm",
       "wasmUrl": "native_modules/chord_sequencer/chord_sequencer.wasm",
       "wasmAvailable": true
@@ -86,6 +104,7 @@
       "kind": "effect",
       "source": "native_modules/delay_effect/delay_effect.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/delay_effect/delay_effect.cpp",
+      "libUrl": "",
       "wasm": "native_modules/delay_effect/delay_effect.wasm",
       "wasmUrl": "native_modules/delay_effect/delay_effect.wasm",
       "wasmAvailable": true
@@ -97,6 +116,7 @@
       "kind": "oscillator",
       "source": "native_modules/dsf_oscillator/dsf_oscillator.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/dsf_oscillator/dsf_oscillator.cpp",
+      "libUrl": "",
       "wasm": "native_modules/dsf_oscillator/dsf_oscillator.wasm",
       "wasmUrl": "native_modules/dsf_oscillator/dsf_oscillator.wasm",
       "wasmAvailable": true
@@ -120,6 +140,7 @@
       "kind": "envelope",
       "source": "native_modules/exp_adsr/exp_adsr.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/exp_adsr/exp_adsr.cpp",
+      "libUrl": "",
       "wasm": "native_modules/exp_adsr/exp_adsr.wasm",
       "wasmUrl": "native_modules/exp_adsr/exp_adsr.wasm",
       "wasmAvailable": true
@@ -131,6 +152,7 @@
       "kind": "filter",
       "source": "native_modules/flower_child_filter/flower_child_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/flower_child_filter/flower_child_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/flower_child_filter/flower_child_filter.wasm",
       "wasmUrl": "native_modules/flower_child_filter/flower_child_filter.wasm",
       "wasmAvailable": true
@@ -154,6 +176,7 @@
       "kind": "jerobeam",
       "source": "native_modules/fractal_spiral/fractal_spiral.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/fractal_spiral/fractal_spiral.cpp",
+      "libUrl": "",
       "wasm": "native_modules/fractal_spiral/fractal_spiral.wasm",
       "wasmUrl": "native_modules/fractal_spiral/fractal_spiral.wasm",
       "wasmAvailable": true
@@ -183,25 +206,27 @@
       "wasmAvailable": true
     },
     {
-      "name": "hypersaw",
-      "label": "Hypersaw",
-      "targetType": "hypersaw",
-      "kind": "oscillator",
-      "source": "native_modules/hypersaw/hypersaw.cpp",
-      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/hypersaw/hypersaw.cpp",
-      "wasm": "native_modules/hypersaw/hypersaw.wasm",
-      "wasmUrl": "native_modules/hypersaw/hypersaw.wasm",
-      "wasmAvailable": true
-    },
-    {
       "name": "human_filter",
       "label": "Human Filter",
       "targetType": "humanFilter",
       "kind": "filter",
       "source": "native_modules/human_filter/human_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/human_filter/human_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/human_filter/human_filter.wasm",
       "wasmUrl": "native_modules/human_filter/human_filter.wasm",
+      "wasmAvailable": true
+    },
+    {
+      "name": "hypersaw",
+      "label": "Hypersaw",
+      "targetType": "hypersaw",
+      "kind": "oscillator",
+      "source": "native_modules/hypersaw/hypersaw.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/hypersaw/hypersaw.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/hypersaw/hypersaw.wasm",
+      "wasmUrl": "native_modules/hypersaw/hypersaw.wasm",
       "wasmAvailable": true
     },
     {
@@ -283,6 +308,7 @@
       "kind": "jerobeam",
       "source": "native_modules/jerobeam_spiral/jerobeam_spiral.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/jerobeam_spiral/jerobeam_spiral.cpp",
+      "libUrl": "",
       "wasm": "native_modules/jerobeam_spiral/jerobeam_spiral.wasm",
       "wasmUrl": "native_modules/jerobeam_spiral/jerobeam_spiral.wasm",
       "wasmAvailable": true
@@ -330,6 +356,7 @@
       "kind": "envelope",
       "source": "native_modules/linear_envelope/linear_envelope.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/linear_envelope/linear_envelope.cpp",
+      "libUrl": "",
       "wasm": "native_modules/linear_envelope/linear_envelope.wasm",
       "wasmUrl": "native_modules/linear_envelope/linear_envelope.wasm",
       "wasmAvailable": true
@@ -341,6 +368,7 @@
       "kind": "jerobeam",
       "source": "native_modules/log_spiral/log_spiral.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/log_spiral/log_spiral.cpp",
+      "libUrl": "",
       "wasm": "native_modules/log_spiral/log_spiral.wasm",
       "wasmUrl": "native_modules/log_spiral/log_spiral.wasm",
       "wasmAvailable": true
@@ -364,6 +392,7 @@
       "kind": "chaos",
       "source": "native_modules/lorenz_attractor/lorenz_attractor.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/lorenz_attractor/lorenz_attractor.cpp",
+      "libUrl": "",
       "wasm": "native_modules/lorenz_attractor/lorenz_attractor.wasm",
       "wasmUrl": "native_modules/lorenz_attractor/lorenz_attractor.wasm",
       "wasmAvailable": true
@@ -375,6 +404,7 @@
       "kind": "logic",
       "source": "native_modules/lut_cell/lut_cell.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/lut_cell/lut_cell.cpp",
+      "libUrl": "",
       "wasm": "native_modules/lut_cell/lut_cell.wasm",
       "wasmUrl": "native_modules/lut_cell/lut_cell.wasm",
       "wasmAvailable": true
@@ -386,6 +416,7 @@
       "kind": "math",
       "source": "native_modules/metallic_ratio/metallic_ratio.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/metallic_ratio/metallic_ratio.cpp",
+      "libUrl": "",
       "wasm": "native_modules/metallic_ratio/metallic_ratio.wasm",
       "wasmUrl": "native_modules/metallic_ratio/metallic_ratio.wasm",
       "wasmAvailable": true
@@ -457,6 +488,7 @@
       "kind": "envelope",
       "source": "native_modules/pluck_envelope/pluck_envelope.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pluck_envelope/pluck_envelope.cpp",
+      "libUrl": "",
       "wasm": "native_modules/pluck_envelope/pluck_envelope.wasm",
       "wasmUrl": "native_modules/pluck_envelope/pluck_envelope.wasm",
       "wasmAvailable": true
@@ -480,6 +512,7 @@
       "kind": "generator",
       "source": "native_modules/pulse_explosion/pulse_explosion.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pulse_explosion/pulse_explosion.cpp",
+      "libUrl": "",
       "wasm": "native_modules/pulse_explosion/pulse_explosion.wasm",
       "wasmUrl": "native_modules/pulse_explosion/pulse_explosion.wasm",
       "wasmAvailable": true
@@ -491,6 +524,7 @@
       "kind": "noise",
       "source": "native_modules/random_walk/random_walk.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/random_walk/random_walk.cpp",
+      "libUrl": "",
       "wasm": "native_modules/random_walk/random_walk.wasm",
       "wasmUrl": "native_modules/random_walk/random_walk.wasm",
       "wasmAvailable": true
@@ -502,6 +536,7 @@
       "kind": "filter",
       "source": "native_modules/resonator_filter/resonator_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/resonator_filter/resonator_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/resonator_filter/resonator_filter.wasm",
       "wasmUrl": "native_modules/resonator_filter/resonator_filter.wasm",
       "wasmAvailable": true
@@ -513,6 +548,7 @@
       "kind": "oscillator",
       "source": "native_modules/robin_supersaw/robin_supersaw.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/robin_supersaw/robin_supersaw.cpp",
+      "libUrl": "",
       "wasm": "native_modules/robin_supersaw/robin_supersaw.wasm",
       "wasmUrl": "native_modules/robin_supersaw/robin_supersaw.wasm",
       "wasmAvailable": true
@@ -524,6 +560,7 @@
       "kind": "filter",
       "source": "native_modules/rsmet_filter/rsmet_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/rsmet_filter/rsmet_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/rsmet_filter/rsmet_filter.wasm",
       "wasmUrl": "native_modules/rsmet_filter/rsmet_filter.wasm",
       "wasmAvailable": true
@@ -559,6 +596,7 @@
       "kind": "oscillator",
       "source": "native_modules/sine_wavetable/sine_wavetable.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/sine_wavetable/sine_wavetable.cpp",
+      "libUrl": "",
       "wasm": "native_modules/sine_wavetable/sine_wavetable.wasm",
       "wasmUrl": "native_modules/sine_wavetable/sine_wavetable.wasm",
       "wasmAvailable": true
@@ -582,6 +620,7 @@
       "kind": "filter",
       "source": "native_modules/superlove_filter/superlove_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/superlove_filter/superlove_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/superlove_filter/superlove_filter.wasm",
       "wasmUrl": "native_modules/superlove_filter/superlove_filter.wasm",
       "wasmAvailable": true
@@ -593,6 +632,7 @@
       "kind": "oscillator",
       "source": "native_modules/surge_oscillator/surge_oscillator.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/surge_oscillator/surge_oscillator.cpp",
+      "libUrl": "",
       "wasm": "native_modules/surge_oscillator/surge_oscillator.wasm",
       "wasmUrl": "native_modules/surge_oscillator/surge_oscillator.wasm",
       "wasmAvailable": true
@@ -628,6 +668,7 @@
       "kind": "video-poc",
       "source": "native_modules/video_synth_raster/video_synth_raster.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/video_synth_raster/video_synth_raster.cpp",
+      "libUrl": "",
       "wasm": "native_modules/video_synth_raster/video_synth_raster.wasm",
       "wasmUrl": "native_modules/video_synth_raster/video_synth_raster.wasm",
       "wasmAvailable": true
@@ -639,6 +680,7 @@
       "kind": "filter",
       "source": "native_modules/yellowjacket_filter/yellowjacket_filter.cpp",
       "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/yellowjacket_filter/yellowjacket_filter.cpp",
+      "libUrl": "",
       "wasm": "native_modules/yellowjacket_filter/yellowjacket_filter.wasm",
       "wasmUrl": "native_modules/yellowjacket_filter/yellowjacket_filter.wasm",
       "wasmAvailable": true
