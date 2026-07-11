@@ -278,6 +278,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.randomWalkStates = new Map();
     this.piSpigotNoiseStates = new Map();
     this.bradley2AStates = new Map();
+    this.antisawStates = new Map();
     this.sessionId = 0;
     this.scopeBuffers = new Map();
     this.scopeCaptureNodeIds = [];
@@ -1228,6 +1229,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "antisaw" || targetType === "antisaw") {
+        for (const state of this.antisawStates.values()) {
+          this.destroyAntisawNativeState(state);
+        }
+        this.nativeAntisaw = exports;
+        this.nativeAntisawReady = Boolean(
+          this.nativeAntisaw?.soemdsp_antisaw_create &&
+          this.nativeAntisaw?.soemdsp_antisaw_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "antisaw",
+          status: this.nativeAntisawReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "lorenz_attractor" || targetType === "lorenzAttractor") {
         for (const state of this.lorenzAttractorStates.values()) {
           this.destroyLorenzAttractorNativeState(state);
@@ -1572,6 +1589,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.randomWalkStates = new Map();
     this.piSpigotNoiseStates = new Map();
     this.bradley2AStates = new Map();
+    this.antisawStates = new Map();
     this.sampleHoldStates = new Map();
     this.samplePlaybackStates = new Map();
     this.samples = new Map();
@@ -1949,6 +1967,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "bradley2a" && !this.bradley2AStates.has(id)) {
         this.bradley2AStates.set(id, this.createBradley2AState());
+      }
+      if (node?.type === "antisaw" && !this.antisawStates.has(id)) {
+        this.antisawStates.set(id, this.createAntisawState());
       }
       if (node?.type === "fractalBrownianNoise" && !this.fractalBrownianNoiseStates.has(id)) {
         this.fractalBrownianNoiseStates.set(id, this.createFractalBrownianNoiseState());
@@ -2392,6 +2413,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyBradley2ANativeState(this.bradley2AStates.get(id));
         this.bradley2AStates.delete(id);
+      }
+    }
+    for (const id of [...this.antisawStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyAntisawNativeState(this.antisawStates.get(id));
+        this.antisawStates.delete(id);
       }
     }
     for (const id of [...this.randomClockStates.keys()]) {
@@ -5174,6 +5201,82 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createAntisawState() {
+    return {
+      nativeHandle: 0,
+      phase: new Float64Array(256),
+    };
+  }
+
+  // JS mirror of antisaw.cpp's soemdsp_antisaw_sample -- used only when
+  // the wasm module hasn't loaded yet or fails. Same math/parameter
+  // meaning; JS's % is equivalent to the .cpp's hand-rolled dsp_fmod for
+  // the positive-only operands this module ever uses.
+  antisawSampleJs(state, params, rate = sampleRate) {
+    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const nyquist = safeRate * 0.5;
+    const twoPi = Math.PI * 2;
+    const f0 = Math.max(0, this.safeFilterNumber(params.fundamental, null));
+    const N = this.clampValue(Math.round(this.safeFilterNumber(params.reflections, null)), 1, 256);
+    const tilt = this.clampValue(this.safeFilterNumber(params.tilt, null), -1, 1);
+    const level = this.safeFilterNumber(params.level, null);
+
+    let out = 0;
+    for (let n = 1; n <= N; n++) {
+      const raw = n * f0;
+      if (raw > nyquist) {
+        let folded = raw % safeRate;
+        if (folded > nyquist) folded = safeRate - folded;
+
+        const idx = n - 1;
+        state.phase[idx] = (state.phase[idx] + twoPi * folded / safeRate) % twoPi;
+
+        const nNorm = N > 1 ? (n - 1) / (N - 1) : 0.5;
+        const bias = nNorm * 2 - 1;
+        const weight = (1 / n) * (1 + tilt * bias);
+
+        out += Math.sin(state.phase[idx]) * weight;
+      }
+    }
+
+    return this.clampValue(out * level, -1, 1);
+  }
+
+  antisawSample(state, params, rate = sampleRate) {
+    if (
+      this.nativeAntisawReady &&
+      this.nativeAntisaw?.soemdsp_antisaw_create &&
+      this.nativeAntisaw?.soemdsp_antisaw_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativeAntisaw.soemdsp_antisaw_create();
+        }
+        if (state.nativeHandle) {
+          const safeRate = Number(rate) > 1 ? Number(rate) : sampleRate;
+          const out = this.nativeAntisaw.soemdsp_antisaw_sample(
+            state.nativeHandle,
+            Number(params.fundamental) || 0,
+            Number(params.reflections) || 0,
+            Number(params.tilt) || 0,
+            Number(params.level) || 0,
+            safeRate,
+          );
+          return this.safeFilterNumber(out, null);
+        }
+      } catch (error) {
+        this.nativeAntisawReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "antisaw",
+          status: "disabled",
+          message: String(error?.message || error || "native Antisaw failed"),
+        });
+      }
+    }
+    return this.antisawSampleJs(state, params, rate);
+  }
+
   bradley2ANextNoise(state) {
     state.noiseSeed = (Math.imul(1664525, state.noiseSeed) + 1013904223) >>> 0;
     return (state.noiseSeed / 4294967295) * 2 - 1;
@@ -5743,6 +5846,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.randomWalkStates = new Map();
     runtime.piSpigotNoiseStates = new Map();
     runtime.bradley2AStates = new Map();
+    runtime.antisawStates = new Map();
     runtime.sessionId = this.sessionId;
     runtime.scopeBuffers = new Map();
     runtime.scopeCounter = 0;
@@ -5871,6 +5975,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "randomWalk") this.randomWalkStates.set(id, this.createRandomWalkState());
       if (node?.type === "piSpigotNoise") this.piSpigotNoiseStates.set(id, this.createPiSpigotNoiseState());
       if (node?.type === "bradley2a") this.bradley2AStates.set(id, this.createBradley2AState());
+      if (node?.type === "antisaw") this.antisawStates.set(id, this.createAntisawState());
       if (node?.type === "fractalBrownianNoise") this.fractalBrownianNoiseStates.set(id, this.createFractalBrownianNoiseState());
       if (node?.type === "flowerChildEnvelopeFollower") this.flowerChildEnvelopeFollowerStates.set(id, this.createFlowerChildEnvelopeFollowerState());
       if (node?.type === "pluckEnvelope") this.pluckEnvelopeStates.set(id, this.createPluckEnvelopeState());
@@ -12010,6 +12115,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyAntisawNativeState(state) {
+    if (state?.nativeHandle && this.nativeAntisaw?.soemdsp_antisaw_destroy) {
+      this.nativeAntisaw.soemdsp_antisaw_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   destroyLorenzAttractorNativeState(state) {
     if (state?.nativeHandle && this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_destroy) {
       this.nativeLorenzAttractor.soemdsp_lorenz_attractor_destroy(state.nativeHandle);
@@ -13126,6 +13238,20 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             hitGain: read("hitGain", 1),
             hitPhase: read("hitPhase", 0),
             impulseLevel: read("impulseLevel", 0),
+            level: read("level", 1),
+          },
+          safeRate,
+        );
+      } else if (node?.type === "antisaw") {
+        const state = this.antisawStates.get(nodeId) || this.createAntisawState();
+        this.antisawStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = this.antisawSample(
+          state,
+          {
+            fundamental: read("fundamental", 110),
+            reflections: read("reflections", 64),
+            tilt: read("tilt", 0),
             level: read("level", 1),
           },
           safeRate,

@@ -1069,3 +1069,20 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\bradley_2a\bradley_2a.wasm" `
   "$root\native_modules\bradley_2a\bradley_2a.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_antisaw_create" `
+  "-Wl,--export=soemdsp_antisaw_destroy" `
+  "-Wl,--export=soemdsp_antisaw_sample" `
+  "-Wl,--export=soemdsp_antisaw_version" `
+  "-Wl,--export=soemdsp_antisaw_metadata_json" `
+  "-Wl,--export=soemdsp_antisaw_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\antisaw\antisaw.wasm" `
+  "$root\native_modules\antisaw\antisaw.cpp"

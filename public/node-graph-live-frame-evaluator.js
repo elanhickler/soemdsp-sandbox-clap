@@ -3986,6 +3986,20 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         },
         sampleRate,
       );
+    } else if (node?.type === "antisaw") {
+      const state = runtime.antisawStates.get(nodeId) || createNodeGraphAntisawState();
+      runtime.antisawStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphAntisawSample(
+        state,
+        {
+          fundamental: read("fundamental", 110),
+          reflections: read("reflections", 64),
+          tilt: read("tilt", 0),
+          level: read("level", 1),
+        },
+        sampleRate,
+      );
     } else if (node?.type === "fractalBrownianNoise") {
       const state = runtime.fractalBrownianNoiseStates.get(nodeId) || createNodeGraphFractalBrownianNoiseState();
       runtime.fractalBrownianNoiseStates.set(nodeId, state);

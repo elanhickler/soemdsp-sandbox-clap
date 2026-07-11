@@ -40,6 +40,7 @@ const nodeGraphNodeLabels = Object.freeze({
   lorenzAttractor: "Lorenz Attractor",
   logisticMap: "Logistic Map",
   bradley2a: "Bradley 2A Jitter/Hit Synth",
+  antisaw: "Antisaw",
   henonMap: "Henon Map",
   chuaAttractor: "Chua Attractor",
   chordMemory: "Chord Memory",
@@ -888,6 +889,15 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { key: "r", label: "R", defaultValue: "3.9", min: "0", mid: "2", max: "4", step: "0.0001" },
       { key: "seed", label: "Seed", defaultValue: "0.5", min: "0.0001", mid: "0.5", max: "0.9999", step: "0.0001" },
       { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "0.01" },
+    ],
+  },
+  antisaw: {
+    outputs: ["Out"],
+    parameters: [
+      { key: "fundamental", label: "Fundamental", kind: "frequency", defaultValue: "110", min: "0", mid: "1000", max: "20000", step: "any", unit: "Hz" },
+      { key: "reflections", label: "Reflections", defaultValue: "64", min: "1", mid: "128", max: "256", step: "1" },
+      { key: "tilt", label: "Tilt", defaultValue: "0", min: "-1", mid: "0", max: "1", step: "any" },
+      { key: "level", label: "Level", defaultValue: "1", min: "0", mid: "0.5", max: "1", step: "any" },
     ],
   },
   bradley2a: {

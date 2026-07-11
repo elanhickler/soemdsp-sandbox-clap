@@ -14,6 +14,18 @@
       "wasmAvailable": true
     },
     {
+      "name": "antisaw",
+      "label": "Antisaw",
+      "targetType": "antisaw",
+      "kind": "oscillator",
+      "source": "native_modules/antisaw/antisaw.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/antisaw/antisaw.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/antisaw/antisaw.wasm",
+      "wasmUrl": "native_modules/antisaw/antisaw.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "archimedes",
       "label": "Archimedes Oscillator",
       "targetType": "archimedes",
