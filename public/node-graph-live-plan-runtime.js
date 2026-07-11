@@ -293,6 +293,7 @@ function createNodeGraphLiveRuntime(plan) {
   const pluckEnvelopeStates = new Map();
   const randomClockStates = new Map();
   const randomWalkStates = new Map();
+  const piSpigotNoiseStates = new Map();
   const reverbEffectStates = new Map();
   const pllStates = new Map();
   const helmholtzStates = new Map();
@@ -488,6 +489,9 @@ function createNodeGraphLiveRuntime(plan) {
     if (node.type === "randomWalk") {
       randomWalkStates.set(node.id, createNodeGraphRandomWalkState());
     }
+    if (node.type === "piSpigotNoise") {
+      piSpigotNoiseStates.set(node.id, createNodeGraphPiSpigotNoiseState());
+    }
     if (node.type === "fractalBrownianNoise") {
       fractalBrownianNoiseStates.set(node.id, createNodeGraphFractalBrownianNoiseState());
     }
@@ -616,6 +620,7 @@ function createNodeGraphLiveRuntime(plan) {
     patchCommandStates,
     phases,
     randomWalkStates,
+    piSpigotNoiseStates,
     sampleHoldStates,
     samplePlaybackStates,
     samples,
@@ -851,6 +856,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   if (!runtime.randomWalkStates) {
     runtime.randomWalkStates = new Map();
   }
+  if (!runtime.piSpigotNoiseStates) {
+    runtime.piSpigotNoiseStates = new Map();
+  }
   if (!runtime.randomClockStates) {
     runtime.randomClockStates = new Map();
   }
@@ -1068,6 +1076,9 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
     }
     if (node.type === "randomWalk" && !runtime.randomWalkStates.has(node.id)) {
       runtime.randomWalkStates.set(node.id, createNodeGraphRandomWalkState());
+    }
+    if (node.type === "piSpigotNoise" && !runtime.piSpigotNoiseStates.has(node.id)) {
+      runtime.piSpigotNoiseStates.set(node.id, createNodeGraphPiSpigotNoiseState());
     }
     if (node.type === "fractalBrownianNoise" && !runtime.fractalBrownianNoiseStates.has(node.id)) {
       runtime.fractalBrownianNoiseStates.set(node.id, createNodeGraphFractalBrownianNoiseState());
@@ -1444,6 +1455,11 @@ function updateNodeGraphLiveRuntimePlan(runtime, plan) {
   for (const id of [...runtime.randomWalkStates.keys()]) {
     if (!nodeIds.has(id)) {
       runtime.randomWalkStates.delete(id);
+    }
+  }
+  for (const id of [...runtime.piSpigotNoiseStates.keys()]) {
+    if (!nodeIds.has(id)) {
+      runtime.piSpigotNoiseStates.delete(id);
     }
   }
   for (const id of [...runtime.randomClockStates.keys()]) {

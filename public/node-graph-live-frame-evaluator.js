@@ -392,6 +392,82 @@ function createNodeGraphRandomWalkState() {
   };
 }
 
+function createNodeGraphPiSpigotNoiseState() {
+  return {
+    cache: null,
+    readIndex: 0,
+    cacheStart: null,
+  };
+}
+
+// Pure-JS mirror of pi_spigot_noise.cpp's BBP digit extraction -- the
+// offline/nested-runtime evaluator has no wasm access, so this is the only
+// implementation this path has (not a fallback). See the .cpp file for the
+// math writeup and the cost/precision reasoning behind these constants.
+function nodeGraphPiSpigotPowMod(a, b, m) {
+  let result = 1;
+  let base = a % m;
+  while (b > 0.5) {
+    if (b % 2 >= 1) {
+      result = (result * base) % m;
+    }
+    b = Math.floor(b / 2);
+    base = (base * base) % m;
+  }
+  return result;
+}
+
+function nodeGraphPiSpigotSeries(m, n) {
+  let s = 0;
+  for (let k = 0; k <= n; k++) {
+    const ak = 8 * k + m;
+    const t = nodeGraphPiSpigotPowMod(16, n - k, ak);
+    s += t / ak;
+    s -= Math.floor(s);
+  }
+  for (let k = n + 1; k < n + 100; k++) {
+    const ak = 8 * k + m;
+    const t = Math.pow(16, n - k);
+    if (t < 1e-17) break;
+    s += t / ak;
+  }
+  const frac = s - Math.floor(s);
+  return frac < 0 ? frac + 1 : frac;
+}
+
+function nodeGraphPiSpigotBipolar(n) {
+  let x = 4 * nodeGraphPiSpigotSeries(1, n) - 2 * nodeGraphPiSpigotSeries(4, n)
+    - nodeGraphPiSpigotSeries(5, n) - nodeGraphPiSpigotSeries(6, n);
+  x -= Math.floor(x);
+  if (x < 0) x += 1;
+  return x * 2 - 1;
+}
+
+function fillNodeGraphPiSpigotNoiseCache(state, start) {
+  const cacheSize = 1024;
+  const maxStart = 256;
+  const safeStart = clampNodeSliderValue(Math.floor(Number(start) || 0), 0, maxStart);
+  const cache = new Float64Array(cacheSize);
+  for (let i = 0; i < cacheSize; i++) {
+    cache[i] = nodeGraphPiSpigotBipolar(safeStart + i);
+  }
+  state.cache = cache;
+  state.readIndex = 0;
+  state.cacheStart = safeStart;
+}
+
+function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = "") {
+  const start = Math.floor(nodeGraphSafeFilterNumber(params.start, runtime, nodeId, null, "pi spigot noise start"));
+  const level = nodeGraphSafeFilterNumber(params.level, runtime, nodeId, null, "pi spigot noise level");
+  const safeStart = clampNodeSliderValue(start, 0, 256);
+  if (!state.cache || state.cacheStart !== safeStart) {
+    fillNodeGraphPiSpigotNoiseCache(state, safeStart);
+  }
+  const value = state.cache[state.readIndex];
+  state.readIndex = (state.readIndex + 1) % state.cache.length;
+  return nodeGraphSafeFilterNumber(value * level, runtime, nodeId, null, "pi spigot noise output");
+}
+
 function createNodeGraphFractalBrownianNoiseState() {
   return {
     axes: {},
@@ -3728,6 +3804,19 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           seed: read("seed", 1),
         },
         sampleRate,
+        runtime,
+        nodeId,
+      );
+    } else if (node?.type === "piSpigotNoise") {
+      const state = runtime.piSpigotNoiseStates.get(nodeId) || createNodeGraphPiSpigotNoiseState();
+      runtime.piSpigotNoiseStates.set(nodeId, state);
+      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
+      value = nodeGraphPiSpigotNoiseSample(
+        state,
+        {
+          start: read("start", 0),
+          level: read("level", 1),
+        },
         runtime,
         nodeId,
       );

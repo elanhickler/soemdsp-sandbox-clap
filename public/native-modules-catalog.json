@@ -415,6 +415,18 @@
       "wasmAvailable": true
     },
     {
+      "name": "pi_spigot_noise",
+      "label": "Pi Spigot Noise",
+      "targetType": "piSpigotNoise",
+      "kind": "noise",
+      "source": "native_modules/pi_spigot_noise/pi_spigot_noise.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/pi_spigot_noise/pi_spigot_noise.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/pi_spigot_noise/pi_spigot_noise.wasm",
+      "wasmUrl": "native_modules/pi_spigot_noise/pi_spigot_noise.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "pitch_quantizer",
       "label": "Pitch Quantizer",
       "targetType": "pitchQuantizer",

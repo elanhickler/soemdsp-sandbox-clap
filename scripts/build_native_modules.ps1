@@ -802,6 +802,24 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_create" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_destroy" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_reset_seed" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_sample" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_version" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_metadata_json" `
+  "-Wl,--export=soemdsp_pi_spigot_noise_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\pi_spigot_noise\pi_spigot_noise.wasm" `
+  "$root\native_modules\pi_spigot_noise\pi_spigot_noise.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_lorenz_attractor_create" `
   "-Wl,--export=soemdsp_lorenz_attractor_destroy" `
   "-Wl,--export=soemdsp_lorenz_attractor_sample" `

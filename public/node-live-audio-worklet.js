@@ -276,6 +276,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.samplePlaybackStates = new Map();
     this.samples = new Map();
     this.randomWalkStates = new Map();
+    this.piSpigotNoiseStates = new Map();
     this.sessionId = 0;
     this.scopeBuffers = new Map();
     this.scopeCaptureNodeIds = [];
@@ -1194,6 +1195,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "pi_spigot_noise" || targetType === "piSpigotNoise") {
+        for (const state of this.piSpigotNoiseStates.values()) {
+          this.destroyPiSpigotNoiseNativeState(state);
+        }
+        this.nativePiSpigotNoise = exports;
+        this.nativePiSpigotNoiseReady = Boolean(
+          this.nativePiSpigotNoise?.soemdsp_pi_spigot_noise_create &&
+          this.nativePiSpigotNoise?.soemdsp_pi_spigot_noise_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pi_spigot_noise",
+          status: this.nativePiSpigotNoiseReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "lorenz_attractor" || targetType === "lorenzAttractor") {
         for (const state of this.lorenzAttractorStates.values()) {
           this.destroyLorenzAttractorNativeState(state);
@@ -1536,6 +1553,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     this.helmholtzStates = new Map();
     this.randomWalkStates = new Map();
+    this.piSpigotNoiseStates = new Map();
     this.sampleHoldStates = new Map();
     this.samplePlaybackStates = new Map();
     this.samples = new Map();
@@ -1907,6 +1925,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "randomWalk" && !this.randomWalkStates.has(id)) {
         this.randomWalkStates.set(id, this.createRandomWalkState());
+      }
+      if (node?.type === "piSpigotNoise" && !this.piSpigotNoiseStates.has(id)) {
+        this.piSpigotNoiseStates.set(id, this.createPiSpigotNoiseState());
       }
       if (node?.type === "fractalBrownianNoise" && !this.fractalBrownianNoiseStates.has(id)) {
         this.fractalBrownianNoiseStates.set(id, this.createFractalBrownianNoiseState());
@@ -2338,6 +2359,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyRandomWalkNativeState(this.randomWalkStates.get(id));
         this.randomWalkStates.delete(id);
+      }
+    }
+    for (const id of [...this.piSpigotNoiseStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyPiSpigotNoiseNativeState(this.piSpigotNoiseStates.get(id));
+        this.piSpigotNoiseStates.delete(id);
       }
     }
     for (const id of [...this.randomClockStates.keys()]) {
@@ -5078,6 +5105,74 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  createPiSpigotNoiseState() {
+    return {
+      cache: null,
+      readIndex: 0,
+      cacheStart: null,
+      nativeHandle: 0,
+      nativeStart: null,
+    };
+  }
+
+  // JS-side mirror of pi_spigot_noise.cpp's BBP digit extraction -- only
+  // exercised when the wasm module fails to load. See the .cpp file for
+  // the math writeup (Bailey-Borwein-Plouffe formula) and the honest
+  // cost/precision tradeoffs that shape kPiSpigotCacheSize/kPiSpigotMaxStart.
+  piSpigotPowMod(a, b, m) {
+    let result = 1;
+    let base = a % m;
+    while (b > 0.5) {
+      if (b % 2 >= 1) {
+        result = (result * base) % m;
+      }
+      b = Math.floor(b / 2);
+      base = (base * base) % m;
+    }
+    return result;
+  }
+
+  piSpigotSeries(m, n) {
+    let s = 0;
+    for (let k = 0; k <= n; k++) {
+      const ak = 8 * k + m;
+      const t = this.piSpigotPowMod(16, n - k, ak);
+      s += t / ak;
+      s -= Math.floor(s);
+    }
+    for (let k = n + 1; k < n + 100; k++) {
+      const ak = 8 * k + m;
+      const t = Math.pow(16, n - k);
+      if (t < 1e-17) break;
+      s += t / ak;
+    }
+    const frac = s - Math.floor(s);
+    return frac < 0 ? frac + 1 : frac;
+  }
+
+  piSpigotBipolar(n) {
+    let x = 4 * this.piSpigotSeries(1, n) - 2 * this.piSpigotSeries(4, n)
+      - this.piSpigotSeries(5, n) - this.piSpigotSeries(6, n);
+    x -= Math.floor(x);
+    if (x < 0) x += 1;
+    return x * 2 - 1;
+  }
+
+  fillPiSpigotNoiseCacheJs(state, start) {
+    // Matches pi_spigot_noise.cpp's kCacheSize/kMaxStart exactly -- see
+    // that file for why these particular values were chosen.
+    const cacheSize = 1024;
+    const maxStart = 256;
+    const safeStart = this.clampValue(Math.floor(Number(start) || 0), 0, maxStart);
+    const cache = new Float64Array(cacheSize);
+    for (let i = 0; i < cacheSize; i++) {
+      cache[i] = this.piSpigotBipolar(safeStart + i);
+    }
+    state.cache = cache;
+    state.readIndex = 0;
+    state.cacheStart = safeStart;
+  }
+
   createFractalBrownianNoiseState() {
     return {
       axes: {},
@@ -5425,6 +5520,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     runtime.samplePlaybackStates = new Map();
     runtime.samples = this.samples;
     runtime.randomWalkStates = new Map();
+    runtime.piSpigotNoiseStates = new Map();
     runtime.sessionId = this.sessionId;
     runtime.scopeBuffers = new Map();
     runtime.scopeCounter = 0;
@@ -5551,6 +5647,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "linearEnvelope") this.linearEnvelopeStates.set(id, this.createLinearEnvelopeState());
       if (node?.type === "noiseGenerator") this.noiseGeneratorStates.set(id, this.createNoiseGeneratorState());
       if (node?.type === "randomWalk") this.randomWalkStates.set(id, this.createRandomWalkState());
+      if (node?.type === "piSpigotNoise") this.piSpigotNoiseStates.set(id, this.createPiSpigotNoiseState());
       if (node?.type === "fractalBrownianNoise") this.fractalBrownianNoiseStates.set(id, this.createFractalBrownianNoiseState());
       if (node?.type === "flowerChildEnvelopeFollower") this.flowerChildEnvelopeFollowerStates.set(id, this.createFlowerChildEnvelopeFollowerState());
       if (node?.type === "pluckEnvelope") this.pluckEnvelopeStates.set(id, this.createPluckEnvelopeState());
@@ -8486,6 +8583,49 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     state.out = this.clampValue(state.out + step, -1, 1);
     const mixed = state.out * randomMix + noise * whiteNoiseMix;
     return this.safeFilterNumber(this.onePoleLowpassSample(state.lowpass, mixed, frequency, safeRate) * level, null);
+  }
+
+  piSpigotNoiseSample(state, params) {
+    const start = Math.floor(this.safeFilterNumber(params.start, null));
+    const level = this.safeFilterNumber(params.level, null);
+    if (
+      this.nativePiSpigotNoiseReady &&
+      this.nativePiSpigotNoise?.soemdsp_pi_spigot_noise_create &&
+      this.nativePiSpigotNoise?.soemdsp_pi_spigot_noise_sample
+    ) {
+      try {
+        if (!state.nativeHandle) {
+          state.nativeHandle = this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_create();
+        }
+        if (state.nativeHandle) {
+          if (state.nativeStart !== start) {
+            state.nativeStart = start;
+            this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_reset_seed(state.nativeHandle, start);
+          }
+          const out = this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, level);
+          return this.safeFilterNumber(out, null);
+        }
+      } catch (error) {
+        this.nativePiSpigotNoiseReady = false;
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "pi_spigot_noise",
+          status: "disabled",
+          message: String(error?.message || error || "native Pi Spigot Noise failed"),
+        });
+      }
+    }
+    return this.piSpigotNoiseSampleJs(state, start, level);
+  }
+
+  piSpigotNoiseSampleJs(state, start, level) {
+    const safeStart = this.clampValue(Math.floor(Number(start) || 0), 0, 256);
+    if (!state.cache || state.cacheStart !== safeStart) {
+      this.fillPiSpigotNoiseCacheJs(state, safeStart);
+    }
+    const value = state.cache[state.readIndex];
+    state.readIndex = (state.readIndex + 1) % state.cache.length;
+    return value * level;
   }
 
   hashBipolar(index, seed) {
@@ -11614,6 +11754,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyPiSpigotNoiseNativeState(state) {
+    if (state?.nativeHandle && this.nativePiSpigotNoise?.soemdsp_pi_spigot_noise_destroy) {
+      this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   destroyLorenzAttractorNativeState(state) {
     if (state?.nativeHandle && this.nativeLorenzAttractor?.soemdsp_lorenz_attractor_destroy) {
       this.nativeLorenzAttractor.soemdsp_lorenz_attractor_destroy(state.nativeHandle);
@@ -12697,6 +12844,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
           nodeId,
         );
+      } else if (node?.type === "piSpigotNoise") {
+        const state = this.piSpigotNoiseStates.get(nodeId) || this.createPiSpigotNoiseState();
+        this.piSpigotNoiseStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        value = this.piSpigotNoiseSample(state, {
+          start: read("start", 0),
+          level: read("level", 1),
+        });
       } else if (node?.type === "fractalBrownianNoise") {
         const state = this.fractalBrownianNoiseStates.get(nodeId) || this.createFractalBrownianNoiseState();
         this.fractalBrownianNoiseStates.set(nodeId, state);
