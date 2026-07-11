@@ -5105,17 +5105,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  createPiSpigotNoiseState() {
+  createPiSpigotNoiseChannelState() {
     return {
       cache: null,
       readIndex: 0,
       cacheStart: null,
-      nativeHandle: 0,
-      nativeStart: null,
       pink: [0, 0, 0, 0, 0, 0, 0],
       brown: 0,
       prevWhite1: 0,
       prevWhite2: 0,
+    };
+  }
+
+  createPiSpigotNoiseState() {
+    return {
+      left: this.createPiSpigotNoiseChannelState(),
+      right: this.createPiSpigotNoiseChannelState(),
+      nativeHandle: 0,
+      nativeSeedLeft: null,
+      nativeSeedRight: null,
     };
   }
 
@@ -8631,7 +8639,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   piSpigotNoiseSample(state, params) {
-    const start = Math.floor(this.safeFilterNumber(params.start, null));
+    const seedLeft = this.clampValue(this.safeFilterNumber(params.seedLeft, null), 0, 1);
+    const seedRight = this.clampValue(this.safeFilterNumber(params.seedRight, null), 0, 1);
     const color = this.clampValue(Math.round(this.safeFilterNumber(params.color, null)), 0, 4);
     const level = this.safeFilterNumber(params.level, null);
     if (
@@ -8644,12 +8653,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           state.nativeHandle = this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_create();
         }
         if (state.nativeHandle) {
-          if (state.nativeStart !== start) {
-            state.nativeStart = start;
-            this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_reset_seed(state.nativeHandle, start);
+          if (state.nativeSeedLeft !== seedLeft || state.nativeSeedRight !== seedRight) {
+            state.nativeSeedLeft = seedLeft;
+            state.nativeSeedRight = seedRight;
+            this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_reset_seed(state.nativeHandle, seedLeft, seedRight);
           }
-          const out = this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, color, level);
-          return this.safeFilterNumber(out, null);
+          this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, color, level);
+          return {
+            "Left Out": this.safeFilterNumber(this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_left(state.nativeHandle), null),
+            "Right Out": this.safeFilterNumber(this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_right(state.nativeHandle), null),
+          };
         }
       } catch (error) {
         this.nativePiSpigotNoiseReady = false;
@@ -8661,18 +8674,28 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
       }
     }
-    return this.piSpigotNoiseSampleJs(state, start, color, level);
+    return this.piSpigotNoiseSampleJs(state, seedLeft, seedRight, color, level);
   }
 
-  piSpigotNoiseSampleJs(state, start, color, level) {
-    const safeStart = this.clampValue(Math.floor(Number(start) || 0), 0, 256);
-    if (!state.cache || state.cacheStart !== safeStart) {
-      this.fillPiSpigotNoiseCacheJs(state, safeStart);
-      this.resetPiSpigotColorFilters(state);
+  piSpigotNoiseChannelSampleJs(channel, seedFraction, color, level) {
+    // Fallback range is the small BBP-computed cache (see
+    // fillPiSpigotNoiseCacheJs), not the full 1-second buffer the native
+    // path reads from -- the normalized seed still spreads across it.
+    const fallbackStart = this.clampValue(Math.round(seedFraction * 256), 0, 256);
+    if (!channel.cache || channel.cacheStart !== fallbackStart) {
+      this.fillPiSpigotNoiseCacheJs(channel, fallbackStart);
+      this.resetPiSpigotColorFilters(channel);
     }
-    const white = state.cache[state.readIndex];
-    state.readIndex = (state.readIndex + 1) % state.cache.length;
-    return this.applyPiSpigotColor(state, white, color) * level;
+    const white = channel.cache[channel.readIndex];
+    channel.readIndex = (channel.readIndex + 1) % channel.cache.length;
+    return this.applyPiSpigotColor(channel, white, color) * level;
+  }
+
+  piSpigotNoiseSampleJs(state, seedLeft, seedRight, color, level) {
+    return {
+      "Left Out": this.piSpigotNoiseChannelSampleJs(state.left, seedLeft, color, level),
+      "Right Out": this.piSpigotNoiseChannelSampleJs(state.right, seedRight, color, level),
+    };
   }
 
   hashBipolar(index, seed) {
@@ -12896,7 +12919,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.piSpigotNoiseStates.set(nodeId, state);
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
         value = this.piSpigotNoiseSample(state, {
-          start: read("start", 0),
+          seedLeft: read("seedLeft", 0),
+          seedRight: read("seedRight", 0.5),
           color: read("color", 0),
           level: read("level", 1),
         });

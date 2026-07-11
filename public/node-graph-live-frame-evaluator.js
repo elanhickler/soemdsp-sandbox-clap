@@ -392,17 +392,25 @@ function createNodeGraphRandomWalkState() {
   };
 }
 
-function createNodeGraphPiSpigotNoiseState() {
+function createNodeGraphPiSpigotNoiseChannelState() {
   return {
     cache: null,
     readIndex: 0,
     cacheStart: null,
-    wasmHandle: 0,
-    wasmStart: null,
     pink: [0, 0, 0, 0, 0, 0, 0],
     brown: 0,
     prevWhite1: 0,
     prevWhite2: 0,
+  };
+}
+
+function createNodeGraphPiSpigotNoiseState() {
+  return {
+    left: createNodeGraphPiSpigotNoiseChannelState(),
+    right: createNodeGraphPiSpigotNoiseChannelState(),
+    wasmHandle: 0,
+    wasmSeedLeft: null,
+    wasmSeedRight: null,
   };
 }
 
@@ -526,8 +534,23 @@ function fillNodeGraphPiSpigotNoiseCacheFallback(state, start) {
   state.cacheStart = safeStart;
 }
 
+function nodeGraphPiSpigotNoiseChannelSampleFallback(channel, seedFraction, color, level) {
+  // Fallback range is the small BBP-computed cache, not the full
+  // 1-second buffer the wasm path reads from -- the normalized seed
+  // still spreads across it.
+  const fallbackStart = clampNodeSliderValue(Math.round(seedFraction * 256), 0, 256);
+  if (!channel.cache || channel.cacheStart !== fallbackStart) {
+    fillNodeGraphPiSpigotNoiseCacheFallback(channel, fallbackStart);
+    resetNodeGraphPiSpigotColorFilters(channel);
+  }
+  const white = channel.cache[channel.readIndex];
+  channel.readIndex = (channel.readIndex + 1) % channel.cache.length;
+  return applyNodeGraphPiSpigotColor(channel, white, color);
+}
+
 function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = "") {
-  const start = Math.floor(nodeGraphSafeFilterNumber(params.start, runtime, nodeId, null, "pi spigot noise start"));
+  const seedLeft = clampNodeSliderValue(nodeGraphSafeFilterNumber(params.seedLeft, runtime, nodeId, null, "pi spigot noise seed L"), 0, 1);
+  const seedRight = clampNodeSliderValue(nodeGraphSafeFilterNumber(params.seedRight, runtime, nodeId, null, "pi spigot noise seed R"), 0, 1);
   const color = clampNodeSliderValue(Math.round(nodeGraphSafeFilterNumber(params.color, runtime, nodeId, null, "pi spigot noise color")), 0, 4);
   const level = nodeGraphSafeFilterNumber(params.level, runtime, nodeId, null, "pi spigot noise level");
 
@@ -538,24 +561,29 @@ function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = ""
       state.wasmHandle = wasm.soemdsp_pi_spigot_noise_create();
     }
     if (state.wasmHandle) {
-      if (state.wasmStart !== start) {
-        state.wasmStart = start;
-        wasm.soemdsp_pi_spigot_noise_reset_seed(state.wasmHandle, start);
+      if (state.wasmSeedLeft !== seedLeft || state.wasmSeedRight !== seedRight) {
+        state.wasmSeedLeft = seedLeft;
+        state.wasmSeedRight = seedRight;
+        wasm.soemdsp_pi_spigot_noise_reset_seed(state.wasmHandle, seedLeft, seedRight);
       }
-      const out = wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, color, level);
-      return nodeGraphSafeFilterNumber(out, runtime, nodeId, null, "pi spigot noise output");
+      wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, color, level);
+      return {
+        "Left Out": nodeGraphSafeFilterNumber(wasm.soemdsp_pi_spigot_noise_left(state.wasmHandle), runtime, nodeId, null, "pi spigot noise left"),
+        "Right Out": nodeGraphSafeFilterNumber(wasm.soemdsp_pi_spigot_noise_right(state.wasmHandle), runtime, nodeId, null, "pi spigot noise right"),
+      };
     }
   }
 
-  const safeStart = clampNodeSliderValue(start, 0, 256);
-  if (!state.cache || state.cacheStart !== safeStart) {
-    fillNodeGraphPiSpigotNoiseCacheFallback(state, safeStart);
-    resetNodeGraphPiSpigotColorFilters(state);
-  }
-  const white = state.cache[state.readIndex];
-  state.readIndex = (state.readIndex + 1) % state.cache.length;
-  const value = applyNodeGraphPiSpigotColor(state, white, color);
-  return nodeGraphSafeFilterNumber(value * level, runtime, nodeId, null, "pi spigot noise output");
+  return {
+    "Left Out": nodeGraphSafeFilterNumber(
+      nodeGraphPiSpigotNoiseChannelSampleFallback(state.left, seedLeft, color, level) * level,
+      runtime, nodeId, null, "pi spigot noise left",
+    ),
+    "Right Out": nodeGraphSafeFilterNumber(
+      nodeGraphPiSpigotNoiseChannelSampleFallback(state.right, seedRight, color, level) * level,
+      runtime, nodeId, null, "pi spigot noise right",
+    ),
+  };
 }
 
 function createNodeGraphFractalBrownianNoiseState() {
@@ -3904,7 +3932,8 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       value = nodeGraphPiSpigotNoiseSample(
         state,
         {
-          start: read("start", 0),
+          seedLeft: read("seedLeft", 0),
+          seedRight: read("seedRight", 0.5),
           color: read("color", 0),
           level: read("level", 1),
         },
