@@ -5112,7 +5112,52 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       cacheStart: null,
       nativeHandle: 0,
       nativeStart: null,
+      pink: [0, 0, 0, 0, 0, 0, 0],
+      brown: 0,
+      prevWhite1: 0,
+      prevWhite2: 0,
     };
+  }
+
+  // JS mirror of pi_spigot_noise.cpp's applyColor -- used by the JS
+  // fallback path only (native path applies the same filters in wasm).
+  applyPiSpigotColor(state, white, color) {
+    if (color === 1) {
+      state.pink[0] = 0.99886 * state.pink[0] + white * 0.0555179;
+      state.pink[1] = 0.99332 * state.pink[1] + white * 0.0750759;
+      state.pink[2] = 0.969 * state.pink[2] + white * 0.153852;
+      state.pink[3] = 0.8665 * state.pink[3] + white * 0.3104856;
+      state.pink[4] = 0.55 * state.pink[4] + white * 0.5329522;
+      state.pink[5] = -0.7616 * state.pink[5] - white * 0.016898;
+      const out = (state.pink[0] + state.pink[1] + state.pink[2] +
+        state.pink[3] + state.pink[4] + state.pink[5] + state.pink[6] + white * 0.5362) * 0.11;
+      state.pink[6] = white * 0.115926;
+      return out;
+    }
+    if (color === 2) {
+      state.brown = this.clampValue(state.brown + white * 0.05, -1, 1);
+      return state.brown;
+    }
+    if (color === 3) {
+      const out = (white - state.prevWhite1) * 0.5;
+      state.prevWhite1 = white;
+      return out;
+    }
+    if (color === 4) {
+      const out = (white - 2 * state.prevWhite1 + state.prevWhite2) * 0.25;
+      state.prevWhite2 = state.prevWhite1;
+      state.prevWhite1 = white;
+      return out;
+    }
+    return white;
+  }
+
+  resetPiSpigotColorFilters(state) {
+    state.pink[0] = 0; state.pink[1] = 0; state.pink[2] = 0; state.pink[3] = 0;
+    state.pink[4] = 0; state.pink[5] = 0; state.pink[6] = 0;
+    state.brown = 0;
+    state.prevWhite1 = 0;
+    state.prevWhite2 = 0;
   }
 
   // JS-side mirror of pi_spigot_noise.cpp's BBP digit extraction -- only
@@ -8587,6 +8632,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
   piSpigotNoiseSample(state, params) {
     const start = Math.floor(this.safeFilterNumber(params.start, null));
+    const color = this.clampValue(Math.round(this.safeFilterNumber(params.color, null)), 0, 4);
     const level = this.safeFilterNumber(params.level, null);
     if (
       this.nativePiSpigotNoiseReady &&
@@ -8602,7 +8648,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             state.nativeStart = start;
             this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_reset_seed(state.nativeHandle, start);
           }
-          const out = this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, level);
+          const out = this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, color, level);
           return this.safeFilterNumber(out, null);
         }
       } catch (error) {
@@ -8615,17 +8661,18 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
       }
     }
-    return this.piSpigotNoiseSampleJs(state, start, level);
+    return this.piSpigotNoiseSampleJs(state, start, color, level);
   }
 
-  piSpigotNoiseSampleJs(state, start, level) {
+  piSpigotNoiseSampleJs(state, start, color, level) {
     const safeStart = this.clampValue(Math.floor(Number(start) || 0), 0, 256);
     if (!state.cache || state.cacheStart !== safeStart) {
       this.fillPiSpigotNoiseCacheJs(state, safeStart);
+      this.resetPiSpigotColorFilters(state);
     }
-    const value = state.cache[state.readIndex];
+    const white = state.cache[state.readIndex];
     state.readIndex = (state.readIndex + 1) % state.cache.length;
-    return value * level;
+    return this.applyPiSpigotColor(state, white, color) * level;
   }
 
   hashBipolar(index, seed) {
@@ -12850,6 +12897,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
         value = this.piSpigotNoiseSample(state, {
           start: read("start", 0),
+          color: read("color", 0),
           level: read("level", 1),
         });
       } else if (node?.type === "fractalBrownianNoise") {

@@ -399,7 +399,52 @@ function createNodeGraphPiSpigotNoiseState() {
     cacheStart: null,
     wasmHandle: 0,
     wasmStart: null,
+    pink: [0, 0, 0, 0, 0, 0, 0],
+    brown: 0,
+    prevWhite1: 0,
+    prevWhite2: 0,
   };
+}
+
+// JS mirror of pi_spigot_noise.cpp's applyColor -- used only when the
+// fallback BBP cache is active (wasm not yet loaded or failed).
+function applyNodeGraphPiSpigotColor(state, white, color) {
+  if (color === 1) {
+    state.pink[0] = 0.99886 * state.pink[0] + white * 0.0555179;
+    state.pink[1] = 0.99332 * state.pink[1] + white * 0.0750759;
+    state.pink[2] = 0.969 * state.pink[2] + white * 0.153852;
+    state.pink[3] = 0.8665 * state.pink[3] + white * 0.3104856;
+    state.pink[4] = 0.55 * state.pink[4] + white * 0.5329522;
+    state.pink[5] = -0.7616 * state.pink[5] - white * 0.016898;
+    const out = (state.pink[0] + state.pink[1] + state.pink[2] +
+      state.pink[3] + state.pink[4] + state.pink[5] + state.pink[6] + white * 0.5362) * 0.11;
+    state.pink[6] = white * 0.115926;
+    return out;
+  }
+  if (color === 2) {
+    state.brown = clampNodeSliderValue(state.brown + white * 0.05, -1, 1);
+    return state.brown;
+  }
+  if (color === 3) {
+    const out = (white - state.prevWhite1) * 0.5;
+    state.prevWhite1 = white;
+    return out;
+  }
+  if (color === 4) {
+    const out = (white - 2 * state.prevWhite1 + state.prevWhite2) * 0.25;
+    state.prevWhite2 = state.prevWhite1;
+    state.prevWhite1 = white;
+    return out;
+  }
+  return white;
+}
+
+function resetNodeGraphPiSpigotColorFilters(state) {
+  state.pink[0] = 0; state.pink[1] = 0; state.pink[2] = 0; state.pink[3] = 0;
+  state.pink[4] = 0; state.pink[5] = 0; state.pink[6] = 0;
+  state.brown = 0;
+  state.prevWhite1 = 0;
+  state.prevWhite2 = 0;
 }
 
 // Unlike node-live-audio-worklet.js, this evaluator runs on the main
@@ -483,6 +528,7 @@ function fillNodeGraphPiSpigotNoiseCacheFallback(state, start) {
 
 function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = "") {
   const start = Math.floor(nodeGraphSafeFilterNumber(params.start, runtime, nodeId, null, "pi spigot noise start"));
+  const color = clampNodeSliderValue(Math.round(nodeGraphSafeFilterNumber(params.color, runtime, nodeId, null, "pi spigot noise color")), 0, 4);
   const level = nodeGraphSafeFilterNumber(params.level, runtime, nodeId, null, "pi spigot noise level");
 
   nodeGraphPiSpigotNoiseLoadWasm();
@@ -496,7 +542,7 @@ function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = ""
         state.wasmStart = start;
         wasm.soemdsp_pi_spigot_noise_reset_seed(state.wasmHandle, start);
       }
-      const out = wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, level);
+      const out = wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, color, level);
       return nodeGraphSafeFilterNumber(out, runtime, nodeId, null, "pi spigot noise output");
     }
   }
@@ -504,9 +550,11 @@ function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = ""
   const safeStart = clampNodeSliderValue(start, 0, 256);
   if (!state.cache || state.cacheStart !== safeStart) {
     fillNodeGraphPiSpigotNoiseCacheFallback(state, safeStart);
+    resetNodeGraphPiSpigotColorFilters(state);
   }
-  const value = state.cache[state.readIndex];
+  const white = state.cache[state.readIndex];
   state.readIndex = (state.readIndex + 1) % state.cache.length;
+  const value = applyNodeGraphPiSpigotColor(state, white, color);
   return nodeGraphSafeFilterNumber(value * level, runtime, nodeId, null, "pi spigot noise output");
 }
 
@@ -3857,6 +3905,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         state,
         {
           start: read("start", 0),
+          color: read("color", 0),
           level: read("level", 1),
         },
         runtime,
