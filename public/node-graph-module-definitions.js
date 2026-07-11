@@ -1541,6 +1541,16 @@ const nodeGraphModuleDefinitions = Object.freeze({
         step: "1",
       },
       {
+        defaultValue: "0",
+        key: "smoothing",
+        label: "Smoothing",
+        max: "1",
+        mid: "0.5",
+        min: "0",
+        nonlinearSlider: false,
+        step: "any",
+      },
+      {
         defaultValue: "1",
         key: "level",
         label: "Level",

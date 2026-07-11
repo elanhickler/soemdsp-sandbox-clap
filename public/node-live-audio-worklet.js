@@ -5141,7 +5141,23 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       brown: 0,
       prevWhite1: 0,
       prevWhite2: 0,
+      smoothLp: [0, 0, 0, 0],
     };
+  }
+
+  // JS mirror of pi_spigot_noise.cpp's applySmoothing -- see that file
+  // for why a 4-stage one-pole cascade with an exponential g curve.
+  applyPiSpigotSmoothing(channel, x, smoothing) {
+    const safeSmoothing = this.clampValue(Number(smoothing) || 0, 0, 1);
+    if (safeSmoothing <= 0) return x;
+    const lnSmoothMinG = -3.912023005428146; // ln(0.02)
+    const g = Math.exp(safeSmoothing * lnSmoothMinG);
+    let y = x;
+    for (let i = 0; i < 4; i++) {
+      channel.smoothLp[i] += g * (y - channel.smoothLp[i]);
+      y = channel.smoothLp[i];
+    }
+    return y;
   }
 
   createBradley2AState() {
@@ -5317,6 +5333,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     state.brown = 0;
     state.prevWhite1 = 0;
     state.prevWhite2 = 0;
+    state.smoothLp[0] = 0; state.smoothLp[1] = 0; state.smoothLp[2] = 0; state.smoothLp[3] = 0;
   }
 
   // JS-side mirror of pi_spigot_noise.cpp's BBP digit extraction -- only
@@ -8795,6 +8812,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     const seedLeft = this.clampValue(this.safeFilterNumber(params.seedLeft, null), 0, 1);
     const seedRight = this.clampValue(this.safeFilterNumber(params.seedRight, null), 0, 1);
     const color = this.clampValue(Math.round(this.safeFilterNumber(params.color, null)), 0, 4);
+    const smoothing = this.clampValue(this.safeFilterNumber(params.smoothing, null), 0, 1);
     const level = this.safeFilterNumber(params.level, null);
     if (
       this.nativePiSpigotNoiseReady &&
@@ -8811,7 +8829,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             state.nativeSeedRight = seedRight;
             this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_reset_seed(state.nativeHandle, seedLeft, seedRight);
           }
-          this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, color, level);
+          this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_sample(state.nativeHandle, color, smoothing, level);
           return {
             "Left Out": this.safeFilterNumber(this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_left(state.nativeHandle), null),
             "Right Out": this.safeFilterNumber(this.nativePiSpigotNoise.soemdsp_pi_spigot_noise_right(state.nativeHandle), null),
@@ -8827,10 +8845,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
       }
     }
-    return this.piSpigotNoiseSampleJs(state, seedLeft, seedRight, color, level);
+    return this.piSpigotNoiseSampleJs(state, seedLeft, seedRight, color, smoothing, level);
   }
 
-  piSpigotNoiseChannelSampleJs(channel, seedFraction, color, level) {
+  piSpigotNoiseChannelSampleJs(channel, seedFraction, color, smoothing, level) {
     // Fallback range is the small BBP-computed cache (see
     // fillPiSpigotNoiseCacheJs), not the full 1-second buffer the native
     // path reads from -- the normalized seed still spreads across it.
@@ -8841,13 +8859,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
     const white = channel.cache[channel.readIndex];
     channel.readIndex = (channel.readIndex + 1) % channel.cache.length;
-    return this.applyPiSpigotColor(channel, white, color) * level;
+    const colored = this.applyPiSpigotColor(channel, white, color);
+    return this.applyPiSpigotSmoothing(channel, colored, smoothing) * level;
   }
 
-  piSpigotNoiseSampleJs(state, seedLeft, seedRight, color, level) {
+  piSpigotNoiseSampleJs(state, seedLeft, seedRight, color, smoothing, level) {
     return {
-      "Left Out": this.piSpigotNoiseChannelSampleJs(state.left, seedLeft, color, level),
-      "Right Out": this.piSpigotNoiseChannelSampleJs(state.right, seedRight, color, level),
+      "Left Out": this.piSpigotNoiseChannelSampleJs(state.left, seedLeft, color, smoothing, level),
+      "Right Out": this.piSpigotNoiseChannelSampleJs(state.right, seedRight, color, smoothing, level),
     };
   }
 
@@ -13082,6 +13101,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           seedLeft: read("seedLeft", 0),
           seedRight: read("seedRight", 0.5),
           color: read("color", 0),
+          smoothing: read("smoothing", 0),
           level: read("level", 1),
         });
       } else if (node?.type === "bradley2a") {

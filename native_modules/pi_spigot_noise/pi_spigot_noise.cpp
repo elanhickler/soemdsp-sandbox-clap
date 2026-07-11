@@ -58,6 +58,7 @@ static const char kMetadataJson[] =
       "{\"key\":\"seedLeft\",\"label\":\"Seed L\",\"defaultValue\":0,\"min\":0,\"mid\":0.5,\"max\":1,\"step\":\"any\"},"
       "{\"key\":\"seedRight\",\"label\":\"Seed R\",\"defaultValue\":0.5,\"min\":0,\"mid\":0.5,\"max\":1,\"step\":\"any\"},"
       "{\"key\":\"color\",\"label\":\"Color\",\"defaultValue\":0,\"choices\":[\"White\",\"Pink\",\"Brown\",\"Blue\",\"Violet\"],\"displayChoices\":true,\"divideChoicesVisibly\":true,\"min\":0,\"mid\":2,\"max\":4,\"step\":1},"
+      "{\"key\":\"smoothing\",\"label\":\"Smoothing\",\"defaultValue\":0,\"min\":0,\"mid\":0.5,\"max\":1,\"step\":\"any\"},"
       "{\"key\":\"level\",\"label\":\"Level\",\"defaultValue\":1,\"min\":0,\"mid\":0.5,\"max\":1,\"step\":\"any\"}"
     "]"
   "}";
@@ -82,6 +83,12 @@ struct PiSpigotNoiseChannel {
   double brown;
   double prevWhite1;
   double prevWhite2;
+  // Smoothing: a 4-stage one-pole lowpass cascade (see applySmoothing).
+  // Repeated one-pole recursion converges to a Gaussian by the central
+  // limit theorem -- a cheap real-time approximation with no hard
+  // cutoff, applied after color so it darkens whichever color is chosen
+  // rather than being just another color option itself.
+  double smoothLp[4];
   double lastOut;
 };
 
@@ -134,11 +141,29 @@ static double series(int m, int n) {
   return frac < 0.0 ? frac + 1.0 : frac;
 }
 
+// Same range-reduction exp as random_walk/pluck_envelope/exp_adsr.
+static double dsp_exp(double x) {
+  if (x < -700.0) return 0.0;
+  if (x > 700.0) return 1e300;
+  const double LOG2E = 1.4426950408889634;
+  const double LN2 = 0.6931471805599453;
+  double t = x * LOG2E;
+  long long n = (long long)t;
+  if (t < 0.0 && (double)n != t) n -= 1;
+  double f = t - (double)n;
+  double y = f * LN2;
+  double ey = 1.0 + y*(1.0 + y*(0.5 + y*(1.0/6.0 + y*(1.0/24.0 + y*(1.0/120.0 + y*(1.0/720.0 + y/5040.0))))));
+  union { double d; unsigned long long u; } bits;
+  bits.u = (unsigned long long)(n + 1023) << 52;
+  return ey * bits.d;
+}
+
 static void resetChannelColorFilters(PiSpigotNoiseChannel& c) {
   for (int i = 0; i < 7; i++) c.pink[i] = 0.0;
   c.brown = 0.0;
   c.prevWhite1 = 0.0;
   c.prevWhite2 = 0.0;
+  for (int i = 0; i < 4; i++) c.smoothLp[i] = 0.0;
   c.lastOut = 0.0;
 }
 
@@ -184,7 +209,30 @@ static double applyColor(PiSpigotNoiseChannel& c, double white, int color) {
   return white;
 }
 
-static double channelSample(PiSpigotNoiseChannel& c, int color) {
+// smoothing in [0, 1]: 0 = passthrough (g = 1, raw noise), 1 = heaviest
+// smoothing (g = kSmoothMinG). Exponential curve, not linear -- g = gMin^s
+// via g = exp(s * ln(gMin)), ln(kSmoothMinG) precomputed as a literal
+// since kSmoothMinG is a fixed constant, so no ln() implementation is
+// needed, only the already-proven dsp_exp above. Cascading 4 of these in
+// series approximates a Gaussian rolloff (central limit theorem) with no
+// hard cutoff, applied after color so it darkens whichever color is
+// selected rather than being a color option itself.
+static const double kSmoothMinG = 0.02;
+static const double kLnSmoothMinG = -3.912023005428146;  // ln(0.02)
+
+static double applySmoothing(PiSpigotNoiseChannel& c, double x, double smoothing) {
+  double safeSmoothing = clampd(smoothing, 0.0, 1.0);
+  if (safeSmoothing <= 0.0) return x;
+  double g = dsp_exp(safeSmoothing * kLnSmoothMinG);
+  double y = x;
+  for (int i = 0; i < 4; i++) {
+    c.smoothLp[i] += g * (y - c.smoothLp[i]);
+    y = c.smoothLp[i];
+  }
+  return y;
+}
+
+static double channelSample(PiSpigotNoiseChannel& c, int color, double smoothing) {
   double readPos = c.phase - (double)kPiDigitSampleCount * (double)(long long)(c.phase / (double)kPiDigitSampleCount);
   if (readPos < 0.0) readPos += (double)kPiDigitSampleCount;
   int i0 = (int)readPos;
@@ -194,7 +242,8 @@ static double channelSample(PiSpigotNoiseChannel& c, int color) {
   double v1 = (double)kPiDigitSamples[i1] / 32767.0;
   double white = v0 + (v1 - v0) * frac;
   c.phase += kPlaybackStep;
-  return applyColor(c, white, color);
+  double colored = applyColor(c, white, color);
+  return applySmoothing(c, colored, smoothing);
 }
 
 }  // namespace
@@ -229,12 +278,12 @@ extern "C" void soemdsp_pi_spigot_noise_reset_seed(int handle, double seedLeft, 
 // Advances both channels and caches their outputs -- read them back with
 // soemdsp_pi_spigot_noise_left/right, same create-once/getter convention
 // as noise_generator.cpp's stereo sample/left/right.
-extern "C" void soemdsp_pi_spigot_noise_sample(int handle, double color, double level) {
+extern "C" void soemdsp_pi_spigot_noise_sample(int handle, double color, double smoothing, double level) {
   if (handle < 1 || handle > kMaxInstances) return;
   PiSpigotNoiseState& s = gPool[handle - 1];
   int safeColor = clampi((int)(color + 0.5), 0, 4);
-  s.left.lastOut = channelSample(s.left, safeColor) * level;
-  s.right.lastOut = channelSample(s.right, safeColor) * level;
+  s.left.lastOut = channelSample(s.left, safeColor, smoothing) * level;
+  s.right.lastOut = channelSample(s.right, safeColor, smoothing) * level;
 }
 
 extern "C" double soemdsp_pi_spigot_noise_left(int handle) {
@@ -262,7 +311,7 @@ extern "C" int soemdsp_pi_spigot_noise_sample_count() {
 }
 
 extern "C" int soemdsp_pi_spigot_noise_version() {
-  return 4;
+  return 5;
 }
 
 extern "C" const char* soemdsp_pi_spigot_noise_metadata_json() {

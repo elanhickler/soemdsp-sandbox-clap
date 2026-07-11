@@ -401,7 +401,23 @@ function createNodeGraphPiSpigotNoiseChannelState() {
     brown: 0,
     prevWhite1: 0,
     prevWhite2: 0,
+    smoothLp: [0, 0, 0, 0],
   };
+}
+
+// JS mirror of pi_spigot_noise.cpp's applySmoothing -- see that file for
+// why a 4-stage one-pole cascade with an exponential g curve.
+function applyNodeGraphPiSpigotSmoothing(channel, x, smoothing) {
+  const safeSmoothing = clampNodeSliderValue(Number(smoothing) || 0, 0, 1);
+  if (safeSmoothing <= 0) return x;
+  const lnSmoothMinG = -3.912023005428146; // ln(0.02)
+  const g = Math.exp(safeSmoothing * lnSmoothMinG);
+  let y = x;
+  for (let i = 0; i < 4; i++) {
+    channel.smoothLp[i] += g * (y - channel.smoothLp[i]);
+    y = channel.smoothLp[i];
+  }
+  return y;
 }
 
 function createNodeGraphPiSpigotNoiseState() {
@@ -453,6 +469,7 @@ function resetNodeGraphPiSpigotColorFilters(state) {
   state.brown = 0;
   state.prevWhite1 = 0;
   state.prevWhite2 = 0;
+  state.smoothLp[0] = 0; state.smoothLp[1] = 0; state.smoothLp[2] = 0; state.smoothLp[3] = 0;
 }
 
 // Unlike node-live-audio-worklet.js, this evaluator runs on the main
@@ -534,7 +551,7 @@ function fillNodeGraphPiSpigotNoiseCacheFallback(state, start) {
   state.cacheStart = safeStart;
 }
 
-function nodeGraphPiSpigotNoiseChannelSampleFallback(channel, seedFraction, color, level) {
+function nodeGraphPiSpigotNoiseChannelSampleFallback(channel, seedFraction, color, smoothing, level) {
   // Fallback range is the small BBP-computed cache, not the full
   // 1-second buffer the wasm path reads from -- the normalized seed
   // still spreads across it.
@@ -545,13 +562,15 @@ function nodeGraphPiSpigotNoiseChannelSampleFallback(channel, seedFraction, colo
   }
   const white = channel.cache[channel.readIndex];
   channel.readIndex = (channel.readIndex + 1) % channel.cache.length;
-  return applyNodeGraphPiSpigotColor(channel, white, color);
+  const colored = applyNodeGraphPiSpigotColor(channel, white, color);
+  return applyNodeGraphPiSpigotSmoothing(channel, colored, smoothing);
 }
 
 function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = "") {
   const seedLeft = clampNodeSliderValue(nodeGraphSafeFilterNumber(params.seedLeft, runtime, nodeId, null, "pi spigot noise seed L"), 0, 1);
   const seedRight = clampNodeSliderValue(nodeGraphSafeFilterNumber(params.seedRight, runtime, nodeId, null, "pi spigot noise seed R"), 0, 1);
   const color = clampNodeSliderValue(Math.round(nodeGraphSafeFilterNumber(params.color, runtime, nodeId, null, "pi spigot noise color")), 0, 4);
+  const smoothing = clampNodeSliderValue(nodeGraphSafeFilterNumber(params.smoothing, runtime, nodeId, null, "pi spigot noise smoothing"), 0, 1);
   const level = nodeGraphSafeFilterNumber(params.level, runtime, nodeId, null, "pi spigot noise level");
 
   nodeGraphPiSpigotNoiseLoadWasm();
@@ -566,7 +585,7 @@ function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = ""
         state.wasmSeedRight = seedRight;
         wasm.soemdsp_pi_spigot_noise_reset_seed(state.wasmHandle, seedLeft, seedRight);
       }
-      wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, color, level);
+      wasm.soemdsp_pi_spigot_noise_sample(state.wasmHandle, color, smoothing, level);
       return {
         "Left Out": nodeGraphSafeFilterNumber(wasm.soemdsp_pi_spigot_noise_left(state.wasmHandle), runtime, nodeId, null, "pi spigot noise left"),
         "Right Out": nodeGraphSafeFilterNumber(wasm.soemdsp_pi_spigot_noise_right(state.wasmHandle), runtime, nodeId, null, "pi spigot noise right"),
@@ -576,11 +595,11 @@ function nodeGraphPiSpigotNoiseSample(state, params, runtime = null, nodeId = ""
 
   return {
     "Left Out": nodeGraphSafeFilterNumber(
-      nodeGraphPiSpigotNoiseChannelSampleFallback(state.left, seedLeft, color, level) * level,
+      nodeGraphPiSpigotNoiseChannelSampleFallback(state.left, seedLeft, color, smoothing, level) * level,
       runtime, nodeId, null, "pi spigot noise left",
     ),
     "Right Out": nodeGraphSafeFilterNumber(
-      nodeGraphPiSpigotNoiseChannelSampleFallback(state.right, seedRight, color, level) * level,
+      nodeGraphPiSpigotNoiseChannelSampleFallback(state.right, seedRight, color, smoothing, level) * level,
       runtime, nodeId, null, "pi spigot noise right",
     ),
   };
@@ -3935,6 +3954,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
           seedLeft: read("seedLeft", 0),
           seedRight: read("seedRight", 0.5),
           color: read("color", 0),
+          smoothing: read("smoothing", 0),
           level: read("level", 1),
         },
         runtime,
