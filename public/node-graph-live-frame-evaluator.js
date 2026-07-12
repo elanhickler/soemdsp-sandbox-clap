@@ -3592,7 +3592,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
 
     const liveModuleEvaluator = node?.type ? nodeGraphLiveModuleEvaluators[node.type] : null;
     if (liveModuleEvaluator) {
-      value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, sampleRate });
+      value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate });
     } else if (node?.type === "groupInput") {
       value = {
         Out: Number(runtime.externalGroupInputs?.get(nodeId)) || 0,
@@ -4301,26 +4301,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         Y: lorenz.y * level,
         Z: lorenz.z * level,
       };
-    } else if (node?.type === "chuaAttractor") {
-      const state = runtime.chuaAttractorStates.get(nodeId) || createNodeGraphChuaAttractorState();
-      runtime.chuaAttractorStates.set(nodeId, state);
-      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
-      const chua = nodeGraphChuaAttractorSample({
-        alpha: read("alpha", 15.6),
-        beta: read("beta", 28),
-        m0: read("m0", -1.143),
-        m1: read("m1", -0.714),
-        reset: mixInput(nodeId, "Reset"),
-        sampleRate,
-        speed: read("speed", 1),
-        state,
-      });
-      const chuaLevel = read("level", 1);
-      value = {
-        X: chua.x * chuaLevel,
-        Y: chua.y * chuaLevel,
-        Z: chua.z * chuaLevel,
-      };
     } else if (node?.type === "wirdoSpiral") {
       const state = runtime.wirdoSpiralStates.get(nodeId) || createNodeGraphWirdoSpiralState();
       runtime.wirdoSpiralStates.set(nodeId, state);
@@ -4544,27 +4524,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       value = {
         X: radar.x * radarLevel,
         Y: radar.y * radarLevel,
-      };
-    } else if (node?.type === "chordMemory") {
-      const state = runtime.chordMemoryStates.get(nodeId) || createNodeGraphChordMemoryState();
-      runtime.chordMemoryStates.set(nodeId, state);
-      value = nodeGraphChordMemorySample(state, {
-        advance: mixInput(nodeId, "Advance"),
-        clear: mixInput(nodeId, "Clear"),
-        latch: mixInput(nodeId, "Latch"),
-        pitch: mixInput(nodeId, "Pitch"),
-      });
-    } else if (node?.type === "pitchQuantizer") {
-      const state = runtime.pitchQuantizerStates.get(nodeId) || createNodeGraphPitchQuantizerState();
-      runtime.pitchQuantizerStates.set(nodeId, state);
-      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
-      value = {
-        "0.1V/Oct": nodeGraphPitchQuantizerSample(state, {
-          hasScaleInput: hasInput(nodeId, "Scale"),
-          pitch: mixInput(nodeId, "0.1V/Oct"),
-          scaleChoice: read("scale", 1),
-          scaleInput: mixInput(nodeId, "Scale"),
-        }),
       };
     } else if (node?.type === "surgeOscillator") {
       const state = runtime.surgeOscillatorStates.get(nodeId) || createNodeGraphSurgeOscillatorState();

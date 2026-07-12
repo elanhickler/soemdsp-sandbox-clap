@@ -250,6 +250,9 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/turingMachine/turing-machine-live-evaluator.js",
     "./public/modules/oscilloscopeBank/oscilloscope-bank-display.js",
     "./public/modules/henonMap/henon-map-live-evaluator.js",
+    "./public/modules/chuaAttractor/chua-attractor-live-evaluator.js",
+    "./public/modules/chordMemory/chord-memory-live-evaluator.js",
+    "./public/modules/pitchQuantizer/pitch-quantizer-live-evaluator.js",
 )
 
 

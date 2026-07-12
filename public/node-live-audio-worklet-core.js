@@ -11654,6 +11654,49 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Y: henon.y * henonLevel,
         };
       },
+      chuaAttractor: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.chuaAttractorStates.get(nodeId) || this.createChuaAttractorState();
+        this.chuaAttractorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const chua = this.chuaAttractorSample(state, {
+          alpha: read("alpha", 15.6),
+          beta: read("beta", 28),
+          m0: read("m0", -1.143),
+          m1: read("m1", -0.714),
+          reset: mixInput(nodeId, "Reset"),
+          sampleRate: safeRate,
+          speed: read("speed", 1),
+        });
+        const chuaLevel = read("level", 1);
+        return {
+          X: chua.x * chuaLevel,
+          Y: chua.y * chuaLevel,
+          Z: chua.z * chuaLevel,
+        };
+      },
+      chordMemory: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const state = this.chordMemoryStates.get(nodeId) || this.createChordMemoryState();
+        this.chordMemoryStates.set(nodeId, state);
+        return this.chordMemorySample(state, {
+          advance: mixInput(nodeId, "Advance"),
+          clear: mixInput(nodeId, "Clear"),
+          latch: mixInput(nodeId, "Latch"),
+          pitch: mixInput(nodeId, "Pitch"),
+        });
+      },
+      pitchQuantizer: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const state = this.pitchQuantizerStates.get(nodeId) || this.createPitchQuantizerState();
+        this.pitchQuantizerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return {
+          "0.1V/Oct": this.pitchQuantizerSample(state, {
+            hasScaleInput: hasInput(nodeId, "Scale"),
+            pitch: mixInput(nodeId, "0.1V/Oct"),
+            scaleChoice: read("scale", 1),
+            scaleInput: mixInput(nodeId, "Scale"),
+          }),
+        };
+      },
     };
   }
 
@@ -12939,7 +12982,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       let value = 0;
       const liveModuleEvaluator = node?.type ? this.liveModuleEvaluators[node.type] : null;
       if (liveModuleEvaluator) {
-        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate);
+        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput);
       } else if (node?.type === "groupInput") {
         value = {
           Out: Number(this.externalGroupInputs?.get(nodeId)) || 0,
@@ -13824,46 +13867,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = {
           X: radar.x * radarLevel,
           Y: radar.y * radarLevel,
-        };
-      } else if (node?.type === "chuaAttractor") {
-        const state = this.chuaAttractorStates.get(nodeId) || this.createChuaAttractorState();
-        this.chuaAttractorStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const chua = this.chuaAttractorSample(state, {
-          alpha: read("alpha", 15.6),
-          beta: read("beta", 28),
-          m0: read("m0", -1.143),
-          m1: read("m1", -0.714),
-          reset: mixInput(nodeId, "Reset"),
-          sampleRate: safeRate,
-          speed: read("speed", 1),
-        });
-        const chuaLevel = read("level", 1);
-        value = {
-          X: chua.x * chuaLevel,
-          Y: chua.y * chuaLevel,
-          Z: chua.z * chuaLevel,
-        };
-      } else if (node?.type === "chordMemory") {
-        const state = this.chordMemoryStates.get(nodeId) || this.createChordMemoryState();
-        this.chordMemoryStates.set(nodeId, state);
-        value = this.chordMemorySample(state, {
-          advance: mixInput(nodeId, "Advance"),
-          clear: mixInput(nodeId, "Clear"),
-          latch: mixInput(nodeId, "Latch"),
-          pitch: mixInput(nodeId, "Pitch"),
-        });
-      } else if (node?.type === "pitchQuantizer") {
-        const state = this.pitchQuantizerStates.get(nodeId) || this.createPitchQuantizerState();
-        this.pitchQuantizerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = {
-          "0.1V/Oct": this.pitchQuantizerSample(state, {
-            hasScaleInput: hasInput(nodeId, "Scale"),
-            pitch: mixInput(nodeId, "0.1V/Oct"),
-            scaleChoice: read("scale", 1),
-            scaleInput: mixInput(nodeId, "Scale"),
-          }),
         };
       } else if (node?.type === "chordSequencer") {
         const state = this.chordSequencerStates.get(nodeId) || this.createChordSequencerState();
