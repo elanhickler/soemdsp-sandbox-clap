@@ -342,6 +342,8 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/groupInput/group-input-live-evaluator.js",
     "./public/modules/audioInput/audio-input-live-evaluator.js",
     "./public/modules/audioPlayer/audio-player-live-evaluator.js",
+    "./public/modules/moduleGroup/module-group-live-evaluator.js",
+    "./public/modules/codeblock/codeblock-live-evaluator.js",
 )
 
 
@@ -3831,7 +3833,8 @@ def require_node_graph_mvp_contract() -> None:
         "header events": script_sources["./public/node-graph-header-event-bindings.js"],
         "menu": index_source,
         "menu events": script_sources["./public/node-graph-scene-menu-event-bindings.js"],
-        "runtime": script_sources["./public/node-graph-live-frame-evaluator.js"],
+        "runtime": script_sources["./public/node-graph-live-frame-evaluator.js"]
+        + script_sources["./public/modules/codeblock/codeblock-live-evaluator.js"],
         "worklet": worklet_source,
     }
     graph_contract_sources = {
@@ -4977,7 +4980,7 @@ def require_node_graph_mvp_contract() -> None:
                 "state: Object.create(null)",
                 "fn(inputs, output, state, {",
                 "time: (Number(frame) || 0) / (Number(sampleRate) || 44100)",
-                'node?.type === "codeblock"',
+                "nodeGraphLiveModuleEvaluators.codeblock = (",
             ],
         ),
         (
@@ -9610,7 +9613,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeGraphBuildLivePlanForPatch(patch)",
         "moduleGroupPlan",
         "nodeGraphLiveModuleEvaluators.groupInput = (",
-        "node?.type === \"moduleGroup\"",
+        "nodeGraphLiveModuleEvaluators.moduleGroup = (",
         "nodeGraphLiveModuleEvaluators.groupOutput = (",
         "function normalizeNodeGraphModuleStoreDepartment(department = \"\")",
         "return \"Sequence\";",
@@ -10251,7 +10254,7 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphLiveModuleEvaluators.randomWalk = (",
         "nodeGraphLiveModuleEvaluators.fractalBrownianNoise = (",
         "nodeGraphLiveModuleEvaluators.groupInput = (",
-        'node?.type === "moduleGroup"',
+        "nodeGraphLiveModuleEvaluators.moduleGroup = (",
         "nodeGraphLiveModuleEvaluators.groupOutput = (",
         "moduleGroupPlan",
         "nodeGraphLiveModuleEvaluators.badvalMonitor = (",

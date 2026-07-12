@@ -3876,10 +3876,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         nodeId,
         wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
       );
-    } else if (node?.type === "moduleGroup") {
-      value = nodeGraphEvaluateModuleGroup(runtime, node, mixInput, sampleRate, frame, frames);
-    } else if (node?.type === "codeblock") {
-      value = nodeGraphEvaluateCodeblock(runtime, node, mixInput, sampleRate, frame, frames);
     } else if (nodeGraphModuleIsGraphType(node?.type)) {
       value = graphOutputValue(node, nodeId);
     }

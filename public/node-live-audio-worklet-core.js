@@ -13248,6 +13248,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       },
+      moduleGroup: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame),
+      codeblock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame),
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14576,7 +14578,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       let value = 0;
       const liveModuleEvaluator = node?.type ? this.liveModuleEvaluators[node.type] : null;
       if (liveModuleEvaluator) {
-        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput);
+        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame);
       } else if (node?.type === "audioInput") {
         const input = inputs[0] || [];
         const leftChannel = input[0] || input[1] || null;
@@ -14854,10 +14856,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
         );
-      } else if (node?.type === "moduleGroup") {
-        value = this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame);
-      } else if (node?.type === "codeblock") {
-        value = this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame);
       } else if (node?.type === "graph" || node?.type === "graph2") {
         value = graphOutputValue(node, nodeId);
       }
