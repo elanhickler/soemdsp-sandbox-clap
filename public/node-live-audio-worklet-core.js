@@ -12574,6 +12574,112 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Z: lorenz.z * level,
         };
       },
+      noiseGenerator: (node, nodeId, frame, frames, frameValues) => {
+        const state = this.noiseGeneratorStates.get(nodeId) || this.createNoiseGeneratorState();
+        this.noiseGeneratorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.noiseGeneratorSample(
+          state,
+          {
+            deviation: read("deviation", 0.5),
+            level: read("level", 1),
+            mean: read("mean", 0),
+            mode: read("mode", 0),
+            seed: read("seed", 1),
+          },
+          nodeId,
+        );
+      },
+      randomWalk: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.randomWalkStates.get(nodeId) || this.createRandomWalkState();
+        this.randomWalkStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.randomWalkSample(
+          state,
+          {
+            frequency: read("frequency", 2),
+            jitter: read("jitter", 0.25),
+            level: read("level", 1),
+            method: read("method", 3),
+            seed: read("seed", 1),
+          },
+          safeRate,
+          nodeId,
+        );
+      },
+      piSpigotNoise: (node, nodeId, frame, frames, frameValues) => {
+        const state = this.piSpigotNoiseStates.get(nodeId) || this.createPiSpigotNoiseState();
+        this.piSpigotNoiseStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.piSpigotNoiseSample(state, {
+          seedLeft: read("seedLeft", 0),
+          seedRight: read("seedRight", 0.5),
+          color: read("color", 0),
+          smoothing: read("smoothing", 0),
+          level: read("level", 1),
+        });
+      },
+      bradley2a: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.bradley2AStates.get(nodeId) || this.createBradley2AState();
+        this.bradley2AStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.bradley2ASample(
+          state,
+          {
+            carrierFreq: read("carrierFreq", 1004),
+            freqOffset: read("freqOffset", 0),
+            jitterDepth: read("jitterDepth", 0),
+            jitterRate: read("jitterRate", 60),
+            ampDepth: read("ampDepth", 0),
+            ampRate: read("ampRate", 40),
+            interfLevel: read("interfLevel", 0),
+            interfFreq: read("interfFreq", 2600),
+            harm2: read("harm2", 0),
+            harm3: read("harm3", 0),
+            hitRate: read("hitRate", 1),
+            hitDuration: read("hitDuration", 0.005),
+            hitGain: read("hitGain", 1),
+            hitPhase: read("hitPhase", 0),
+            impulseLevel: read("impulseLevel", 0),
+            level: read("level", 1),
+          },
+          safeRate,
+        );
+      },
+      antisaw: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.antisawStates.get(nodeId) || this.createAntisawState();
+        this.antisawStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.antisawSample(
+          state,
+          {
+            fundamental: read("fundamental", 110),
+            reflections: read("reflections", 64),
+            tilt: read("tilt", 0),
+            level: read("level", 1),
+          },
+          safeRate,
+        );
+      },
+      fractalBrownianNoise: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.fractalBrownianNoiseStates.get(nodeId) || this.createFractalBrownianNoiseState();
+        this.fractalBrownianNoiseStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.fractalBrownianNoiseVector(
+          state,
+          {
+            frequency: read("frequency", 0.5),
+            level: read("level", 1),
+            octaves: read("octaves", 4),
+            persistence: read("persistence", 0.5),
+            scale: read("scale", 1),
+            seed: read("seed", 1),
+          },
+          safeRate,
+          nodeId,
+          mixInput(nodeId, "Reset"),
+        );
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14192,106 +14298,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.phases.set(
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-        );
-      } else if (node?.type === "noiseGenerator") {
-        const state = this.noiseGeneratorStates.get(nodeId) || this.createNoiseGeneratorState();
-        this.noiseGeneratorStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.noiseGeneratorSample(
-          state,
-          {
-            deviation: read("deviation", 0.5),
-            level: read("level", 1),
-            mean: read("mean", 0),
-            mode: read("mode", 0),
-            seed: read("seed", 1),
-          },
-          nodeId,
-        );
-      } else if (node?.type === "randomWalk") {
-        const state = this.randomWalkStates.get(nodeId) || this.createRandomWalkState();
-        this.randomWalkStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.randomWalkSample(
-          state,
-          {
-            frequency: read("frequency", 2),
-            jitter: read("jitter", 0.25),
-            level: read("level", 1),
-            method: read("method", 3),
-            seed: read("seed", 1),
-          },
-          safeRate,
-          nodeId,
-        );
-      } else if (node?.type === "piSpigotNoise") {
-        const state = this.piSpigotNoiseStates.get(nodeId) || this.createPiSpigotNoiseState();
-        this.piSpigotNoiseStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.piSpigotNoiseSample(state, {
-          seedLeft: read("seedLeft", 0),
-          seedRight: read("seedRight", 0.5),
-          color: read("color", 0),
-          smoothing: read("smoothing", 0),
-          level: read("level", 1),
-        });
-      } else if (node?.type === "bradley2a") {
-        const state = this.bradley2AStates.get(nodeId) || this.createBradley2AState();
-        this.bradley2AStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.bradley2ASample(
-          state,
-          {
-            carrierFreq: read("carrierFreq", 1004),
-            freqOffset: read("freqOffset", 0),
-            jitterDepth: read("jitterDepth", 0),
-            jitterRate: read("jitterRate", 60),
-            ampDepth: read("ampDepth", 0),
-            ampRate: read("ampRate", 40),
-            interfLevel: read("interfLevel", 0),
-            interfFreq: read("interfFreq", 2600),
-            harm2: read("harm2", 0),
-            harm3: read("harm3", 0),
-            hitRate: read("hitRate", 1),
-            hitDuration: read("hitDuration", 0.005),
-            hitGain: read("hitGain", 1),
-            hitPhase: read("hitPhase", 0),
-            impulseLevel: read("impulseLevel", 0),
-            level: read("level", 1),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "antisaw") {
-        const state = this.antisawStates.get(nodeId) || this.createAntisawState();
-        this.antisawStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.antisawSample(
-          state,
-          {
-            fundamental: read("fundamental", 110),
-            reflections: read("reflections", 64),
-            tilt: read("tilt", 0),
-            level: read("level", 1),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "fractalBrownianNoise") {
-        const state = this.fractalBrownianNoiseStates.get(nodeId) || this.createFractalBrownianNoiseState();
-        this.fractalBrownianNoiseStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.fractalBrownianNoiseVector(
-          state,
-          {
-            frequency: read("frequency", 0.5),
-            level: read("level", 1),
-            octaves: read("octaves", 4),
-            persistence: read("persistence", 0.5),
-            scale: read("scale", 1),
-            seed: read("seed", 1),
-          },
-          safeRate,
-          nodeId,
-          mixInput(nodeId, "Reset"),
         );
       } else if (node?.type === "clock") {
         const state = this.clockStates.get(nodeId) || this.createClockState();

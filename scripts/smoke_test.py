@@ -299,6 +299,12 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/fractalSpiral/fractal-spiral-live-evaluator.js",
     "./public/modules/logSpiral/log-spiral-live-evaluator.js",
     "./public/modules/lorenzAttractor/lorenz-attractor-live-evaluator.js",
+    "./public/modules/noiseGenerator/noise-generator-live-evaluator.js",
+    "./public/modules/randomWalk/random-walk-live-evaluator.js",
+    "./public/modules/piSpigotNoise/pi-spigot-noise-live-evaluator.js",
+    "./public/modules/bradley2a/bradley-2a-live-evaluator.js",
+    "./public/modules/antisaw/antisaw-live-evaluator.js",
+    "./public/modules/fractalBrownianNoise/fractal-brownian-noise-live-evaluator.js",
 )
 
 
@@ -10204,9 +10210,9 @@ def require_node_graph_mvp_contract() -> None:
         "const increment = Math.max(0, frequency / keyboardRate)",
         "Increment: increment",
         "ScopeOff: scopeTracesOff",
-        'node?.type === "noiseGenerator"',
-        'node?.type === "randomWalk"',
-        'node?.type === "fractalBrownianNoise"',
+        "nodeGraphLiveModuleEvaluators.noiseGenerator = (",
+        "nodeGraphLiveModuleEvaluators.randomWalk = (",
+        "nodeGraphLiveModuleEvaluators.fractalBrownianNoise = (",
         'node?.type === "groupInput"',
         'node?.type === "moduleGroup"',
         'node?.type === "groupOutput"',
