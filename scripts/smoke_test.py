@@ -339,6 +339,9 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/groupOutput/group-output-live-evaluator.js",
     "./public/modules/clapPlugin/clap-plugin-live-evaluator.js",
     "./public/modules/output/output-live-evaluator.js",
+    "./public/modules/groupInput/group-input-live-evaluator.js",
+    "./public/modules/audioInput/audio-input-live-evaluator.js",
+    "./public/modules/audioPlayer/audio-player-live-evaluator.js",
 )
 
 
@@ -9606,7 +9609,7 @@ def require_node_graph_mvp_contract() -> None:
         'type: "shootingStarExplosionEvent"',
         "function nodeGraphBuildLivePlanForPatch(patch)",
         "moduleGroupPlan",
-        "node?.type === \"groupInput\"",
+        "nodeGraphLiveModuleEvaluators.groupInput = (",
         "node?.type === \"moduleGroup\"",
         "nodeGraphLiveModuleEvaluators.groupOutput = (",
         "function normalizeNodeGraphModuleStoreDepartment(department = \"\")",
@@ -10247,7 +10250,7 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphLiveModuleEvaluators.noiseGenerator = (",
         "nodeGraphLiveModuleEvaluators.randomWalk = (",
         "nodeGraphLiveModuleEvaluators.fractalBrownianNoise = (",
-        'node?.type === "groupInput"',
+        "nodeGraphLiveModuleEvaluators.groupInput = (",
         'node?.type === "moduleGroup"',
         "nodeGraphLiveModuleEvaluators.groupOutput = (",
         "moduleGroupPlan",

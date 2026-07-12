@@ -13235,6 +13235,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Right: outputMonoIn + outputRightIn,
         };
       },
+      groupInput: (node, nodeId) => ({
+        Out: Number(this.externalGroupInputs?.get(nodeId)) || 0,
+      }),
+      audioPlayer: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const readParam = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.audioPlayerSample(
+          node,
+          nodeId,
+          (port) => mixInput(nodeId, port),
+          readParam,
+          safeRate,
+        );
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14564,10 +14577,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       const liveModuleEvaluator = node?.type ? this.liveModuleEvaluators[node.type] : null;
       if (liveModuleEvaluator) {
         value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput);
-      } else if (node?.type === "groupInput") {
-        value = {
-          Out: Number(this.externalGroupInputs?.get(nodeId)) || 0,
-        };
       } else if (node?.type === "audioInput") {
         const input = inputs[0] || [];
         const leftChannel = input[0] || input[1] || null;
@@ -14580,15 +14589,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Out: ((left + right) * 0.5) * level,
           Right: right * level,
         };
-      } else if (node?.type === "audioPlayer") {
-        const readParam = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.audioPlayerSample(
-          node,
-          nodeId,
-          (port) => mixInput(nodeId, port),
-          readParam,
-          safeRate,
-        );
       } else if (node?.type === "sineWavetable") {
         const phaseOffset = this.phaseRadians(
           this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),

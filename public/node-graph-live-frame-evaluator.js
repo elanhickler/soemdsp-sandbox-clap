@@ -3593,48 +3593,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const liveModuleEvaluator = node?.type ? nodeGraphLiveModuleEvaluators[node.type] : null;
     if (liveModuleEvaluator) {
       value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate });
-    } else if (node?.type === "groupInput") {
-      value = {
-        Out: Number(runtime.externalGroupInputs?.get(nodeId)) || 0,
-      };
-    } else if (node?.type === "audioInput") {
-      const input = runtime.externalInput || {};
-      const leftChannel = input.left || input.right || null;
-      const rightChannel = input.right || input.left || null;
-      const left = Number(leftChannel?.[frame]) || 0;
-      const right = Number(rightChannel?.[frame]) || left;
-      const level = readNodeGraphLiveEffectiveParam(
-        runtime,
-        node,
-        "level",
-        1,
-        frame,
-        frames,
-        frameValues,
-      );
-      value = {
-        Left: left * level,
-        Out: ((left + right) * 0.5) * level,
-        Right: right * level,
-      };
-    } else if (node?.type === "audioPlayer") {
-      const readParam = (key, fallback) => readNodeGraphLiveEffectiveParam(
-        runtime,
-        node,
-        key,
-        fallback,
-        frame,
-        frames,
-        frameValues,
-      );
-      value = nodeGraphAudioPlayerSample(
-        runtime,
-        node,
-        nodeId,
-        (port) => mixInput(nodeId, port),
-        readParam,
-        sampleRate,
-      );
     } else if (node?.type === "sineWavetable") {
       const phase = runtime.phases.get(nodeId) || 0;
       const phaseOffset = nodeGraphPhaseRadians(
