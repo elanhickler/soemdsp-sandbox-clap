@@ -282,6 +282,19 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/humanFilter/human-filter-live-evaluator.js",
     "./public/modules/pulseExplosion/pulse-explosion-live-evaluator.js",
     "./public/modules/tb303Filter/tb303-filter-live-evaluator.js",
+    "./public/modules/delayEffect/delay-effect-live-evaluator.js",
+    "./public/modules/pingPongDelay/ping-pong-delay-live-evaluator.js",
+    "./public/modules/reverbEffect/reverb-effect-live-evaluator.js",
+    "./public/modules/pll/pll-live-evaluator.js",
+    "./public/modules/helmholtzPitch/helmholtz-pitch-live-evaluator.js",
+    "./public/modules/slewLimiter/slew-limiter-live-evaluator.js",
+    "./public/modules/sampleHold/sample-hold-live-evaluator.js",
+    "./public/modules/expAdsr/exp-adsr-live-evaluator.js",
+    "./public/modules/linearEnvelope/linear-envelope-live-evaluator.js",
+    "./public/modules/pluckEnvelope/pluck-envelope-live-evaluator.js",
+    "./public/modules/vactrolEnvelope/vactrol-envelope-live-evaluator.js",
+    "./public/modules/impulseButton/impulse-button-live-evaluator.js",
+    "./public/modules/flowerChildEnvelopeFollower/flower-child-envelope-follower-live-evaluator.js",
 )
 
 
@@ -3640,8 +3653,8 @@ def require_node_graph_mvp_contract() -> None:
         and 'hasInput(nodeId, "In"),\n          safeRate,' in worklet_source
         and "function nodeGraphHelmholtzSample(state, input, params, inputConnected, sampleRate" in live_frame_evaluator_source
         and "Math.max(128, Math.min(1024" in live_frame_evaluator_source
-        and 'windowSize: read("windowSize", 512)' in live_frame_evaluator_source
-        and 'hasInput(nodeId, "In"),\n        sampleRate,' in live_frame_evaluator_source,
+        and 'windowSize: read("windowSize", 512)' in node_graph_source
+        and 'hasInput(nodeId, "In"),\n    sampleRate,' in node_graph_source,
         "Helmholtz Pitch should output analyzer zeros on disconnected input and clamp analysis to the temporary safe window range",
     )
     require(
@@ -10126,12 +10139,12 @@ def require_node_graph_mvp_contract() -> None:
         "b0 * safeInput + b1 * state.inputBuffer + a1 * state.outputBuffer",
         "b0 * safeInput + a1 * state.outputBuffer",
         "nodeGraphLiveModuleEvaluators.passiveFilter = (",
-        'node?.type === "slewLimiter"',
+        "nodeGraphLiveModuleEvaluators.slewLimiter = (",
         "nodeGraphLiveModuleEvaluators.ladderFilter = (",
         'node?.type === "clockDivider"',
         'node?.type === "randomClock"',
         'node?.type === "delayedTrigger"',
-        'node?.type === "sampleHold"',
+        "nodeGraphLiveModuleEvaluators.sampleHold = (",
         'node?.type === "midiOut"',
         'node?.type === "midiNotePitch"',
         'node?.type === "keyboardController"',
@@ -10150,11 +10163,11 @@ def require_node_graph_mvp_contract() -> None:
         'node?.type === "stepSequencer"',
         'node?.type === "triggerCounter"',
         'node?.type === "triggerDivider"',
-        'node?.type === "expAdsr"',
-        'node?.type === "linearEnvelope"',
-        'node?.type === "pluckEnvelope"',
-        'node?.type === "vactrolEnvelopeSeries"',
-        'node?.type === "flowerChildEnvelopeFollower"',
+        "nodeGraphLiveModuleEvaluators.expAdsr = (",
+        "nodeGraphLiveModuleEvaluators.linearEnvelope = (",
+        "nodeGraphLiveModuleEvaluators.pluckEnvelope = (",
+        "nodeGraphLiveModuleEvaluators.vactrolEnvelopeSeries = (",
+        "nodeGraphLiveModuleEvaluators.flowerChildEnvelopeFollower = (",
         'node?.type === "sandboxVisuals"',
         'node?.type === "screenSpaceShader"',
         "function nodeGraphScreenSpaceShaderSample(node, readInput, runtime, nodeId, sampleRate)",
@@ -13561,9 +13574,9 @@ def require_node_graph_mvp_contract() -> None:
         "Sabrina Reverb schedule validation should accept stereo Left/Right inputs, not only In",
     )
     require(
-        "nodeGraphSabrinaReverbSample(" in live_frame_source
-        and "createNodeGraphSabrinaReverbState()" in live_frame_source
-        and 'node?.type === "reverbEffect"' in live_frame_source,
+        "nodeGraphSabrinaReverbSample(" in node_graph_source
+        and "createNodeGraphSabrinaReverbState()" in node_graph_source
+        and "nodeGraphLiveModuleEvaluators.reverbEffect = (" in node_graph_source,
         "browser fallback should evaluate Sabrina Reverb through the raw stateful DSP port",
     )
     require(

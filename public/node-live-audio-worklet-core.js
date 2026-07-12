@@ -12211,6 +12211,246 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Right: this.tb303FilterSample(state.right, mixInput(nodeId, "Right") + tb303Mono, tb303Params, safeRate),
         };
       },
+      delayEffect: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.delayEffectStates.get(nodeId) || this.createStereoDelayEffectState();
+        this.delayEffectStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const delayParams = {
+          feedback: read("feedback", 0.25),
+          level: read("level", 1),
+          mix: read("mix", 0.35),
+          mode: read("mode", 0),
+          modAmount: read("modAmount", 0.02),
+          modRate: read("modRate", 0.1),
+          modVariation: read("modVariation", 0),
+          time: read("time", 0.18),
+        };
+        const delayMono = mixInput(nodeId);
+        const monoResult = this.delayEffectSample(state.mono, delayMono, delayParams, safeRate, `${nodeId}:mono`);
+        const leftResult = this.delayEffectSample(state.left, mixInput(nodeId, "Left") + delayMono, delayParams, safeRate, `${nodeId}:left`);
+        const rightResult = this.delayEffectSample(state.right, mixInput(nodeId, "Right") + delayMono, delayParams, safeRate, `${nodeId}:right`);
+        return {
+          Out: monoResult.Out,
+          Left: leftResult.Out,
+          Right: rightResult.Out,
+          Wet: monoResult.Wet,
+        };
+      },
+      pingPongDelay: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.pingPongDelayStates.get(nodeId) || this.createPingPongDelayState();
+        this.pingPongDelayStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.pingPongDelaySample(
+          state,
+          mixInput(nodeId) + mixInput(nodeId, "Left") + mixInput(nodeId, "Right"),
+          {
+            feedback: read("feedback", 0.35),
+            level: read("level", 1),
+            mix: read("mix", 0.35),
+            offsetMs: read("offsetMs", 0),
+            timeDenominator: read("timeDenominator", 4),
+            timeNumerator: read("timeNumerator", 1),
+            timingMode: read("timingMode", 0),
+          },
+          safeRate,
+        );
+      },
+      reverbEffect: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.reverbEffectStates.get(nodeId) || this.createSabrinaReverbState();
+        this.reverbEffectStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const monoInput = mixInput(nodeId, "In");
+        const leftInput = mixInput(nodeId, "Left") + monoInput;
+        const rightInput = mixInput(nodeId, "Right") + monoInput;
+        return this.sabrinaReverbSample(
+          state,
+          leftInput,
+          rightInput,
+          {
+            delaySize: read("delaySize", 0.02),
+            diffusionAmount: read("diffusionAmount", 0.70),
+            diffusionSize: read("diffusionSize", 0.35),
+            lfoAmplitude: read("lfoAmplitude", 0.07),
+            lfoBaseSpeed: read("lfoBaseSpeed", 0.83),
+            lfoVariation: read("lfoVariation", 0.001),
+            mix: read("mix", 0.43),
+            recycle: read("recycle", 0.70),
+            seed: read("seed", 0),
+          },
+          safeRate,
+          frame,
+        );
+      },
+      pll: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.pllStates.get(nodeId) || this.createPllState();
+        this.pllStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const cvConnected = this.inputConnections?.has?.(this.inputKey(nodeId, "VCO CV In")) ? 1 : 0;
+        return this.pllSample(
+          state,
+          mixInput(nodeId, "Signal In"),
+          mixInput(nodeId, "VCO CV In"),
+          cvConnected,
+          {
+            range: read("range", 1),
+            offset: read("offset", 5),
+            type: read("type", 1),
+            frequ: read("frequ", 10),
+          },
+          safeRate,
+        );
+      },
+      helmholtzPitch: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const state = this.helmholtzStates.get(nodeId) || this.createHelmholtzState();
+        this.helmholtzStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.helmholtzSample(
+          state,
+          mixInput(nodeId, "In"),
+          {
+            windowSize: read("windowSize", 512),
+            threshold: read("threshold", 0.93),
+          },
+          hasInput(nodeId, "In"),
+          safeRate,
+        );
+      },
+      slewLimiter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.slewLimiterStates.get(nodeId) || this.createStereoSlewLimiterState();
+        this.slewLimiterStates.set(nodeId, state);
+        const slewUpTime = this.readEffectiveParameter(node, "upTime", 0.05, frame, frames, frameValues);
+        const slewDownTime = this.readEffectiveParameter(node, "downTime", 0.20, frame, frames, frameValues);
+        const slewMono = mixInput(nodeId);
+        return {
+          Out: this.slewLimiterSample(state.mono, slewMono, slewUpTime, slewDownTime, safeRate),
+          Left: this.slewLimiterSample(state.left, mixInput(nodeId, "Left") + slewMono, slewUpTime, slewDownTime, safeRate),
+          Right: this.slewLimiterSample(state.right, mixInput(nodeId, "Right") + slewMono, slewUpTime, slewDownTime, safeRate),
+        };
+      },
+      sampleHold: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const state = this.sampleHoldStates.get(nodeId) || this.createStereoSampleHoldState();
+        this.sampleHoldStates.set(nodeId, state);
+        const sampleHoldTrigger = mixInput(nodeId, "Trigger");
+        const sampleHoldThreshold = this.readEffectiveParameter(node, "threshold", 0, frame, frames, frameValues);
+        const sampleHoldFrequency = this.readEffectiveParameter(node, "sampleFrequency", 0, frame, frames, frameValues);
+        const sampleHoldMonoHasIn = hasInput(nodeId, "In");
+        const sampleHoldMono = mixInput(nodeId, "In");
+        return {
+          Out: this.sampleHoldSample(state.mono, sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn, `${nodeId}:mono`),
+          Left: this.sampleHoldSample(state.left, mixInput(nodeId, "Left") + sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn || hasInput(nodeId, "Left"), `${nodeId}:left`),
+          Right: this.sampleHoldSample(state.right, mixInput(nodeId, "Right") + sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn || hasInput(nodeId, "Right"), `${nodeId}:right`),
+        };
+      },
+      expAdsr: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.expAdsrStates.get(nodeId) || this.createExpAdsrState();
+        this.expAdsrStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.expAdsrSample(
+          state,
+          mixInput(nodeId, "Gate"),
+          {
+            attack: read("attack", 0.08),
+            attackShape: read("attackShape", 0.3),
+            decay: read("decay", 0.22),
+            delay: read("delay", 0),
+            level: read("level", 1),
+            loop: read("loop", 0),
+            release: read("release", 0.45),
+            releaseShape: read("releaseShape", 0.0001),
+            sustain: read("sustain", 0.55),
+          },
+          safeRate,
+        );
+      },
+      linearEnvelope: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.linearEnvelopeStates.get(nodeId) || this.createLinearEnvelopeState();
+        this.linearEnvelopeStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.linearEnvelopeSample(
+          state,
+          mixInput(nodeId, "Gate"),
+          {
+            attack: read("attack", 0.08),
+            decay: read("decay", 0.22),
+            delay: read("delay", 0),
+            level: read("level", 1),
+            loop: read("loop", 0),
+            release: read("release", 0.45),
+            sustain: read("sustain", 0.55),
+          },
+          safeRate,
+        );
+      },
+      pluckEnvelope: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.pluckEnvelopeStates.get(nodeId) || this.createPluckEnvelopeState();
+        this.pluckEnvelopeStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.pluckEnvelopeSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          mixInput(nodeId, "Release"),
+          {
+            attackFeedback: read("attackFeedback", 0.002),
+            autoReleaseTime: read("autoReleaseTime", 0.08),
+            decay: read("decay", 0.35),
+            decayModCurve: read("decayModCurve", 0),
+            decayModEnd: read("decayModEnd", 0.55),
+            decayModFrequency: read("decayModFrequency", 1.5),
+            decayModStart: read("decayModStart", 0.08),
+            delayTime: read("delayTime", 0),
+            endingDecay: read("endingDecay", 0.8),
+            level: read("level", 1),
+            releaseFeedback: read("releaseFeedback", 0.35),
+            velocity: read("velocity", 1),
+            velocitySensitivity: read("velocitySensitivity", 0),
+          },
+          safeRate,
+        );
+      },
+      vactrolEnvelopeSeries: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.vactrolEnvelopeStates.get(nodeId) || this.createVactrolEnvelopeState();
+        this.vactrolEnvelopeStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const isSeries = node?.type === "vactrolEnvelopeSeries";
+        const seriesSpec = isSeries ? nodeGraphVactrolSeriesSpec(read("part", 2)) : null;
+        return this.vactrolEnvelopeSample(
+          state,
+          mixInput(nodeId, "Light"),
+          {
+            attack: isSeries ? seriesSpec.attack : read("attack", 0.01),
+            curve: read("curve", 1),
+            darkCurrent: read("darkCurrent", 0),
+            lightOffset: read("lightOffset", 0),
+            release: isSeries ? seriesSpec.release : read("release", 0.1),
+            sensitivity: read("sensitivity", 1),
+          },
+          safeRate,
+        );
+      },
+      impulseButton: (node, nodeId) => {
+        const state = this.impulseButtonStates.get(nodeId) || this.createImpulseButtonState();
+        this.impulseButtonStates.set(nodeId, state);
+        const pulseSamples = Math.max(0, Number(state.pulseSamples) || 0);
+        const amplitude = Math.max(0, Math.min(1, Number(state.amplitude ?? 1)));
+        state.pulseSamples = Math.max(0, pulseSamples - 1);
+        return { Pulse: pulseSamples > 0 ? amplitude : 0 };
+      },
+      flowerChildEnvelopeFollower: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.flowerChildEnvelopeFollowerStates.get(nodeId) ||
+          this.createFlowerChildEnvelopeFollowerState();
+        this.flowerChildEnvelopeFollowerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.flowerChildEnvelopeFollowerSample(
+          state,
+          mixInput(nodeId, "In"),
+          {
+            attack: read("attack", 0.001),
+            decay: read("decay", 0.001),
+            hold: read("hold", 0.001),
+          },
+          safeRate,
+        );
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14410,233 +14650,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "macroKnob" || node?.type === "bipolarKnob") {
         const knobValue = this.readEffectiveParameter(node, "value", 0, frame, frames, frameValues);
         value = { Out: knobValue, value: knobValue };
-      } else if (node?.type === "delayEffect") {
-        const state = this.delayEffectStates.get(nodeId) || this.createStereoDelayEffectState();
-        this.delayEffectStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const delayParams = {
-          feedback: read("feedback", 0.25),
-          level: read("level", 1),
-          mix: read("mix", 0.35),
-          mode: read("mode", 0),
-          modAmount: read("modAmount", 0.02),
-          modRate: read("modRate", 0.1),
-          modVariation: read("modVariation", 0),
-          time: read("time", 0.18),
-        };
-        const delayMono = mixInput(nodeId);
-        const monoResult = this.delayEffectSample(state.mono, delayMono, delayParams, safeRate, `${nodeId}:mono`);
-        const leftResult = this.delayEffectSample(state.left, mixInput(nodeId, "Left") + delayMono, delayParams, safeRate, `${nodeId}:left`);
-        const rightResult = this.delayEffectSample(state.right, mixInput(nodeId, "Right") + delayMono, delayParams, safeRate, `${nodeId}:right`);
-        value = {
-          Out: monoResult.Out,
-          Left: leftResult.Out,
-          Right: rightResult.Out,
-          Wet: monoResult.Wet,
-        };
-      } else if (node?.type === "pingPongDelay") {
-        const state = this.pingPongDelayStates.get(nodeId) || this.createPingPongDelayState();
-        this.pingPongDelayStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.pingPongDelaySample(
-          state,
-          mixInput(nodeId) + mixInput(nodeId, "Left") + mixInput(nodeId, "Right"),
-          {
-            feedback: read("feedback", 0.35),
-            level: read("level", 1),
-            mix: read("mix", 0.35),
-            offsetMs: read("offsetMs", 0),
-            timeDenominator: read("timeDenominator", 4),
-            timeNumerator: read("timeNumerator", 1),
-            timingMode: read("timingMode", 0),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "reverbEffect") {
-        const state = this.reverbEffectStates.get(nodeId) || this.createSabrinaReverbState();
-        this.reverbEffectStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const monoInput = mixInput(nodeId, "In");
-        const leftInput = mixInput(nodeId, "Left") + monoInput;
-        const rightInput = mixInput(nodeId, "Right") + monoInput;
-        value = this.sabrinaReverbSample(
-          state,
-          leftInput,
-          rightInput,
-          {
-            delaySize: read("delaySize", 0.02),
-            diffusionAmount: read("diffusionAmount", 0.70),
-            diffusionSize: read("diffusionSize", 0.35),
-            lfoAmplitude: read("lfoAmplitude", 0.07),
-            lfoBaseSpeed: read("lfoBaseSpeed", 0.83),
-            lfoVariation: read("lfoVariation", 0.001),
-            mix: read("mix", 0.43),
-            recycle: read("recycle", 0.70),
-            seed: read("seed", 0),
-          },
-          safeRate,
-          frame,
-        );
-      } else if (node?.type === "pll") {
-        const state = this.pllStates.get(nodeId) || this.createPllState();
-        this.pllStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const cvConnected = this.inputConnections?.has?.(this.inputKey(nodeId, "VCO CV In")) ? 1 : 0;
-        value = this.pllSample(
-          state,
-          mixInput(nodeId, "Signal In"),
-          mixInput(nodeId, "VCO CV In"),
-          cvConnected,
-          {
-            range: read("range", 1),
-            offset: read("offset", 5),
-            type: read("type", 1),
-            frequ: read("frequ", 10),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "helmholtzPitch") {
-        const state = this.helmholtzStates.get(nodeId) || this.createHelmholtzState();
-        this.helmholtzStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.helmholtzSample(
-          state,
-          mixInput(nodeId, "In"),
-          {
-            windowSize: read("windowSize", 512),
-            threshold: read("threshold", 0.93),
-          },
-          hasInput(nodeId, "In"),
-          safeRate,
-        );
-      } else if (node?.type === "slewLimiter") {
-        const state = this.slewLimiterStates.get(nodeId) || this.createStereoSlewLimiterState();
-        this.slewLimiterStates.set(nodeId, state);
-        const slewUpTime = this.readEffectiveParameter(node, "upTime", 0.05, frame, frames, frameValues);
-        const slewDownTime = this.readEffectiveParameter(node, "downTime", 0.20, frame, frames, frameValues);
-        const slewMono = mixInput(nodeId);
-        value = {
-          Out: this.slewLimiterSample(state.mono, slewMono, slewUpTime, slewDownTime, safeRate),
-          Left: this.slewLimiterSample(state.left, mixInput(nodeId, "Left") + slewMono, slewUpTime, slewDownTime, safeRate),
-          Right: this.slewLimiterSample(state.right, mixInput(nodeId, "Right") + slewMono, slewUpTime, slewDownTime, safeRate),
-        };
-      } else if (node?.type === "sampleHold") {
-        const state = this.sampleHoldStates.get(nodeId) || this.createStereoSampleHoldState();
-        this.sampleHoldStates.set(nodeId, state);
-        const sampleHoldTrigger = mixInput(nodeId, "Trigger");
-        const sampleHoldThreshold = this.readEffectiveParameter(node, "threshold", 0, frame, frames, frameValues);
-        const sampleHoldFrequency = this.readEffectiveParameter(node, "sampleFrequency", 0, frame, frames, frameValues);
-        const sampleHoldMonoHasIn = hasInput(nodeId, "In");
-        const sampleHoldMono = mixInput(nodeId, "In");
-        value = {
-          Out: this.sampleHoldSample(state.mono, sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn, `${nodeId}:mono`),
-          Left: this.sampleHoldSample(state.left, mixInput(nodeId, "Left") + sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn || hasInput(nodeId, "Left"), `${nodeId}:left`),
-          Right: this.sampleHoldSample(state.right, mixInput(nodeId, "Right") + sampleHoldMono, sampleHoldTrigger, sampleHoldThreshold, sampleHoldFrequency, safeRate, sampleHoldMonoHasIn || hasInput(nodeId, "Right"), `${nodeId}:right`),
-        };
-      } else if (node?.type === "expAdsr") {
-        const state = this.expAdsrStates.get(nodeId) || this.createExpAdsrState();
-        this.expAdsrStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.expAdsrSample(
-          state,
-          mixInput(nodeId, "Gate"),
-          {
-            attack: read("attack", 0.08),
-            attackShape: read("attackShape", 0.3),
-            decay: read("decay", 0.22),
-            delay: read("delay", 0),
-            level: read("level", 1),
-            loop: read("loop", 0),
-            release: read("release", 0.45),
-            releaseShape: read("releaseShape", 0.0001),
-            sustain: read("sustain", 0.55),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "linearEnvelope") {
-        const state = this.linearEnvelopeStates.get(nodeId) || this.createLinearEnvelopeState();
-        this.linearEnvelopeStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.linearEnvelopeSample(
-          state,
-          mixInput(nodeId, "Gate"),
-          {
-            attack: read("attack", 0.08),
-            decay: read("decay", 0.22),
-            delay: read("delay", 0),
-            level: read("level", 1),
-            loop: read("loop", 0),
-            release: read("release", 0.45),
-            sustain: read("sustain", 0.55),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "pluckEnvelope") {
-        const state = this.pluckEnvelopeStates.get(nodeId) || this.createPluckEnvelopeState();
-        this.pluckEnvelopeStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.pluckEnvelopeSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          mixInput(nodeId, "Release"),
-          {
-            attackFeedback: read("attackFeedback", 0.002),
-            autoReleaseTime: read("autoReleaseTime", 0.08),
-            decay: read("decay", 0.35),
-            decayModCurve: read("decayModCurve", 0),
-            decayModEnd: read("decayModEnd", 0.55),
-            decayModFrequency: read("decayModFrequency", 1.5),
-            decayModStart: read("decayModStart", 0.08),
-            delayTime: read("delayTime", 0),
-            endingDecay: read("endingDecay", 0.8),
-            level: read("level", 1),
-            releaseFeedback: read("releaseFeedback", 0.35),
-            velocity: read("velocity", 1),
-            velocitySensitivity: read("velocitySensitivity", 0),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "vactrolEnvelopeSeries" || node?.type === "vactrolEnvelopeCustom") {
-        const state = this.vactrolEnvelopeStates.get(nodeId) || this.createVactrolEnvelopeState();
-        this.vactrolEnvelopeStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const isSeries = node?.type === "vactrolEnvelopeSeries";
-        const seriesSpec = isSeries ? nodeGraphVactrolSeriesSpec(read("part", 2)) : null;
-        value = this.vactrolEnvelopeSample(
-          state,
-          mixInput(nodeId, "Light"),
-          {
-            attack: isSeries ? seriesSpec.attack : read("attack", 0.01),
-            curve: read("curve", 1),
-            darkCurrent: read("darkCurrent", 0),
-            lightOffset: read("lightOffset", 0),
-            release: isSeries ? seriesSpec.release : read("release", 0.1),
-            sensitivity: read("sensitivity", 1),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "impulseButton") {
-        const state = this.impulseButtonStates.get(nodeId) || this.createImpulseButtonState();
-        this.impulseButtonStates.set(nodeId, state);
-        const pulseSamples = Math.max(0, Number(state.pulseSamples) || 0);
-        const amplitude = Math.max(0, Math.min(1, Number(state.amplitude ?? 1)));
-        state.pulseSamples = Math.max(0, pulseSamples - 1);
-        value = { Pulse: pulseSamples > 0 ? amplitude : 0 };
-      } else if (node?.type === "flowerChildEnvelopeFollower") {
-        const state = this.flowerChildEnvelopeFollowerStates.get(nodeId) ||
-          this.createFlowerChildEnvelopeFollowerState();
-        this.flowerChildEnvelopeFollowerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.flowerChildEnvelopeFollowerSample(
-          state,
-          mixInput(nodeId, "In"),
-          {
-            attack: read("attack", 0.001),
-            decay: read("decay", 0.001),
-            hold: read("hold", 0.001),
-          },
-          safeRate,
-        );
       } else if (node?.type === "sandboxVisuals") {
         const screenShake = this.smoothVisualControl(
           "screenShake",
