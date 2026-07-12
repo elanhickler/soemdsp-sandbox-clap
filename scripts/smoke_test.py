@@ -352,6 +352,27 @@ PUBLIC_SCRIPT_PATHS = (
 )
 
 
+# Mirrors nodeGraphLiveWorkletSourceFiles in node-graph-live-runtime.js --
+# the ordered list of files the Blob loader concatenates into the one
+# AudioWorklet module. Must be kept in sync by hand (same contract as
+# PUBLIC_SCRIPT_PATHS mirroring index.html's <script> tags) whenever a
+# module's worklet math is split out of node-live-audio-worklet-core.js
+# into its own public/modules/<name>/ file.
+WORKLET_BLOB_SOURCE_FILES = (
+    "node-live-audio-worklet-core.js",
+    "modules/codeblock/codeblock-worklet-evaluator.js",
+    "modules/moduleGroup/module-group-worklet-evaluator.js",
+    "node-live-audio-worklet-register.js",
+)
+
+
+def read_assembled_worklet_source() -> str:
+    return "\n".join(
+        (PUBLIC / relative_path).read_text(encoding="utf-8")
+        for relative_path in WORKLET_BLOB_SOURCE_FILES
+    )
+
+
 def public_script_request_path(script_path: str) -> str:
     return script_path.removeprefix(".")
 
@@ -365,11 +386,8 @@ def public_script_source_path(script_path: str) -> Path:
 def static_asset_contracts():
     for script_path in PUBLIC_SCRIPT_PATHS:
         yield public_script_request_path(script_path), JS_CONTENT_TYPES, public_script_source_path(script_path)
-    yield "/public/node-live-audio-worklet.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet.js"
-    yield "/public/node-live-audio-worklet-core.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet-core.js"
-    yield "/public/modules/codeblock/codeblock-worklet-evaluator.js", JS_CONTENT_TYPES, PUBLIC / "modules/codeblock/codeblock-worklet-evaluator.js"
-    yield "/public/modules/moduleGroup/module-group-worklet-evaluator.js", JS_CONTENT_TYPES, PUBLIC / "modules/moduleGroup/module-group-worklet-evaluator.js"
-    yield "/public/node-live-audio-worklet-register.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet-register.js"
+    for relative_path in WORKLET_BLOB_SOURCE_FILES:
+        yield f"/public/{relative_path}", JS_CONTENT_TYPES, PUBLIC / relative_path
     yield "/public/styles.css", "text/css", PUBLIC / "styles.css"
 
 
@@ -3600,7 +3618,7 @@ def require_node_graph_mvp_contract() -> None:
     node_graph_source = "\n".join(script_sources.values()) + f"\n{server_source}"
     style_source = (PUBLIC / "styles.css").read_text(encoding="utf-8")
     tooltip_source = (PUBLIC / "tooltips.json").read_text(encoding="utf-8")
-    worklet_source = (PUBLIC / "node-live-audio-worklet.js").read_text(encoding="utf-8")
+    worklet_source = read_assembled_worklet_source()
     live_frame_evaluator_source = script_sources["./public/node-graph-live-frame-evaluator.js"]
     default_preset_source = (PUBLIC / "presets" / "default.json").read_text(encoding="utf-8")
     default_ui_settings_source = (PUBLIC / "presets" / "useruisettings.json").read_text(encoding="utf-8")
@@ -4884,7 +4902,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "silent execution stubs",
             "\n".join([clap_contract_sources["runtime"], clap_contract_sources["worklet"]]),
-            ['node?.type === "clapPlugin"', "Left: 0", "Right: 0"],
+            ["clapPlugin: () => ({", "Left: 0", "Right: 0"],
         ),
         (
             "live audio guard",
@@ -4999,7 +5017,7 @@ def require_node_graph_mvp_contract() -> None:
                 "state: Object.create(null)",
                 "fn(inputs, output, state, {",
                 "time: (Number(inputFrame) || 0) / (Number(sampleRate) || 44100)",
-                'node?.type === "codeblock"',
+                "codeblock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame),",
             ],
         ),
     ]:
@@ -13612,12 +13630,12 @@ def require_node_graph_mvp_contract() -> None:
         "browser fallback should retain a stereo Soft Clipper evaluator for non-worklet fallback",
     )
     require("timing: normalizeNodeGraphPatchTiming(plan.timing)" in live_plan_runtime_source, "fallback runtime should retain plan timing")
-    require("transportSample(params, frame" in worklet_source and 'node?.type === "transport"' in worklet_source, "AudioWorklet should evaluate Transport")
+    require("transportSample(params, frame" in worklet_source and "transport: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {" in worklet_source, "AudioWorklet should evaluate Transport")
     require(
         "nativeSoftClipperSample(input, center = 0, width = 2)" in worklet_source
         and 'name === "soft_clipper" || targetType === "softClipper"' in worklet_source
         and "this.nativeSoftClipper?.soemdsp_soft_clipper_sample" in worklet_source
-        and 'node?.type === "softClipper"' in worklet_source
+        and "softClipper: (node, nodeId, frame, frames, frameValues, mixInput) => {" in worklet_source
         and "Out: this.nativeSoftClipperSample(softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
         and "Left: this.nativeSoftClipperSample(mixInput(nodeId, \"Left\") + softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
         and "Right: this.nativeSoftClipperSample(mixInput(nodeId, \"Right\") + softClipperMono, softClipperCenter, softClipperWidth)" in worklet_source
@@ -13848,24 +13866,24 @@ def require_node_graph_mvp_contract() -> None:
         "queue.droppedChunks += sequence - queue.expectedSequence",
         "sequence > queue.expectedSequence",
         "expectedSequence: queue.expectedSequence",
-        'node?.type === "rotate3dTo2d"',
+        "rotate3dTo2d: (node, nodeId, frame, frames, frameValues, mixInput) => {",
         'this.readEffectiveParameter(node, "rotateX"',
         "x * cosZ - y * sinZ",
         'this.setExternalButtonEvent(message.name)',
         'Click: this.externalButtonEventPulse("click")',
         'this.setWireBreakEvent()',
-        'value = this.wireBreakEventSample();',
+        "wireBreak: () => this.wireBreakEventSample(),",
         'wireBreakGateSamples()',
         'event.gateSamples = Math.max(Number(event.gateSamples) || 0, this.wireBreakGateSamples())',
         'this.setWireConnectEvent()',
-        'value = this.wireConnectEventSample();',
+        "wireConnect: () => this.wireConnectEventSample(),",
         'this.setWireDisconnectEvent()',
-        'value = this.wireDisconnectEventSample();',
+        "wireDisconnect: () => this.wireDisconnectEventSample(),",
         'this.setWindowReopenEvent()',
-        'value = this.windowReopenEventSample();',
+        "windowReopen: () => this.windowReopenEventSample(),",
         'windowReopenGateSamples()',
         'this.setShootingStarExplosionEvent(message.speed)',
-        'value = this.shootingStarExplosionEventSample(',
+        "shootingStarExplosion: (node, nodeId, frame, frames, frameValues) => this.shootingStarExplosionEventSample(",
     ]:
         require(snippet in worklet_source, f"worklet source missing {snippet}")
 
@@ -16642,7 +16660,7 @@ def require_node_graph_mvp_contract() -> None:
         "const phaseMultiplier = 1 + phaseCurve * harmonicPhaseMultiply",
         "const phaseOffset = (Number(partial.phase) || 0) + phaseCurve * harmonicPhaseAdd",
         "Math.sin((phase * harmonic * phaseMultiplier) + phaseOffset * Math.PI * 2)",
-        'node?.type === "additiveOsc" || node?.type === "gpuAdditiveOsc"',
+        "additiveOsc: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame, graphInputValue) =>",
         "const additiveSample = queuedAdditiveSample !== null",
         ": this.additiveOscillatorSample(",
         'dampingFilterFrequency: this.readEffectiveParameter(node, "dampingFilterFrequency", 20000, frame, frames, frameValues)',
@@ -16651,7 +16669,7 @@ def require_node_graph_mvp_contract() -> None:
         'harmonicPhaseMultiply: this.readEffectiveParameter(node, "harmonicPhaseMultiply", 0, frame, frames, frameValues)',
         'phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0)',
         "value = { Out: additiveSample }",
-        'node?.type === "ellipsoid"',
+        "ellipsoid: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
         "value = this.nativeEllipsoidVectorSample(",
         "ellipsoidFrame,",
         "phase + phaseOffset",
@@ -16711,7 +16729,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeLiveIsPolyBlepOscillatorType(type)",
         'return type === "osc" || type === "polyBlep" || type === "sineWavetable"',
         "nodeLiveSineCosWavetableSample",
-        'node?.type === "sineWavetable"',
+        "sineWavetable: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
         "polyBlep(phaseCycle, phaseIncrement)",
         "polyBlepSquare(phaseCycle, phaseIncrement)",
         "currentNoiseSample(nodeId)",
@@ -16822,10 +16840,11 @@ def require_node_graph_mvp_contract() -> None:
         "scopeTracesOff: this.clampValue(this.visualControls.scopeTracesOff, 0, 1)",
         "screenDim: this.clampValue(this.visualControls.screenDim, 0, 1)",
         "x: this.clampValue(this.visualControls.x, -1, 1)",
-        'node?.type === "valueSlider"',
-        "value = { Bias: offset, Out: offset, offset }",
-        'node?.type === "macroKnob" || node?.type === "bipolarKnob"',
-        "value = { Out: knobValue, value: knobValue }",
+        "valueSlider: (node, nodeId, frame, frames, frameValues) => {",
+        "return { Bias: offset, Out: offset, offset };",
+        "macroKnob: (node, nodeId, frame, frames, frameValues) => {",
+        "this.liveModuleEvaluators.bipolarKnob = this.liveModuleEvaluators.macroKnob;",
+        "return { Out: knobValue, value: knobValue };",
         'type: "visualControls"',
         "visualSinkCount: Array.isArray(plan?.visualSinks) ? plan.visualSinks.length : 0",
         "speakerOutputActive: Boolean(plan?.speakerOutputActive)",
@@ -16858,18 +16877,18 @@ def require_node_graph_mvp_contract() -> None:
         'node?.type === "clockDivider"',
         'node?.type === "delayedTrigger"',
         'node?.type === "sampleHold"',
-        'node?.type === "midiOut"',
-        'node?.type === "midiNotePitch"',
-        'node?.type === "keyboardController"',
+        "midiOut: (node, nodeId, frame, frames, frameValues, mixInput) => {",
+        "midiNotePitch: (node, nodeId, frame, frames, frameValues, mixInput) => {",
+        "keyboardController: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {",
         'hasInput(nodeId, "MIDI Note")',
         'hasInput(nodeId, "Velocity")',
         "const automatedPitch = resetActive || hasInput(nodeId, \"MIDI Note\") || hasInput(nodeId, \"Octave\");",
         "? this.clampValue(Math.round(rawMidi) - 48, 0, 24)",
-        'node?.type === "macroControls"',
+        "macroControls: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {",
         'hasInput(nodeId, port)',
-        'node?.type === "pitchModWheel"',
+        "pitchModWheel: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {",
         'hasInput(nodeId, "Pitch")',
-        'node?.type === "screenSpaceShader"',
+        "screenSpaceShader: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => this.screenSpaceShaderSample(",
         "screenSpaceShaderSample(node, readInput, rate = sampleRate, nodeId = \"\")",
         'if (input.mode === "raw")',
         'node?.type === "stepSequencer"',
@@ -16881,10 +16900,10 @@ def require_node_graph_mvp_contract() -> None:
         'node?.type === "vactrolEnvelopeSeries"',
         'node?.type === "flowerChildEnvelopeFollower"',
         "this.flowerChildEnvelopeFollowerSample(",
-        'node?.type === "sandboxVisuals"',
-        'node?.type === "bloomGlow"',
-        'node?.type === "rgbaHsla"',
-        'node?.type === "chromaColor"',
+        "sandboxVisuals: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
+        "bloomGlow: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
+        "rgbaHsla: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
+        "chromaColor: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
         "this.visualControlIntensity(mixInput(nodeId, \"Shake\"), nodeId, \"screen visuals shake\")",
         "this.visualControlSigned(mixInput(nodeId, \"X\"), nodeId, \"sandbox visuals x\")",
         "this.visualControlIntensity(mixInput(nodeId, \"Dim\"), nodeId, \"screen visuals dim\")",
@@ -16911,17 +16930,17 @@ def require_node_graph_mvp_contract() -> None:
         'node?.type === "noiseGenerator"',
         'node?.type === "randomWalk"',
         'node?.type === "fractalBrownianNoise"',
-        'node?.type === "groupInput"',
+        "groupInput: (node, nodeId) => ({",
         'node?.type === "moduleGroup"',
-        'node?.type === "groupOutput"',
+        "groupOutput: (node, nodeId, frame, frames, frameValues, mixInput) => ({",
         "createNestedRuntime(plan)",
         "evaluateModuleGroup(node, mixInput, frame, frames, rate, inputFrame)",
         "moduleGroupPlan",
-        'node?.type === "badvalMonitor"',
+        "badvalMonitor: (node, nodeId, frame, frames, frameValues, mixInput) => this.monitorBadValueSample(",
         "this.monitorBadValueSample(mixInput(nodeId), nodeId)",
         "speakerProtectionSample(value, nodeId)",
         "this.meterProtectionMuteCount += 1",
-        'node?.type === "speakerProtection"',
+        "speakerProtection: (node, nodeId, frame, frames, frameValues, mixInput) => {",
         "this.speakerProtectionSample(speakerProtectionMono, nodeId)",
         "normalizeGraph(value = {})",
         "graphEndpointYLockEnabledForNode(node)",
@@ -16960,7 +16979,7 @@ def require_node_graph_mvp_contract() -> None:
         'this.readEffectiveParameter(node, "outputMin", 0',
         'this.readEffectiveParameter(node, "outputMax", 1',
         "return outputMin + normalizedValue * (outputMax - outputMin)",
-        "value = graphOutputValue(node, nodeId)",
+        "graphOutputValue(node, nodeId),",
         'this.readEffectiveParameter(node, "frequency", 1000',
         "readEffectiveParameter(node, key, fallback, frame, frames, frameValues)",
         "evaluateFrame(frame, frames, inputs = [], rate = this.engineSampleRate || sampleRate, inputFrame = frame)",
@@ -17321,7 +17340,7 @@ def require_native_module_contract(base_url: str) -> None:
     context_menu_source = (PUBLIC / "node-graph-context-menu.js").read_text(encoding="utf-8")
     event_bindings_source = (PUBLIC / "node-graph-scene-menu-event-bindings.js").read_text(encoding="utf-8")
     live_runtime_source = (PUBLIC / "node-graph-live-runtime.js").read_text(encoding="utf-8")
-    worklet_source = (PUBLIC / "node-live-audio-worklet.js").read_text(encoding="utf-8")
+    worklet_source = read_assembled_worklet_source()
     native_build_source = (ROOT / "scripts" / "build_native_modules.ps1").read_text(encoding="utf-8")
     native_sources = sorted((ROOT / "native_modules").glob("*/*.cpp"))
     require(native_sources, "native modules folder should contain C++ sources")

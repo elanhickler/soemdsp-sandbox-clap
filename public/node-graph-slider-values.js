@@ -148,7 +148,7 @@ function nodeGraphParameterSmoothingSecondsFromMetadata(metadata = {}) {
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
 }
 
-// See resolveSmoothingSecondsForMode() in node-live-audio-worklet.js for the
+// See resolveSmoothingSecondsForMode() in node-live-audio-worklet-core.js for the
 // per-mode meaning (internal / global / blockSize / internalGlobal / off).
 function nodeGraphResolveSmoothingSecondsForMode(mode, smoothingSamples, frames, rate, globalSeconds) {
   const safeRate = Math.max(1, Number(rate) || nodeGraphMvp?.sampleRate || 44100);

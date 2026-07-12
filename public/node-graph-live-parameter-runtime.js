@@ -149,7 +149,7 @@ function readNodeGraphLiveEffectiveParam(
 ) {
   const base = readNodeGraphLiveSmoothedParam(runtime, node, key, fallback, frame, frames);
   const modulations = runtime.modulationConnections?.get(nodeGraphParameterKey(node?.id, key));
-  // See node-live-audio-worklet.js readEffectiveParameter: skip the
+  // See node-live-audio-worklet-core.js readEffectiveParameter: skip the
   // normalize/denormalize round trip (Math.log-based skew math) entirely
   // when nothing modulates this parameter, instead of paying it every
   // sample for every parameter regardless.

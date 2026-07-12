@@ -472,7 +472,7 @@ function resetNodeGraphPiSpigotColorFilters(state) {
   state.smoothLp[0] = 0; state.smoothLp[1] = 0; state.smoothLp[2] = 0; state.smoothLp[3] = 0;
 }
 
-// Unlike node-live-audio-worklet.js, this evaluator runs on the main
+// Unlike node-live-audio-worklet-core.js, this evaluator runs on the main
 // thread (module groups / offline render), which does have fetch -- so
 // rather than duplicate the 333,333-sample pi-digit dataset in JS, it
 // just loads the same pi_spigot_noise.wasm the worklet uses and calls
@@ -2488,7 +2488,7 @@ function nodeGraphPingPongDelaySample(state, input, params, sampleRate, runtime 
 // DSP memory via soemdsp_sabrina_reverb_set_params. Pure extraction of the
 // duplicate block previously inline in nodeGraphSabrinaReverbSample -- same
 // clamps, same key construction, same condition, same call args. Mirrors
-// applySabrinaDspBindingIfDirty in node-live-audio-worklet.js (a plain
+// applySabrinaDspBindingIfDirty in node-live-audio-worklet-core.js (a plain
 // function here since this evaluator module isn't class-based).
 function applySabrinaDspBindingIfDirty(native, state, params, runtime, nodeId) {
   const safeParams = {
