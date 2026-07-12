@@ -368,6 +368,7 @@ def static_asset_contracts():
     yield "/public/node-live-audio-worklet.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet.js"
     yield "/public/node-live-audio-worklet-core.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet-core.js"
     yield "/public/modules/codeblock/codeblock-worklet-evaluator.js", JS_CONTENT_TYPES, PUBLIC / "modules/codeblock/codeblock-worklet-evaluator.js"
+    yield "/public/modules/moduleGroup/module-group-worklet-evaluator.js", JS_CONTENT_TYPES, PUBLIC / "modules/moduleGroup/module-group-worklet-evaluator.js"
     yield "/public/node-live-audio-worklet-register.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet-register.js"
     yield "/public/styles.css", "text/css", PUBLIC / "styles.css"
 
