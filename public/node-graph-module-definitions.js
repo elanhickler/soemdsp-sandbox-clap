@@ -67,6 +67,7 @@ const nodeGraphNodeLabels = Object.freeze({
   clapPlugin: "CLAP Plugin",
   gain: "Gain",
   bias: "Bias",
+  softClipper: "Soft Clipper",
   rotate3dTo2d: "Rotation 3D to 2D",
   macroKnob: "Macro Knob",
   bipolarKnob: "Bipolar Knob",
