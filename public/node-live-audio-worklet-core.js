@@ -110,6 +110,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.liveModuleEvaluators = this.buildLiveModuleEvaluators();
+    this.liveModuleEvaluators.bipolarKnob = this.liveModuleEvaluators.macroKnob;
+    this.liveModuleEvaluators.previousPatch = this.liveModuleEvaluators.nextPatch;
     this.inputConnections = new Map();
     this.badNumberCount = 0;
     this.lastBadValueReason = "";
@@ -12827,6 +12829,207 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           },
         );
       },
+      midiOut: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
+        const midiNumber = this.clampValue(Math.round(this.readEffectiveParameter(
+          node,
+          "midiNumber",
+          60,
+          frame,
+          frames,
+          frameValues,
+        )), 0, 127);
+        const outputMidiNumber = hasMidiInput
+          ? this.clampValue(Math.round(Number(mixInput(nodeId, "MIDI Number")) || 0), 0, 127)
+          : midiNumber;
+        return {
+          "Full Value": outputMidiNumber,
+          Normalized: outputMidiNumber / 127,
+        };
+      },
+      midiNotePitch: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const pitch = this.clampValue((
+          Number(mixInput(nodeId, "MIDI Note")) +
+          Number(mixInput(nodeId, "Octave Offset")) * 12 +
+          Number(mixInput(nodeId, "Pitch Offset"))
+        ) || 0, 0, 127);
+        return {
+          Frequency: 440 * (2 ** ((pitch - 69) / 12)),
+          "Pitch 0-1": pitch / 127,
+          "Pitch 0-127": pitch,
+        };
+      },
+      keyboardController: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const signal = this.midiKeyboardSignal || {};
+        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+        const manualRawMidi = Number.isFinite(Number(signal.rawMidi))
+          ? Number(signal.rawMidi)
+          : Number(signal.midi) || 60;
+        const manualOctave = Number(signal.octave) || 0;
+        const octave = hasInput(nodeId, "Octave")
+          ? this.clampValue(Math.round(Number(mixInput(nodeId, "Octave")) || 0), -6, 6)
+          : manualOctave;
+        const rawMidi = resetActive
+          ? 60
+          : (hasInput(nodeId, "MIDI Note") ? Number(mixInput(nodeId, "MIDI Note")) || 0 : manualRawMidi);
+        const midi = this.clampValue(Math.round(rawMidi + octave * 12), 0, 127);
+        const automatedPitch = resetActive || hasInput(nodeId, "MIDI Note") || hasInput(nodeId, "Octave");
+        const key = automatedPitch
+          ? this.clampValue(Math.round(rawMidi) - 48, 0, 24)
+          : this.clampValue(Number(signal.keyIndex) || 12, 0, 24);
+        const frequency = 440 * (2 ** ((midi - 69) / 12));
+        const outputFrequency = Math.max(0, frequency);
+        const increment = Math.max(0, outputFrequency / safeRate);
+        const q = automatedPitch
+          ? key / 24
+          : this.clampValue(Number(signal.keyQuantized) || key / 24, 0, 1);
+        const x = resetActive ? 0.5 : (hasInput(nodeId, "X")
+          ? this.clampValue(Number(mixInput(nodeId, "X")) || 0, 0, 1)
+          : this.clampValue(Number(signal.x) || q, 0, 1));
+        const y = resetActive ? 0 : (hasInput(nodeId, "Y")
+          ? this.clampValue(Number(mixInput(nodeId, "Y")) || 0, 0, 1)
+          : this.clampValue(Number(signal.y) || 0, 0, 1));
+        const gate = resetActive ? 0 : (hasInput(nodeId, "Gate")
+          ? (Number(mixInput(nodeId, "Gate")) > 0 ? 1 : 0)
+          : (Number(signal.gate) > 0 ? 1 : 0));
+        const hold = hasInput(nodeId, "Hold") && Number(mixInput(nodeId, "Hold")) > 0 ? 1 : 0;
+        const velocity = hasInput(nodeId, "Velocity")
+          ? this.clampValue(Number(mixInput(nodeId, "Velocity")) || 0, 0, 1)
+          : y;
+        const gatePulse = this.midiKeyboardGatePulseSamples > 0 ? 1 : 0;
+        this.midiKeyboardGatePulseSamples = Math.max(0, this.midiKeyboardGatePulseSamples - 1);
+        return {
+          "1 Sample Gate": hasInput(nodeId, "Gate") ? gate : gatePulse,
+          "0.1V/Oct": this.clampValue(midi / 120, 0, 1),
+          Double: this.clampValue(midi / 127, 0, 1),
+          Frequency: outputFrequency,
+          Gate: Math.max(gate, hold),
+          Increment: increment,
+          Key: key,
+          MIDI: midi,
+          Pitch: midi,
+          Q: q,
+          X: x,
+          Y: velocity,
+        };
+      },
+      buttonEvents: () => ({
+        Click: this.externalButtonEventPulse("click"),
+        Hover: this.externalButtonEventPulse("hover"),
+        Down: this.externalButtonEventPulse("down"),
+        Up: this.externalButtonEventPulse("up"),
+        Enter: this.externalButtonEventPulse("enter"),
+        Leave: this.externalButtonEventPulse("leave"),
+      }),
+      wireBreak: () => this.wireBreakEventSample(),
+      wireConnect: () => this.wireConnectEventSample(),
+      wireDisconnect: () => this.wireDisconnectEventSample(),
+      windowReopen: () => this.windowReopenEventSample(),
+      shootingStarExplosion: (node, nodeId, frame, frames, frameValues) => this.shootingStarExplosionEventSample(
+        this.readEffectiveParameter(node, "lowRange", 0, frame, frames, frameValues),
+        this.readEffectiveParameter(node, "highRange", 1, frame, frames, frameValues),
+      ),
+      nextPatch: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const state = this.patchCommandStates.get(nodeId) || this.createPatchCommandState();
+        this.patchCommandStates.set(nodeId, state);
+        return this.patchCommandTriggerSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          this.readEffectiveParameter(node, "threshold", 0, frame, frames, frameValues),
+          node?.type === "previousPatch" ? "previousPatch" : "nextPatch",
+          nodeId,
+        );
+      },
+      macroControls: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+        const value = {};
+        for (let index = 0; index < 10; index += 1) {
+          const port = `M${index + 1} In`;
+          value[`M${index + 1}`] = resetActive
+            ? 0
+            : this.clampValue(hasInput(nodeId, port)
+              ? Number(mixInput(nodeId, port)) || 0
+              : Number(this.macroControls?.[index]) || 0, 0, 1);
+        }
+        return value;
+      },
+      pitchModWheel: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
+        const pitchWheel = resetActive ? 0 : (hasInput(nodeId, "Pitch")
+          ? Number(mixInput(nodeId, "Pitch")) || 0
+          : Number(this.pitchModWheelSignal?.pitch));
+        const modWheel = resetActive ? 0 : (hasInput(nodeId, "Mod")
+          ? Number(mixInput(nodeId, "Mod")) || 0
+          : Number(this.pitchModWheelSignal?.mod) || 0);
+        return {
+          "Mod Wheel": this.clampValue(modWheel, 0, 1),
+          "Pitch Wheel": this.clampValue(Number.isFinite(pitchWheel) ? pitchWheel : 0, -1, 1),
+        };
+      },
+      gain: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const gainAmount = this.readEffectiveParameter(node, "amount", 1, frame, frames, frameValues);
+        const gainMono = mixInput(nodeId);
+        return {
+          Out: gainMono * gainAmount,
+          Left: (mixInput(nodeId, "Left") + gainMono) * gainAmount,
+          Right: (mixInput(nodeId, "Right") + gainMono) * gainAmount,
+        };
+      },
+      led: (node, nodeId, frame, frames, frameValues, mixInput) => ({
+        Out: this.safeFilterNumber(mixInput(nodeId, "In"), null),
+      }),
+      bias: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const biasOffset = this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
+        const biasMono = mixInput(nodeId);
+        return {
+          Out: biasMono + biasOffset,
+          Left: mixInput(nodeId, "Left") + biasMono + biasOffset,
+          Right: mixInput(nodeId, "Right") + biasMono + biasOffset,
+        };
+      },
+      softClipper: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const softClipperCenter = this.readEffectiveParameter(node, "center", 0, frame, frames, frameValues);
+        const softClipperWidth = this.readEffectiveParameter(node, "width", 2, frame, frames, frameValues);
+        const softClipperMono = mixInput(nodeId);
+        return {
+          Out: this.nativeSoftClipperSample(softClipperMono, softClipperCenter, softClipperWidth),
+          Left: this.nativeSoftClipperSample(mixInput(nodeId, "Left") + softClipperMono, softClipperCenter, softClipperWidth),
+          Right: this.nativeSoftClipperSample(mixInput(nodeId, "Right") + softClipperMono, softClipperCenter, softClipperWidth),
+        };
+      },
+      rotate3dTo2d: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const angleX = this.readEffectiveParameter(node, "rotateX", 0, frame, frames, frameValues) * Math.PI * 2;
+        const angleY = this.readEffectiveParameter(node, "rotateY", 0, frame, frames, frameValues) * Math.PI * 2;
+        const angleZ = this.readEffectiveParameter(node, "rotateZ", 0, frame, frames, frameValues) * Math.PI * 2;
+        let x = this.safeFilterNumber(mixInput(nodeId, "X"), null);
+        let y = this.safeFilterNumber(mixInput(nodeId, "Y"), null);
+        let z = this.safeFilterNumber(mixInput(nodeId, "Z"), null);
+        const sinX = Math.sin(angleX);
+        const cosX = Math.cos(angleX);
+        const nextY = y * cosX - z * sinX;
+        const nextZ = y * sinX + z * cosX;
+        y = nextY;
+        z = nextZ;
+        const sinY = Math.sin(angleY);
+        const cosY = Math.cos(angleY);
+        const nextX = x * cosY + z * sinY;
+        z = -x * sinY + z * cosY;
+        x = nextX;
+        const sinZ = Math.sin(angleZ);
+        const cosZ = Math.cos(angleZ);
+        return {
+          X: this.safeFilterNumber(x * cosZ - y * sinZ, null),
+          Y: this.safeFilterNumber(x * sinZ + y * cosZ, null),
+        };
+      },
+      valueSlider: (node, nodeId, frame, frames, frameValues) => {
+        const offset = this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
+        return { Bias: offset, Out: offset, offset };
+      },
+      macroKnob: (node, nodeId, frame, frames, frameValues) => {
+        const knobValue = this.readEffectiveParameter(node, "value", 0, frame, frames, frameValues);
+        return { Out: knobValue, value: knobValue };
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14446,207 +14649,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
         );
-      } else if (node?.type === "midiOut") {
-        const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
-        const midiNumber = this.clampValue(Math.round(this.readEffectiveParameter(
-          node,
-          "midiNumber",
-          60,
-          frame,
-          frames,
-          frameValues,
-        )), 0, 127);
-        const outputMidiNumber = hasMidiInput
-          ? this.clampValue(Math.round(Number(mixInput(nodeId, "MIDI Number")) || 0), 0, 127)
-          : midiNumber;
-        value = {
-          "Full Value": outputMidiNumber,
-          Normalized: outputMidiNumber / 127,
-        };
-      } else if (node?.type === "midiNotePitch") {
-        const pitch = this.clampValue((
-          Number(mixInput(nodeId, "MIDI Note")) +
-          Number(mixInput(nodeId, "Octave Offset")) * 12 +
-          Number(mixInput(nodeId, "Pitch Offset"))
-        ) || 0, 0, 127);
-        value = {
-          Frequency: 440 * (2 ** ((pitch - 69) / 12)),
-          "Pitch 0-1": pitch / 127,
-          "Pitch 0-127": pitch,
-        };
-      } else if (node?.type === "keyboardController") {
-        const signal = this.midiKeyboardSignal || {};
-        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
-        const manualRawMidi = Number.isFinite(Number(signal.rawMidi))
-          ? Number(signal.rawMidi)
-          : Number(signal.midi) || 60;
-        const manualOctave = Number(signal.octave) || 0;
-        const octave = hasInput(nodeId, "Octave")
-          ? this.clampValue(Math.round(Number(mixInput(nodeId, "Octave")) || 0), -6, 6)
-          : manualOctave;
-        const rawMidi = resetActive
-          ? 60
-          : (hasInput(nodeId, "MIDI Note") ? Number(mixInput(nodeId, "MIDI Note")) || 0 : manualRawMidi);
-        const midi = this.clampValue(Math.round(rawMidi + octave * 12), 0, 127);
-        const automatedPitch = resetActive || hasInput(nodeId, "MIDI Note") || hasInput(nodeId, "Octave");
-        const key = automatedPitch
-          ? this.clampValue(Math.round(rawMidi) - 48, 0, 24)
-          : this.clampValue(Number(signal.keyIndex) || 12, 0, 24);
-        const frequency = 440 * (2 ** ((midi - 69) / 12));
-        const outputFrequency = Math.max(0, frequency);
-        const increment = Math.max(0, outputFrequency / safeRate);
-        const q = automatedPitch
-          ? key / 24
-          : this.clampValue(Number(signal.keyQuantized) || key / 24, 0, 1);
-        const x = resetActive ? 0.5 : (hasInput(nodeId, "X")
-          ? this.clampValue(Number(mixInput(nodeId, "X")) || 0, 0, 1)
-          : this.clampValue(Number(signal.x) || q, 0, 1));
-        const y = resetActive ? 0 : (hasInput(nodeId, "Y")
-          ? this.clampValue(Number(mixInput(nodeId, "Y")) || 0, 0, 1)
-          : this.clampValue(Number(signal.y) || 0, 0, 1));
-        const gate = resetActive ? 0 : (hasInput(nodeId, "Gate")
-          ? (Number(mixInput(nodeId, "Gate")) > 0 ? 1 : 0)
-          : (Number(signal.gate) > 0 ? 1 : 0));
-        const hold = hasInput(nodeId, "Hold") && Number(mixInput(nodeId, "Hold")) > 0 ? 1 : 0;
-        const velocity = hasInput(nodeId, "Velocity")
-          ? this.clampValue(Number(mixInput(nodeId, "Velocity")) || 0, 0, 1)
-          : y;
-        const gatePulse = this.midiKeyboardGatePulseSamples > 0 ? 1 : 0;
-        this.midiKeyboardGatePulseSamples = Math.max(0, this.midiKeyboardGatePulseSamples - 1);
-        value = {
-          "1 Sample Gate": hasInput(nodeId, "Gate") ? gate : gatePulse,
-          "0.1V/Oct": this.clampValue(midi / 120, 0, 1),
-          Double: this.clampValue(midi / 127, 0, 1),
-          Frequency: outputFrequency,
-          Gate: Math.max(gate, hold),
-          Increment: increment,
-          Key: key,
-          MIDI: midi,
-          Pitch: midi,
-          Q: q,
-          X: x,
-          Y: velocity,
-        };
-      } else if (node?.type === "buttonEvents") {
-        value = {
-          Click: this.externalButtonEventPulse("click"),
-          Hover: this.externalButtonEventPulse("hover"),
-          Down: this.externalButtonEventPulse("down"),
-          Up: this.externalButtonEventPulse("up"),
-          Enter: this.externalButtonEventPulse("enter"),
-          Leave: this.externalButtonEventPulse("leave"),
-        };
-      } else if (node?.type === "wireBreak") {
-        value = this.wireBreakEventSample();
-      } else if (node?.type === "wireConnect") {
-        value = this.wireConnectEventSample();
-      } else if (node?.type === "wireDisconnect") {
-        value = this.wireDisconnectEventSample();
-      } else if (node?.type === "windowReopen") {
-        value = this.windowReopenEventSample();
-      } else if (node?.type === "shootingStarExplosion") {
-        value = this.shootingStarExplosionEventSample(
-          this.readEffectiveParameter(node, "lowRange", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "highRange", 1, frame, frames, frameValues),
-        );
-      } else if (node?.type === "nextPatch" || node?.type === "previousPatch") {
-        const state = this.patchCommandStates.get(nodeId) || this.createPatchCommandState();
-        this.patchCommandStates.set(nodeId, state);
-        value = this.patchCommandTriggerSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          this.readEffectiveParameter(node, "threshold", 0, frame, frames, frameValues),
-          node?.type === "previousPatch" ? "previousPatch" : "nextPatch",
-          nodeId,
-        );
-      } else if (node?.type === "macroControls") {
-        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
-        value = {};
-        for (let index = 0; index < 10; index += 1) {
-          const port = `M${index + 1} In`;
-          value[`M${index + 1}`] = resetActive
-            ? 0
-            : this.clampValue(hasInput(nodeId, port)
-              ? Number(mixInput(nodeId, port)) || 0
-              : Number(this.macroControls?.[index]) || 0, 0, 1);
-        }
-      } else if (node?.type === "pitchModWheel") {
-        const resetActive = hasInput(nodeId, "Reset") && Number(mixInput(nodeId, "Reset")) > 0;
-        const pitchWheel = resetActive ? 0 : (hasInput(nodeId, "Pitch")
-          ? Number(mixInput(nodeId, "Pitch")) || 0
-          : Number(this.pitchModWheelSignal?.pitch));
-        const modWheel = resetActive ? 0 : (hasInput(nodeId, "Mod")
-          ? Number(mixInput(nodeId, "Mod")) || 0
-          : Number(this.pitchModWheelSignal?.mod) || 0);
-        value = {
-          "Mod Wheel": this.clampValue(modWheel, 0, 1),
-          "Pitch Wheel": this.clampValue(Number.isFinite(pitchWheel) ? pitchWheel : 0, -1, 1),
-        };
-      } else if (node?.type === "gain") {
-        const gainAmount = this.readEffectiveParameter(node, "amount", 1, frame, frames, frameValues);
-        const gainMono = mixInput(nodeId);
-        value = {
-          Out: gainMono * gainAmount,
-          Left: (mixInput(nodeId, "Left") + gainMono) * gainAmount,
-          Right: (mixInput(nodeId, "Right") + gainMono) * gainAmount,
-        };
-      } else if (node?.type === "led") {
-        value = {
-          Out: this.safeFilterNumber(mixInput(nodeId, "In"), null),
-        };
       } else if (node?.type === "moduleGroup") {
         value = this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame);
       } else if (node?.type === "codeblock") {
         value = this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame);
       } else if (node?.type === "graph" || node?.type === "graph2") {
         value = graphOutputValue(node, nodeId);
-      } else if (node?.type === "bias") {
-        const biasOffset = this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
-        const biasMono = mixInput(nodeId);
-        value = {
-          Out: biasMono + biasOffset,
-          Left: mixInput(nodeId, "Left") + biasMono + biasOffset,
-          Right: mixInput(nodeId, "Right") + biasMono + biasOffset,
-        };
-      } else if (node?.type === "softClipper") {
-        const softClipperCenter = this.readEffectiveParameter(node, "center", 0, frame, frames, frameValues);
-        const softClipperWidth = this.readEffectiveParameter(node, "width", 2, frame, frames, frameValues);
-        const softClipperMono = mixInput(nodeId);
-        value = {
-          Out: this.nativeSoftClipperSample(softClipperMono, softClipperCenter, softClipperWidth),
-          Left: this.nativeSoftClipperSample(mixInput(nodeId, "Left") + softClipperMono, softClipperCenter, softClipperWidth),
-          Right: this.nativeSoftClipperSample(mixInput(nodeId, "Right") + softClipperMono, softClipperCenter, softClipperWidth),
-        };
-      } else if (node?.type === "rotate3dTo2d") {
-        const angleX = this.readEffectiveParameter(node, "rotateX", 0, frame, frames, frameValues) * Math.PI * 2;
-        const angleY = this.readEffectiveParameter(node, "rotateY", 0, frame, frames, frameValues) * Math.PI * 2;
-        const angleZ = this.readEffectiveParameter(node, "rotateZ", 0, frame, frames, frameValues) * Math.PI * 2;
-        let x = this.safeFilterNumber(mixInput(nodeId, "X"), null);
-        let y = this.safeFilterNumber(mixInput(nodeId, "Y"), null);
-        let z = this.safeFilterNumber(mixInput(nodeId, "Z"), null);
-        const sinX = Math.sin(angleX);
-        const cosX = Math.cos(angleX);
-        const nextY = y * cosX - z * sinX;
-        const nextZ = y * sinX + z * cosX;
-        y = nextY;
-        z = nextZ;
-        const sinY = Math.sin(angleY);
-        const cosY = Math.cos(angleY);
-        const nextX = x * cosY + z * sinY;
-        z = -x * sinY + z * cosY;
-        x = nextX;
-        const sinZ = Math.sin(angleZ);
-        const cosZ = Math.cos(angleZ);
-        value = {
-          X: this.safeFilterNumber(x * cosZ - y * sinZ, null),
-          Y: this.safeFilterNumber(x * sinZ + y * cosZ, null),
-        };
-      } else if (node?.type === "valueSlider") {
-        const offset = this.readEffectiveParameter(node, "offset", 0, frame, frames, frameValues);
-        value = { Bias: offset, Out: offset, offset };
-      } else if (node?.type === "macroKnob" || node?.type === "bipolarKnob") {
-        const knobValue = this.readEffectiveParameter(node, "value", 0, frame, frames, frameValues);
-        value = { Out: knobValue, value: knobValue };
       } else if (node?.type === "sandboxVisuals") {
         const screenShake = this.smoothVisualControl(
           "screenShake",
