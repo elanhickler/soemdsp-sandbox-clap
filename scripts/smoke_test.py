@@ -363,6 +363,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/codeblock/codeblock-worklet-evaluator.js",
     "modules/moduleGroup/module-group-worklet-evaluator.js",
     "modules/ellipsoid/ellipsoid-worklet-evaluator.js",
+    "modules/sineWavetable/sine-wavetable-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
@@ -16730,7 +16731,7 @@ def require_node_graph_mvp_contract() -> None:
         "function nodeLiveIsPolyBlepOscillatorType(type)",
         'return type === "osc" || type === "polyBlep" || type === "sineWavetable"',
         "nodeLiveSineCosWavetableSample",
-        "sineWavetable: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
+        "this.sineWavetableWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate)",
         "polyBlep(phaseCycle, phaseIncrement)",
         "polyBlepSquare(phaseCycle, phaseIncrement)",
         "currentNoiseSample(nodeId)",
