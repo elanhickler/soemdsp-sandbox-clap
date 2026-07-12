@@ -11997,6 +11997,220 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           hasClockInput: hasInput(nodeId, "Clock"),
         });
       },
+      passiveFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.passiveFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createPassiveFilterState());
+        this.passiveFilterStates.set(nodeId, state);
+        const passiveMode = this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues);
+        const passiveLowFrequency = this.readEffectiveParameter(node, "lowFrequency", 200, frame, frames, frameValues);
+        const passiveHighFrequency = this.readEffectiveParameter(node, "highFrequency", 1000, frame, frames, frameValues);
+        const passiveMono = mixInput(nodeId);
+        return {
+          Out: this.passiveFilterSample(state.mono, passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
+          Left: this.passiveFilterSample(state.left, mixInput(nodeId, "Left") + passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
+          Right: this.passiveFilterSample(state.right, mixInput(nodeId, "Right") + passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
+        };
+      },
+      papoulisFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.papoulisFilterStates.get(nodeId) || this.createPapoulisFilterState();
+        this.papoulisFilterStates.set(nodeId, state);
+        return this.papoulisFilterSample(
+          state,
+          mixInput(nodeId),
+          this.readEffectiveParameter(node, "cutoff", 1000, frame, frames, frameValues),
+          safeRate,
+        );
+      },
+      phosphillator: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.phosphillatorPlaybackStates.get(nodeId) || this.createPhosphillatorPlaybackState();
+        this.phosphillatorPlaybackStates.set(nodeId, state);
+        return this.phosphillatorPlaybackSample(
+          state,
+          node,
+          nodeId,
+          mixInput(nodeId, "0.1V/Oct"),
+          this.readEffectiveParameter(node, "frequency", 2, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+          mixInput(nodeId, "Reset"),
+          safeRate,
+        );
+      },
+      cookbookFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.cookbookFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createCookbookFilterState());
+        this.cookbookFilterStates.set(nodeId, state);
+        const cookbookMode = this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues);
+        const cookbookFrequency = this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues);
+        const cookbookQ = this.readEffectiveParameter(node, "q", 1, frame, frames, frameValues);
+        const cookbookGain = this.readEffectiveParameter(node, "gain", 0, frame, frames, frameValues);
+        const cookbookStages = this.readEffectiveParameter(node, "stages", 2, frame, frames, frameValues);
+        const cookbookMono = mixInput(nodeId);
+        return {
+          Out: this.cookbookFilterSample(state.mono, cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
+          Left: this.cookbookFilterSample(state.left, mixInput(nodeId, "Left") + cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
+          Right: this.cookbookFilterSample(state.right, mixInput(nodeId, "Right") + cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
+        };
+      },
+      ladderFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.ladderFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createLadderFilterState());
+        this.ladderFilterStates.set(nodeId, state);
+        const ladderParams = {
+          frequency: this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+          stages: this.readEffectiveParameter(node, "stages", 4, frame, frames, frameValues),
+        };
+        const ladderMono = mixInput(nodeId);
+        return {
+          Out: this.ladderFilterSample(state.mono, ladderMono, ladderParams, safeRate),
+          Left: this.ladderFilterSample(state.left, mixInput(nodeId, "Left") + ladderMono, ladderParams, safeRate),
+          Right: this.ladderFilterSample(state.right, mixInput(nodeId, "Right") + ladderMono, ladderParams, safeRate),
+        };
+      },
+      flowerChildFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.flowerChildFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createFlowerChildFilterState());
+        this.flowerChildFilterStates.set(nodeId, state);
+        const flowerChildParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const flowerChildMono = mixInput(nodeId);
+        return {
+          Out: this.flowerChildFilterSample(state.mono, flowerChildMono, flowerChildParams, safeRate),
+          Left: this.flowerChildFilterSample(state.left, mixInput(nodeId, "Left") + flowerChildMono, flowerChildParams, safeRate),
+          Right: this.flowerChildFilterSample(state.right, mixInput(nodeId, "Right") + flowerChildMono, flowerChildParams, safeRate),
+        };
+      },
+      rsmetFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.rsmetFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createRsmetFilterState());
+        this.rsmetFilterStates.set(nodeId, state);
+        const rsmetParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const rsmetMono = mixInput(nodeId);
+        return {
+          Out: this.rsmetFilterSample(state.mono, rsmetMono, rsmetParams, safeRate),
+          Left: this.rsmetFilterSample(state.left, mixInput(nodeId, "Left") + rsmetMono, rsmetParams, safeRate),
+          Right: this.rsmetFilterSample(state.right, mixInput(nodeId, "Right") + rsmetMono, rsmetParams, safeRate),
+        };
+      },
+      yellowjacketFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.yellowjacketFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createYellowjacketFilterState());
+        this.yellowjacketFilterStates.set(nodeId, state);
+        const yellowjacketParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const yellowjacketMono = mixInput(nodeId);
+        return {
+          Out: this.yellowjacketFilterSample(state.mono, yellowjacketMono, yellowjacketParams, safeRate),
+          Left: this.yellowjacketFilterSample(state.left, mixInput(nodeId, "Left") + yellowjacketMono, yellowjacketParams, safeRate),
+          Right: this.yellowjacketFilterSample(state.right, mixInput(nodeId, "Right") + yellowjacketMono, yellowjacketParams, safeRate),
+        };
+      },
+      superloveFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.superloveFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createSuperloveFilterState());
+        this.superloveFilterStates.set(nodeId, state);
+        const superloveParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0.5, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const superloveMono = mixInput(nodeId);
+        return {
+          Out: this.superloveFilterSample(state.mono, superloveMono, superloveParams, safeRate),
+          Left: this.superloveFilterSample(state.left, mixInput(nodeId, "Left") + superloveMono, superloveParams, safeRate),
+          Right: this.superloveFilterSample(state.right, mixInput(nodeId, "Right") + superloveMono, superloveParams, safeRate),
+        };
+      },
+      chaoticPhaseLockingFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.chaoticPhaseLockingFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createChaoticPhaseLockingFilterState());
+        this.chaoticPhaseLockingFilterStates.set(nodeId, state);
+        const chaoticPhaseLockingParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 1, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const chaoticPhaseLockingMono = mixInput(nodeId);
+        return {
+          Out: this.chaoticPhaseLockingFilterSample(state.mono, chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
+          Left: this.chaoticPhaseLockingFilterSample(state.left, mixInput(nodeId, "Left") + chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
+          Right: this.chaoticPhaseLockingFilterSample(state.right, mixInput(nodeId, "Right") + chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
+        };
+      },
+      resonatorFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.resonatorFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createResonatorFilterState());
+        this.resonatorFilterStates.set(nodeId, state);
+        const resonatorParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const resonatorMono = mixInput(nodeId);
+        return {
+          Out: this.resonatorFilterSample(state.mono, resonatorMono, resonatorParams, safeRate),
+          Left: this.resonatorFilterSample(state.left, mixInput(nodeId, "Left") + resonatorMono, resonatorParams, safeRate),
+          Right: this.resonatorFilterSample(state.right, mixInput(nodeId, "Right") + resonatorMono, resonatorParams, safeRate),
+        };
+      },
+      humanFilter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.humanFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createHumanFilterState());
+        this.humanFilterStates.set(nodeId, state);
+        const humanFilterParams = {
+          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
+          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
+          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
+          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
+        };
+        const humanFilterMono = mixInput(nodeId);
+        return {
+          Out: this.humanFilterSample(state.mono, humanFilterMono, humanFilterParams, safeRate),
+          Left: this.humanFilterSample(state.left, mixInput(nodeId, "Left") + humanFilterMono, humanFilterParams, safeRate),
+          Right: this.humanFilterSample(state.right, mixInput(nodeId, "Right") + humanFilterMono, humanFilterParams, safeRate),
+        };
+      },
+      pulseExplosion: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.pulseExplosionStates.get(nodeId) || this.createPulseExplosionState();
+        this.pulseExplosionStates.set(nodeId, state);
+        return this.pulseExplosionSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          {
+            startTime: this.readEffectiveParameter(node, "startTime", 0, frame, frames, frameValues),
+            centerTime: this.readEffectiveParameter(node, "centerTime", 0.5, frame, frames, frameValues),
+            endTime: this.readEffectiveParameter(node, "endTime", 1, frame, frames, frameValues),
+            timeSpread: this.readEffectiveParameter(node, "timeSpread", 0.3, frame, frames, frameValues),
+            numberOfPulses: this.readEffectiveParameter(node, "numberOfPulses", 20, frame, frames, frameValues),
+            lowAmplitude: this.readEffectiveParameter(node, "lowAmplitude", 0.3, frame, frames, frameValues),
+            highAmplitude: this.readEffectiveParameter(node, "highAmplitude", 1, frame, frames, frameValues),
+            seed: this.readEffectiveParameter(node, "seed", 0, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      },
+      tb303Filter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.tb303FilterStates.get(nodeId) || this.createStereoFilterState(() => this.createTb303FilterState());
+        this.tb303FilterStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const tb303Params = {
+          cutoff: read("cutoff", 1000),
+          drive: read("drive", 0),
+          mode: read("mode", 4),
+          resonance: read("resonance", 0),
+        };
+        const tb303Mono = mixInput(nodeId);
+        return {
+          Out: this.tb303FilterSample(state.mono, tb303Mono, tb303Params, safeRate),
+          Left: this.tb303FilterSample(state.left, mixInput(nodeId, "Left") + tb303Mono, tb303Params, safeRate),
+          Right: this.tb303FilterSample(state.right, mixInput(nodeId, "Right") + tb303Mono, tb303Params, safeRate),
+        };
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14196,206 +14410,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       } else if (node?.type === "macroKnob" || node?.type === "bipolarKnob") {
         const knobValue = this.readEffectiveParameter(node, "value", 0, frame, frames, frameValues);
         value = { Out: knobValue, value: knobValue };
-      } else if (node?.type === "passiveFilter") {
-        const state = this.passiveFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createPassiveFilterState());
-        this.passiveFilterStates.set(nodeId, state);
-        const passiveMode = this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues);
-        const passiveLowFrequency = this.readEffectiveParameter(node, "lowFrequency", 200, frame, frames, frameValues);
-        const passiveHighFrequency = this.readEffectiveParameter(node, "highFrequency", 1000, frame, frames, frameValues);
-        const passiveMono = mixInput(nodeId);
-        value = {
-          Out: this.passiveFilterSample(state.mono, passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
-          Left: this.passiveFilterSample(state.left, mixInput(nodeId, "Left") + passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
-          Right: this.passiveFilterSample(state.right, mixInput(nodeId, "Right") + passiveMono, passiveMode, passiveLowFrequency, passiveHighFrequency, safeRate),
-        };
-      } else if (node?.type === "papoulisFilter") {
-        const state = this.papoulisFilterStates.get(nodeId) || this.createPapoulisFilterState();
-        this.papoulisFilterStates.set(nodeId, state);
-        value = this.papoulisFilterSample(
-          state,
-          mixInput(nodeId),
-          this.readEffectiveParameter(node, "cutoff", 1000, frame, frames, frameValues),
-          safeRate,
-        );
-      } else if (node?.type === "phosphillator") {
-        const state = this.phosphillatorPlaybackStates.get(nodeId) || this.createPhosphillatorPlaybackState();
-        this.phosphillatorPlaybackStates.set(nodeId, state);
-        value = this.phosphillatorPlaybackSample(
-          state,
-          node,
-          nodeId,
-          mixInput(nodeId, "0.1V/Oct"),
-          this.readEffectiveParameter(node, "frequency", 2, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
-          mixInput(nodeId, "Reset"),
-          safeRate,
-        );
-      } else if (node?.type === "cookbookFilter") {
-        const state = this.cookbookFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createCookbookFilterState());
-        this.cookbookFilterStates.set(nodeId, state);
-        const cookbookMode = this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues);
-        const cookbookFrequency = this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues);
-        const cookbookQ = this.readEffectiveParameter(node, "q", 1, frame, frames, frameValues);
-        const cookbookGain = this.readEffectiveParameter(node, "gain", 0, frame, frames, frameValues);
-        const cookbookStages = this.readEffectiveParameter(node, "stages", 2, frame, frames, frameValues);
-        const cookbookMono = mixInput(nodeId);
-        value = {
-          Out: this.cookbookFilterSample(state.mono, cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
-          Left: this.cookbookFilterSample(state.left, mixInput(nodeId, "Left") + cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
-          Right: this.cookbookFilterSample(state.right, mixInput(nodeId, "Right") + cookbookMono, cookbookMode, cookbookFrequency, cookbookQ, cookbookGain, cookbookStages, safeRate),
-        };
-      } else if (node?.type === "ladderFilter") {
-        const state = this.ladderFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createLadderFilterState());
-        this.ladderFilterStates.set(nodeId, state);
-        const ladderParams = {
-          frequency: this.readEffectiveParameter(node, "frequency", 1000, frame, frames, frameValues),
-          mode: this.readEffectiveParameter(node, "mode", 1, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-          stages: this.readEffectiveParameter(node, "stages", 4, frame, frames, frameValues),
-        };
-        const ladderMono = mixInput(nodeId);
-        value = {
-          Out: this.ladderFilterSample(state.mono, ladderMono, ladderParams, safeRate),
-          Left: this.ladderFilterSample(state.left, mixInput(nodeId, "Left") + ladderMono, ladderParams, safeRate),
-          Right: this.ladderFilterSample(state.right, mixInput(nodeId, "Right") + ladderMono, ladderParams, safeRate),
-        };
-      } else if (node?.type === "flowerChildFilter") {
-        const state = this.flowerChildFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createFlowerChildFilterState());
-        this.flowerChildFilterStates.set(nodeId, state);
-        const flowerChildParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const flowerChildMono = mixInput(nodeId);
-        value = {
-          Out: this.flowerChildFilterSample(state.mono, flowerChildMono, flowerChildParams, safeRate),
-          Left: this.flowerChildFilterSample(state.left, mixInput(nodeId, "Left") + flowerChildMono, flowerChildParams, safeRate),
-          Right: this.flowerChildFilterSample(state.right, mixInput(nodeId, "Right") + flowerChildMono, flowerChildParams, safeRate),
-        };
-      } else if (node?.type === "rsmetFilter") {
-        const state = this.rsmetFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createRsmetFilterState());
-        this.rsmetFilterStates.set(nodeId, state);
-        const rsmetParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const rsmetMono = mixInput(nodeId);
-        value = {
-          Out: this.rsmetFilterSample(state.mono, rsmetMono, rsmetParams, safeRate),
-          Left: this.rsmetFilterSample(state.left, mixInput(nodeId, "Left") + rsmetMono, rsmetParams, safeRate),
-          Right: this.rsmetFilterSample(state.right, mixInput(nodeId, "Right") + rsmetMono, rsmetParams, safeRate),
-        };
-      } else if (node?.type === "yellowjacketFilter") {
-        const state = this.yellowjacketFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createYellowjacketFilterState());
-        this.yellowjacketFilterStates.set(nodeId, state);
-        const yellowjacketParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const yellowjacketMono = mixInput(nodeId);
-        value = {
-          Out: this.yellowjacketFilterSample(state.mono, yellowjacketMono, yellowjacketParams, safeRate),
-          Left: this.yellowjacketFilterSample(state.left, mixInput(nodeId, "Left") + yellowjacketMono, yellowjacketParams, safeRate),
-          Right: this.yellowjacketFilterSample(state.right, mixInput(nodeId, "Right") + yellowjacketMono, yellowjacketParams, safeRate),
-        };
-      } else if (node?.type === "superloveFilter") {
-        const state = this.superloveFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createSuperloveFilterState());
-        this.superloveFilterStates.set(nodeId, state);
-        const superloveParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 0.5, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const superloveMono = mixInput(nodeId);
-        value = {
-          Out: this.superloveFilterSample(state.mono, superloveMono, superloveParams, safeRate),
-          Left: this.superloveFilterSample(state.left, mixInput(nodeId, "Left") + superloveMono, superloveParams, safeRate),
-          Right: this.superloveFilterSample(state.right, mixInput(nodeId, "Right") + superloveMono, superloveParams, safeRate),
-        };
-      } else if (node?.type === "chaoticPhaseLockingFilter") {
-        const state = this.chaoticPhaseLockingFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createChaoticPhaseLockingFilterState());
-        this.chaoticPhaseLockingFilterStates.set(nodeId, state);
-        const chaoticPhaseLockingParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 1, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const chaoticPhaseLockingMono = mixInput(nodeId);
-        value = {
-          Out: this.chaoticPhaseLockingFilterSample(state.mono, chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
-          Left: this.chaoticPhaseLockingFilterSample(state.left, mixInput(nodeId, "Left") + chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
-          Right: this.chaoticPhaseLockingFilterSample(state.right, mixInput(nodeId, "Right") + chaoticPhaseLockingMono, chaoticPhaseLockingParams, safeRate),
-        };
-      } else if (node?.type === "resonatorFilter") {
-        const state = this.resonatorFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createResonatorFilterState());
-        this.resonatorFilterStates.set(nodeId, state);
-        const resonatorParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const resonatorMono = mixInput(nodeId);
-        value = {
-          Out: this.resonatorFilterSample(state.mono, resonatorMono, resonatorParams, safeRate),
-          Left: this.resonatorFilterSample(state.left, mixInput(nodeId, "Left") + resonatorMono, resonatorParams, safeRate),
-          Right: this.resonatorFilterSample(state.right, mixInput(nodeId, "Right") + resonatorMono, resonatorParams, safeRate),
-        };
-      } else if (node?.type === "humanFilter") {
-        const state = this.humanFilterStates.get(nodeId) || this.createStereoFilterState(() => this.createHumanFilterState());
-        this.humanFilterStates.set(nodeId, state);
-        const humanFilterParams = {
-          chaos: this.readEffectiveParameter(node, "chaos", 0, frame, frames, frameValues),
-          frequency: this.readEffectiveParameter(node, "frequency", 0.5, frame, frames, frameValues),
-          mode: this.readEffectiveParameter(node, "mode", 0, frame, frames, frameValues),
-          resonance: this.readEffectiveParameter(node, "resonance", 0.2, frame, frames, frameValues),
-        };
-        const humanFilterMono = mixInput(nodeId);
-        value = {
-          Out: this.humanFilterSample(state.mono, humanFilterMono, humanFilterParams, safeRate),
-          Left: this.humanFilterSample(state.left, mixInput(nodeId, "Left") + humanFilterMono, humanFilterParams, safeRate),
-          Right: this.humanFilterSample(state.right, mixInput(nodeId, "Right") + humanFilterMono, humanFilterParams, safeRate),
-        };
-      } else if (node?.type === "pulseExplosion") {
-        const state = this.pulseExplosionStates.get(nodeId) || this.createPulseExplosionState();
-        this.pulseExplosionStates.set(nodeId, state);
-        value = this.pulseExplosionSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          {
-            startTime: this.readEffectiveParameter(node, "startTime", 0, frame, frames, frameValues),
-            centerTime: this.readEffectiveParameter(node, "centerTime", 0.5, frame, frames, frameValues),
-            endTime: this.readEffectiveParameter(node, "endTime", 1, frame, frames, frameValues),
-            timeSpread: this.readEffectiveParameter(node, "timeSpread", 0.3, frame, frames, frameValues),
-            numberOfPulses: this.readEffectiveParameter(node, "numberOfPulses", 20, frame, frames, frameValues),
-            lowAmplitude: this.readEffectiveParameter(node, "lowAmplitude", 0.3, frame, frames, frameValues),
-            highAmplitude: this.readEffectiveParameter(node, "highAmplitude", 1, frame, frames, frameValues),
-            seed: this.readEffectiveParameter(node, "seed", 0, frame, frames, frameValues),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "tb303Filter") {
-        const state = this.tb303FilterStates.get(nodeId) || this.createStereoFilterState(() => this.createTb303FilterState());
-        this.tb303FilterStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const tb303Params = {
-          cutoff: read("cutoff", 1000),
-          drive: read("drive", 0),
-          mode: read("mode", 4),
-          resonance: read("resonance", 0),
-        };
-        const tb303Mono = mixInput(nodeId);
-        value = {
-          Out: this.tb303FilterSample(state.mono, tb303Mono, tb303Params, safeRate),
-          Left: this.tb303FilterSample(state.left, mixInput(nodeId, "Left") + tb303Mono, tb303Params, safeRate),
-          Right: this.tb303FilterSample(state.right, mixInput(nodeId, "Right") + tb303Mono, tb303Params, safeRate),
-        };
       } else if (node?.type === "delayEffect") {
         const state = this.delayEffectStates.get(nodeId) || this.createStereoDelayEffectState();
         this.delayEffectStates.set(nodeId, state);
