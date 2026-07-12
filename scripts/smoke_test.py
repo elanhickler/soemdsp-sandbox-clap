@@ -362,6 +362,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "node-live-audio-worklet-core.js",
     "modules/codeblock/codeblock-worklet-evaluator.js",
     "modules/moduleGroup/module-group-worklet-evaluator.js",
+    "modules/ellipsoid/ellipsoid-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
@@ -16669,8 +16670,8 @@ def require_node_graph_mvp_contract() -> None:
         'harmonicPhaseMultiply: this.readEffectiveParameter(node, "harmonicPhaseMultiply", 0, frame, frames, frameValues)',
         'phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0)',
         "value = { Out: additiveSample }",
-        "ellipsoid: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {",
-        "value = this.nativeEllipsoidVectorSample(",
+        "this.ellipsoidWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate)",
+        "const value = this.nativeEllipsoidVectorSample(",
         "ellipsoidFrame,",
         "phase + phaseOffset",
         'this.readEffectiveParameter(node, "offsetX", 0, frame, frames, frameValues)',
