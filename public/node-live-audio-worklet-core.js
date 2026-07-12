@@ -11635,6 +11635,25 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           reset: mixInput(nodeId, "Reset"),
         });
       },
+      henonMap: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.henonMapStates.get(nodeId) || this.createHenonMapState();
+        this.henonMapStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const henon = this.henonMapSample(state, {
+          a: read("a", 1.4),
+          b: read("b", 0.3),
+          rate: read("rate", 8),
+          reset: mixInput(nodeId, "Reset"),
+          sampleRate: safeRate,
+          seedX: read("seedX", 0.1),
+          seedY: read("seedY", 0.1),
+        });
+        const henonLevel = read("level", 1);
+        return {
+          X: henon.x * henonLevel,
+          Y: henon.y * henonLevel,
+        };
+      },
     };
   }
 
@@ -13589,24 +13608,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Pi: archimedes.pi,
           "Noise Below": archimedes.noiseBelow,
           "Noise Above": archimedes.noiseAbove,
-        };
-      } else if (node?.type === "henonMap") {
-        const state = this.henonMapStates.get(nodeId) || this.createHenonMapState();
-        this.henonMapStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const henon = this.henonMapSample(state, {
-          a: read("a", 1.4),
-          b: read("b", 0.3),
-          rate: read("rate", 8),
-          reset: mixInput(nodeId, "Reset"),
-          sampleRate: safeRate,
-          seedX: read("seedX", 0.1),
-          seedY: read("seedY", 0.1),
-        });
-        const henonLevel = read("level", 1);
-        value = {
-          X: henon.x * henonLevel,
-          Y: henon.y * henonLevel,
         };
       } else if (node?.type === "wirdoSpiral") {
         const state = this.wirdoSpiralStates.get(nodeId) || this.createWirdoSpiralState();

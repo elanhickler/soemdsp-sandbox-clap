@@ -4301,25 +4301,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         Y: lorenz.y * level,
         Z: lorenz.z * level,
       };
-    } else if (node?.type === "henonMap") {
-      const state = runtime.henonMapStates.get(nodeId) || createNodeGraphHenonMapState();
-      runtime.henonMapStates.set(nodeId, state);
-      const read = (key, fallback) => readNodeGraphLiveEffectiveParam(runtime, node, key, fallback, frame, frames, frameValues);
-      const henon = nodeGraphHenonMapSample({
-        a: read("a", 1.4),
-        b: read("b", 0.3),
-        rate: read("rate", 8),
-        reset: mixInput(nodeId, "Reset"),
-        sampleRate,
-        seedX: read("seedX", 0.1),
-        seedY: read("seedY", 0.1),
-        state,
-      });
-      const henonLevel = read("level", 1);
-      value = {
-        X: henon.x * henonLevel,
-        Y: henon.y * henonLevel,
-      };
     } else if (node?.type === "chuaAttractor") {
       const state = runtime.chuaAttractorStates.get(nodeId) || createNodeGraphChuaAttractorState();
       runtime.chuaAttractorStates.set(nodeId, state);

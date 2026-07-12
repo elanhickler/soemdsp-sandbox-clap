@@ -249,6 +249,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./native_modules/logistic_map/logistic_map-live-evaluator.js",
     "./public/modules/turingMachine/turing-machine-live-evaluator.js",
     "./public/modules/oscilloscopeBank/oscilloscope-bank-display.js",
+    "./public/modules/henonMap/henon-map-live-evaluator.js",
 )
 
 
