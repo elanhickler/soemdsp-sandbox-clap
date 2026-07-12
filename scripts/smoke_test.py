@@ -305,6 +305,14 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/bradley2a/bradley-2a-live-evaluator.js",
     "./public/modules/antisaw/antisaw-live-evaluator.js",
     "./public/modules/fractalBrownianNoise/fractal-brownian-noise-live-evaluator.js",
+    "./public/modules/clock/clock-live-evaluator.js",
+    "./public/modules/transport/transport-live-evaluator.js",
+    "./public/modules/randomClock/random-clock-live-evaluator.js",
+    "./public/modules/clockDivider/clock-divider-live-evaluator.js",
+    "./public/modules/delayedTrigger/delayed-trigger-live-evaluator.js",
+    "./public/modules/triggerCounter/trigger-counter-live-evaluator.js",
+    "./public/modules/triggerDivider/trigger-divider-live-evaluator.js",
+    "./public/modules/stepSequencer/step-sequencer-live-evaluator.js",
 )
 
 
@@ -10151,9 +10159,9 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphLiveModuleEvaluators.passiveFilter = (",
         "nodeGraphLiveModuleEvaluators.slewLimiter = (",
         "nodeGraphLiveModuleEvaluators.ladderFilter = (",
-        'node?.type === "clockDivider"',
-        'node?.type === "randomClock"',
-        'node?.type === "delayedTrigger"',
+        "nodeGraphLiveModuleEvaluators.clockDivider = (",
+        "nodeGraphLiveModuleEvaluators.randomClock = (",
+        "nodeGraphLiveModuleEvaluators.delayedTrigger = (",
         "nodeGraphLiveModuleEvaluators.sampleHold = (",
         'node?.type === "midiOut"',
         'node?.type === "midiNotePitch"',
@@ -10170,9 +10178,9 @@ def require_node_graph_mvp_contract() -> None:
         "value = { Bias: offset, Out: offset, offset }",
         'node?.type === "macroKnob" || node?.type === "bipolarKnob"',
         "value = { Out: knobValue, value: knobValue }",
-        'node?.type === "stepSequencer"',
-        'node?.type === "triggerCounter"',
-        'node?.type === "triggerDivider"',
+        "nodeGraphLiveModuleEvaluators.stepSequencer = (",
+        "nodeGraphLiveModuleEvaluators.triggerCounter = (",
+        "nodeGraphLiveModuleEvaluators.triggerDivider = (",
         "nodeGraphLiveModuleEvaluators.expAdsr = (",
         "nodeGraphLiveModuleEvaluators.linearEnvelope = (",
         "nodeGraphLiveModuleEvaluators.pluckEnvelope = (",
@@ -13554,7 +13562,7 @@ def require_node_graph_mvp_contract() -> None:
     require('"transport"' in execution_plan_source and 'type === "transport"' in execution_plan_source, "execution plan should treat Transport as a supported source")
     require('"softClipper"' in execution_plan_source, "execution plan should treat Soft Clipper as a supported passthrough processor")
     require("timing: normalizeNodeGraphPatchTiming(patch.timing)" in execution_plan_source, "compiled live plan should carry patch timing")
-    require("function nodeGraphTransportSample" in live_frame_source and 'node?.type === "transport"' in live_frame_source, "browser fallback should evaluate Transport")
+    require("function nodeGraphTransportSample" in live_frame_source and "nodeGraphLiveModuleEvaluators.transport = (" in node_graph_source, "browser fallback should evaluate Transport")
     require(
         "function nodeGraphSoftClipperSample(input, center = 0, width = 2)" in live_frame_source
         and "const scaleX = 2 / safeWidth" in live_frame_source

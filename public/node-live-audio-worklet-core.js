@@ -12680,6 +12680,153 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           mixInput(nodeId, "Reset"),
         );
       },
+      clock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.clockStates.get(nodeId) || this.createClockState();
+        this.clockStates.set(nodeId, state);
+        return this.clockSample(
+          state,
+          mixInput(nodeId, "Reset"),
+          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "rate", 2, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "duty", 0.5, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues),
+          safeRate,
+        );
+      },
+      transport: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.transportSample(
+          {
+            amplitude: read("amplitude", 1),
+            divisions: read("divisions", 0),
+          },
+          frame,
+          safeRate,
+        );
+      },
+      randomClock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.randomClockStates.get(nodeId) || this.createRandomClockState();
+        this.randomClockStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.randomClockSample(
+          state,
+          mixInput(nodeId, "Reset"),
+          {
+            duty: read("duty", 0.5),
+            level: read("level", 1),
+            maxSeconds: read("maxSeconds", 1),
+            minSeconds: read("minSeconds", 0.25),
+            seed: read("seed", 1),
+            threshold: read("threshold", 0),
+            triggerTime: read("triggerTime", 0.01),
+          },
+          safeRate,
+          nodeId,
+        );
+      },
+      clockDivider: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.clockDividerStates.get(nodeId) || this.createTriggerDividerState();
+        this.clockDividerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const division = Math.max(1, Math.min(64, Math.round(read("division", 2))));
+        const clockConnection = (this.inputConnections.get(this.inputKey(nodeId, "Clock")) || [])[0];
+        const clockSourceNode = this.nodes.get(clockConnection?.sourceNode);
+        const sourceRate = clockSourceNode?.type === "clock"
+          ? Math.max(0, Number(clockSourceNode.params?.rate) || 0)
+          : 0;
+        const pulseTime = sourceRate > 0
+          ? this.clampValue(read("duty", 0.5), 0.01, 1) * division / sourceRate
+          : 0.01;
+        return this.triggerDividerSample(
+          state,
+          mixInput(nodeId, "Clock"),
+          mixInput(nodeId, "Reset"),
+          {
+            division,
+            level: read("level", 1),
+            pulseTime,
+            threshold: read("threshold", 0),
+          },
+          safeRate,
+        );
+      },
+      delayedTrigger: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.delayedTriggerStates.get(nodeId) || this.createDelayedTriggerState();
+        this.delayedTriggerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.delayedTriggerSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          mixInput(nodeId, "Reset"),
+          {
+            delay: read("delay", 0.1),
+            level: read("level", 1),
+            pulseTime: read("pulseTime", 0.01),
+            threshold: read("threshold", 0),
+          },
+          safeRate,
+        );
+      },
+      triggerCounter: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.triggerCounterStates.get(nodeId) || this.createTriggerCounterState();
+        this.triggerCounterStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.triggerCounterSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          mixInput(nodeId, "Reset"),
+          {
+            countMax: read("countMax", 8),
+            increment: read("increment", 1),
+            level: read("level", 1),
+            pulseTime: read("pulseTime", 0.01),
+            threshold: read("threshold", 0),
+          },
+          safeRate,
+        );
+      },
+      triggerDivider: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.triggerDividerStates.get(nodeId) || this.createTriggerDividerState();
+        this.triggerDividerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.triggerDividerSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          mixInput(nodeId, "Reset"),
+          {
+            division: read("division", 2),
+            level: read("level", 1),
+            pulseTime: read("pulseTime", 0.01),
+            threshold: read("threshold", 0),
+          },
+          safeRate,
+        );
+      },
+      stepSequencer: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const state = this.stepSequencerStates.get(nodeId) || this.createStepSequencerState();
+        this.stepSequencerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.stepSequencerSample(
+          state,
+          mixInput(nodeId, "Trigger"),
+          mixInput(nodeId, "Reset"),
+          {
+            level: read("level", 1),
+            steps: read("steps", 8),
+            threshold: read("threshold", 0),
+            values: [
+              read("step1", 0),
+              read("step2", 0.25),
+              read("step3", 0.5),
+              read("step4", 0.75),
+              read("step5", 1),
+              read("step6", 0.75),
+              read("step7", 0.5),
+              read("step8", 0.25),
+            ],
+          },
+        );
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14298,140 +14445,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.phases.set(
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-        );
-      } else if (node?.type === "clock") {
-        const state = this.clockStates.get(nodeId) || this.createClockState();
-        this.clockStates.set(nodeId, state);
-        value = this.clockSample(
-          state,
-          mixInput(nodeId, "Reset"),
-          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "rate", 2, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "duty", 0.5, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues),
-          safeRate,
-        );
-      } else if (node?.type === "transport") {
-        value = this.transportSample(
-          {
-            amplitude: read("amplitude", 1),
-            divisions: read("divisions", 0),
-          },
-          frame,
-          safeRate,
-        );
-      } else if (node?.type === "randomClock") {
-        const state = this.randomClockStates.get(nodeId) || this.createRandomClockState();
-        this.randomClockStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.randomClockSample(
-          state,
-          mixInput(nodeId, "Reset"),
-          {
-            duty: read("duty", 0.5),
-            level: read("level", 1),
-            maxSeconds: read("maxSeconds", 1),
-            minSeconds: read("minSeconds", 0.25),
-            seed: read("seed", 1),
-            threshold: read("threshold", 0),
-            triggerTime: read("triggerTime", 0.01),
-          },
-          safeRate,
-          nodeId,
-        );
-      } else if (node?.type === "clockDivider") {
-        const state = this.clockDividerStates.get(nodeId) || this.createTriggerDividerState();
-        this.clockDividerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const division = Math.max(1, Math.min(64, Math.round(read("division", 2))));
-        const sourceRate = incomingClockRate(nodeId);
-        const pulseTime = sourceRate > 0
-          ? this.clampValue(read("duty", 0.5), 0.01, 1) * division / sourceRate
-          : 0.01;
-        value = this.triggerDividerSample(
-          state,
-          mixInput(nodeId, "Clock"),
-          mixInput(nodeId, "Reset"),
-          {
-            division,
-            level: read("level", 1),
-            pulseTime,
-            threshold: read("threshold", 0),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "delayedTrigger") {
-        const state = this.delayedTriggerStates.get(nodeId) || this.createDelayedTriggerState();
-        this.delayedTriggerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.delayedTriggerSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          mixInput(nodeId, "Reset"),
-          {
-            delay: read("delay", 0.1),
-            level: read("level", 1),
-            pulseTime: read("pulseTime", 0.01),
-            threshold: read("threshold", 0),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "triggerCounter") {
-        const state = this.triggerCounterStates.get(nodeId) || this.createTriggerCounterState();
-        this.triggerCounterStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.triggerCounterSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          mixInput(nodeId, "Reset"),
-          {
-            countMax: read("countMax", 8),
-            increment: read("increment", 1),
-            level: read("level", 1),
-            pulseTime: read("pulseTime", 0.01),
-            threshold: read("threshold", 0),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "triggerDivider") {
-        const state = this.triggerDividerStates.get(nodeId) || this.createTriggerDividerState();
-        this.triggerDividerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.triggerDividerSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          mixInput(nodeId, "Reset"),
-          {
-            division: read("division", 2),
-            level: read("level", 1),
-            pulseTime: read("pulseTime", 0.01),
-            threshold: read("threshold", 0),
-          },
-          safeRate,
-        );
-      } else if (node?.type === "stepSequencer") {
-        const state = this.stepSequencerStates.get(nodeId) || this.createStepSequencerState();
-        this.stepSequencerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.stepSequencerSample(
-          state,
-          mixInput(nodeId, "Trigger"),
-          mixInput(nodeId, "Reset"),
-          {
-            level: read("level", 1),
-            steps: read("steps", 8),
-            threshold: read("threshold", 0),
-            values: [
-              read("step1", 0),
-              read("step2", 0.25),
-              read("step3", 0.5),
-              read("step4", 0.75),
-              read("step5", 1),
-              read("step6", 0.75),
-              read("step7", 0.5),
-              read("step8", 0.25),
-            ],
-          },
         );
       } else if (node?.type === "midiOut") {
         const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
