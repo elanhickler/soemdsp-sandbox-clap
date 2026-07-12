@@ -365,6 +365,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/ellipsoid/ellipsoid-worklet-evaluator.js",
     "modules/sineWavetable/sine-wavetable-worklet-evaluator.js",
     "modules/additiveOsc/additive-osc-worklet-evaluator.js",
+    "modules/polyBlep/poly-blep-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
