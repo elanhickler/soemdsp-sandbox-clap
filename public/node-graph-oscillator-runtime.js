@@ -113,10 +113,32 @@ function nodeGraphPolyBlep(phaseCycle, phaseIncrement) {
   return 0;
 }
 
+// Direction-aware correction for the direct saw/ramp/square outputs. Mirrors
+// the native basic_oscillator.cpp fix: nodeGraphPolyBlep() only ever used
+// abs(phaseIncrement), so a negative (reverse-going) increment canceled the
+// wrong half of the discontinuity. A plain sign flip of the result spikes at
+// the wrap point -- this instead mirrors phaseCycle around 0 before handing
+// it to the ordinary forward correction, then negates, which reproduces an
+// exact time-reversal of the forward case. No-op when phaseIncrement >= 0.
+function nodeGraphPolyBlepDirectional(phaseCycle, phaseIncrement) {
+  const increment = Number(phaseIncrement) || 0;
+  if (increment >= 0) {
+    return nodeGraphPolyBlep(phaseCycle, increment);
+  }
+  return -nodeGraphPolyBlep(wrapNodeSliderValue(-phaseCycle, 0, 1), -increment);
+}
+
 function nodeGraphPolyBlepSquare(phaseCycle, phaseIncrement) {
   let value = phaseCycle < 0.5 ? 1 : -1;
   value += nodeGraphPolyBlep(phaseCycle, phaseIncrement);
   value -= nodeGraphPolyBlep(wrapNodeSliderValue(phaseCycle + 0.5, 0, 1), phaseIncrement);
+  return value;
+}
+
+function nodeGraphPolyBlepSquareDirectional(phaseCycle, phaseIncrement) {
+  let value = phaseCycle < 0.5 ? 1 : -1;
+  value += nodeGraphPolyBlepDirectional(phaseCycle, phaseIncrement);
+  value -= nodeGraphPolyBlepDirectional(wrapNodeSliderValue(phaseCycle + 0.5, 0, 1), phaseIncrement);
   return value;
 }
 
@@ -135,10 +157,10 @@ function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, phaseIncremen
   let sample = 0;
   switch (Math.round(Number(waveform) || 0)) {
     case 1:
-      sample = -1 + phaseCycle * 2 - nodeGraphPolyBlep(phaseCycle, renderPhaseIncrement);
+      sample = -1 + phaseCycle * 2 - nodeGraphPolyBlepDirectional(phaseCycle, renderPhaseIncrement);
       break;
     case 2:
-      sample = nodeGraphPolyBlepSquare(phaseCycle, renderPhaseIncrement);
+      sample = nodeGraphPolyBlepSquareDirectional(phaseCycle, renderPhaseIncrement);
       break;
     case 3:
       {
@@ -160,7 +182,7 @@ function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, phaseIncremen
       break;
     case 0:
     default:
-      sample = 1 - phaseCycle * 2 + nodeGraphPolyBlep(phaseCycle, renderPhaseIncrement);
+      sample = 1 - phaseCycle * 2 + nodeGraphPolyBlepDirectional(phaseCycle, renderPhaseIncrement);
       break;
   }
   if (phaseStopped) {
@@ -170,10 +192,6 @@ function nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, phaseIncremen
     runtime.oscillatorLastPhaseIncrements.set(nodeId, phaseDelta);
   }
   return sample;
-}
-
-function nodeGraphForwardBackwardPolyBlepWaveformSample(runtime, nodeId, phase, phaseIncrement, waveform) {
-  return nodeGraphOscillatorWaveformSample(runtime, nodeId, phase, phaseIncrement, waveform);
 }
 
 function nodeGraphEllipsoidSample(phase, offset = 0, shape = 0, scale = 1) {

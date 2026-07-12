@@ -73,12 +73,10 @@ async function fetchNodeGraphLiveNativeModuleBytes(entry) {
 }
 
 // A few native modules serve more than one node type (see the worklet's own
-// nativeModuleStatus alias checks, e.g. "name === 'basic_oscillator' ||
-// targetType === 'osc' || targetType === 'fbPolyBlepOsc'"). The catalog only
-// records one targetType per entry, so a patch using the aliased type would
-// otherwise miss the priority boost below.
+// nativeModuleStatus alias checks). The catalog only records one targetType
+// per entry, so a patch using the aliased type would otherwise miss the
+// priority boost below.
 const nodeGraphLiveNativeModuleTypeAliases = Object.freeze({
-  osc: ["fbPolyBlepOsc"],
   vactrolEnvelopeSeries: ["vactrolEnvelopeCustom"],
 });
 

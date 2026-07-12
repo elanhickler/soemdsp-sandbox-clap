@@ -12,7 +12,6 @@ const nodeGraphNodeLabels = Object.freeze({
   previousPatch: "Previous Patch",
   osc: "Osc",
   polyBlep: "PolyBLEP",
-  fbPolyBlepOsc: "F/B PolyBLEP Osc",
   blit: "BLIT",
   archimedes: "Archimedes",
   sineWavetable: "SinCos",
@@ -420,71 +419,6 @@ const nodeGraphModuleDefinitions = Object.freeze({
         label: "Waveform",
         linearSmoothing: false,
         max: "4",
-        mid: "2",
-        min: "0",
-        step: "1",
-      },
-      {
-        defaultValue: "100",
-        key: "frequency",
-        kind: "frequency",
-        label: "Frequency",
-        max: "20000",
-        mid: "440",
-        min: "0",
-        step: "any",
-        unit: "Hz",
-      },
-      {
-        defaultValue: "0",
-        key: "phase",
-        kind: "phase",
-        label: "Phase",
-        max: "1",
-        mid: "0.5",
-        min: "0",
-        step: "0.01",
-        unit: "cycle",
-        wraparound: true,
-      },
-      {
-        defaultValue: "1",
-        key: "level",
-        label: "Amplitude",
-        max: "1",
-        mid: "0.5",
-        min: "0",
-        nonlinearSlider: false,
-        step: "any",
-      },
-    ],
-  },
-  fbPolyBlepOsc: {
-    displayType: "trace",
-    inputs: ["Reset", "0.1V/Oct", "Increment"],
-    inputLabels: {
-      "0.1V/Oct": "0.1V",
-      Increment: "Inc.",
-    },
-    outputAliases: {
-      Out: "Wave Out",
-      Noise: "Wave Out",
-    },
-    outputLabels: {
-      "Wave Out": "Wave",
-    },
-    outputs: ["Saw", "Ramp", "Square", "Tri", "Sine", "Wave Out"],
-    parameters: [
-      {
-        choices: ["Saw", "Ramp", "Square", "Triangle", "Sine", "Noise"],
-        defaultValue: "0",
-        displayChoices: true,
-        divideChoicesVisibly: true,
-        key: "waveform",
-        kind: "waveform",
-        label: "Waveform",
-        linearSmoothing: false,
-        max: "5",
         mid: "2",
         min: "0",
         step: "1",
@@ -3429,7 +3363,7 @@ function nodeGraphModuleIsGraphType(type) {
 }
 
 function nodeGraphModuleIsRealtimeOscillatorType(type) {
-  return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc" || type === "sineWavetable" || type === "blit";
+  return type === "osc" || type === "polyBlep" || type === "sineWavetable" || type === "blit";
 }
 
 function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
@@ -3465,7 +3399,6 @@ function nodeGraphModuleProducesOutputWithoutSignalInput(type) {
     "wireDisconnect",
     "windowReopen",
     "shootingStarExplosion",
-    "fbPolyBlepOsc",
     "fractalBrownianNoise",
     "flowerChildEnvelopeFollower",
     "groupInput",

@@ -3523,7 +3523,7 @@ def require_node_graph_mvp_contract() -> None:
     definitions_source = script_sources["./public/node-graph-module-definitions.js"]
     require(
         "function nodeGraphModuleIsRealtimeOscillatorType(type)" in definitions_source
-        and 'return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc"' in definitions_source,
+        and 'return type === "osc" || type === "polyBlep" || type === "sineWavetable" || type === "blit";' in definitions_source,
         "polyBlep should share the browser-side realtime oscillator type helper",
     )
     require(
@@ -9765,7 +9765,7 @@ def require_node_graph_mvp_contract() -> None:
         "nodeGraphValidateRuntimeRoute(issues, {",
         '"canvas"',
         "function nodeGraphModuleIsRealtimeOscillatorType(type)",
-        'return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc" || type === "sineWavetable"',
+        'return type === "osc" || type === "polyBlep" || type === "sineWavetable"',
         "nodeGraphModuleIsRealtimeOscillatorType(type)",
         "nodeGraphModuleIsRealtimeOscillatorType(type) ||",
         "const nodeGraphMidiKeyboardMinOctave = -4",
@@ -10375,7 +10375,7 @@ def require_node_graph_mvp_contract() -> None:
         "const phaseOffset = (Number(partial.phase) || 0) + phaseCurve * harmonicPhaseAdd",
         "Math.sin((phase * harmonic * phaseMultiplier) + phaseOffset * Math.PI * 2)",
         "const harmonicLimit = Math.max(1, Math.min(maxHarmonics, Math.floor(Math.min(20000, safeRate * 0.45) / Math.max(1, frequency))))",
-        "sample = 1 - phaseCycle * 2 + nodeGraphPolyBlep(phaseCycle, renderPhaseIncrement)",
+        "sample = 1 - phaseCycle * 2 + nodeGraphPolyBlepDirectional(phaseCycle, renderPhaseIncrement)",
         "triangleStates",
         "runtime.oscResetStates",
         "const resetEdge = resetState.lastReset <= 0 && resetValue > 0",
@@ -11838,7 +11838,7 @@ def require_node_graph_mvp_contract() -> None:
         "bindNodeGraphModuleScopeWindowEvents(scopeElement)",
         "function nodeGraphModuleScopeSlots()",
         "function beginNodeGraphRenderedScopeCapture(options = {})",
-        'return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc"',
+        'return type === "osc" || type === "polyBlep" || type === "sineWavetable" || type === "blit";',
         "function nodeGraphDefaultModuleScopeMonitors(patch = nodeGraphMvp?.patch)",
         "nodeGraphModuleScopeIsOscillatorType(node?.type)",
         'io: "output"',
@@ -13834,7 +13834,6 @@ def require_node_graph_mvp_contract() -> None:
     require(
         'osc: {\n    displayType: "trace"' in module_definitions_source
         and 'polyBlep: {\n    displayType: "lineBurn"' in module_definitions_source
-        and 'fbPolyBlepOsc: {\n    displayType: "trace"' in module_definitions_source
         and "return nodeGraphModuleDisplayModesForType(type)[0]?.renderer || nodeGraphModuleDeclaredDisplayTypeForType(type);" in node_graph_source,
         "Oscillator module faces should resolve to their declared typed renderers",
     )
@@ -16601,7 +16600,7 @@ def require_node_graph_mvp_contract() -> None:
         "const steps = Math.max(1, Math.ceil(dt / 0.0007));",
         "this.triangleStates = new Map()",
         "function nodeLiveIsPolyBlepOscillatorType(type)",
-        'return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc" || type === "sineWavetable"',
+        'return type === "osc" || type === "polyBlep" || type === "sineWavetable"',
         "nodeLiveSineCosWavetableSample",
         'node?.type === "sineWavetable"',
         "polyBlep(phaseCycle, phaseIncrement)",

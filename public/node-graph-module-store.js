@@ -228,12 +228,6 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Osc",
     notes: ["multi-waveform", "cv input"],
   },
-  fbPolyBlepOsc: {
-    category: "Oscillator",
-    description: "Feedback/PolyBLEP variant of the multi-waveform oscillator -- same waveform set and CV inputs as Osc.",
-    label: "F/B PolyBLEP Osc",
-    notes: ["multi-waveform", "polyblep", "cv input"],
-  },
   additiveOsc: {
     category: "Oscillator",
     description: "Additive-synthesis oscillator building a waveform from summed harmonics. Native C++/WASM.",

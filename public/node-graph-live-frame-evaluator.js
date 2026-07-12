@@ -3761,9 +3761,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         frames,
         frameValues,
       );
-      const sampleOscillator = node?.type === "fbPolyBlepOsc"
-        ? nodeGraphForwardBackwardPolyBlepWaveformSample
-        : nodeGraphOscillatorWaveformSample;
+      const sampleOscillator = nodeGraphOscillatorWaveformSample;
       const selected = sampleOscillator(
         runtime,
         nodeId,

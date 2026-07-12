@@ -40,7 +40,7 @@ const nodeLiveRaptEllipticQuarterbandSos = Object.freeze([
 ]);
 
 function nodeLiveIsPolyBlepOscillatorType(type) {
-  return type === "osc" || type === "polyBlep" || type === "fbPolyBlepOsc" || type === "sineWavetable" || type === "blit";
+  return type === "osc" || type === "polyBlep" || type === "sineWavetable" || type === "blit";
 }
 
 const nodeLiveSineWavetableSize = 2048;
@@ -1351,7 +1351,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
-      if (name === "basic_oscillator" || targetType === "osc" || targetType === "fbPolyBlepOsc") {
+      if (name === "basic_oscillator" || targetType === "osc") {
         for (const handle of this.basicOscillatorNativeHandles.values()) {
           if (this.nativeBasicOscillator?.soemdsp_basic_oscillator_destroy) {
             this.nativeBasicOscillator.soemdsp_basic_oscillator_destroy(handle);
@@ -3962,10 +3962,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.oscillatorLastPhaseIncrements.set(nodeId, phaseDelta);
     }
     return sample;
-  }
-
-  forwardBackwardPolyBlepOscillatorSample(nodeId, phase, phaseIncrement, waveform) {
-    return this.oscillatorSample(nodeId, phase, phaseIncrement, waveform);
   }
 
   polyBlepNativeVectorSample(state, phase, phaseIncrement, waveform, level, resetEdge) {
@@ -13054,9 +13050,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           };
         } else {
           const sampleOscillator = (sampleNodeId, sampleWaveform) => {
-            if (node?.type === "fbPolyBlepOsc") {
-              return this.forwardBackwardPolyBlepOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
-            }
             if (node?.type === "blit") {
               return this.blitOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
             }

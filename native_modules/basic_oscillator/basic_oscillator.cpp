@@ -3,11 +3,15 @@
 // soemdsp-native-target: osc
 // soemdsp-native-kind: oscillator
 //
-// Shared DSP for both "osc" and "fbPolyBlepOsc" on the JS side. Both types
-// dispatch to the exact same handle/sample function -- there is no separate
-// "mode" flag distinguishing them -- so the only way "fbPolyBlepOsc" can mean
-// anything different from plain "osc" is if the shared algorithm itself is
-// correct for *both* directions of phase travel. It previously was not:
+// DSP for "osc". This used to also be shared, byte-for-byte, with a second
+// node type "fbPolyBlepOsc" ("F/B PolyBLEP Osc") that dispatched to the
+// exact same handle/sample function with no distinguishing mode flag -- the
+// name promised direction-aware correction but nothing in the code actually
+// depended on the sign of phaseIncrement, so it was a pure duplicate of
+// "osc" in every respect. It has been removed; the fix below now lives in
+// "osc" itself.
+//
+// The bug the name was gesturing at was real, just not implemented:
 // poly_blep()/poly_blep_square() took absd(phaseIncrement) for the edge
 // width but never looked at its sign, so the correction bump's polarity was
 // always computed as if phase were increasing. Feed this a negative
@@ -20,13 +24,12 @@
 // Fix: poly_blep_directional()/poly_blep_square_directional() multiply the
 // unsigned correction by sign(phaseIncrement). Since dir is always +1 for a
 // non-negative increment, this is a strict no-op for the forward-only case
-// every existing patch already relies on -- "osc" (and "fbPolyBlepOsc" used
-// forward) sound identical to before. The only case that changes is a
+// every existing patch already relies on. The only case that changes is a
 // negative-going phase, which is exactly the case that was previously wrong.
-// This also means: any patch that runs an Osc/F-B PolyBLEP Osc's phase
-// backward or bipolar (through-zero FM, an LFO driving Increment negative, a
-// reverse-scrub sequencer, etc.) is now anti-aliased correctly in both
-// directions with no extra parameter or wiring needed.
+// This also means: any patch that runs Osc's phase backward or bipolar
+// (through-zero FM, an LFO driving Increment negative, a reverse-scrub
+// sequencer, etc.) is now anti-aliased correctly in both directions with no
+// extra parameter or wiring needed.
 //
 // The triangle branch is untouched: it already gets its direction correct a
 // different way (it leaky-integrates poly_blep_square()'s *unsigned* output
