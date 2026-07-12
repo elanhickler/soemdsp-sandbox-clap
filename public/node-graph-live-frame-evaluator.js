@@ -3592,7 +3592,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
 
     const liveModuleEvaluator = node?.type ? nodeGraphLiveModuleEvaluators[node.type] : null;
     if (liveModuleEvaluator) {
-      value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate });
+      value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate, graphInputValue });
     } else if (nodeGraphIsPolyBlepOscillatorType(node?.type)) {
       const resetState = runtime.oscResetStates.get(nodeId) || createNodeGraphOscResetState();
       runtime.oscResetStates.set(nodeId, resetState);
@@ -3684,79 +3684,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         "Wave Out": selected,
         Noise: selected,
       };
-      runtime.phases.set(
-        nodeId,
-        wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-      );
-    } else if (node?.type === "additiveOsc" || node?.type === "gpuAdditiveOsc") {
-      const resetState = runtime.oscResetStates.get(nodeId) || createNodeGraphOscResetState();
-      runtime.oscResetStates.set(nodeId, resetState);
-      const resetValue = nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "Reset"),
-        runtime,
-        nodeId,
-        resetState,
-        "additive osc reset",
-      );
-      const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
-      resetState.lastReset = resetValue;
-      const phase = resetEdge ? 0 : runtime.phases.get(nodeId) || 0;
-      const phaseOffset = nodeGraphPhaseRadians(readNodeGraphLiveEffectiveParam(
-        runtime,
-        node,
-        "phase",
-        0,
-        frame,
-        frames,
-        frameValues,
-      ));
-      const frequency = readNodeGraphLiveEffectiveParam(
-        runtime,
-        node,
-        "frequency",
-        100,
-        frame,
-        frames,
-        frameValues,
-      );
-      const referenceVoltage = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio).pitchReferenceMidiNote / 120;
-      const pitchInput = hasInput(nodeId, "0.1V/Oct")
-        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
-          mixInput(nodeId, "0.1V/Oct"),
-          runtime,
-          nodeId,
-          null,
-          "additive osc 0.1v/oct input",
-        ), -1, 1)
-        : referenceVoltage;
-      const pitchedFrequency = Math.max(0, frequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
-      const incrementInput = nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "Increment"),
-        runtime,
-        nodeId,
-        null,
-        "additive osc increment input",
-      );
-      const phaseIncrement = (pitchedFrequency / sampleRate) + incrementInput;
-      const additiveSample = nodeGraphAdditiveOscillatorSample(
-        runtime,
-        nodeId,
-        phase + phaseOffset,
-        {
-          frequency: pitchedFrequency,
-          dampingFilterFrequency: readNodeGraphLiveEffectiveParam(runtime, node, "dampingFilterFrequency", 20000, frame, frames, frameValues),
-          dampingGraphValueAt: (x) => graphInputValue(nodeId, "Damping Graph", x, 1),
-          harmonics: readNodeGraphLiveEffectiveParam(runtime, node, "harmonics", 32, frame, frames, frameValues),
-          harmonicPhaseAdd: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseAdd", 0, frame, frames, frameValues),
-          harmonicPhaseMultiply: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseMultiply", 0, frame, frames, frameValues),
-          level: readNodeGraphLiveEffectiveParam(runtime, node, "level", 0.35, frame, frames, frameValues),
-          modA: readNodeGraphLiveEffectiveParam(runtime, node, "modA", 0.5, frame, frames, frameValues),
-          phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0),
-          waveform: readNodeGraphLiveEffectiveParam(runtime, node, "waveform", 1, frame, frames, frameValues),
-        },
-        sampleRate,
-      );
-      value = { Out: additiveSample };
       runtime.phases.set(
         nodeId,
         wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),

@@ -4485,6 +4485,66 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.additiveOscillatorSampleJs(phase, params, rate);
   }
 
+  additiveOscWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate, graphInputValue) {
+    const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
+    this.oscResetStates.set(nodeId, resetState);
+    const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
+    const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
+    resetState.lastReset = resetValue;
+    const phase = resetEdge ? 0 : this.phases.get(nodeId) || 0;
+    const phaseOffset = this.phaseRadians(
+      this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+    );
+    const frequency = this.readEffectiveParameter(
+      node,
+      "frequency",
+      220,
+      frame,
+      frames,
+      frameValues,
+    );
+    const pitchInput = this.clampValue(
+      this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
+      -1,
+      1,
+    );
+    const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+    const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
+    const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
+    const hasGraphInput = (
+      (this.graphInputConnections.get(this.graphInputKey(nodeId, "Damping Graph")) || []).length > 0 ||
+      (this.graphInputConnections.get(this.graphInputKey(nodeId, "Phase Graph")) || []).length > 0
+    );
+    const queuedAdditiveSample = node?.type === "gpuAdditiveOsc" && !hasGraphInput
+      ? this.readGpuAdditiveQueuedSample(nodeId)
+      : null;
+    const additiveSample = queuedAdditiveSample !== null
+      ? queuedAdditiveSample
+      : this.additiveOscillatorSample(
+        phase + phaseOffset,
+        {
+          frequency: pitchedFrequency,
+          dampingFilterFrequency: this.readEffectiveParameter(node, "dampingFilterFrequency", 20000, frame, frames, frameValues),
+          dampingGraphValueAt: (x) => graphInputValue(nodeId, "Damping Graph", x, 1),
+          hasGraphInput,
+          harmonics: this.readEffectiveParameter(node, "harmonics", 32, frame, frames, frameValues),
+          harmonicPhaseAdd: this.readEffectiveParameter(node, "harmonicPhaseAdd", 0, frame, frames, frameValues),
+          harmonicPhaseMultiply: this.readEffectiveParameter(node, "harmonicPhaseMultiply", 0, frame, frames, frameValues),
+          level: this.readEffectiveParameter(node, "level", 0.35, frame, frames, frameValues),
+          modA: this.readEffectiveParameter(node, "modA", 0.5, frame, frames, frameValues),
+          phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0),
+          waveform: this.readEffectiveParameter(node, "waveform", 1, frame, frames, frameValues),
+        },
+        safeRate,
+      );
+    const value = { Out: additiveSample };
+    this.phases.set(
+      nodeId,
+      this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
+    );
+    return value;
+  }
+
   additiveOscillatorSampleJs(phase, params = {}, rate = this.engineSampleRate || sampleRate) {
     const safeRate = Math.max(1, Number(rate) || this.engineSampleRate || sampleRate || 44100);
     const frequency = Math.max(0, Number(params.frequency) || 0);
@@ -13250,6 +13310,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       },
       moduleGroup: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame),
       codeblock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame),
+      additiveOsc: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame, graphInputValue) =>
+        this.additiveOscWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate, graphInputValue),
+      gpuAdditiveOsc: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame, graphInputValue) =>
+        this.additiveOscWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate, graphInputValue),
       ellipsoid: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
         const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
         this.oscResetStates.set(nodeId, resetState);
@@ -14695,7 +14759,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       let value = 0;
       const liveModuleEvaluator = node?.type ? this.liveModuleEvaluators[node.type] : null;
       if (liveModuleEvaluator) {
-        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame);
+        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame, graphInputValue);
       } else if (node?.type === "audioInput") {
         const input = inputs[0] || [];
         const leftChannel = input[0] || input[1] || null;
@@ -14800,63 +14864,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             Noise: selected,
           };
         }
-        this.phases.set(
-          nodeId,
-          this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-        );
-      } else if (node?.type === "additiveOsc" || node?.type === "gpuAdditiveOsc") {
-        const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
-        this.oscResetStates.set(nodeId, resetState);
-        const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
-        const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
-        resetState.lastReset = resetValue;
-        const phase = resetEdge ? 0 : this.phases.get(nodeId) || 0;
-        const phaseOffset = this.phaseRadians(
-          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
-        );
-        const frequency = this.readEffectiveParameter(
-          node,
-          "frequency",
-          220,
-          frame,
-          frames,
-          frameValues,
-        );
-        const pitchInput = this.clampValue(
-          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
-          -1,
-          1,
-        );
-        const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
-        const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
-        const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
-        const hasGraphInput = (
-          (this.graphInputConnections.get(this.graphInputKey(nodeId, "Damping Graph")) || []).length > 0 ||
-          (this.graphInputConnections.get(this.graphInputKey(nodeId, "Phase Graph")) || []).length > 0
-        );
-        const queuedAdditiveSample = node?.type === "gpuAdditiveOsc" && !hasGraphInput
-          ? this.readGpuAdditiveQueuedSample(nodeId)
-          : null;
-        const additiveSample = queuedAdditiveSample !== null
-          ? queuedAdditiveSample
-          : this.additiveOscillatorSample(
-            phase + phaseOffset,
-            {
-              frequency: pitchedFrequency,
-              dampingFilterFrequency: this.readEffectiveParameter(node, "dampingFilterFrequency", 20000, frame, frames, frameValues),
-              dampingGraphValueAt: (x) => graphInputValue(nodeId, "Damping Graph", x, 1),
-              hasGraphInput,
-              harmonics: this.readEffectiveParameter(node, "harmonics", 32, frame, frames, frameValues),
-              harmonicPhaseAdd: this.readEffectiveParameter(node, "harmonicPhaseAdd", 0, frame, frames, frameValues),
-              harmonicPhaseMultiply: this.readEffectiveParameter(node, "harmonicPhaseMultiply", 0, frame, frames, frameValues),
-              level: this.readEffectiveParameter(node, "level", 0.35, frame, frames, frameValues),
-              modA: this.readEffectiveParameter(node, "modA", 0.5, frame, frames, frameValues),
-              phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0),
-              waveform: this.readEffectiveParameter(node, "waveform", 1, frame, frames, frameValues),
-            },
-            safeRate,
-          );
-        value = { Out: additiveSample };
         this.phases.set(
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),

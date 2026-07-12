@@ -346,6 +346,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/codeblock/codeblock-live-evaluator.js",
     "./public/modules/sineWavetable/sine-wavetable-live-evaluator.js",
     "./public/modules/ellipsoid/ellipsoid-live-evaluator.js",
+    "./public/modules/additiveOsc/additive-osc-live-evaluator.js",
 )
 
 
@@ -11546,7 +11547,7 @@ def require_node_graph_mvp_contract() -> None:
         "Out: selected",
         '"Wave Out": selected',
         "Noise: selected",
-        'node?.type === "additiveOsc"',
+        "nodeGraphLiveModuleEvaluators.additiveOsc = nodeGraphAdditiveOscLiveEvaluator",
         "const additiveSample = nodeGraphAdditiveOscillatorSample(",
         '"additive osc 0.1v/oct input"',
         '"additive osc increment input"',
