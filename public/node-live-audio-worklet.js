@@ -109,6 +109,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
   constructor() {
     super();
+    this.liveModuleEvaluators = this.buildLiveModuleEvaluators();
     this.inputConnections = new Map();
     this.badNumberCount = 0;
     this.lastBadValueReason = "";
@@ -11597,6 +11598,46 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
+  // Registry of per-module-type dispatch handlers, proving the pattern for
+  // logisticMap/turingMachine before the other ~28 worklet-dispatched types
+  // migrate in a follow-up pass. Checked ahead of the big if/else-if chain
+  // in evaluateFrame() so adding a migrated type never requires editing that
+  // chain again. Bodies are copy-pasted from node-graph-live-frame-evaluator.js's
+  // equivalent branches (not shared by reference) because AudioWorkletGlobalScope
+  // can only load the single file passed to addModule() -- true de-duplication
+  // is deferred to the Blob-URL loader follow-up.
+  buildLiveModuleEvaluators() {
+    return {
+      logisticMap: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.logisticMapStates.get(nodeId) || this.createLogisticMapState();
+        this.logisticMapStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return {
+          Out: this.logisticMapSample(state, {
+            level: read("level", 1),
+            r: read("r", 3.9),
+            rate: read("rate", 8),
+            reset: mixInput(nodeId, "Reset"),
+            sampleRate: safeRate,
+            seed: read("seed", 0.5),
+          }),
+        };
+      },
+      turingMachine: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const state = this.turingMachineStates.get(nodeId) || this.createTuringMachineState();
+        this.turingMachineStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.turingMachineSample(state, {
+          clock: mixInput(nodeId, "Clock"),
+          length: read("length", 8),
+          level: read("level", 1),
+          probability: read("probability", 0.25),
+          reset: mixInput(nodeId, "Reset"),
+        });
+      },
+    };
+  }
+
   createPitchQuantizerState() {
     return { hasOutput: false, lastOutput: 0, nativeHandle: 0 };
   }
@@ -12877,7 +12918,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     for (const nodeId of this.order) {
       const node = this.nodes.get(nodeId);
       let value = 0;
-      if (node?.type === "groupInput") {
+      const liveModuleEvaluator = node?.type ? this.liveModuleEvaluators[node.type] : null;
+      if (liveModuleEvaluator) {
+        value = liveModuleEvaluator(node, nodeId, frame, frames, frameValues, mixInput, safeRate);
+      } else if (node?.type === "groupInput") {
         value = {
           Out: Number(this.externalGroupInputs?.get(nodeId)) || 0,
         };
@@ -13546,20 +13590,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           "Noise Below": archimedes.noiseBelow,
           "Noise Above": archimedes.noiseAbove,
         };
-      } else if (node?.type === "logisticMap") {
-        const state = this.logisticMapStates.get(nodeId) || this.createLogisticMapState();
-        this.logisticMapStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = {
-          Out: this.logisticMapSample(state, {
-            level: read("level", 1),
-            r: read("r", 3.9),
-            rate: read("rate", 8),
-            reset: mixInput(nodeId, "Reset"),
-            sampleRate: safeRate,
-            seed: read("seed", 0.5),
-          }),
-        };
       } else if (node?.type === "henonMap") {
         const state = this.henonMapStates.get(nodeId) || this.createHenonMapState();
         this.henonMapStates.set(nodeId, state);
@@ -13821,17 +13851,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           clear: mixInput(nodeId, "Clear"),
           latch: mixInput(nodeId, "Latch"),
           pitch: mixInput(nodeId, "Pitch"),
-        });
-      } else if (node?.type === "turingMachine") {
-        const state = this.turingMachineStates.get(nodeId) || this.createTuringMachineState();
-        this.turingMachineStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.turingMachineSample(state, {
-          clock: mixInput(nodeId, "Clock"),
-          length: read("length", 8),
-          level: read("level", 1),
-          probability: read("probability", 0.25),
-          reset: mixInput(nodeId, "Reset"),
         });
       } else if (node?.type === "pitchQuantizer") {
         const state = this.pitchQuantizerStates.get(nodeId) || this.createPitchQuantizerState();
