@@ -348,6 +348,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/ellipsoid/ellipsoid-live-evaluator.js",
     "./public/modules/additiveOsc/additive-osc-live-evaluator.js",
     "./public/modules/graph/graph-live-evaluator.js",
+    "./public/modules/polyBlep/poly-blep-live-evaluator.js",
 )
 
 

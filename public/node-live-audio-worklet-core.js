@@ -4545,6 +4545,106 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return value;
   }
 
+  polyBlepOscillatorWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate) {
+    const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
+    this.oscResetStates.set(nodeId, resetState);
+    const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
+    const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
+    resetState.lastReset = resetValue;
+    const phase = resetEdge ? 0 : this.phases.get(nodeId) || 0;
+    if (resetEdge) {
+      this.triangleStates.set(nodeId, 0);
+    }
+    const phaseOffset = this.phaseRadians(
+      this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+    );
+    const frequency = this.readEffectiveParameter(
+      node,
+      "frequency",
+      220,
+      frame,
+      frames,
+      frameValues,
+    );
+    const waveform = this.readEffectiveParameter(
+      node,
+      "waveform",
+      0,
+      frame,
+      frames,
+      frameValues,
+    );
+    const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
+    const pitchInput = this.clampValue(
+      this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
+      -1,
+      1,
+    );
+    const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+    const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
+    const level = this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues);
+    let nativeVector = null;
+    if (node?.type === "polyBlep") {
+      const polyBlepState = this.polyBlepStates.get(nodeId) || this.createPolyBlepState();
+      this.polyBlepStates.set(nodeId, polyBlepState);
+      nativeVector = this.polyBlepNativeVectorSample(
+        polyBlepState,
+        phase + phaseOffset,
+        phaseIncrement,
+        waveform,
+        level,
+        resetEdge,
+      );
+    } else if (node?.type === "blit") {
+      const blitState = this.blitStates.get(nodeId) || this.createBlitState();
+      this.blitStates.set(nodeId, blitState);
+      nativeVector = this.blitNativeVectorSample(
+        blitState,
+        phase + phaseOffset,
+        phaseIncrement,
+        waveform,
+        level,
+        resetEdge,
+      );
+    }
+    let value;
+    if (nativeVector) {
+      value = {
+        Out: nativeVector.out,
+        Saw: nativeVector.saw,
+        Ramp: nativeVector.ramp,
+        Square: nativeVector.square,
+        Tri: nativeVector.tri,
+        Sine: nativeVector.sine,
+        "Wave Out": nativeVector.out,
+        Noise: nativeVector.out,
+      };
+    } else {
+      const sampleOscillator = (sampleNodeId, sampleWaveform) => {
+        if (node?.type === "blit") {
+          return this.blitOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
+        }
+        return this.oscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
+      };
+      const selected = sampleOscillator(nodeId, waveform) * level;
+      value = {
+        Out: selected,
+        Saw: sampleOscillator(`${nodeId}:saw`, 0) * level,
+        Ramp: sampleOscillator(`${nodeId}:ramp`, 1) * level,
+        Square: sampleOscillator(`${nodeId}:square`, 2) * level,
+        Tri: sampleOscillator(`${nodeId}:tri`, 3) * level,
+        Sine: sampleOscillator(`${nodeId}:sine`, 4) * level,
+        "Wave Out": selected,
+        Noise: selected,
+      };
+    }
+    this.phases.set(
+      nodeId,
+      this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
+    );
+    return value;
+  }
+
   additiveOscillatorSampleJs(phase, params = {}, rate = this.engineSampleRate || sampleRate) {
     const safeRate = Math.max(1, Number(rate) || this.engineSampleRate || sampleRate || 44100);
     const frequency = Math.max(0, Number(params.frequency) || 0);
@@ -13310,6 +13410,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       },
       moduleGroup: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame),
       codeblock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame),
+      osc: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) =>
+        this.polyBlepOscillatorWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate),
+      polyBlep: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) =>
+        this.polyBlepOscillatorWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate),
+      blit: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) =>
+        this.polyBlepOscillatorWorkletEvaluate(node, nodeId, frame, frames, frameValues, mixInput, safeRate),
       graph: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame, graphInputValue, graphOutputValue) =>
         graphOutputValue(node, nodeId),
       graph2: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame, graphInputValue, graphOutputValue) =>
@@ -14776,102 +14882,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Out: ((left + right) * 0.5) * level,
           Right: right * level,
         };
-      } else if (nodeLiveIsPolyBlepOscillatorType(node?.type)) {
-        const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
-        this.oscResetStates.set(nodeId, resetState);
-        const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
-        const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
-        resetState.lastReset = resetValue;
-        const phase = resetEdge ? 0 : this.phases.get(nodeId) || 0;
-        if (resetEdge) {
-          this.triangleStates.set(nodeId, 0);
-        }
-        const phaseOffset = this.phaseRadians(
-          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
-        );
-        const frequency = this.readEffectiveParameter(
-          node,
-          "frequency",
-          220,
-          frame,
-          frames,
-          frameValues,
-        );
-        const waveform = this.readEffectiveParameter(
-          node,
-          "waveform",
-          0,
-          frame,
-          frames,
-          frameValues,
-        );
-        const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
-        const pitchInput = this.clampValue(
-          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
-          -1,
-          1,
-        );
-        const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
-        const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
-        const level = this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues);
-        let nativeVector = null;
-        if (node?.type === "polyBlep") {
-          const polyBlepState = this.polyBlepStates.get(nodeId) || this.createPolyBlepState();
-          this.polyBlepStates.set(nodeId, polyBlepState);
-          nativeVector = this.polyBlepNativeVectorSample(
-            polyBlepState,
-            phase + phaseOffset,
-            phaseIncrement,
-            waveform,
-            level,
-            resetEdge,
-          );
-        } else if (node?.type === "blit") {
-          const blitState = this.blitStates.get(nodeId) || this.createBlitState();
-          this.blitStates.set(nodeId, blitState);
-          nativeVector = this.blitNativeVectorSample(
-            blitState,
-            phase + phaseOffset,
-            phaseIncrement,
-            waveform,
-            level,
-            resetEdge,
-          );
-        }
-        if (nativeVector) {
-          value = {
-            Out: nativeVector.out,
-            Saw: nativeVector.saw,
-            Ramp: nativeVector.ramp,
-            Square: nativeVector.square,
-            Tri: nativeVector.tri,
-            Sine: nativeVector.sine,
-            "Wave Out": nativeVector.out,
-            Noise: nativeVector.out,
-          };
-        } else {
-          const sampleOscillator = (sampleNodeId, sampleWaveform) => {
-            if (node?.type === "blit") {
-              return this.blitOscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
-            }
-            return this.oscillatorSample(sampleNodeId, phase + phaseOffset, phaseIncrement, sampleWaveform);
-          };
-          const selected = sampleOscillator(nodeId, waveform) * level;
-          value = {
-            Out: selected,
-            Saw: sampleOscillator(`${nodeId}:saw`, 0) * level,
-            Ramp: sampleOscillator(`${nodeId}:ramp`, 1) * level,
-            Square: sampleOscillator(`${nodeId}:square`, 2) * level,
-            Tri: sampleOscillator(`${nodeId}:tri`, 3) * level,
-            Sine: sampleOscillator(`${nodeId}:sine`, 4) * level,
-            "Wave Out": selected,
-            Noise: selected,
-          };
-        }
-        this.phases.set(
-          nodeId,
-          this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-        );
       }
       frameValues.set(nodeId, value);
       this.nodeOutputs.set(nodeId, value);
