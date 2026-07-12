@@ -3924,48 +3924,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       value = nodeGraphEvaluateCodeblock(runtime, node, mixInput, sampleRate, frame, frames);
     } else if (nodeGraphModuleIsGraphType(node?.type)) {
       value = graphOutputValue(node, nodeId);
-    } else if (node?.type === "badvalMonitor") {
-      value = nodeGraphBadValueMonitorSample(mixInput(nodeId), runtime, nodeId);
-    } else if (node?.type === "speakerProtection") {
-      const speakerProtectionMono = mixInput(nodeId);
-      value = {
-        Out: nodeGraphSpeakerProtectionSample(speakerProtectionMono, runtime, nodeId),
-        Left: nodeGraphSpeakerProtectionSample(mixInput(nodeId, "Left") + speakerProtectionMono, runtime, nodeId),
-        Right: nodeGraphSpeakerProtectionSample(mixInput(nodeId, "Right") + speakerProtectionMono, runtime, nodeId),
-      };
-    } else if (node?.type === "groupOutput") {
-      value = {
-        Out: mixInput(nodeId, "In"),
-      };
-    } else if (node?.type === "clapPlugin") {
-      const externalOutput = runtime.externalClapOutputs?.get(nodeId);
-      if (externalOutput) {
-        const absoluteFrame = Number.isFinite(runtime.absoluteFrame) ? runtime.absoluteFrame : frame;
-        value = {};
-        for (const [port, samples] of Object.entries(externalOutput)) {
-          value[port] = nodeGraphSafeFilterNumber(
-            Number(samples?.[absoluteFrame]) || 0,
-            runtime,
-            nodeId,
-            null,
-            `CLAP ${port} output`,
-          );
-        }
-      } else {
-        value = {
-          Left: 0,
-          Right: 0,
-        };
-      }
-    } else if (node?.type === "output") {
-      const mono = mixInput(nodeId, "Mono");
-      const left = mixInput(nodeId, "Left");
-      const right = mixInput(nodeId, "Right");
-      value = {
-        Left: mono + left,
-        Out: mono + (left + right) * 0.5,
-        Right: mono + right,
-      };
     }
 
     frameValues.set(nodeId, value);

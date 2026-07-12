@@ -13209,6 +13209,32 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           TraceBrightness: visualBrightness,
         };
       },
+      badvalMonitor: (node, nodeId, frame, frames, frameValues, mixInput) => this.monitorBadValueSample(mixInput(nodeId), nodeId),
+      speakerProtection: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const speakerProtectionMono = mixInput(nodeId);
+        return {
+          Out: this.speakerProtectionSample(speakerProtectionMono, nodeId),
+          Left: this.speakerProtectionSample(mixInput(nodeId, "Left") + speakerProtectionMono, nodeId),
+          Right: this.speakerProtectionSample(mixInput(nodeId, "Right") + speakerProtectionMono, nodeId),
+        };
+      },
+      groupOutput: (node, nodeId, frame, frames, frameValues, mixInput) => ({
+        Out: mixInput(nodeId, "In"),
+      }),
+      clapPlugin: () => ({
+        Left: 0,
+        Right: 0,
+      }),
+      output: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const outputMonoIn = mixInput(nodeId, "Mono");
+        const outputLeftIn = mixInput(nodeId, "Left");
+        const outputRightIn = mixInput(nodeId, "Right");
+        return {
+          Left: outputMonoIn + outputLeftIn,
+          Out: outputMonoIn + (outputLeftIn + outputRightIn) * 0.5,
+          Right: outputMonoIn + outputRightIn,
+        };
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14834,33 +14860,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame);
       } else if (node?.type === "graph" || node?.type === "graph2") {
         value = graphOutputValue(node, nodeId);
-      } else if (node?.type === "badvalMonitor") {
-        value = this.monitorBadValueSample(mixInput(nodeId), nodeId);
-      } else if (node?.type === "speakerProtection") {
-        const speakerProtectionMono = mixInput(nodeId);
-        value = {
-          Out: this.speakerProtectionSample(speakerProtectionMono, nodeId),
-          Left: this.speakerProtectionSample(mixInput(nodeId, "Left") + speakerProtectionMono, nodeId),
-          Right: this.speakerProtectionSample(mixInput(nodeId, "Right") + speakerProtectionMono, nodeId),
-        };
-      } else if (node?.type === "groupOutput") {
-        value = {
-          Out: mixInput(nodeId, "In"),
-        };
-      } else if (node?.type === "clapPlugin") {
-        value = {
-          Left: 0,
-          Right: 0,
-        };
-      } else if (node?.type === "output") {
-        const outputMonoIn = mixInput(nodeId, "Mono");
-        const outputLeftIn = mixInput(nodeId, "Left");
-        const outputRightIn = mixInput(nodeId, "Right");
-        value = {
-          Left: outputMonoIn + outputLeftIn,
-          Out: outputMonoIn + (outputLeftIn + outputRightIn) * 0.5,
-          Right: outputMonoIn + outputRightIn,
-        };
       }
       frameValues.set(nodeId, value);
       this.nodeOutputs.set(nodeId, value);
