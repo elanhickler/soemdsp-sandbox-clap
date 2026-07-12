@@ -253,6 +253,14 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/chuaAttractor/chua-attractor-live-evaluator.js",
     "./public/modules/chordMemory/chord-memory-live-evaluator.js",
     "./public/modules/pitchQuantizer/pitch-quantizer-live-evaluator.js",
+    "./public/modules/wirdoSpiral/wirdo-spiral-live-evaluator.js",
+    "./public/modules/blubb/blubb-live-evaluator.js",
+    "./public/modules/mushroom/mushroom-live-evaluator.js",
+    "./public/modules/boing/boing-live-evaluator.js",
+    "./public/modules/torus/torus-live-evaluator.js",
+    "./public/modules/keplerBouwkamp/kepler-bouwkamp-live-evaluator.js",
+    "./public/modules/nyquistShannon/nyquist-shannon-live-evaluator.js",
+    "./public/modules/radar/radar-live-evaluator.js",
 )
 
 

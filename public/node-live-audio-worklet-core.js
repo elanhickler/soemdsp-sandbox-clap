@@ -11697,6 +11697,230 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           }),
         };
       },
+      wirdoSpiral: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.wirdoSpiralStates.get(nodeId) || this.createWirdoSpiralState();
+        this.wirdoSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const wirdo = this.wirdoSpiralSample(state, {
+          cross: read("cross", 0),
+          cut: read("cut", 1000),
+          density: read("density", 0.8),
+          frequency: read("frequency", 8),
+          length: read("length", 1),
+          reset: mixInput(nodeId, "Reset"),
+          ringCut: read("ringCut", 10),
+          rotate: read("rotate", 0),
+          sampleRate: safeRate,
+          scrap: read("scrap", 1),
+          sharp: read("sharp", 0),
+          splashDensity: read("splashDensity", 0),
+          splashDepth: read("splashDepth", 0),
+          splashSpeed: read("splashSpeed", 0),
+          syncCut: read("syncCut", 1),
+        });
+        const wirdoLevel = read("level", 1);
+        return {
+          X: wirdo.x * wirdoLevel,
+          Y: wirdo.y * wirdoLevel,
+        };
+      },
+      blubb: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.blubbStates.get(nodeId) || this.createBlubbState();
+        this.blubbStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const blubb = this.blubbSample(state, {
+          frequency: read("frequency", 8),
+          reset: mixInput(nodeId, "Reset"),
+          rotX: read("rotX", 0),
+          rotY: read("rotY", 0),
+          sampleRate: safeRate,
+          shape: read("shape", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const blubbLevel = read("level", 1);
+        return {
+          X: blubb.x * blubbLevel,
+          Y: blubb.y * blubbLevel,
+        };
+      },
+      mushroom: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.mushroomStates.get(nodeId) || this.createMushroomState();
+        this.mushroomStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const mushroom = this.mushroomSample(state, {
+          apart: read("apart", 0),
+          capRotation: read("capRotation", 0),
+          capStemTransition: read("capStemTransition", 0.1),
+          clusterRotation: read("clusterRotation", 0),
+          clusterRotationSpeed: read("clusterRotationSpeed", 0),
+          density: read("density", 3),
+          frequency: read("frequency", 8),
+          grow: read("grow", 1),
+          head: read("head", 0.6667),
+          numMushrooms: read("numMushrooms", 1),
+          phaseOffset: read("phaseOffset", 0),
+          reset: mixInput(nodeId, "Reset"),
+          sampleRate: safeRate,
+          sharp: read("sharp", 0),
+          spread: read("spread", 0.5),
+          stem: read("stem", 0),
+          stemRotationSpeed: read("stemRotationSpeed", 0),
+          width: read("width", 1),
+          wobble: read("wobble", 0.0625),
+        });
+        const mushroomLevel = read("level", 1);
+        return {
+          X: mushroom.x * mushroomLevel,
+          Y: mushroom.y * mushroomLevel,
+        };
+      },
+      boing: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.boingStates.get(nodeId) || this.createBoingState();
+        this.boingStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const boing = this.boingSample(state, {
+          boing: read("boing", 0),
+          boingStrength: read("boingStrength", 0),
+          density: read("density", 1),
+          dir: read("dir", 0),
+          ends: read("ends", 0),
+          frequency: read("frequency", 8),
+          reset: mixInput(nodeId, "Reset"),
+          rotX: read("rotX", 0),
+          rotY: read("rotY", 0),
+          sampleRate: safeRate,
+          shape: read("shape", 0),
+          sharpness: read("sharpness", 0),
+          volume: read("volume", 1),
+          volumePreJump: read("volumePreJump", 0),
+          zAmount: read("zAmount", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const boingLevel = read("level", 1);
+        return {
+          X: boing.x * boingLevel,
+          Y: boing.y * boingLevel,
+        };
+      },
+      torus: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.torusStates.get(nodeId) || this.createTorusState();
+        this.torusStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const torus = this.torusSample(state, {
+          balance: read("balance", 0),
+          darkAngle: read("darkAngle", 0),
+          darkIntensity: read("darkIntensity", 0),
+          density: read("density", 1),
+          frequency: read("frequency", 8),
+          length: read("length", 0),
+          quantizeDensity: read("quantizeDensity", 1),
+          quantizeSubDensity: read("quantizeSubDensity", 1),
+          reset: mixInput(nodeId, "Reset"),
+          rotX: read("rotX", 0),
+          rotY: read("rotY", 0),
+          rotZ: read("rotZ", 0),
+          sampleRate: safeRate,
+          sharp: read("sharp", 0.5),
+          size: read("size", 1),
+          subdensity: read("subdensity", 0),
+          wander: read("wander", 0),
+          zAngleX: read("zAngleX", 0),
+          zAngleY: read("zAngleY", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const torusLevel = read("level", 1);
+        return {
+          X: torus.x * torusLevel,
+          Y: torus.y * torusLevel,
+        };
+      },
+      keplerBouwkamp: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.keplerBouwkampStates.get(nodeId) || this.createKeplerBouwkampState();
+        this.keplerBouwkampStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const kepler = this.keplerBouwkampSample(state, {
+          circles: read("circles", 0.5),
+          frequency: read("frequency", 8),
+          length: read("length", 1),
+          reset: mixInput(nodeId, "Reset"),
+          rotation: read("rotation", 0),
+          sampleRate: safeRate,
+          start: read("start", 3),
+          tri: read("tri", 0),
+          zoom: read("zoom", 0),
+        });
+        const keplerLevel = read("level", 1);
+        return {
+          X: kepler.x * keplerLevel,
+          Y: kepler.y * keplerLevel,
+        };
+      },
+      nyquistShannon: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.nyquistShannonStates.get(nodeId) || this.createNyquistShannonState();
+        this.nyquistShannonStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const nyquist = this.nyquistShannonSample(state, {
+          artifact: read("artifact", 0),
+          enableToneModFreq: read("enableToneModFreq", 0),
+          enableToneModNote: read("enableToneModNote", 0),
+          enableToneModPitch: read("enableToneModPitch", 1),
+          frequencyA: read("frequencyA", 440),
+          frequencyB: read("frequencyB", 5),
+          midiNoteRaw: read("midiNoteRaw", 48),
+          phaseOffset: read("phaseOffset", 0),
+          rate: read("rate", 20),
+          reset: mixInput(nodeId, "Reset"),
+          sampleDots: read("sampleDots", 0),
+          sampleRate: safeRate,
+          subPhase: read("subPhase", 0),
+          subPhaseRotationSpeed: read("subPhaseRotationSpeed", 0),
+          tone: read("tone", 0),
+          toneSmoothTime: read("toneSmoothTime", 0.01),
+        });
+        const nyquistLevel = read("level", 1);
+        return {
+          X: nyquist.x * nyquistLevel,
+          Y: nyquist.y * nyquistLevel,
+        };
+      },
+      radar: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.radarStates.get(nodeId) || this.createRadarState();
+        this.radarStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const radar = this.radarSample(state, {
+          density: read("density", 1),
+          direction: read("direction", 0),
+          fade: read("fade", 1),
+          frequency: read("frequency", 1),
+          frontring: read("frontring", 0),
+          inner: read("inner", 0),
+          lap: read("lap", 0),
+          length: read("length", 1),
+          phaseInv: read("phaseInv", 0),
+          phaseOffset: read("phaseOffset", 0),
+          pow1Down: read("pow1Down", 0),
+          pow1Up: read("pow1Up", 0),
+          pow2Bend: read("pow2Bend", 0),
+          ratio: read("ratio", 0),
+          reset: mixInput(nodeId, "Reset"),
+          ringcut: read("ringcut", 0),
+          rotation: read("rotation", 0),
+          sampleRate: safeRate,
+          shade: read("shade", 1),
+          sharp: read("sharp", 0),
+          spiralReturn: read("spiralReturn", 0),
+          tunnelInv: read("tunnelInv", 0),
+          x: read("x", 0),
+          y: read("y", 0),
+          zDepth: read("zDepth", 0),
+          zoom: read("zoom", 0),
+        });
+        const radarLevel = read("level", 1);
+        return {
+          X: radar.x * radarLevel,
+          Y: radar.y * radarLevel,
+        };
+      },
     };
   }
 
@@ -13651,222 +13875,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Pi: archimedes.pi,
           "Noise Below": archimedes.noiseBelow,
           "Noise Above": archimedes.noiseAbove,
-        };
-      } else if (node?.type === "wirdoSpiral") {
-        const state = this.wirdoSpiralStates.get(nodeId) || this.createWirdoSpiralState();
-        this.wirdoSpiralStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const wirdo = this.wirdoSpiralSample(state, {
-          cross: read("cross", 0),
-          cut: read("cut", 1000),
-          density: read("density", 0.8),
-          frequency: read("frequency", 8),
-          length: read("length", 1),
-          reset: mixInput(nodeId, "Reset"),
-          ringCut: read("ringCut", 10),
-          rotate: read("rotate", 0),
-          sampleRate: safeRate,
-          scrap: read("scrap", 1),
-          sharp: read("sharp", 0),
-          splashDensity: read("splashDensity", 0),
-          splashDepth: read("splashDepth", 0),
-          splashSpeed: read("splashSpeed", 0),
-          syncCut: read("syncCut", 1),
-        });
-        const wirdoLevel = read("level", 1);
-        value = {
-          X: wirdo.x * wirdoLevel,
-          Y: wirdo.y * wirdoLevel,
-        };
-      } else if (node?.type === "blubb") {
-        const state = this.blubbStates.get(nodeId) || this.createBlubbState();
-        this.blubbStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const blubb = this.blubbSample(state, {
-          frequency: read("frequency", 8),
-          reset: mixInput(nodeId, "Reset"),
-          rotX: read("rotX", 0),
-          rotY: read("rotY", 0),
-          sampleRate: safeRate,
-          shape: read("shape", 0),
-          zDepth: read("zDepth", 0),
-        });
-        const blubbLevel = read("level", 1);
-        value = {
-          X: blubb.x * blubbLevel,
-          Y: blubb.y * blubbLevel,
-        };
-      } else if (node?.type === "mushroom") {
-        const state = this.mushroomStates.get(nodeId) || this.createMushroomState();
-        this.mushroomStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const mushroom = this.mushroomSample(state, {
-          apart: read("apart", 0),
-          capRotation: read("capRotation", 0),
-          capStemTransition: read("capStemTransition", 0.1),
-          clusterRotation: read("clusterRotation", 0),
-          clusterRotationSpeed: read("clusterRotationSpeed", 0),
-          density: read("density", 3),
-          frequency: read("frequency", 8),
-          grow: read("grow", 1),
-          head: read("head", 0.6667),
-          numMushrooms: read("numMushrooms", 1),
-          phaseOffset: read("phaseOffset", 0),
-          reset: mixInput(nodeId, "Reset"),
-          sampleRate: safeRate,
-          sharp: read("sharp", 0),
-          spread: read("spread", 0.5),
-          stem: read("stem", 0),
-          stemRotationSpeed: read("stemRotationSpeed", 0),
-          width: read("width", 1),
-          wobble: read("wobble", 0.0625),
-        });
-        const mushroomLevel = read("level", 1);
-        value = {
-          X: mushroom.x * mushroomLevel,
-          Y: mushroom.y * mushroomLevel,
-        };
-      } else if (node?.type === "boing") {
-        const state = this.boingStates.get(nodeId) || this.createBoingState();
-        this.boingStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const boing = this.boingSample(state, {
-          boing: read("boing", 0),
-          boingStrength: read("boingStrength", 0),
-          density: read("density", 1),
-          dir: read("dir", 0),
-          ends: read("ends", 0),
-          frequency: read("frequency", 8),
-          reset: mixInput(nodeId, "Reset"),
-          rotX: read("rotX", 0),
-          rotY: read("rotY", 0),
-          sampleRate: safeRate,
-          shape: read("shape", 0),
-          sharpness: read("sharpness", 0),
-          volume: read("volume", 1),
-          volumePreJump: read("volumePreJump", 0),
-          zAmount: read("zAmount", 0),
-          zDepth: read("zDepth", 0),
-        });
-        const boingLevel = read("level", 1);
-        value = {
-          X: boing.x * boingLevel,
-          Y: boing.y * boingLevel,
-        };
-      } else if (node?.type === "torus") {
-        const state = this.torusStates.get(nodeId) || this.createTorusState();
-        this.torusStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const torus = this.torusSample(state, {
-          balance: read("balance", 0),
-          darkAngle: read("darkAngle", 0),
-          darkIntensity: read("darkIntensity", 0),
-          density: read("density", 1),
-          frequency: read("frequency", 8),
-          length: read("length", 0),
-          quantizeDensity: read("quantizeDensity", 1),
-          quantizeSubDensity: read("quantizeSubDensity", 1),
-          reset: mixInput(nodeId, "Reset"),
-          rotX: read("rotX", 0),
-          rotY: read("rotY", 0),
-          rotZ: read("rotZ", 0),
-          sampleRate: safeRate,
-          sharp: read("sharp", 0.5),
-          size: read("size", 1),
-          subdensity: read("subdensity", 0),
-          wander: read("wander", 0),
-          zAngleX: read("zAngleX", 0),
-          zAngleY: read("zAngleY", 0),
-          zDepth: read("zDepth", 0),
-        });
-        const torusLevel = read("level", 1);
-        value = {
-          X: torus.x * torusLevel,
-          Y: torus.y * torusLevel,
-        };
-      } else if (node?.type === "keplerBouwkamp") {
-        const state = this.keplerBouwkampStates.get(nodeId) || this.createKeplerBouwkampState();
-        this.keplerBouwkampStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const kepler = this.keplerBouwkampSample(state, {
-          circles: read("circles", 0.5),
-          frequency: read("frequency", 8),
-          length: read("length", 1),
-          reset: mixInput(nodeId, "Reset"),
-          rotation: read("rotation", 0),
-          sampleRate: safeRate,
-          start: read("start", 3),
-          tri: read("tri", 0),
-          zoom: read("zoom", 0),
-        });
-        const keplerLevel = read("level", 1);
-        value = {
-          X: kepler.x * keplerLevel,
-          Y: kepler.y * keplerLevel,
-        };
-      } else if (node?.type === "nyquistShannon") {
-        const state = this.nyquistShannonStates.get(nodeId) || this.createNyquistShannonState();
-        this.nyquistShannonStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const nyquist = this.nyquistShannonSample(state, {
-          artifact: read("artifact", 0),
-          enableToneModFreq: read("enableToneModFreq", 0),
-          enableToneModNote: read("enableToneModNote", 0),
-          enableToneModPitch: read("enableToneModPitch", 1),
-          frequencyA: read("frequencyA", 440),
-          frequencyB: read("frequencyB", 5),
-          midiNoteRaw: read("midiNoteRaw", 48),
-          phaseOffset: read("phaseOffset", 0),
-          rate: read("rate", 20),
-          reset: mixInput(nodeId, "Reset"),
-          sampleDots: read("sampleDots", 0),
-          sampleRate: safeRate,
-          subPhase: read("subPhase", 0),
-          subPhaseRotationSpeed: read("subPhaseRotationSpeed", 0),
-          tone: read("tone", 0),
-          toneSmoothTime: read("toneSmoothTime", 0.01),
-        });
-        const nyquistLevel = read("level", 1);
-        value = {
-          X: nyquist.x * nyquistLevel,
-          Y: nyquist.y * nyquistLevel,
-        };
-      } else if (node?.type === "radar") {
-        const state = this.radarStates.get(nodeId) || this.createRadarState();
-        this.radarStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const radar = this.radarSample(state, {
-          density: read("density", 1),
-          direction: read("direction", 0),
-          fade: read("fade", 1),
-          frequency: read("frequency", 1),
-          frontring: read("frontring", 0),
-          inner: read("inner", 0),
-          lap: read("lap", 0),
-          length: read("length", 1),
-          phaseInv: read("phaseInv", 0),
-          phaseOffset: read("phaseOffset", 0),
-          pow1Down: read("pow1Down", 0),
-          pow1Up: read("pow1Up", 0),
-          pow2Bend: read("pow2Bend", 0),
-          ratio: read("ratio", 0),
-          reset: mixInput(nodeId, "Reset"),
-          ringcut: read("ringcut", 0),
-          rotation: read("rotation", 0),
-          sampleRate: safeRate,
-          shade: read("shade", 1),
-          sharp: read("sharp", 0),
-          spiralReturn: read("spiralReturn", 0),
-          tunnelInv: read("tunnelInv", 0),
-          x: read("x", 0),
-          y: read("y", 0),
-          zDepth: read("zDepth", 0),
-          zoom: read("zoom", 0),
-        });
-        const radarLevel = read("level", 1);
-        value = {
-          X: radar.x * radarLevel,
-          Y: radar.y * radarLevel,
         };
       } else if (node?.type === "chordSequencer") {
         const state = this.chordSequencerStates.get(nodeId) || this.createChordSequencerState();
