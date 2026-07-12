@@ -13932,9 +13932,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         // keyboard is automatically in tune; double it to transpose the
         // whole instrument up an octave.
         const baseFrequency = Math.max(0, read("frequency", 100));
-        const pitchInput = this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1);
         const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
         const referenceVoltage = referenceMidiNote / 120;
+        const hasPitchInput = this.inputConnections.has(this.inputKey(nodeId, "0.1V/Oct"));
+        const pitchInput = hasPitchInput
+          ? this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1)
+          : referenceVoltage;
         const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
         value = this.robinSupersawSample(state, {
           frequencyHz: pitchedFrequency,

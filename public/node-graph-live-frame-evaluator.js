@@ -4610,15 +4610,17 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
       // master "Pitch Reference Frequency" setting and a MIDI keyboard is
       // automatically in tune; double it to transpose up an octave.
       const baseFrequency = Math.max(0, read("frequency", 100));
-      const pitchInput = clampNodeSliderValue(nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "0.1V/Oct"),
-        runtime,
-        nodeId,
-        null,
-        "RobinSupersaw 0.1v input",
-      ), -1, 1);
       const pitchReferenceAudio = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio);
       const referenceVoltage = pitchReferenceAudio.pitchReferenceMidiNote / 120;
+      const pitchInput = hasInput(nodeId, "0.1V/Oct")
+        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
+          mixInput(nodeId, "0.1V/Oct"),
+          runtime,
+          nodeId,
+          null,
+          "RobinSupersaw 0.1v input",
+        ), -1, 1)
+        : referenceVoltage;
       const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
       value = nodeGraphRobinSupersawSample(state, {
         frequencyHz: pitchedFrequency,
