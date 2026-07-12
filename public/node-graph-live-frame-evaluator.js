@@ -3592,7 +3592,7 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
 
     const liveModuleEvaluator = node?.type ? nodeGraphLiveModuleEvaluators[node.type] : null;
     if (liveModuleEvaluator) {
-      value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate, graphInputValue });
+      value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate, graphInputValue, graphOutputValue });
     } else if (nodeGraphIsPolyBlepOscillatorType(node?.type)) {
       const resetState = runtime.oscResetStates.get(nodeId) || createNodeGraphOscResetState();
       runtime.oscResetStates.set(nodeId, resetState);
@@ -3688,8 +3688,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
         nodeId,
         wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
       );
-    } else if (nodeGraphModuleIsGraphType(node?.type)) {
-      value = graphOutputValue(node, nodeId);
     }
 
     frameValues.set(nodeId, value);

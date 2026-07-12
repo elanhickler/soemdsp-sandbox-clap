@@ -347,6 +347,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/sineWavetable/sine-wavetable-live-evaluator.js",
     "./public/modules/ellipsoid/ellipsoid-live-evaluator.js",
     "./public/modules/additiveOsc/additive-osc-live-evaluator.js",
+    "./public/modules/graph/graph-live-evaluator.js",
 )
 
 
@@ -11553,7 +11554,7 @@ def require_node_graph_mvp_contract() -> None:
         '"additive osc increment input"',
         "readNodeGraphRuntimePortOutput(",
         "modulation.sourcePort",
-        "nodeGraphModuleIsGraphType(node?.type)",
+        "nodeGraphLiveModuleEvaluators.graph = nodeGraphGraphTypeLiveEvaluator",
         "const graphSampleX = (node, nodeId) => {",
         'readNodeGraphLiveEffectiveParam(runtime, node, "mode", 0',
         'readNodeGraphLiveEffectiveParam(runtime, node, "rate", 1',
@@ -11570,7 +11571,7 @@ def require_node_graph_mvp_contract() -> None:
         "return outputMin + normalizedValue * (outputMax - outputMin)",
         "graphConnections: (patch.graphConnections || []).map((connection) =>",
         "graphInputConnections",
-        "value = graphOutputValue(node, nodeId)",
+        "return graphOutputValue(node, nodeId)",
         "const outputVolume = outputNode",
         'const outputMono = mixInput(runtime.outputNode || "output", "Mono")',
         'left: (outputMono + mixInput(runtime.outputNode || "output", "Left")) * outputVolume',
