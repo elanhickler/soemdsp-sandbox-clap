@@ -12451,6 +12451,129 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       },
+      spiral: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.spiralStates.get(nodeId) || this.createSpiralState();
+        this.spiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const spiral = this.jerobeamSpiralSample({
+          density: read("density", 1),
+          frequency: read("frequency", 440),
+          morph: read("morph", 0),
+          morphSpeed: read("morphSpeed", 0),
+          position: read("position", 0),
+          positionSpeed: read("positionSpeed", 0),
+          rotX: read("rotX", 0),
+          rotXSpeed: read("rotXSpeed", 0),
+          rotY: read("rotY", 0),
+          rotYSpeed: read("rotYSpeed", 0),
+          sampleRate: safeRate,
+          sharp: read("sharp", 0.5),
+          sharpCurve: read("sharpCurve", 0),
+          sharpCurveMult: read("sharpCurveMult", 1),
+          size: read("size", 0.5),
+          state,
+          zAmount: read("zAmount", 0),
+          zDepth: read("zDepth", 0),
+        });
+        const level = read("level", 1);
+        return {
+          X: spiral.x * level,
+          Y: spiral.y * level,
+          Z: spiral.z * level,
+        };
+      },
+      fractalSpiral: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.fractalSpiralStates.get(nodeId) || this.createFractalSpiralState();
+        this.fractalSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const fractal = this.fractalSpiralSample(state, {
+          frequency: read("frequency", 1),
+          gain: read("gain", 0.5),
+          growth: read("growth", 1.5),
+          lacunarity: read("lacunarity", 2),
+          octaves: read("octaves", 5),
+          sampleRate: safeRate,
+          size: read("size", 0.5),
+          spin: read("spin", 0.05),
+          twist: read("twist", 0.381966),
+        });
+        const fractalLevel = read("level", 1);
+        return {
+          X: fractal.x * fractalLevel,
+          Y: fractal.y * fractalLevel,
+          Z: fractal.z * fractalLevel,
+        };
+      },
+      logSpiral: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.logSpiralStates.get(nodeId) || this.createLogSpiralState();
+        this.logSpiralStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const logSpiral = this.logSpiralSample(state, {
+          frequency: read("frequency", 1),
+          growth: read("growth", 3),
+          sampleRate: safeRate,
+          size: read("size", 0.5),
+          spin: read("spin", 0.05),
+          turns: read("turns", 4),
+        });
+        const logSpiralLevel = read("level", 1);
+        return {
+          X: logSpiral.x * logSpiralLevel,
+          Y: logSpiral.y * logSpiralLevel,
+          Z: logSpiral.z * logSpiralLevel,
+        };
+      },
+      lorenzAttractor: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.lorenzAttractorStates.get(nodeId) || this.createLorenzAttractorState();
+        this.lorenzAttractorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(
+          node,
+          key,
+          fallback,
+          frame,
+          frames,
+          frameValues,
+        );
+        const lorenz = this.lorenzAttractorSample({
+          beta: read("beta", 8 / 3),
+          reset: mixInput(nodeId, "Reset"),
+          rho: read("rho", 28),
+          rotate: read("rotate", 0),
+          sampleRate: safeRate,
+          scale: read("scale", 1),
+          sigma: read("sigma", 10),
+          speed: read("speed", 1),
+          state,
+          zDepth: read("zDepth", 0.4),
+        });
+        const level = read("level", 1);
+        return {
+          X: lorenz.x * level,
+          Y: lorenz.y * level,
+          Z: lorenz.z * level,
+        };
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14304,151 +14427,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             ],
           },
         );
-      } else if (node?.type === "spiral") {
-        const state = this.spiralStates.get(nodeId) || this.createSpiralState();
-        this.spiralStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(
-          node,
-          key,
-          fallback,
-          frame,
-          frames,
-          frameValues,
-        );
-        const spiral = this.jerobeamSpiralSample({
-          density: read("density", 1),
-          frequency: read("frequency", 440),
-          morph: read("morph", 0),
-          morphSpeed: read("morphSpeed", 0),
-          position: read("position", 0),
-          positionSpeed: read("positionSpeed", 0),
-          rotX: read("rotX", 0),
-          rotXSpeed: read("rotXSpeed", 0),
-          rotY: read("rotY", 0),
-          rotYSpeed: read("rotYSpeed", 0),
-          sampleRate: safeRate,
-          sharp: read("sharp", 0.5),
-          sharpCurve: read("sharpCurve", 0),
-          sharpCurveMult: read("sharpCurveMult", 1),
-          size: read("size", 0.5),
-          state,
-          zAmount: read("zAmount", 0),
-          zDepth: read("zDepth", 0),
-        });
-        const level = read("level", 1);
-        value = {
-          X: spiral.x * level,
-          Y: spiral.y * level,
-          Z: spiral.z * level,
-        };
-      } else if (node?.type === "fractalSpiral") {
-        const state = this.fractalSpiralStates.get(nodeId) || this.createFractalSpiralState();
-        this.fractalSpiralStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(
-          node,
-          key,
-          fallback,
-          frame,
-          frames,
-          frameValues,
-        );
-        const fractal = this.fractalSpiralSample(state, {
-          frequency: read("frequency", 1),
-          gain: read("gain", 0.5),
-          growth: read("growth", 1.5),
-          lacunarity: read("lacunarity", 2),
-          octaves: read("octaves", 5),
-          sampleRate: safeRate,
-          size: read("size", 0.5),
-          spin: read("spin", 0.05),
-          twist: read("twist", 0.381966),
-        });
-        const fractalLevel = read("level", 1);
-        value = {
-          X: fractal.x * fractalLevel,
-          Y: fractal.y * fractalLevel,
-          Z: fractal.z * fractalLevel,
-        };
-      } else if (node?.type === "logSpiral") {
-        const state = this.logSpiralStates.get(nodeId) || this.createLogSpiralState();
-        this.logSpiralStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(
-          node,
-          key,
-          fallback,
-          frame,
-          frames,
-          frameValues,
-        );
-        const logSpiral = this.logSpiralSample(state, {
-          frequency: read("frequency", 1),
-          growth: read("growth", 3),
-          sampleRate: safeRate,
-          size: read("size", 0.5),
-          spin: read("spin", 0.05),
-          turns: read("turns", 4),
-        });
-        const logSpiralLevel = read("level", 1);
-        value = {
-          X: logSpiral.x * logSpiralLevel,
-          Y: logSpiral.y * logSpiralLevel,
-          Z: logSpiral.z * logSpiralLevel,
-        };
-      } else if (node?.type === "lorenzAttractor") {
-        const state = this.lorenzAttractorStates.get(nodeId) || this.createLorenzAttractorState();
-        this.lorenzAttractorStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(
-          node,
-          key,
-          fallback,
-          frame,
-          frames,
-          frameValues,
-        );
-        const lorenz = this.lorenzAttractorSample({
-          beta: read("beta", 8 / 3),
-          reset: mixInput(nodeId, "Reset"),
-          rho: read("rho", 28),
-          rotate: read("rotate", 0),
-          sampleRate: safeRate,
-          scale: read("scale", 1),
-          sigma: read("sigma", 10),
-          speed: read("speed", 1),
-          state,
-          zDepth: read("zDepth", 0.4),
-        });
-        const level = read("level", 1);
-        value = {
-          X: lorenz.x * level,
-          Y: lorenz.y * level,
-          Z: lorenz.z * level,
-        };
-      } else if (node?.type === "archimedes") {
-        const state = this.archimedesStates.get(nodeId) || this.createArchimedesState();
-        this.archimedesStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const frequency = read("frequency", 100);
-        const pitchInput = this.clampValue(
-          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
-          -1,
-          1,
-        );
-        const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
-        const archimedes = this.archimedesSample({
-          dither: read("dither", 3),
-          frequency: pitchedFrequency,
-          profile: read("profile", 12),
-          reset: mixInput(nodeId, "Reset"),
-          state,
-        });
-        const archimedesLevel = read("level", 1);
-        value = {
-          Sine: archimedes.sine * archimedesLevel,
-          Cosine: archimedes.cosine * archimedesLevel,
-          Pi: archimedes.pi,
-          "Noise Below": archimedes.noiseBelow,
-          "Noise Above": archimedes.noiseAbove,
-        };
       } else if (node?.type === "midiOut") {
         const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
         const midiNumber = this.clampValue(Math.round(this.readEffectiveParameter(

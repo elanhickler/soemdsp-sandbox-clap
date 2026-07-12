@@ -295,6 +295,10 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/vactrolEnvelope/vactrol-envelope-live-evaluator.js",
     "./public/modules/impulseButton/impulse-button-live-evaluator.js",
     "./public/modules/flowerChildEnvelopeFollower/flower-child-envelope-follower-live-evaluator.js",
+    "./public/modules/spiral/spiral-live-evaluator.js",
+    "./public/modules/fractalSpiral/fractal-spiral-live-evaluator.js",
+    "./public/modules/logSpiral/log-spiral-live-evaluator.js",
+    "./public/modules/lorenzAttractor/lorenz-attractor-live-evaluator.js",
 )
 
 
@@ -10450,8 +10454,8 @@ def require_node_graph_mvp_contract() -> None:
         'offsetX: read("offsetX", 0)',
         'shapeY: read("shapeY", 0)',
         "function nextNodeGraphNoiseSample(runtime, nodeId)",
-        'node?.type === "spiral"',
-        'node?.type === "lorenzAttractor"',
+        "nodeGraphLiveModuleEvaluators.spiral = (",
+        "nodeGraphLiveModuleEvaluators.lorenzAttractor = (",
         "function readNodeGraphLiveSmoothedParam(runtime, node, key, fallback, frame, frames)",
         'readNodeGraphLiveEffectiveParam(',
         "function setNodeGraphLiveMeter(",
