@@ -1770,6 +1770,7 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/moduleGroup/module-group-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/ellipsoid/ellipsoid-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/sineWavetable/sine-wavetable-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/additiveOsc/additive-osc-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 
