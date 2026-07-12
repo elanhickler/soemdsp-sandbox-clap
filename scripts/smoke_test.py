@@ -345,6 +345,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/moduleGroup/module-group-live-evaluator.js",
     "./public/modules/codeblock/codeblock-live-evaluator.js",
     "./public/modules/sineWavetable/sine-wavetable-live-evaluator.js",
+    "./public/modules/ellipsoid/ellipsoid-live-evaluator.js",
 )
 
 
@@ -10495,7 +10496,7 @@ def require_node_graph_mvp_contract() -> None:
         'harmonicPhaseMultiply: readNodeGraphLiveEffectiveParam(runtime, node, "harmonicPhaseMultiply", 0, frame, frames, frameValues)',
         'phaseGraphValueAt: (x) => graphInputValue(nodeId, "Phase Graph", x, 0)',
         "value = { Out: additiveSample }",
-        'node?.type === "ellipsoid"',
+        "nodeGraphLiveModuleEvaluators.ellipsoid = (",
         '"ellipsoid 0.1v/oct input"',
         "value = nodeGraphEllipsoidVectorSample(phase + phaseOffset",
         'offsetX: read("offsetX", 0)',

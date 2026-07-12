@@ -13250,6 +13250,47 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       },
       moduleGroup: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame),
       codeblock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame),
+      ellipsoid: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
+        this.oscResetStates.set(nodeId, resetState);
+        const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
+        const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
+        resetState.lastReset = resetValue;
+        const phase = resetEdge ? 0 : this.phases.get(nodeId) || 0;
+        const phaseOffset = this.phaseRadians(
+          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+        );
+        const frequency = this.readEffectiveParameter(node, "frequency", 220, frame, frames, frameValues);
+        const pitchInput = this.clampValue(
+          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
+          -1,
+          1,
+        );
+        const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
+        const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
+        const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
+        let ellipsoidFrame = this.ellipsoidOutputFrames.get(nodeId);
+        if (!ellipsoidFrame) {
+          ellipsoidFrame = { Mono: 0, Out: 0, Wave: 0, "Wave Out": 0, X: 0, Y: 0 };
+          this.ellipsoidOutputFrames.set(nodeId, ellipsoidFrame);
+        }
+        const value = this.nativeEllipsoidVectorSample(
+          ellipsoidFrame,
+          phase + phaseOffset,
+          this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "offsetX", 0, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "offsetY", 0, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "scaleX", 1, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "scaleY", 1, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "shapeX", 0, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "shapeY", 0, frame, frames, frameValues),
+        );
+        this.phases.set(
+          nodeId,
+          this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
+        );
+        return value;
+      },
       sineWavetable: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
         const phaseOffset = this.phaseRadians(
           this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
@@ -14816,45 +14857,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             safeRate,
           );
         value = { Out: additiveSample };
-        this.phases.set(
-          nodeId,
-          this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-        );
-      } else if (node?.type === "ellipsoid") {
-        const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
-        this.oscResetStates.set(nodeId, resetState);
-        const resetValue = this.safeFilterNumber(mixInput(nodeId, "Reset"), resetState);
-        const resetEdge = resetState.lastReset <= 0 && resetValue > 0;
-        resetState.lastReset = resetValue;
-        const phase = resetEdge ? 0 : this.phases.get(nodeId) || 0;
-        const phaseOffset = this.phaseRadians(
-          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
-        );
-        const frequency = this.readEffectiveParameter(node, "frequency", 220, frame, frames, frameValues);
-        const pitchInput = this.clampValue(
-          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
-          -1,
-          1,
-        );
-        const pitchedFrequency = Math.max(0, frequency * (2 ** (pitchInput / 0.1)));
-        const incrementInput = this.safeFilterNumber(mixInput(nodeId, "Increment"), null);
-        const phaseIncrement = (pitchedFrequency / safeRate) + incrementInput;
-        let ellipsoidFrame = this.ellipsoidOutputFrames.get(nodeId);
-        if (!ellipsoidFrame) {
-          ellipsoidFrame = { Mono: 0, Out: 0, Wave: 0, "Wave Out": 0, X: 0, Y: 0 };
-          this.ellipsoidOutputFrames.set(nodeId, ellipsoidFrame);
-        }
-        value = this.nativeEllipsoidVectorSample(
-          ellipsoidFrame,
-          phase + phaseOffset,
-          this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "offsetX", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "offsetY", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "scaleX", 1, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "scaleY", 1, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "shapeX", 0, frame, frames, frameValues),
-          this.readEffectiveParameter(node, "shapeY", 0, frame, frames, frameValues),
-        );
         this.phases.set(
           nodeId,
           this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
