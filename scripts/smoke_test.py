@@ -261,6 +261,13 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/keplerBouwkamp/kepler-bouwkamp-live-evaluator.js",
     "./public/modules/nyquistShannon/nyquist-shannon-live-evaluator.js",
     "./public/modules/radar/radar-live-evaluator.js",
+    "./public/modules/surgeOscillator/surge-oscillator-live-evaluator.js",
+    "./public/modules/dsfOscillator/dsf-oscillator-live-evaluator.js",
+    "./public/modules/robinSupersaw/robin-supersaw-live-evaluator.js",
+    "./public/modules/hypersaw/hypersaw-live-evaluator.js",
+    "./public/modules/chordSequencer/chord-sequencer-live-evaluator.js",
+    "./public/modules/lutCell/lut-cell-live-evaluator.js",
+    "./public/modules/metallicRatio/metallic-ratio-live-evaluator.js",
 )
 
 

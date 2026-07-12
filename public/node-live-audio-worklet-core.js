@@ -11883,6 +11883,125 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Y: nyquist.y * nyquistLevel,
         };
       },
+      surgeOscillator: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const state = this.surgeOscillatorStates.get(nodeId) || this.createSurgeOscillatorState();
+        this.surgeOscillatorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const baseFrequency = Math.max(0, read("frequency", 100));
+        const pitchInput = this.clampValue(
+          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
+          -10,
+          10,
+        );
+        const frequencyHz = Math.max(0, baseFrequency * (2 ** (pitchInput / 0.1)));
+        return this.surgeOscillatorSample(state, {
+          frequencyHz,
+          sampleRate: safeRate,
+          syncIn: mixInput(nodeId, "Sync"),
+          hasExternalSync: hasInput(nodeId, "Sync"),
+          syncFrequencyHz: read("syncFrequency", 50),
+          waveform: read("waveform", 0),
+          level: read("level", 1),
+        });
+      },
+      dsfOscillator: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.dsfOscillatorStates.get(nodeId) || this.createDsfOscillatorState();
+        this.dsfOscillatorStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.dsfOscillatorSample(state, {
+          frequencyHz: Math.max(0, read("frequency", 100)),
+          sampleRate: safeRate,
+          waveform: read("waveform", 1),
+          morph: read("morph", 1),
+          pulseWidth: read("pulseWidth", 0.5),
+          blend: read("blend", 0.5),
+          level: read("level", 1),
+        });
+      },
+      robinSupersaw: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.robinSupersawStates.get(nodeId) || this.createRobinSupersawState();
+        this.robinSupersawStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        // baseFrequency is the pitch heard at the global pitch reference
+        // note (see node-graph-patch-normalizers.js) -- set it equal to
+        // the master "Pitch Reference Frequency" setting and a MIDI
+        // keyboard is automatically in tune; double it to transpose the
+        // whole instrument up an octave.
+        const baseFrequency = Math.max(0, read("frequency", 100));
+        const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
+        const referenceVoltage = referenceMidiNote / 120;
+        const hasPitchInput = this.inputConnections.has(this.inputKey(nodeId, "0.1V/Oct"));
+        const pitchInput = hasPitchInput
+          ? this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1)
+          : referenceVoltage;
+        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
+        return this.robinSupersawSample(state, {
+          frequencyHz: pitchedFrequency,
+          sampleRate: safeRate,
+          detuneCents: read("detuneCents", 30),
+          voices: read("voices", 7),
+          level: read("level", 1),
+        });
+      },
+      hypersaw: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.hypersawStates.get(nodeId) || this.createHypersawState();
+        this.hypersawStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        // baseFrequency is the pitch heard at the global pitch reference
+        // note (see node-graph-patch-normalizers.js), same convention as
+        // robinSupersaw above -- set it equal to the master "Pitch
+        // Reference Frequency" setting and a MIDI keyboard is
+        // automatically in tune.
+        const baseFrequency = Math.max(0, read("frequency", 100));
+        const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
+        const referenceVoltage = referenceMidiNote / 120;
+        const hasPitchInput = this.inputConnections.has(this.inputKey(nodeId, "0.1V/Oct"));
+        const pitchInput = hasPitchInput
+          ? this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1)
+          : referenceVoltage;
+        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
+        return this.hypersawSample(state, {
+          frequencyHz: pitchedFrequency,
+          sampleRate: safeRate,
+          phaseOffset: read("phase", 0),
+          numVoices: read("voices", 8),
+          spread: read("spread", 1),
+          randomAmount: read("random", 0.15),
+          driftAmount: read("drift", 0.1),
+          level: read("level", 0.35),
+        });
+      },
+      chordSequencer: (node, nodeId, frame, frames, frameValues, mixInput) => {
+        const state = this.chordSequencerStates.get(nodeId) || this.createChordSequencerState();
+        this.chordSequencerStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.chordSequencerSample(state, {
+          clock: mixInput(nodeId, "Clock"),
+          level: read("level", 1),
+          progression: read("progression", 0),
+          reset: mixInput(nodeId, "Reset"),
+        });
+      },
+      lutCell: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput) => {
+        const state = this.lutCellStates.get(nodeId) || this.createLutCellState();
+        this.lutCellStates.set(nodeId, state);
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        return this.lutCellSample(state, {
+          a: mixInput(nodeId, "A"),
+          b: mixInput(nodeId, "B"),
+          c: mixInput(nodeId, "C"),
+          d: mixInput(nodeId, "D"),
+          clock: mixInput(nodeId, "Clock"),
+          truthTable: read("truthTable", 27030),
+          hasAInput: hasInput(nodeId, "A"),
+          hasClockInput: hasInput(nodeId, "Clock"),
+        });
+      },
+      metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
+        Ratio: this.metallicRatioSample(
+          this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
+        ),
+      }),
       radar: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
         const state = this.radarStates.get(nodeId) || this.createRadarState();
         this.radarStates.set(nodeId, state);
@@ -13875,120 +13994,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Pi: archimedes.pi,
           "Noise Below": archimedes.noiseBelow,
           "Noise Above": archimedes.noiseAbove,
-        };
-      } else if (node?.type === "chordSequencer") {
-        const state = this.chordSequencerStates.get(nodeId) || this.createChordSequencerState();
-        this.chordSequencerStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.chordSequencerSample(state, {
-          clock: mixInput(nodeId, "Clock"),
-          level: read("level", 1),
-          progression: read("progression", 0),
-          reset: mixInput(nodeId, "Reset"),
-        });
-      } else if (node?.type === "lutCell") {
-        const state = this.lutCellStates.get(nodeId) || this.createLutCellState();
-        this.lutCellStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.lutCellSample(state, {
-          a: mixInput(nodeId, "A"),
-          b: mixInput(nodeId, "B"),
-          c: mixInput(nodeId, "C"),
-          d: mixInput(nodeId, "D"),
-          clock: mixInput(nodeId, "Clock"),
-          truthTable: read("truthTable", 27030),
-          hasAInput: this.inputConnections.has(this.inputKey(nodeId, "A")),
-          hasClockInput: this.inputConnections.has(this.inputKey(nodeId, "Clock")),
-        });
-      } else if (node?.type === "surgeOscillator") {
-        const state = this.surgeOscillatorStates.get(nodeId) || this.createSurgeOscillatorState();
-        this.surgeOscillatorStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const baseFrequency = Math.max(0, read("frequency", 100));
-        const pitchInput = this.clampValue(
-          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
-          -10,
-          10,
-        );
-        const frequencyHz = Math.max(0, baseFrequency * (2 ** (pitchInput / 0.1)));
-        value = this.surgeOscillatorSample(state, {
-          frequencyHz,
-          sampleRate: this.engineSampleRate || sampleRate,
-          syncIn: mixInput(nodeId, "Sync"),
-          hasExternalSync: hasInput(nodeId, "Sync"),
-          syncFrequencyHz: read("syncFrequency", 50),
-          waveform: read("waveform", 0),
-          level: read("level", 1),
-        });
-      } else if (node?.type === "dsfOscillator") {
-        const state = this.dsfOscillatorStates.get(nodeId) || this.createDsfOscillatorState();
-        this.dsfOscillatorStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        value = this.dsfOscillatorSample(state, {
-          frequencyHz: Math.max(0, read("frequency", 100)),
-          sampleRate: this.engineSampleRate || sampleRate,
-          waveform: read("waveform", 1),
-          morph: read("morph", 1),
-          pulseWidth: read("pulseWidth", 0.5),
-          blend: read("blend", 0.5),
-          level: read("level", 1),
-        });
-      } else if (node?.type === "robinSupersaw") {
-        const state = this.robinSupersawStates.get(nodeId) || this.createRobinSupersawState();
-        this.robinSupersawStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        // baseFrequency is the pitch heard at the global pitch reference
-        // note (see node-graph-patch-normalizers.js) -- set it equal to
-        // the master "Pitch Reference Frequency" setting and a MIDI
-        // keyboard is automatically in tune; double it to transpose the
-        // whole instrument up an octave.
-        const baseFrequency = Math.max(0, read("frequency", 100));
-        const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
-        const referenceVoltage = referenceMidiNote / 120;
-        const hasPitchInput = this.inputConnections.has(this.inputKey(nodeId, "0.1V/Oct"));
-        const pitchInput = hasPitchInput
-          ? this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1)
-          : referenceVoltage;
-        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
-        value = this.robinSupersawSample(state, {
-          frequencyHz: pitchedFrequency,
-          sampleRate: this.engineSampleRate || sampleRate,
-          detuneCents: read("detuneCents", 30),
-          voices: read("voices", 7),
-          level: read("level", 1),
-        });
-      } else if (node?.type === "hypersaw") {
-        const state = this.hypersawStates.get(nodeId) || this.createHypersawState();
-        this.hypersawStates.set(nodeId, state);
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        // baseFrequency is the pitch heard at the global pitch reference
-        // note (see node-graph-patch-normalizers.js), same convention as
-        // robinSupersaw above -- set it equal to the master "Pitch
-        // Reference Frequency" setting and a MIDI keyboard is
-        // automatically in tune.
-        const baseFrequency = Math.max(0, read("frequency", 100));
-        const referenceMidiNote = Number.isFinite(this.pitchReferenceMidiNote) ? this.pitchReferenceMidiNote : 48;
-        const referenceVoltage = referenceMidiNote / 120;
-        const hasPitchInput = this.inputConnections.has(this.inputKey(nodeId, "0.1V/Oct"));
-        const pitchInput = hasPitchInput
-          ? this.clampValue(this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null), -1, 1)
-          : referenceVoltage;
-        const pitchedFrequency = Math.max(0, baseFrequency * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
-        value = this.hypersawSample(state, {
-          frequencyHz: pitchedFrequency,
-          sampleRate: this.engineSampleRate || sampleRate,
-          phaseOffset: read("phase", 0),
-          numVoices: read("voices", 8),
-          spread: read("spread", 1),
-          randomAmount: read("random", 0.15),
-          driftAmount: read("drift", 0.1),
-          level: read("level", 0.35),
-        });
-      } else if (node?.type === "metallicRatio") {
-        value = {
-          Ratio: this.metallicRatioSample(
-            this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
-          ),
         };
       } else if (node?.type === "midiOut") {
         const hasMidiInput = this.inputConnections.has(this.inputKey(nodeId, "MIDI Number"));
