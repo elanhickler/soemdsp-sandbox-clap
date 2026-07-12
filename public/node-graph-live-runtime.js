@@ -1766,6 +1766,7 @@ async function stopNodeGraphLiveAudio() {
 // has finished defining/registering.
 const nodeGraphLiveWorkletSourceFiles = [
   "./public/node-live-audio-worklet-core.js?v=blob-loader-20260711",
+  "./public/modules/codeblock/codeblock-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 
