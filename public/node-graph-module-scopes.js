@@ -10102,77 +10102,9 @@ function drawNodeGraphHypersawBurnItem(renderer, item, pixelRatio) {
 // translucent black rect instead of clearing -- so the ghost of where
 // each line has been stays visible while it fades, same technique as
 // hypersawBurn and lineBurn.
-function nodeGraphOscilloscopeBankPanColor(pan) {
-  const p = clampNodeSliderValue(Number(pan) || 0, -1, 1);
-  let r, g, b;
-  if (p <= 0) {
-    // -1 (red) .. 0 (green)
-    const t = p + 1; // 0..1
-    r = Math.round(255 * (1 - t));
-    g = Math.round(255 * t);
-    b = 0;
-  } else {
-    // 0 (green) .. +1 (blue)
-    const t = p; // 0..1
-    r = 0;
-    g = Math.round(255 * (1 - t));
-    b = Math.round(255 * t);
-  }
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
-function drawNodeGraphOscilloscopeBankBurnItem(renderer, item, pixelRatio) {
-  const nodeId = item?.slot?.nodeId;
-  if (!nodeId) {
-    return;
-  }
-  const canvas = nodeGraphModuleScopeLocalFallbackCanvas(item?.slot);
-  const screenElement = item?.screenElement || item?.slot?.scopeElement;
-  if (!canvas || !syncNodeGraphModuleScopeLocalFallbackCanvas(canvas, screenElement, pixelRatio)) {
-    return;
-  }
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return;
-  }
-
-  // Burn-in decay: normal (non-additive) compositing so the fade-to-black
-  // actually darkens rather than brightening what's already there.
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const phases = readNodeGraphDataInput(nodeId, "Phases");
-  const amplitudes = readNodeGraphDataInput(nodeId, "Amplitudes");
-  const pans = readNodeGraphDataInput(nodeId, "Pans");
-  if (!Array.isArray(phases) || !phases.length || !Array.isArray(amplitudes) || !amplitudes.length) {
-    return;
-  }
-
-  const centerY = canvas.height / 2;
-  const halfHeight = canvas.height / 2;
-  const lineWidth = Math.max(1, canvas.width / 240);
-
-  ctx.globalCompositeOperation = "lighter";
-  ctx.lineWidth = lineWidth;
-  const count = Math.min(phases.length, amplitudes.length);
-  for (let i = 0; i < count; i++) {
-    const phase = Number(phases[i]);
-    const amplitude = Number(amplitudes[i]);
-    if (!Number.isFinite(phase) || !Number.isFinite(amplitude)) {
-      continue;
-    }
-    const pan = Array.isArray(pans) ? Number(pans[i]) : 0;
-    const x = clampNodeSliderValue(phase, 0, 1) * canvas.width;
-    const y = centerY - clampNodeSliderValue(amplitude, -1.5, 1.5) * halfHeight;
-    ctx.strokeStyle = nodeGraphOscilloscopeBankPanColor(pan);
-    ctx.beginPath();
-    ctx.moveTo(x, centerY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  }
-  ctx.globalCompositeOperation = "source-over";
-}
+// oscilloscopeBankBurn's renderer moved to
+// public/modules/oscilloscopeBank/oscilloscope-bank-display.js (self-registers
+// onto nodeGraphModuleScopeCustomRenderers on load).
 
 function nodeGraphScope2dFiniteSample(value) {
   const sample = Number(value);
@@ -10716,42 +10648,31 @@ function drawNodeGraphScope2dItem(renderer, item, pixelRatio) {
   drawNodeGraphScope2dRetainedBurn(item, pixelRatio, square, buffer, settings);
 }
 
+// Registry of displayType -> renderer function, checked by
+// drawNodeGraphModuleScopeTypedItem below. New bespoke display types (e.g.
+// a module's own dedicated file) can call
+// nodeGraphModuleScopeCustomRenderers.yourType = yourRenderFn to register
+// without editing this file, once they've also been added to the
+// nodeGraphDisplayModeRenderers allow-list above (that list stays a
+// separate validation step, not a dispatch mechanism).
+const nodeGraphModuleScopeCustomRenderers = {
+  trace: drawNodeGraphTraceDisplayItem,
+  dot: drawNodeGraphDotOscilloscopeItem,
+  value: drawNodeGraphValueOscilloscopeItem,
+  lineBurn: drawNodeGraphLineBurnOscilloscopeItem,
+  hypersawBurn: drawNodeGraphHypersawBurnItem,
+  scope2dTrace: drawNodeGraphScope2dTraceItem,
+  scope2d: drawNodeGraphScope2dItem,
+  numberReadout: drawNodeGraphNumberReadoutItem,
+  // oscilloscopeBankBurn self-registers from
+  // public/modules/oscilloscopeBank/oscilloscope-bank-display.js
+};
+
 function drawNodeGraphModuleScopeTypedItem(renderer, item, pixelRatio) {
   const displayRenderer = nodeGraphModuleDisplayRendererForSlot(item?.slot);
-  if (displayRenderer === "trace") {
-    drawNodeGraphTraceDisplayItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "dot") {
-    drawNodeGraphDotOscilloscopeItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "value") {
-    drawNodeGraphValueOscilloscopeItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "lineBurn") {
-    drawNodeGraphLineBurnOscilloscopeItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "hypersawBurn") {
-    drawNodeGraphHypersawBurnItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "oscilloscopeBankBurn") {
-    drawNodeGraphOscilloscopeBankBurnItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "scope2dTrace") {
-    drawNodeGraphScope2dTraceItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "scope2d") {
-    drawNodeGraphScope2dItem(renderer, item, pixelRatio);
-    return true;
-  }
-  if (displayRenderer === "numberReadout") {
-    drawNodeGraphNumberReadoutItem(renderer, item, pixelRatio);
+  const customRenderer = nodeGraphModuleScopeCustomRenderers[displayRenderer];
+  if (customRenderer) {
+    customRenderer(renderer, item, pixelRatio);
     return true;
   }
   return false;
