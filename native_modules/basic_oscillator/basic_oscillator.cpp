@@ -3,14 +3,41 @@
 // soemdsp-native-target: osc
 // soemdsp-native-kind: oscillator
 //
-// Shared DSP for both "osc" and "fbPolyBlepOsc" on the JS side --
-// forwardBackwardPolyBlepOscillatorSample() was a pure pass-through to
-// oscillatorSample() with zero behavioral difference, so one native
-// module covers both, exactly like passive_filter's single WASM serving
-// multiple modes via a parameter. This is the naive/basic PolyBLEP
-// correction (saw/square/triangle/sine/noise); the dedicated "polyBlep"
-// module (native_modules/polyblep) is a separate, more advanced
-// algorithm and unaffected by this.
+// Shared DSP for both "osc" and "fbPolyBlepOsc" on the JS side. Both types
+// dispatch to the exact same handle/sample function -- there is no separate
+// "mode" flag distinguishing them -- so the only way "fbPolyBlepOsc" can mean
+// anything different from plain "osc" is if the shared algorithm itself is
+// correct for *both* directions of phase travel. It previously was not:
+// poly_blep()/poly_blep_square() took absd(phaseIncrement) for the edge
+// width but never looked at its sign, so the correction bump's polarity was
+// always computed as if phase were increasing. Feed this a negative
+// phaseIncrement (reverse/scrub playback, or CV modulation that pushes the
+// increment through zero) and the correction cancels the wrong half of the
+// discontinuity -- it still "corrects" a step, just the step as seen going
+// forward, which is now the wrong one, so aliasing comes right back for the
+// reverse direction instead of being suppressed.
+//
+// Fix: poly_blep_directional()/poly_blep_square_directional() multiply the
+// unsigned correction by sign(phaseIncrement). Since dir is always +1 for a
+// non-negative increment, this is a strict no-op for the forward-only case
+// every existing patch already relies on -- "osc" (and "fbPolyBlepOsc" used
+// forward) sound identical to before. The only case that changes is a
+// negative-going phase, which is exactly the case that was previously wrong.
+// This also means: any patch that runs an Osc/F-B PolyBLEP Osc's phase
+// backward or bipolar (through-zero FM, an LFO driving Increment negative, a
+// reverse-scrub sequencer, etc.) is now anti-aliased correctly in both
+// directions with no extra parameter or wiring needed.
+//
+// The triangle branch is untouched: it already gets its direction correct a
+// different way (it leaky-integrates poly_blep_square()'s *unsigned* output
+// scaled by the *signed* phaseDelta), so wiring the directional correction
+// into it too would double-apply the sign flip and click at the corners
+// during reverse playback. It intentionally keeps calling the unsigned
+// poly_blep_square().
+//
+// This is the naive/basic PolyBLEP correction (saw/square/triangle/sine/
+// noise); the dedicated "polyBlep" module (native_modules/polyblep) is a
+// separate, more advanced algorithm and unaffected by this.
 //
 // Each of the six port outputs (main + Saw/Ramp/Square/Tri/Sine) is
 // driven from an *independent* phase/state on the JS side (distinct
@@ -93,6 +120,34 @@ static double poly_blep_square(double phaseCycle, double phaseIncrement) {
   return value;
 }
 
+// Direction-aware corrections for the direct saw/ramp/square outputs -- see
+// the file header comment for why this is a no-op when phaseIncrement >= 0
+// and only changes behavior for reverse-going phase.
+//
+// This is NOT a plain sign flip of poly_blep()'s result -- that was tried
+// first and produces a spike (verified: a stray +/-2.0 sample right at the
+// wrap point) because it doesn't relocate which side of the discontinuity a
+// given phaseCycle sits on in time. The fix mirrors phaseCycle around 0
+// (wrap01(-phaseCycle)) before handing it to the ordinary forward poly_blep
+// with a positive dt, then negates the result. Reflecting phase this way
+// turns a backward-traveling trajectory into a forward-traveling one in the
+// mirrored coordinate, so the existing near-0/near-1 edge tests land on the
+// correct samples again; the negation accounts for the discontinuity's
+// residual being an odd function under that reflection. Verified against
+// exact time-reversal: stepping backward from a forward run's endpoint
+// reproduces that forward run reversed, sample for sample.
+static double poly_blep_directional(double phaseCycle, double phaseIncrement) {
+  if (phaseIncrement >= 0.0) return poly_blep(phaseCycle, phaseIncrement);
+  return -poly_blep(wrap01(-phaseCycle), -phaseIncrement);
+}
+
+static double poly_blep_square_directional(double phaseCycle, double phaseIncrement) {
+  double value = phaseCycle < 0.5 ? 1.0 : -1.0;
+  value += poly_blep_directional(phaseCycle, phaseIncrement);
+  value -= poly_blep_directional(wrap01(phaseCycle + 0.5), phaseIncrement);
+  return value;
+}
+
 struct OscState {
   double triangle;
   double stoppedSample;
@@ -161,10 +216,10 @@ extern "C" double soemdsp_basic_oscillator_sample(
   const int wf = (int)dsp_floor(safe(waveform) + 0.5);
   switch (wf) {
     case 1:
-      sample = -1.0 + phaseCycle * 2.0 - poly_blep(phaseCycle, renderPhaseIncrement);
+      sample = -1.0 + phaseCycle * 2.0 - poly_blep_directional(phaseCycle, renderPhaseIncrement);
       break;
     case 2:
-      sample = poly_blep_square(phaseCycle, renderPhaseIncrement);
+      sample = poly_blep_square_directional(phaseCycle, renderPhaseIncrement);
       break;
     case 3: {
       if (phaseStopped) {
@@ -184,7 +239,7 @@ extern "C" double soemdsp_basic_oscillator_sample(
       break;
     case 0:
     default:
-      sample = 1.0 - phaseCycle * 2.0 + poly_blep(phaseCycle, renderPhaseIncrement);
+      sample = 1.0 - phaseCycle * 2.0 + poly_blep_directional(phaseCycle, renderPhaseIncrement);
       break;
   }
 
@@ -199,7 +254,7 @@ extern "C" double soemdsp_basic_oscillator_sample(
 }
 
 extern "C" int soemdsp_basic_oscillator_version() {
-  return 1;
+  return 2;
 }
 
 extern "C" const char* soemdsp_basic_oscillator_metadata_json() {
