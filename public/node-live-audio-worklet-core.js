@@ -13030,6 +13030,185 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         const knobValue = this.readEffectiveParameter(node, "value", 0, frame, frames, frameValues);
         return { Out: knobValue, value: knobValue };
       },
+      sandboxVisuals: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const screenShake = this.smoothVisualControl(
+          "screenShake",
+          this.visualControlIntensity(mixInput(nodeId, "Shake"), nodeId, "screen visuals shake"),
+          safeRate,
+        );
+        const x = this.smoothVisualControl(
+          "x",
+          this.visualControlSigned(mixInput(nodeId, "X"), nodeId, "sandbox visuals x"),
+          safeRate,
+          0.045,
+          -1,
+          1,
+        );
+        const y = this.smoothVisualControl(
+          "y",
+          this.visualControlSigned(mixInput(nodeId, "Y"), nodeId, "sandbox visuals y"),
+          safeRate,
+          0.045,
+          -1,
+          1,
+        );
+        const screenDim = this.smoothVisualControl(
+          "screenDim",
+          this.visualControlIntensity(mixInput(nodeId, "Dim"), nodeId, "screen visuals dim"),
+          safeRate,
+        );
+        const red = this.smoothVisualControl(
+          "red",
+          this.visualControlIntensity(mixInput(nodeId, "Red"), nodeId, "sandbox visuals red"),
+          safeRate,
+        );
+        const green = this.smoothVisualControl(
+          "green",
+          this.visualControlIntensity(mixInput(nodeId, "Green"), nodeId, "sandbox visuals green"),
+          safeRate,
+        );
+        const blue = this.smoothVisualControl(
+          "blue",
+          this.visualControlIntensity(mixInput(nodeId, "Blue"), nodeId, "sandbox visuals blue"),
+          safeRate,
+        );
+        const scopeTracesOff = this.smoothVisualControl(
+          "scopeTracesOff",
+          this.visualControlIntensity(mixInput(nodeId, "Scope Off"), nodeId, "screen visuals scope off"),
+          safeRate,
+          0,
+        );
+        const scopePaused = this.smoothVisualControl(
+          "scopePaused",
+          this.visualControlIntensity(mixInput(nodeId, "Pause"), nodeId, "screen visuals pause"),
+          safeRate,
+          0,
+        );
+        return {
+          Blue: blue,
+          Green: green,
+          Pause: scopePaused,
+          Red: red,
+          ScopeOff: scopeTracesOff,
+          ScreenDim: screenDim,
+          ScreenShake: screenShake,
+          X: x,
+          Y: y,
+        };
+      },
+      screenSpaceShader: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => this.screenSpaceShaderSample(
+        node,
+        (port) => mixInput(nodeId, port),
+        safeRate,
+        nodeId,
+      ),
+      bloomGlow: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const screenDim = this.smoothVisualControl(
+          "screenDim",
+          read("screenDim", 0),
+          safeRate,
+        );
+        const visualBrightness = this.smoothVisualControl(
+          "visualBrightness",
+          read("visualBrightness", 0.55),
+          safeRate,
+        );
+        const visualBloom = this.smoothVisualControl(
+          "visualBloom",
+          read("visualBloom", 0.45),
+          safeRate,
+        );
+        const visualGlow = this.smoothVisualControl(
+          "visualGlow",
+          read("visualGlow", 0.6),
+          safeRate,
+        );
+        return {
+          Bloom: visualBloom,
+          Brightness: visualBrightness,
+          Dim: screenDim,
+          Glow: visualGlow,
+        };
+      },
+      rgbaHsla: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const rgbRed = this.visualControlIntensity(mixInput(nodeId, "Red"), nodeId, "rgba hsla red");
+        const rgbGreen = this.visualControlIntensity(mixInput(nodeId, "Green"), nodeId, "rgba hsla green");
+        const rgbBlue = this.visualControlIntensity(mixInput(nodeId, "Blue"), nodeId, "rgba hsla blue");
+        const hue = this.visualControlIntensity(mixInput(nodeId, "Hue"), nodeId, "rgba hsla hue");
+        const saturation = this.visualControlIntensity(mixInput(nodeId, "Saturation"), nodeId, "rgba hsla saturation");
+        const lightness = this.visualControlIntensity(mixInput(nodeId, "Lightness"), nodeId, "rgba hsla lightness");
+        const hslMix = this.visualControlIntensity(mixInput(nodeId, "HSL Mix"), nodeId, "rgba hsla hsl mix");
+        const hslRgb = this.visualHslToRgb(hue, saturation, lightness);
+        const red = this.smoothVisualControl("red", rgbRed * (1 - hslMix) + hslRgb[0] * hslMix, safeRate);
+        const green = this.smoothVisualControl("green", rgbGreen * (1 - hslMix) + hslRgb[1] * hslMix, safeRate);
+        const blue = this.smoothVisualControl("blue", rgbBlue * (1 - hslMix) + hslRgb[2] * hslMix, safeRate);
+        const alpha = this.smoothVisualControl(
+          "screenDim",
+          this.visualControlIntensity(mixInput(nodeId, "Alpha"), nodeId, "rgba hsla alpha"),
+          safeRate,
+        );
+        return { Alpha: alpha, Blue: blue, Green: green, Red: red };
+      },
+      chromaColor: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
+        const chromaHue = this.smoothVisualControl(
+          "chromaHue",
+          read("chromaHue", 0.58),
+          safeRate,
+        );
+        const chromaSaturation = this.smoothVisualControl(
+          "chromaSaturation",
+          read("chromaSaturation", 0.82),
+          safeRate,
+        );
+        const chromaLightness = this.smoothVisualControl(
+          "chromaLightness",
+          read("chromaLightness", 0.52),
+          safeRate,
+        );
+        const chromaAlpha = this.smoothVisualControl(
+          "chromaAlpha",
+          read("chromaAlpha", 0.35),
+          safeRate,
+        );
+        const chromaDrift = this.smoothVisualControl(
+          "chromaDrift",
+          read("chromaDrift", 0.25),
+          safeRate,
+        );
+        const chromaSpread = this.smoothVisualControl(
+          "chromaSpread",
+          read("chromaSpread", 0.4),
+          safeRate,
+        );
+        const visualBrightness = this.smoothVisualControl(
+          "visualBrightness",
+          read("visualBrightness", 0.55),
+          safeRate,
+        );
+        const visualBloom = this.smoothVisualControl(
+          "visualBloom",
+          read("visualBloom", 0.45),
+          safeRate,
+        );
+        const visualGlow = this.smoothVisualControl(
+          "visualGlow",
+          read("visualGlow", 0.6),
+          safeRate,
+        );
+        return {
+          Alpha: chromaAlpha,
+          Bloom: visualBloom,
+          Chroma: chromaSaturation,
+          Drift: chromaDrift,
+          Glow: visualGlow,
+          Hue: chromaHue,
+          Light: chromaLightness,
+          Spread: chromaSpread,
+          TraceBrightness: visualBrightness,
+        };
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14655,182 +14834,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         value = this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame);
       } else if (node?.type === "graph" || node?.type === "graph2") {
         value = graphOutputValue(node, nodeId);
-      } else if (node?.type === "sandboxVisuals") {
-        const screenShake = this.smoothVisualControl(
-          "screenShake",
-          this.visualControlIntensity(mixInput(nodeId, "Shake"), nodeId, "screen visuals shake"),
-          safeRate,
-        );
-        const x = this.smoothVisualControl(
-          "x",
-          this.visualControlSigned(mixInput(nodeId, "X"), nodeId, "sandbox visuals x"),
-          safeRate,
-          0.045,
-          -1,
-          1,
-        );
-        const y = this.smoothVisualControl(
-          "y",
-          this.visualControlSigned(mixInput(nodeId, "Y"), nodeId, "sandbox visuals y"),
-          safeRate,
-          0.045,
-          -1,
-          1,
-        );
-        const screenDim = this.smoothVisualControl(
-          "screenDim",
-          this.visualControlIntensity(mixInput(nodeId, "Dim"), nodeId, "screen visuals dim"),
-          safeRate,
-        );
-        const red = this.smoothVisualControl(
-          "red",
-          this.visualControlIntensity(mixInput(nodeId, "Red"), nodeId, "sandbox visuals red"),
-          safeRate,
-        );
-        const green = this.smoothVisualControl(
-          "green",
-          this.visualControlIntensity(mixInput(nodeId, "Green"), nodeId, "sandbox visuals green"),
-          safeRate,
-        );
-        const blue = this.smoothVisualControl(
-          "blue",
-          this.visualControlIntensity(mixInput(nodeId, "Blue"), nodeId, "sandbox visuals blue"),
-          safeRate,
-        );
-        const scopeTracesOff = this.smoothVisualControl(
-          "scopeTracesOff",
-          this.visualControlIntensity(mixInput(nodeId, "Scope Off"), nodeId, "screen visuals scope off"),
-          safeRate,
-          0,
-        );
-        const scopePaused = this.smoothVisualControl(
-          "scopePaused",
-          this.visualControlIntensity(mixInput(nodeId, "Pause"), nodeId, "screen visuals pause"),
-          safeRate,
-          0,
-        );
-        value = {
-          Blue: blue,
-          Green: green,
-          Pause: scopePaused,
-          Red: red,
-          ScopeOff: scopeTracesOff,
-          ScreenDim: screenDim,
-          ScreenShake: screenShake,
-          X: x,
-          Y: y,
-        };
-      } else if (node?.type === "screenSpaceShader") {
-        value = this.screenSpaceShaderSample(
-          node,
-          (port) => mixInput(nodeId, port),
-          safeRate,
-          nodeId,
-        );
-      } else if (node?.type === "bloomGlow") {
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const screenDim = this.smoothVisualControl(
-          "screenDim",
-          read("screenDim", 0),
-          safeRate,
-        );
-        const visualBrightness = this.smoothVisualControl(
-          "visualBrightness",
-          read("visualBrightness", 0.55),
-          safeRate,
-        );
-        const visualBloom = this.smoothVisualControl(
-          "visualBloom",
-          read("visualBloom", 0.45),
-          safeRate,
-        );
-        const visualGlow = this.smoothVisualControl(
-          "visualGlow",
-          read("visualGlow", 0.6),
-          safeRate,
-        );
-        value = {
-          Bloom: visualBloom,
-          Brightness: visualBrightness,
-          Dim: screenDim,
-          Glow: visualGlow,
-        };
-      } else if (node?.type === "rgbaHsla") {
-        const rgbRed = this.visualControlIntensity(mixInput(nodeId, "Red"), nodeId, "rgba hsla red");
-        const rgbGreen = this.visualControlIntensity(mixInput(nodeId, "Green"), nodeId, "rgba hsla green");
-        const rgbBlue = this.visualControlIntensity(mixInput(nodeId, "Blue"), nodeId, "rgba hsla blue");
-        const hue = this.visualControlIntensity(mixInput(nodeId, "Hue"), nodeId, "rgba hsla hue");
-        const saturation = this.visualControlIntensity(mixInput(nodeId, "Saturation"), nodeId, "rgba hsla saturation");
-        const lightness = this.visualControlIntensity(mixInput(nodeId, "Lightness"), nodeId, "rgba hsla lightness");
-        const hslMix = this.visualControlIntensity(mixInput(nodeId, "HSL Mix"), nodeId, "rgba hsla hsl mix");
-        const hslRgb = this.visualHslToRgb(hue, saturation, lightness);
-        const red = this.smoothVisualControl("red", rgbRed * (1 - hslMix) + hslRgb[0] * hslMix, safeRate);
-        const green = this.smoothVisualControl("green", rgbGreen * (1 - hslMix) + hslRgb[1] * hslMix, safeRate);
-        const blue = this.smoothVisualControl("blue", rgbBlue * (1 - hslMix) + hslRgb[2] * hslMix, safeRate);
-        const alpha = this.smoothVisualControl(
-          "screenDim",
-          this.visualControlIntensity(mixInput(nodeId, "Alpha"), nodeId, "rgba hsla alpha"),
-          safeRate,
-        );
-        value = { Alpha: alpha, Blue: blue, Green: green, Red: red };
-      } else if (node?.type === "chromaColor") {
-        const read = (key, fallback) => this.readEffectiveParameter(node, key, fallback, frame, frames, frameValues);
-        const chromaHue = this.smoothVisualControl(
-          "chromaHue",
-          read("chromaHue", 0.58),
-          safeRate,
-        );
-        const chromaSaturation = this.smoothVisualControl(
-          "chromaSaturation",
-          read("chromaSaturation", 0.82),
-          safeRate,
-        );
-        const chromaLightness = this.smoothVisualControl(
-          "chromaLightness",
-          read("chromaLightness", 0.52),
-          safeRate,
-        );
-        const chromaAlpha = this.smoothVisualControl(
-          "chromaAlpha",
-          read("chromaAlpha", 0.35),
-          safeRate,
-        );
-        const chromaDrift = this.smoothVisualControl(
-          "chromaDrift",
-          read("chromaDrift", 0.25),
-          safeRate,
-        );
-        const chromaSpread = this.smoothVisualControl(
-          "chromaSpread",
-          read("chromaSpread", 0.4),
-          safeRate,
-        );
-        const visualBrightness = this.smoothVisualControl(
-          "visualBrightness",
-          read("visualBrightness", 0.55),
-          safeRate,
-        );
-        const visualBloom = this.smoothVisualControl(
-          "visualBloom",
-          read("visualBloom", 0.45),
-          safeRate,
-        );
-        const visualGlow = this.smoothVisualControl(
-          "visualGlow",
-          read("visualGlow", 0.6),
-          safeRate,
-        );
-        value = {
-          Alpha: chromaAlpha,
-          Bloom: visualBloom,
-          Chroma: chromaSaturation,
-          Drift: chromaDrift,
-          Glow: visualGlow,
-          Hue: chromaHue,
-          Light: chromaLightness,
-          Spread: chromaSpread,
-          TraceBrightness: visualBrightness,
-        };
       } else if (node?.type === "badvalMonitor") {
         value = this.monitorBadValueSample(mixInput(nodeId), nodeId);
       } else if (node?.type === "speakerProtection") {
