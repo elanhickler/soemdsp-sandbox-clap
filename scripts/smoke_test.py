@@ -246,6 +246,9 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/node-graph-antisaw.js",
     "./public/app-event-bindings.js",
     "./public/app.js",
+    "./native_modules/logistic_map/logistic_map-live-evaluator.js",
+    "./public/modules/turingMachine/turing-machine-live-evaluator.js",
+    "./public/modules/oscilloscopeBank/oscilloscope-bank-display.js",
 )
 
 
@@ -263,6 +266,8 @@ def static_asset_contracts():
     for script_path in PUBLIC_SCRIPT_PATHS:
         yield public_script_request_path(script_path), JS_CONTENT_TYPES, public_script_source_path(script_path)
     yield "/public/node-live-audio-worklet.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet.js"
+    yield "/public/node-live-audio-worklet-core.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet-core.js"
+    yield "/public/node-live-audio-worklet-register.js", JS_CONTENT_TYPES, PUBLIC / "node-live-audio-worklet-register.js"
     yield "/public/styles.css", "text/css", PUBLIC / "styles.css"
 
 
@@ -4295,7 +4300,7 @@ def require_node_graph_mvp_contract() -> None:
         (
             "worklet cache",
             delay_contract_sources["live runtime"],
-            ['node-live-audio-worklet.js?v='],
+            ['node-live-audio-worklet-core.js?v='],
         ),
     ]:
         for snippet in snippets:
@@ -7360,7 +7365,7 @@ def require_node_graph_mvp_contract() -> None:
                 "for (const type of Object.keys(nodeGraphModuleDefinitions || {}))",
                 "sampleBuffers: new Map()",
                 "await nodeGraphEnsureLiveSamplesForPlan(plan, nodeGraphMvp.patch)",
-                'node-live-audio-worklet.js?v=',
+                'node-live-audio-worklet-core.js?v=',
                 "phase: Number(message.audioPlayerPhase) || 0",
             ],
         ),
@@ -10732,7 +10737,8 @@ def require_node_graph_mvp_contract() -> None:
         "lastBadValueNodeId",
         "lastBadValueSource",
         "function createNodeGraphLiveWorkletNode(context, plan = null)",
-        'context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=',
+        "async function buildNodeGraphLiveWorkletBlobUrl(sourceFiles)",
+        'context.audioWorklet.addModule(blobUrl)',
         "new AudioWorkletNode(",
         "numberOfInputs: 1",
         "function createNodeGraphLiveScriptProcessorNode(context, plan)",
@@ -12875,7 +12881,7 @@ def require_node_graph_mvp_contract() -> None:
         "Number Readout should redraw only when the formatted value or its style changes, not per sample",
     )
     require(
-        'if (displayRenderer === "numberReadout") {\n    drawNodeGraphNumberReadoutItem(renderer, item, pixelRatio);' in node_graph_source,
+        "numberReadout: drawNodeGraphNumberReadoutItem," in node_graph_source,
         "Number Readout should have its own renderer dispatch entry",
     )
     require(
@@ -12992,7 +12998,7 @@ def require_node_graph_mvp_contract() -> None:
     require(
         "function drawNodeGraphScope2dTraceItem" in node_graph_source
         and 'if (displayType === "scope2dTrace") {' in node_graph_source
-        and "drawNodeGraphScope2dTraceItem(renderer, item, pixelRatio);" in node_graph_source,
+        and "scope2dTrace: drawNodeGraphScope2dTraceItem," in node_graph_source,
         "2D Trace should dispatch to its own renderer instead of 2D Burn",
     )
     trace_display_definition = module_definitions_source[
@@ -17483,7 +17489,7 @@ def require_native_module_contract(base_url: str) -> None:
     )
     require("sendNodeGraphLiveNativeModules" in live_runtime_source, "native worklet sender missing")
     require("\"setNativeModuleWasm\"" in live_runtime_source, "native worklet post message missing")
-    require("node-live-audio-worklet.js?v=" in live_runtime_source, "native worklet module load should carry a cache bust key")
+    require("node-live-audio-worklet-core.js?v=" in live_runtime_source, "native worklet module load should carry a cache bust key")
     require("async setNativeModuleWasm(message)" in worklet_source, "native worklet loader missing")
     require("nativeEllipsoidVectorSample(" in worklet_source, "native ellipsoid worklet path missing")
     require(

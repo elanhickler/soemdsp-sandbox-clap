@@ -1756,14 +1756,45 @@ async function stopNodeGraphLiveAudio() {
   renderNodeGraphLiveControls(false);
 }
 
+// Ordered source files assembled into one Blob and loaded via a single
+// addModule() call -- AudioWorkletGlobalScope can only load ONE static
+// module URL, so this is how multiple files get concatenated into that one
+// module instead of the whole processor living in a single giant file.
+// Order matters: core defines the processor class (no registerProcessor
+// call), then per-module chunks would go here as they migrate out of core,
+// then register.js calls registerProcessor last, once everything above it
+// has finished defining/registering.
+const nodeGraphLiveWorkletSourceFiles = [
+  "./public/node-live-audio-worklet-core.js?v=blob-loader-20260711",
+  "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
+];
+
+async function buildNodeGraphLiveWorkletBlobUrl(sourceFiles) {
+  const sources = await Promise.all(sourceFiles.map(async (url) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch AudioWorklet source "${url}": ${response.status}`);
+    }
+    return response.text();
+  }));
+  const combined = sources.join("\n;\n");
+  const blob = new Blob([combined], { type: "text/javascript" });
+  return URL.createObjectURL(blob);
+}
+
 async function createNodeGraphLiveWorkletNode(context, plan = null) {
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet unavailable");
   }
-  await nodeGraphLiveAwaitStartup(
-    context.audioWorklet.addModule("./public/node-live-audio-worklet.js?v=metallic-ratio-20260711"),
-    "AudioWorklet startup timed out",
-  );
+  const blobUrl = await buildNodeGraphLiveWorkletBlobUrl(nodeGraphLiveWorkletSourceFiles);
+  try {
+    await nodeGraphLiveAwaitStartup(
+      context.audioWorklet.addModule(blobUrl),
+      "AudioWorklet startup timed out",
+    );
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
   const workletNode = new AudioWorkletNode(
     context,
     "node-live-audio-processor",
