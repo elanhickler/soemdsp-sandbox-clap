@@ -3593,68 +3593,6 @@ function evaluateNodeGraphPlanFrame(runtime, sampleRate, frame, frames) {
     const liveModuleEvaluator = node?.type ? nodeGraphLiveModuleEvaluators[node.type] : null;
     if (liveModuleEvaluator) {
       value = liveModuleEvaluator({ runtime, node, nodeId, frame, frames, frameValues, mixInput, hasInput, sampleRate });
-    } else if (node?.type === "sineWavetable") {
-      const phase = runtime.phases.get(nodeId) || 0;
-      const phaseOffset = nodeGraphPhaseRadians(
-        readNodeGraphLiveEffectiveParam(
-          runtime,
-          node,
-          "phase",
-          0,
-          frame,
-          frames,
-          frameValues,
-        ),
-      );
-      const baseFrequency = readNodeGraphLiveEffectiveParam(
-        runtime,
-        node,
-        "freq",
-        100,
-        frame,
-        frames,
-        frameValues,
-      );
-      const freqInput = nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "Freq"),
-        runtime,
-        nodeId,
-        null,
-        "sin/cos freq input",
-      );
-      const ampInput = nodeGraphSafeFilterNumber(
-        mixInput(nodeId, "Amplitude"),
-        runtime,
-        nodeId,
-        null,
-        "sin/cos amplitude input",
-      );
-      const referenceVoltage = normalizeNodeGraphPatchAudio(nodeGraphMvp.patch.audio).pitchReferenceMidiNote / 120;
-      const pitchInput = hasInput(nodeId, "0.1V/Oct")
-        ? clampNodeSliderValue(nodeGraphSafeFilterNumber(
-          mixInput(nodeId, "0.1V/Oct"),
-          runtime,
-          nodeId,
-          null,
-          "sin/cos 0.1v input",
-        ), -1, 1)
-        : referenceVoltage;
-      const pitchedFrequency = Math.max(0, (baseFrequency + freqInput) * (2 ** ((pitchInput - referenceVoltage) / 0.1)));
-      const amplitude = Math.max(0, readNodeGraphLiveEffectiveParam(
-        runtime,
-        node,
-        "amp",
-        1,
-        frame,
-        frames,
-        frameValues,
-      ) + ampInput);
-      const phaseIncrement = pitchedFrequency / sampleRate;
-      value = nodeGraphSineCosWavetableSample(phase + phaseOffset, pitchedFrequency, amplitude, sampleRate);
-      runtime.phases.set(
-        nodeId,
-        wrapNodeSliderValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-      );
     } else if (nodeGraphIsPolyBlepOscillatorType(node?.type)) {
       const resetState = runtime.oscResetStates.get(nodeId) || createNodeGraphOscResetState();
       runtime.oscResetStates.set(nodeId, resetState);

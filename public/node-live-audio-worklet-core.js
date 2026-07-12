@@ -13250,6 +13250,82 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       },
       moduleGroup: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateModuleGroup(node, mixInput, frame, frames, safeRate, inputFrame),
       codeblock: (node, nodeId, frame, frames, frameValues, mixInput, safeRate, hasInput, inputFrame) => this.evaluateCodeblock(node, mixInput, frame, frames, safeRate, inputFrame),
+      sineWavetable: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const phaseOffset = this.phaseRadians(
+          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
+        );
+        const baseFrequency = this.readEffectiveParameter(
+          node,
+          "freq",
+          440,
+          frame,
+          frames,
+          frameValues,
+        );
+        const freqInput = this.safeFilterNumber(mixInput(nodeId, "Freq"), null);
+        const ampInput = this.safeFilterNumber(mixInput(nodeId, "Amplitude"), null);
+        const pitchInput = this.clampValue(
+          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
+          -1,
+          1,
+        );
+        const pitchedFrequency = Math.max(0, (baseFrequency + freqInput) * (2 ** (pitchInput / 0.1)));
+        const amplitude = Math.max(0, this.readEffectiveParameter(
+          node,
+          "amp",
+          1,
+          frame,
+          frames,
+          frameValues,
+        ) + ampInput);
+        let value;
+        if (
+          this.nativeSineWavetableReady &&
+          this.nativeSineWavetable?.soemdsp_sine_wavetable_create &&
+          this.nativeSineWavetable?.soemdsp_sine_wavetable_sample
+        ) {
+          try {
+            const nativeState = this.sineWavetableStates.get(nodeId) || this.createSineWavetableState();
+            this.sineWavetableStates.set(nodeId, nativeState);
+            if (!nativeState.nativeHandle) {
+              nativeState.nativeHandle = this.nativeSineWavetable.soemdsp_sine_wavetable_create();
+            }
+            if (nativeState.nativeHandle) {
+              this.nativeSineWavetable.soemdsp_sine_wavetable_sample(
+                nativeState.nativeHandle,
+                phaseOffset,
+                pitchedFrequency,
+                amplitude,
+                safeRate,
+              );
+              value = {
+                sin: this.nativeSineWavetable.soemdsp_sine_wavetable_sin(nativeState.nativeHandle),
+                cos: this.nativeSineWavetable.soemdsp_sine_wavetable_cos(nativeState.nativeHandle),
+              };
+            } else {
+              throw new Error("native SinCos handle pool exhausted");
+            }
+          } catch (error) {
+            this.nativeSineWavetableReady = false;
+            this.port.postMessage({
+              type: "nativeModuleStatus",
+              name: "sine_wavetable",
+              status: "disabled",
+              message: String(error?.message || error || "native SinCos failed"),
+            });
+          }
+        }
+        if (!this.nativeSineWavetableReady) {
+          const phase = this.phases.get(nodeId) || 0;
+          const phaseIncrement = pitchedFrequency / safeRate;
+          value = nodeLiveSineCosWavetableSample(phase + phaseOffset, pitchedFrequency, amplitude, safeRate);
+          this.phases.set(
+            nodeId,
+            this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
+          );
+        }
+        return value;
+      },
       metallicRatio: (node, nodeId, frame, frames, frameValues) => ({
         Ratio: this.metallicRatioSample(
           this.readEffectiveParameter(node, "index", 1, frame, frames, frameValues),
@@ -14591,79 +14667,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           Out: ((left + right) * 0.5) * level,
           Right: right * level,
         };
-      } else if (node?.type === "sineWavetable") {
-        const phaseOffset = this.phaseRadians(
-          this.readEffectiveParameter(node, "phase", 0, frame, frames, frameValues),
-        );
-        const baseFrequency = this.readEffectiveParameter(
-          node,
-          "freq",
-          440,
-          frame,
-          frames,
-          frameValues,
-        );
-        const freqInput = this.safeFilterNumber(mixInput(nodeId, "Freq"), null);
-        const ampInput = this.safeFilterNumber(mixInput(nodeId, "Amplitude"), null);
-        const pitchInput = this.clampValue(
-          this.safeFilterNumber(mixInput(nodeId, "0.1V/Oct"), null),
-          -1,
-          1,
-        );
-        const pitchedFrequency = Math.max(0, (baseFrequency + freqInput) * (2 ** (pitchInput / 0.1)));
-        const amplitude = Math.max(0, this.readEffectiveParameter(
-          node,
-          "amp",
-          1,
-          frame,
-          frames,
-          frameValues,
-        ) + ampInput);
-        if (
-          this.nativeSineWavetableReady &&
-          this.nativeSineWavetable?.soemdsp_sine_wavetable_create &&
-          this.nativeSineWavetable?.soemdsp_sine_wavetable_sample
-        ) {
-          try {
-            const nativeState = this.sineWavetableStates.get(nodeId) || this.createSineWavetableState();
-            this.sineWavetableStates.set(nodeId, nativeState);
-            if (!nativeState.nativeHandle) {
-              nativeState.nativeHandle = this.nativeSineWavetable.soemdsp_sine_wavetable_create();
-            }
-            if (nativeState.nativeHandle) {
-              this.nativeSineWavetable.soemdsp_sine_wavetable_sample(
-                nativeState.nativeHandle,
-                phaseOffset,
-                pitchedFrequency,
-                amplitude,
-                safeRate,
-              );
-              value = {
-                sin: this.nativeSineWavetable.soemdsp_sine_wavetable_sin(nativeState.nativeHandle),
-                cos: this.nativeSineWavetable.soemdsp_sine_wavetable_cos(nativeState.nativeHandle),
-              };
-            } else {
-              throw new Error("native SinCos handle pool exhausted");
-            }
-          } catch (error) {
-            this.nativeSineWavetableReady = false;
-            this.port.postMessage({
-              type: "nativeModuleStatus",
-              name: "sine_wavetable",
-              status: "disabled",
-              message: String(error?.message || error || "native SinCos failed"),
-            });
-          }
-        }
-        if (!this.nativeSineWavetableReady) {
-          const phase = this.phases.get(nodeId) || 0;
-          const phaseIncrement = pitchedFrequency / safeRate;
-          value = nodeLiveSineCosWavetableSample(phase + phaseOffset, pitchedFrequency, amplitude, safeRate);
-          this.phases.set(
-            nodeId,
-            this.wrapValue(phase + Math.PI * 2 * phaseIncrement, 0, Math.PI * 2),
-          );
-        }
       } else if (nodeLiveIsPolyBlepOscillatorType(node?.type)) {
         const resetState = this.oscResetStates.get(nodeId) || this.createOscResetState();
         this.oscResetStates.set(nodeId, resetState);

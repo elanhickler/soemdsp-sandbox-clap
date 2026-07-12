@@ -344,6 +344,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./public/modules/audioPlayer/audio-player-live-evaluator.js",
     "./public/modules/moduleGroup/module-group-live-evaluator.js",
     "./public/modules/codeblock/codeblock-live-evaluator.js",
+    "./public/modules/sineWavetable/sine-wavetable-live-evaluator.js",
 )
 
 
@@ -10425,7 +10426,7 @@ def require_node_graph_mvp_contract() -> None:
         "function createNodeGraphOscResetState()",
         "function nodeGraphIsPolyBlepOscillatorType(type)",
         'return nodeGraphModuleIsRealtimeOscillatorType(type)',
-        'node?.type === "sineWavetable"',
+        "nodeGraphLiveModuleEvaluators.sineWavetable = (",
         "function nodeGraphPolyBlep(phaseCycle, phaseIncrement)",
         "function nodeGraphPolyBlepSquare(phaseCycle, phaseIncrement)",
         "function currentNodeGraphNoiseSample(runtime, nodeId)",
