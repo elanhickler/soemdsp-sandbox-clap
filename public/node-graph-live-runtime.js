@@ -1836,6 +1836,14 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/triggerCounter/trigger-counter-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/stepSequencer/step-sequencer-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/nextPatch/next-patch-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/softClipper/soft-clipper-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/rgbaHsla/rgba-hsla-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/screenSpaceShader/screen-space-shader-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/metallicRatio/metallic-ratio-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/speakerProtection/speaker-protection-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/badvalMonitor/badval-monitor-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/radar/radar-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/audioPlayer/audio-player-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

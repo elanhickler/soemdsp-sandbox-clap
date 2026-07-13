@@ -430,6 +430,14 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/triggerCounter/trigger-counter-worklet-evaluator.js",
     "modules/stepSequencer/step-sequencer-worklet-evaluator.js",
     "modules/nextPatch/next-patch-worklet-evaluator.js",
+    "modules/softClipper/soft-clipper-worklet-evaluator.js",
+    "modules/rgbaHsla/rgba-hsla-worklet-evaluator.js",
+    "modules/screenSpaceShader/screen-space-shader-worklet-evaluator.js",
+    "modules/metallicRatio/metallic-ratio-worklet-evaluator.js",
+    "modules/speakerProtection/speaker-protection-worklet-evaluator.js",
+    "modules/badvalMonitor/badval-monitor-worklet-evaluator.js",
+    "modules/radar/radar-worklet-evaluator.js",
+    "modules/audioPlayer/audio-player-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 

@@ -2630,25 +2630,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.shootingStarExplosionEvent = event;
   }
 
-  metallicRatioSample(index) {
-    const n = Number(index) || 0;
-    const fallback = () => 0.5 * (n + Math.sqrt(n * n + 4));
-    if (!this.nativeMetallicRatioReady || !this.nativeMetallicRatio?.soemdsp_metallic_ratio_sample) {
-      return fallback();
-    }
-    try {
-      return this.safeFilterNumber(this.nativeMetallicRatio.soemdsp_metallic_ratio_sample(n), null);
-    } catch (error) {
-      this.nativeMetallicRatioReady = false;
-      this.port.postMessage({
-        type: "nativeModuleStatus",
-        name: "metallic_ratio",
-        status: "disabled",
-        message: String(error?.message || error || "native Metallic Ratio failed"),
-      });
-      return fallback();
-    }
-  }
 
   nativeShootingStarExplosionPower(speed, lowRange = 0, highRange = 1) {
     const low = Number(lowRange) || 0;
@@ -3098,19 +3079,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return !Number.isFinite(number) || Math.abs(number) > 1;
   }
 
-  speakerProtectionSample(value, nodeId) {
-    const number = Number(value);
-    const unsafe = !Number.isFinite(number) || Math.abs(number) > 1;
-    if (unsafe) {
-      this.meterProtectionMuteCount += 1;
-      this.speakerProtectionPeak = Math.max(
-        Number(this.speakerProtectionPeak) || 0,
-        Number.isFinite(number) ? Math.abs(number) : Infinity,
-      );
-      this.speakerProtectionNodeId = String(nodeId || "");
-    }
-    return unsafe ? 0 : number;
-  }
 
   badValueReason(value) {
     const number = Number(value);
@@ -4133,36 +4101,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.clampValue(number, -1, 1);
   }
 
-  visualHslToRgb(hue, saturation, lightness) {
-    const h = ((Number(hue) || 0) % 1 + 1) % 1;
-    const s = this.clampValue(Number(saturation) || 0, 0, 1);
-    const l = this.clampValue(Number(lightness) || 0, 0, 1);
-    if (s <= 0) {
-      return [l, l, l];
-    }
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    const channel = (offset) => {
-      let t = h + offset;
-      if (t < 0) {
-        t += 1;
-      }
-      if (t > 1) {
-        t -= 1;
-      }
-      if (t < 1 / 6) {
-        return p + (q - p) * 6 * t;
-      }
-      if (t < 1 / 2) {
-        return q;
-      }
-      if (t < 2 / 3) {
-        return p + (q - p) * (2 / 3 - t) * 6;
-      }
-      return p;
-    };
-    return [channel(1 / 3), channel(0), channel(-1 / 3)];
-  }
 
   smoothVisualControl(key, target, rate = sampleRate, seconds = 0.045, min = 0, max = 1) {
     const safeTarget = this.clampValue(Number(target) || 0, min, max);
@@ -4178,29 +4116,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return cleaned;
   }
 
-  screenSpaceShaderSample(node, readInput, rate = sampleRate, nodeId = "") {
-    const script = node?.screenSpaceShader || {};
-    const value = {};
-    for (const input of script.visualInputs || []) {
-      if (input.mode === "raw") {
-        continue;
-      }
-      const signed = input.mode === "signed";
-      const raw = readInput(input.port);
-      const target = signed
-        ? this.visualControlSigned(raw, nodeId, `screen space shader ${input.port}`)
-        : this.visualControlIntensity(raw, nodeId, `screen space shader ${input.port}`);
-      value[input.key] = this.smoothVisualControl(
-        input.key,
-        target,
-        rate,
-        signed ? 0.045 : 0.025,
-        signed ? -1 : 0,
-        1,
-      );
-    }
-    return value;
-  }
 
   postVisualControls() {
     this.port.postMessage({
@@ -4254,165 +4169,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  audioPlayerSample(node, nodeId, readInput, readParam, rate = sampleRate) {
-    const state = this.samplePlaybackStates.get(nodeId) || this.createSamplePlaybackState();
-    this.samplePlaybackStates.set(nodeId, state);
-    const sampleId = String(node?.sample?.id || "");
-    const sample = this.samples.get(sampleId);
-    const frames = Math.max(0, Number(sample?.frames) || sample?.samples?.length || sample?.channelData?.[0]?.length || 0);
-    this.audioPlayerMeterNodeId = nodeId;
-    if (!sample || frames <= 1) {
-      this.audioPlayerMeterReason = sampleId ? "engine waiting for sample" : "engine no sample id";
-      return { Left: 0, Mono: 0, Out: 0, Phase: 0, Right: 0, Trigger: 0 };
-    }
-    const start = this.clampValue(readParam("start", 0), 0, 1);
-    const end = this.clampValue(readParam("end", 1), 0, 1);
-    const collapsedRange = Math.abs(end - start) <= 0.000001;
-    const startPhase = collapsedRange ? 0 : Math.min(start, end);
-    const endPhase = collapsedRange ? 1 : Math.max(start, end);
-    const span = Math.max(0.000001, endPhase - startPhase);
-    const rangeKey = `${startPhase}:${endPhase}`;
-    if (state.sampleId !== sampleId) {
-      state.phase = startPhase;
-      state.completed = false;
-      state.sampleId = sampleId;
-    } else if (state.rangeKey !== rangeKey) {
-      const currentPhase = Number(state.phase);
-      if (!Number.isFinite(currentPhase) || currentPhase < startPhase || currentPhase > endPhase) {
-        state.phase = startPhase;
-      }
-      state.completed = false;
-    }
-    if (state.rangeKey !== rangeKey) {
-      state.rangeKey = rangeKey;
-    }
-    const transportFallback = Object.hasOwn(node?.params || {}, "transport")
-      ? 4
-      : ((Number(node?.params?.loop) || 0) >= 0.5 ? 4 : 0);
-    const transportMode = Math.max(0, Math.min(4, Math.round(readParam("transport", transportFallback))));
-    const transportReset = transportMode <= 0;
-    const transportStopped = transportMode === 1;
-    const transportPaused = transportMode === 2;
-    const transportLooping = transportMode === 3;
-    const transportPlayOnce = transportMode >= 4;
-    if (state.transportMode !== transportMode) {
-      state.completed = false;
-      state.transportMode = transportMode;
-    }
-    const reset = readInput("Reset");
-    const resetEdge = state.lastReset <= 0 && reset > 0;
-    if (resetEdge || transportReset || transportStopped) {
-      state.phase = startPhase;
-      state.completed = false;
-    }
-    state.playing = (transportPlayOnce || transportLooping) && !state.completed;
-    state.lastReset = reset;
 
-    const phaseConnected = this.inputConnections?.has?.(this.inputKey(nodeId, "Phase"));
-    const speed = readParam("speed", 1) + readInput("Speed");
-    const sampleRateRatio = (Number(sample.sampleRate) || rate || 44100) / Math.max(1, rate || 44100);
-    const increment = (speed * sampleRateRatio) / frames;
-    const phase = phaseConnected
-      ? this.clampValue(readInput("Phase"), 0, 1)
-      : this.clampValue(state.phase, 0, 1);
-    const boundedPhase = phase < startPhase || phase > endPhase
-      ? startPhase
-      : phase;
-    const stereo = this.sampleStereoAt(sample, boundedPhase * (frames - 1));
-    const level = readParam("level", 1);
-    const outputActive = state.playing;
-    const left = outputActive ? stereo.Left * level : 0;
-    const mono = outputActive ? stereo.Mono * level : 0;
-    const right = outputActive ? stereo.Right * level : 0;
-    this.audioPlayerMeterPhase = boundedPhase;
-    this.audioPlayerMeterPeak = Math.max(
-      this.audioPlayerMeterPeak,
-      Math.abs(left),
-      Math.abs(mono),
-      Math.abs(right),
-    );
-    this.audioPlayerMeterReason = state.playing
-      ? (transportLooping ? "engine looping" : "engine playing")
-      : transportPaused
-        ? "engine paused"
-        : transportStopped
-          ? "engine stopped"
-          : state.completed
-            ? "engine complete"
-            : "engine off reset";
-    this.audioPlayerMeterSamples += 1;
-    let done = 0;
-    if (!phaseConnected && state.playing) {
-      const nextPhase = boundedPhase + increment;
-      if (transportLooping) {
-        const normalizedNext = (nextPhase - startPhase) / span;
-        done = normalizedNext < 0 || normalizedNext >= 1 ? 1 : 0;
-        state.phase = startPhase + this.wrapValue((nextPhase - startPhase) / span, 0, 1) * span;
-      } else if (speed >= 0 && nextPhase >= endPhase) {
-        state.phase = endPhase;
-        state.completed = true;
-        state.playing = false;
-        done = 1;
-      } else if (speed < 0 && nextPhase <= startPhase) {
-        state.phase = startPhase;
-        state.completed = true;
-        state.playing = false;
-        done = 1;
-      } else {
-        state.phase = this.clampValue(nextPhase, startPhase, endPhase);
-      }
-    } else if (!phaseConnected && (transportReset || transportStopped)) {
-      state.phase = startPhase;
-    } else {
-      state.phase = boundedPhase;
-    }
-    return {
-      Left: left,
-      Mono: mono,
-      Out: mono,
-      Phase: boundedPhase,
-      Right: right,
-      Trigger: done,
-    };
-  }
 
-  monitorBadValueSample(value, nodeId) {
-    const number = Number(value);
-    const reason = this.badValueReason(number);
-    if (reason) {
-      this.badNumberCount += 1;
-      this.lastBadValueReason = reason;
-      this.lastBadValueNodeId = nodeId;
-      this.lastBadValueSource = "BADVAL Monitor input";
-    }
-    return number;
-  }
-
-  nativeSoftClipperSample(input, center = 0, width = 2) {
-    const dry = Number(input) || 0;
-    if (!this.nativeSoftClipperReady || !this.nativeSoftClipper?.soemdsp_soft_clipper_sample) {
-      return dry;
-    }
-    try {
-      return this.safeFilterNumber(
-        this.nativeSoftClipper.soemdsp_soft_clipper_sample(
-          dry,
-          Number(center) || 0,
-          Number(width) || 2,
-        ),
-        null,
-      );
-    } catch (error) {
-      this.nativeSoftClipperReady = false;
-      this.port.postMessage({
-        type: "nativeModuleStatus",
-        name: "soft_clipper",
-        status: "disabled",
-        message: String(error?.message || error || "native Soft Clipper failed"),
-      });
-      return dry;
-    }
-  }
 
   onePoleHighpassSample(state, input, frequency, rate = sampleRate) {
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
@@ -5213,14 +4971,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
 
 
-  createRadarState() {
-    return {
-      phase: 0,
-      rotatorPhase: 0,
-      resetWasHigh: false,
-      nativeHandle: 0,
-    };
-  }
 
   destroyRadarNativeState(state) {
     if (state?.nativeHandle && this.nativeRadar?.soemdsp_jbradar_destroy) {
@@ -5229,241 +4979,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  radarTrisaw(phase, warp) {
-    const safeWarp = this.clampValue(warp, 0.001, 0.999);
-    const wrapped = phase - Math.floor(phase);
-    return wrapped < safeWarp ? wrapped / safeWarp : (1 - wrapped) / (1 - safeWarp);
-  }
 
-  radarSign(v) {
-    return (v > 0 ? 1 : 0) - (v < 0 ? 1 : 0);
-  }
 
-  radarUpdateXY(x, y) {
-    const x_ = Math.sin(x * (Math.PI / 4 + (1 - Math.abs(y)) * (Math.PI / 4)));
-    const y_ = y * Math.cos(x * (Math.PI / 4));
-    const r = (this.radarSign(y_) + (y_ === 0 ? 1 : 0)) * Math.sqrt(x_ * x_ + y_ * y_);
-    const ph = y_ !== 0 ? Math.atan(x_ / y_) : (Math.PI / 2) * this.radarSign(x_);
-    return { ph, r };
-  }
 
-  radarRenderJs(options) {
-    const {
-      inPhas, tri1, pow1, pow1Up, pow1Down, phaseInv, dens, frontring, tunnelInv, length,
-      spiralReturn, tri2, pow2, rot, lap, ration, pow2Bend, ringcut, ph, r, size, x, y, ratio,
-    } = options;
 
-    let phas = this.radarTrisaw(inPhas, tri1);
-    if (phaseInv) phas = 1 - this.radarTrisaw(inPhas, tri1);
 
-    if ((pow1Up && inPhas < tri1) || (pow1Down && inPhas >= tri1)) {
-      phas = Math.pow(phas, pow1);
-    }
-
-    phas = phas * (dens + frontring / ((tunnelInv ? 1 : 0) + (tunnelInv ? 0 : 1) * length)) / dens;
-
-    let sphas = phas;
-    if (inPhas > tri1 && spiralReturn) sphas = 2 - phas;
-
-    const sinPhas = this.clampValue(Math.pow(this.radarTrisaw(sphas * length * dens, tri2), pow2), -1e100, 1e100);
-
-    const f002Arg = (sinPhas - (tunnelInv ? 1 : 0) * frontring - rot / lap - (tunnelInv ? 0 : 1) * length * dens) * lap;
-    const f002Sin = Math.sin(f002Arg * Math.PI * 2);
-    const f002Cos = Math.cos(f002Arg * Math.PI * 2);
-    const lilsin = f002Cos * ration;
-    const lilcos = f002Sin * ration;
-
-    phas *= length;
-    phas = (pow2Bend ? 0 : 1) * (Math.floor(phas * dens) / dens + sinPhas / dens) + (pow2Bend ? 1 : 0) * phas;
-
-    if (ringcut) {
-      phas = (Math.floor(phas * dens + (tunnelInv ? 1 : 0) * (1 - frontring)) + rot - (tunnelInv ? 1 : 0) * (1 - frontring)) / dens;
-    }
-
-    if (!tunnelInv) {
-      phas = 1 - phas - (1 - length) + frontring / dens;
-    }
-
-    phas = this.clampValue(phas - frontring / dens, 0, 1);
-
-    const phSinNeg = Math.sin(-ph * Math.PI * 2);
-    const phCosNeg = Math.cos(-ph * Math.PI * 2);
-    const lilsin1 = lilsin * phSinNeg + lilcos * phCosNeg;
-    const lilcos1 = lilcos * phSinNeg - lilsin * phCosNeg;
-
-    const f003Sin = Math.sin(phas * Math.abs(r) * Math.PI * 2);
-    const f003Cos = Math.cos(phas * Math.abs(r) * Math.PI * 2);
-    const bigsin = f003Cos;
-    const bigcos = -f003Sin;
-
-    const lilX = lilsin1 * bigsin;
-    const lilY = lilcos1;
-    const lilZ = lilsin1 * bigcos * this.radarSign(r);
-
-    let bigX = 0;
-    let bigY = 0;
-    let bigZ = -Math.PI * 2 * phas;
-    if (r !== 0) {
-      bigZ = bigcos / Math.abs(r);
-      bigX = (bigsin - 1) / r;
-    }
-
-    const waveX1 = bigX + lilX;
-    const waveY1 = bigY + lilY;
-    const waveZ2raw = bigZ + lilZ;
-
-    const phSin = Math.sin(ph * Math.PI * 2);
-    const phCos = Math.cos(ph * Math.PI * 2);
-    let waveX = waveX1 * phSin + waveY1 * phCos;
-    let waveY2 = waveY1 * phSin - waveX1 * phCos;
-    let waveZ2 = waveZ2raw;
-
-    const syz = 2 * (size + 0.33) * (Math.abs(x) * (1 - y) + 0.5);
-    waveX = size * waveX + (1 - size) * (waveX + x * (1 - ratio) + x * ratio) * syz;
-    waveY2 = size * waveY2 + (1 - size) * (waveY2 - y) * syz;
-    waveZ2 = size * waveZ2 + (1 - size) * waveZ2 * syz;
-
-    const sizArg = (1 - size) * (Math.PI / 2);
-    const sizSin = Math.sin(sizArg * Math.PI * 2);
-    const sizCos = Math.cos(sizArg * Math.PI * 2);
-    const waveY = waveY2 * sizCos + waveZ2 * sizSin;
-    const waveZ = waveZ2 * sizCos - waveY2 * sizSin;
-
-    return { x: waveX, y: waveY, z: waveZ };
-  }
-
-  radarSampleJs(state, options = {}) {
-    const safeRate = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
-    const frequency = Number(options.frequency) || 0;
-    const phaseOffset = Number(options.phaseOffset) || 0;
-    const density = Number(options.density) || 0;
-    const sharp = Number(options.sharp) || 0;
-    const fade = Number(options.fade) || 0;
-    const rotation = Number(options.rotation) || 0;
-    const direction = Number(options.direction) || 0;
-    const shade = Number(options.shade) || 0;
-    const lap = Number(options.lap) || 0;
-    const ringcut = Number(options.ringcut) >= 0.5;
-    const pow1Up = Number(options.pow1Up) >= 0.5;
-    const pow1Down = Number(options.pow1Down) >= 0.5;
-    const pow2Bend = Number(options.pow2Bend) >= 0.5;
-    const phaseInv = Number(options.phaseInv) >= 0.5;
-    const tunnelInv = Number(options.tunnelInv) >= 0.5;
-    const spiralReturn = Number(options.spiralReturn) >= 0.5;
-    const length = Number(options.length) || 0;
-    const ratio = Number(options.ratio) || 0;
-    const frontring = Number(options.frontring) || 0;
-    const zoom = Number(options.zoom) || 0;
-    const zDepth = Number(options.zDepth) || 0;
-    const inner = Number(options.inner) || 0;
-    const x = Number(options.x) || 0;
-    const y = Number(options.y) || 0;
-
-    const tri1 = sharp * 0.5 + 0.5;
-    const pow1 = fade;
-    const tri2 = direction;
-    const pow2 = this.clampValue(shade, -80, 80);
-    const safeLap = Math.max(1e-6, lap + 1);
-    const ration = ratio + 0.1;
-    let dens = (ringcut ? Math.floor(density) : density) + 1e-6;
-    dens = Math.min(dens, 1e6);
-    const size = zoom;
-    const xz = 1 - zoom;
-    const yFixForZoom = xz + (xz - Math.pow(xz, 6));
-
-    const rx = -x;
-    const ry = y;
-    const { ph, r } = this.radarUpdateXY(rx, ry);
-
-    const inPhas = (state.phase + phaseOffset) - Math.floor(state.phase + phaseOffset);
-    const rotRaw = state.rotatorPhase + rotation;
-    const rot = rotRaw - Math.floor(rotRaw);
-
-    const wave = this.radarRenderJs({
-      inPhas, tri1, pow1, pow1Up, pow1Down, phaseInv, dens, frontring, tunnelInv, length,
-      spiralReturn, tri2, pow2, rot, lap: safeLap, ration, pow2Bend, ringcut, ph, r, size,
-      x: rx, y: ry, ratio,
-    });
-
-    const depth = (1 - zDepth) * (1 - Math.abs(wave.z) / (Math.PI * 2)) + zDepth * Math.pow(zDepth * 9 + 1, wave.z);
-    const f001 = (depth * (1 - inner) + inner) / ((1 - size) + size * ration);
-    const outX = wave.x * f001;
-    const outY = wave.y * f001 + yFixForZoom;
-
-    state.phase = state.phase + frequency / safeRate;
-    state.phase -= Math.floor(state.phase);
-    state.rotatorPhase = state.rotatorPhase + 1 / safeRate;
-    state.rotatorPhase -= Math.floor(state.rotatorPhase);
-
-    return { x: outX, y: outY };
-  }
-
-  radarSample(state, options = {}) {
-    const resetHigh = Number(options.reset) > 0.5;
-    if (resetHigh && !state.resetWasHigh) {
-      state.phase = 0;
-      state.rotatorPhase = 0;
-      if (state.nativeHandle && this.nativeRadar?.soemdsp_jbradar_reset) {
-        this.nativeRadar.soemdsp_jbradar_reset(state.nativeHandle);
-      }
-    }
-    state.resetWasHigh = resetHigh;
-    if (
-      this.nativeRadarReady &&
-      this.nativeRadar?.soemdsp_jbradar_create &&
-      this.nativeRadar?.soemdsp_jbradar_sample
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeRadar.soemdsp_jbradar_create();
-        }
-        if (state.nativeHandle) {
-          const sampleRateValue = Math.max(1, Number(options.sampleRate) || sampleRate || 44100);
-          this.nativeRadar.soemdsp_jbradar_sample(
-            state.nativeHandle,
-            Number(options.frequency) || 0,
-            Number(options.phaseOffset) || 0,
-            Number(options.density) || 0,
-            Number(options.sharp) || 0,
-            Number(options.fade) || 0,
-            Number(options.rotation) || 0,
-            Number(options.direction) || 0,
-            Number(options.shade) || 0,
-            Number(options.lap) || 0,
-            Number(options.ringcut) || 0,
-            Number(options.pow1Up) || 0,
-            Number(options.pow1Down) || 0,
-            Number(options.pow2Bend) || 0,
-            Number(options.phaseInv) || 0,
-            Number(options.tunnelInv) || 0,
-            Number(options.spiralReturn) || 0,
-            Number(options.length) || 0,
-            Number(options.ratio) || 0,
-            Number(options.frontring) || 0,
-            Number(options.zoom) || 0,
-            Number(options.zDepth) || 0,
-            Number(options.inner) || 0,
-            Number(options.x) || 0,
-            Number(options.y) || 0,
-            sampleRateValue,
-          );
-          return {
-            x: this.safeFilterNumber(this.nativeRadar.soemdsp_jbradar_x(state.nativeHandle), null),
-            y: this.safeFilterNumber(this.nativeRadar.soemdsp_jbradar_y(state.nativeHandle), null),
-          };
-        }
-      } catch (error) {
-        this.nativeRadarReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "jerobeam_radar",
-          status: "disabled",
-          message: String(error?.message || error || "native Jerobeam Radar failed"),
-        });
-      }
-    }
-    return this.radarSampleJs(state, options);
-  }
 
 
 
