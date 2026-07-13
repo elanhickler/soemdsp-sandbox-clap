@@ -231,12 +231,13 @@ function createNodeGraphComparatorState() {
 
 function nodeGraphComparatorSample(state, signalIn, params, sampleRate, runtime = null, nodeId = "") {
   const raw = nodeGraphSafeFilterNumber(signalIn, runtime, nodeId, null, "comparator signal in");
+  const changeAmount = nodeGraphSafeFilterNumber(params.changeAmount, runtime, nodeId, null, "comparator change amount");
   const pulseTime = Math.max(0, nodeGraphSafeFilterNumber(params.pulseTime, runtime, nodeId, null, "comparator pulse time"));
   const triggerLevel = nodeGraphSafeFilterNumber(params.triggerLevel, runtime, nodeId, null, "comparator trigger level");
   const pulseLevel = nodeGraphSafeFilterNumber(params.pulseLevel, runtime, nodeId, null, "comparator pulse level");
   const rate = Math.max(1, sampleRate || nodeGraphMvp.sampleRate || 44100);
 
-  const high = raw > 0.5;
+  const high = raw > changeAmount;
   const risingEdge = high && !state.wasHigh;
   const fallingEdge = !high && state.wasHigh;
   state.wasHigh = high;

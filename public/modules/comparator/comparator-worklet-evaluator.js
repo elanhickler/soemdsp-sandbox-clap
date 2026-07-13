@@ -7,12 +7,13 @@ NodeLiveAudioProcessor.prototype.createComparatorState = function createComparat
 
 NodeLiveAudioProcessor.prototype.comparatorSampleJs = function comparatorSampleJs(state, signalIn, params, rate) {
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
+    const changeAmount = this.safeFilterNumber(params.changeAmount, state);
     const pulseTime = Math.max(0, this.safeFilterNumber(params.pulseTime, state));
     const triggerLevel = this.safeFilterNumber(params.triggerLevel, state);
     const pulseLevel = this.safeFilterNumber(params.pulseLevel, state);
     const raw = this.safeFilterNumber(signalIn, state);
 
-    const high = raw > 0.5;
+    const high = raw > changeAmount;
     const risingEdge = high && !state.wasHigh;
     const fallingEdge = !high && state.wasHigh;
     state.wasHigh = high;
@@ -65,6 +66,7 @@ NodeLiveAudioProcessor.prototype.comparatorSample = function comparatorSample(st
             this.nativeComparator.soemdsp_comparator_sample(
               state.nativeHandle,
               this.safeFilterNumber(signalIn, state),
+              this.safeFilterNumber(params.changeAmount, state),
               Math.max(0, this.safeFilterNumber(params.pulseTime, state)),
               this.safeFilterNumber(params.triggerLevel, state),
               this.safeFilterNumber(params.pulseLevel, state),

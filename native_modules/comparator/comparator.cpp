@@ -6,18 +6,22 @@
 // One question, answered six ways: "what does the signal do, and what is it
 // doing right now?" Every basic digital-logic primitive (level gate,
 // inverted gate, steady/hold detector, rising trigger, falling trigger) is
-// really the same comparison against the same threshold (0.5 -- this
-// codebase's standard "is the double above 0" boolean convention, chosen
-// with enough margin that ordinary float noise near a true 0/1 boundary
-// never flips the result) -- it's silly to split that into separate
-// modules when one shared state machine produces all of them for free.
+// really the same comparison against the same threshold -- it's silly to
+// split that into separate modules when one shared state machine produces
+// all of them for free.
+//
+// The threshold itself is a parameter (changeAmount), not hardcoded: default
+// 0.5, this codebase's standard "is the double above 0" boolean convention,
+// chosen with enough margin that ordinary float noise near a true 0/1
+// boundary never flips the result -- but any 0..1 crossing point is valid
+// (e.g. 0 to fire on any positive signal, 1 to require full-scale).
 //
 // Outputs:
-//   Gate      -- high for as long as the input is above 0.5 (continuous level).
-//   Inv Gate  -- high for as long as the input is at or below 0.5 (its complement).
+//   Gate      -- high for as long as the input is above changeAmount (continuous level).
+//   Inv Gate  -- high for as long as the input is at or below changeAmount (its complement).
 //   Hold      -- high whenever the input is unchanged from the previous
 //                sample (steady-state detector; false on any moving signal).
-//   Up        -- fires on every rising edge (0.5 crossed upward): a
+//   Up        -- fires on every rising edge (changeAmount crossed upward): a
 //                1-sample spike at triggerLevel, then a pulseTime-length
 //                plateau at pulseLevel. The two overlap on the first sample
 //                (spike + plateau both active), which is the intentional
@@ -35,7 +39,6 @@
 namespace {
 
 static const int kMaxInstances = 64;
-static const double kThreshold = 0.5;
 
 struct ComparatorState {
   bool active;
@@ -86,6 +89,7 @@ extern "C" void soemdsp_comparator_destroy(int handle) {
 extern "C" double soemdsp_comparator_sample(
   int    handle,
   double signalIn,
+  double changeAmount,
   double pulseTime,
   double triggerLevel,
   double pulseLevel,
@@ -98,8 +102,9 @@ extern "C" double soemdsp_comparator_sample(
   const double safePulseTime = safe(pulseTime) < 0.0 ? 0.0 : safe(pulseTime);
   const double sampleDuration = 1.0 / safeRate;
   const double raw = safe(signalIn);
+  const double threshold = safe(changeAmount);
 
-  const bool high = raw > kThreshold;
+  const bool high = raw > threshold;
   const bool risingEdge = high && !s.wasHigh;
   const bool fallingEdge = !high && s.wasHigh;
   s.wasHigh = high;
@@ -166,5 +171,5 @@ extern "C" double soemdsp_comparator_up_dn(int handle) {
 }
 
 extern "C" int soemdsp_comparator_version() {
-  return 1;
+  return 2;
 }

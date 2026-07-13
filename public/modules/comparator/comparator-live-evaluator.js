@@ -8,6 +8,7 @@ nodeGraphLiveModuleEvaluators.comparator = ({ runtime, node, nodeId, frame, fram
     state,
     mixInput(nodeId, "Signal In"),
     {
+      changeAmount: readNodeGraphLiveEffectiveParam(runtime, node, "changeAmount", 0.5, frame, frames, frameValues),
       pulseTime: readNodeGraphLiveEffectiveParam(runtime, node, "pulseTime", 0.01, frame, frames, frameValues),
       triggerLevel: readNodeGraphLiveEffectiveParam(runtime, node, "triggerLevel", 0.5, frame, frames, frameValues),
       pulseLevel: readNodeGraphLiveEffectiveParam(runtime, node, "pulseLevel", 1, frame, frames, frameValues),

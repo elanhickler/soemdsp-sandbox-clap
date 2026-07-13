@@ -5643,6 +5643,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           state,
           mixInput(nodeId, "Signal In"),
           {
+            changeAmount: this.readEffectiveParameter(node, "changeAmount", 0.5, frame, frames, frameValues),
             pulseTime: this.readEffectiveParameter(node, "pulseTime", 0.01, frame, frames, frameValues),
             triggerLevel: this.readEffectiveParameter(node, "triggerLevel", 0.5, frame, frames, frameValues),
             pulseLevel: this.readEffectiveParameter(node, "pulseLevel", 1, frame, frames, frameValues),
