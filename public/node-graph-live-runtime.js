@@ -1774,6 +1774,9 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/polyBlep/poly-blep-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/noiseGenerator/noise-generator-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/randomWalk/random-walk-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/piSpigotNoise/pi-spigot-noise-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/bradley2a/bradley-2a-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/antisaw/antisaw-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 
