@@ -418,6 +418,10 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/vactrolEnvelopeSeries/vactrol-envelope-series-worklet-evaluator.js",
     "modules/impulseButton/impulse-button-worklet-evaluator.js",
     "modules/flowerChildEnvelopeFollower/flower-child-envelope-follower-worklet-evaluator.js",
+    "modules/spiral/spiral-worklet-evaluator.js",
+    "modules/fractalSpiral/fractal-spiral-worklet-evaluator.js",
+    "modules/logSpiral/log-spiral-worklet-evaluator.js",
+    "modules/lorenzAttractor/lorenz-attractor-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 

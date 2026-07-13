@@ -1824,6 +1824,10 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/vactrolEnvelopeSeries/vactrol-envelope-series-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/impulseButton/impulse-button-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/flowerChildEnvelopeFollower/flower-child-envelope-follower-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/spiral/spiral-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/fractalSpiral/fractal-spiral-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/logSpiral/log-spiral-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/lorenzAttractor/lorenz-attractor-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 
