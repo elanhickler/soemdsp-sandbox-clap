@@ -219,6 +219,50 @@ function createNodeGraphDelayedTriggerState() {
   };
 }
 
+function createNodeGraphEdgeTriggerState() {
+  return {
+    wasHigh: false,
+    upPulseSamples: 0,
+    downPulseSamples: 0,
+  };
+}
+
+function nodeGraphEdgeTriggerSample(state, digitalIn, params, sampleRate, runtime = null, nodeId = "") {
+  const safeDigital = nodeGraphSafeFilterNumber(digitalIn, runtime, nodeId, null, "edge trigger digital in");
+  const pulseTime = Math.max(0, nodeGraphSafeFilterNumber(params.pulseTime, runtime, nodeId, null, "edge trigger pulse time"));
+  const triggerLevel = nodeGraphSafeFilterNumber(params.triggerLevel, runtime, nodeId, null, "edge trigger trigger level");
+  const pulseLevel = nodeGraphSafeFilterNumber(params.pulseLevel, runtime, nodeId, null, "edge trigger pulse level");
+  const rate = Math.max(1, sampleRate || nodeGraphMvp.sampleRate || 44100);
+
+  const high = safeDigital > 0.5;
+  const risingEdge = high && !state.wasHigh;
+  const fallingEdge = !high && state.wasHigh;
+  state.wasHigh = high;
+
+  let upTrigger = 0;
+  if (risingEdge) {
+    upTrigger = triggerLevel;
+    state.upPulseSamples = Math.max(1, Math.round(pulseTime * rate));
+  }
+  let downTrigger = 0;
+  if (fallingEdge) {
+    downTrigger = triggerLevel;
+    state.downPulseSamples = Math.max(1, Math.round(pulseTime * rate));
+  }
+
+  const upPulse = state.upPulseSamples > 0 ? pulseLevel : 0;
+  const downPulse = state.downPulseSamples > 0 ? pulseLevel : 0;
+  state.upPulseSamples = Math.max(0, state.upPulseSamples - 1);
+  state.downPulseSamples = Math.max(0, state.downPulseSamples - 1);
+
+  return {
+    "Up Trigger": nodeGraphSafeFilterNumber(upTrigger, runtime, nodeId, null, "edge trigger up trigger"),
+    "Up Pulse": nodeGraphSafeFilterNumber(upPulse, runtime, nodeId, null, "edge trigger up pulse"),
+    "Down Trigger": nodeGraphSafeFilterNumber(downTrigger, runtime, nodeId, null, "edge trigger down trigger"),
+    "Down Pulse": nodeGraphSafeFilterNumber(downPulse, runtime, nodeId, null, "edge trigger down pulse"),
+  };
+}
+
 function createNodeGraphDelayEffectState() {
   return {
     buffer: new Float32Array(1),

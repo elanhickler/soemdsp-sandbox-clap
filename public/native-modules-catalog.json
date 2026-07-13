@@ -134,6 +134,18 @@
       "wasmAvailable": true
     },
     {
+      "name": "edge_trigger",
+      "label": "Up/Down Trigger",
+      "targetType": "edgeTrigger",
+      "kind": "utility",
+      "source": "native_modules/edge_trigger/edge_trigger.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/edge_trigger/edge_trigger.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/edge_trigger/edge_trigger.wasm",
+      "wasmUrl": "native_modules/edge_trigger/edge_trigger.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "ellipsoid",
       "label": "Ellipsoid",
       "targetType": "ellipsoid",

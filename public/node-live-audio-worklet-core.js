@@ -126,6 +126,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeHumanFilterReady = false;
     this.nativePulseExplosion = null;
     this.nativePulseExplosionReady = false;
+    this.nativeEdgeTrigger = null;
+    this.nativeEdgeTriggerReady = false;
     this.nativeTb303Filter = null;
     this.nativeTb303FilterReady = false;
     this.nativePassiveFilter = null;
@@ -159,6 +161,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.resonatorFilterStates = new Map();
     this.humanFilterStates = new Map();
     this.pulseExplosionStates = new Map();
+    this.edgeTriggerStates = new Map();
     this.ladderFilterStates = new Map();
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
@@ -685,6 +688,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           type: "nativeModuleStatus",
           name: "pulse_explosion",
           status: this.nativePulseExplosionReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "edge_trigger" || targetType === "edgeTrigger") {
+        for (const state of this.edgeTriggerStates.values()) {
+          this.destroyEdgeTriggerNativeState(state);
+        }
+        this.nativeEdgeTrigger = exports;
+        this.nativeEdgeTriggerReady = Boolean(
+          this.nativeEdgeTrigger?.soemdsp_edge_trigger_create &&
+          this.nativeEdgeTrigger?.soemdsp_edge_trigger_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "edge_trigger",
+          status: this.nativeEdgeTriggerReady ? "ready" : "missing exports",
         });
         return;
       }
@@ -1467,6 +1486,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.destroyPulseExplosionNativeState(state);
     }
     this.pulseExplosionStates = new Map();
+    for (const state of this.edgeTriggerStates.values()) {
+      this.destroyEdgeTriggerNativeState(state);
+    }
+    this.edgeTriggerStates = new Map();
     for (const state of this.tb303FilterStates.values()) {
       this.destroyStereoFilterNativeState(state, (s) => this.destroyTb303FilterNativeState(s));
     }
@@ -1801,6 +1824,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "pulseExplosion" && !this.pulseExplosionStates.has(id)) {
         this.pulseExplosionStates.set(id, this.createPulseExplosionState());
+      }
+      if (node?.type === "edgeTrigger" && !this.edgeTriggerStates.has(id)) {
+        this.edgeTriggerStates.set(id, this.createEdgeTriggerState());
       }
       if (node?.type === "tb303Filter" && !this.tb303FilterStates.has(id)) {
         this.tb303FilterStates.set(id, this.createStereoFilterState(() => this.createTb303FilterState()));
@@ -2215,6 +2241,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyPulseExplosionNativeState(this.pulseExplosionStates.get(id));
         this.pulseExplosionStates.delete(id);
+      }
+    }
+    for (const id of [...this.edgeTriggerStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyEdgeTriggerNativeState(this.edgeTriggerStates.get(id));
+        this.edgeTriggerStates.delete(id);
       }
     }
     for (const id of [...this.tb303FilterStates.keys()]) {
@@ -4016,6 +4048,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyEdgeTriggerNativeState(state) {
+    if (state.nativeHandle && this.nativeEdgeTrigger?.soemdsp_edge_trigger_destroy) {
+      this.nativeEdgeTrigger.soemdsp_edge_trigger_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   destroyTb303FilterNativeState(state) {
     if (state.nativeHandle && this.nativeTb303Filter?.soemdsp_tb303_filter_destroy) {
       this.nativeTb303Filter.soemdsp_tb303_filter_destroy(state.nativeHandle);
@@ -5593,6 +5632,20 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             lowAmplitude: this.readEffectiveParameter(node, "lowAmplitude", 0.3, frame, frames, frameValues),
             highAmplitude: this.readEffectiveParameter(node, "highAmplitude", 1, frame, frames, frameValues),
             seed: this.readEffectiveParameter(node, "seed", 0, frame, frames, frameValues),
+          },
+          safeRate,
+        );
+      },
+      edgeTrigger: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.edgeTriggerStates.get(nodeId) || this.createEdgeTriggerState();
+        this.edgeTriggerStates.set(nodeId, state);
+        return this.edgeTriggerSample(
+          state,
+          mixInput(nodeId, "Digital In"),
+          {
+            pulseTime: this.readEffectiveParameter(node, "pulseTime", 0.01, frame, frames, frameValues),
+            triggerLevel: this.readEffectiveParameter(node, "triggerLevel", 1, frame, frames, frameValues),
+            pulseLevel: this.readEffectiveParameter(node, "pulseLevel", 1, frame, frames, frameValues),
           },
           safeRate,
         );

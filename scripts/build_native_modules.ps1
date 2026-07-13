@@ -14,6 +14,24 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_edge_trigger_create" `
+  "-Wl,--export=soemdsp_edge_trigger_destroy" `
+  "-Wl,--export=soemdsp_edge_trigger_sample" `
+  "-Wl,--export=soemdsp_edge_trigger_up_pulse" `
+  "-Wl,--export=soemdsp_edge_trigger_down_trigger" `
+  "-Wl,--export=soemdsp_edge_trigger_down_pulse" `
+  "-Wl,--export=soemdsp_edge_trigger_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\edge_trigger\edge_trigger.wasm" `
+  "$root\native_modules\edge_trigger\edge_trigger.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_ellipsoid_sample" `
   "-Wl,--export=soemdsp_ellipsoid_vector_sample" `
   "-Wl,--export=soemdsp_ellipsoid_mono" `
