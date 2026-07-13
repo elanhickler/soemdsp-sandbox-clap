@@ -371,6 +371,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/piSpigotNoise/pi-spigot-noise-worklet-evaluator.js",
     "modules/bradley2a/bradley-2a-worklet-evaluator.js",
     "modules/antisaw/antisaw-worklet-evaluator.js",
+    "modules/fractalBrownianNoise/fractal-brownian-noise-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 

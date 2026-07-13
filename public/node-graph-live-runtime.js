@@ -1777,6 +1777,7 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/piSpigotNoise/pi-spigot-noise-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/bradley2a/bradley-2a-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/antisaw/antisaw-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/fractalBrownianNoise/fractal-brownian-noise-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 
