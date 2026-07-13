@@ -1835,6 +1835,7 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/delayedTrigger/delayed-trigger-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/triggerCounter/trigger-counter-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/stepSequencer/step-sequencer-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/nextPatch/next-patch-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

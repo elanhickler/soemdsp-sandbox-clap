@@ -429,6 +429,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/delayedTrigger/delayed-trigger-worklet-evaluator.js",
     "modules/triggerCounter/trigger-counter-worklet-evaluator.js",
     "modules/stepSequencer/step-sequencer-worklet-evaluator.js",
+    "modules/nextPatch/next-patch-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
