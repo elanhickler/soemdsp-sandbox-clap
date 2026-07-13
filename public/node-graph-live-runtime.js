@@ -1818,6 +1818,12 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/helmholtzPitch/helmholtz-pitch-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/slewLimiter/slew-limiter-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/sampleHold/sample-hold-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/expAdsr/exp-adsr-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/linearEnvelope/linear-envelope-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/pluckEnvelope/pluck-envelope-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/vactrolEnvelopeSeries/vactrol-envelope-series-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/impulseButton/impulse-button-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/flowerChildEnvelopeFollower/flower-child-envelope-follower-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

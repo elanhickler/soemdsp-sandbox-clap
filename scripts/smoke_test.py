@@ -412,6 +412,12 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/helmholtzPitch/helmholtz-pitch-worklet-evaluator.js",
     "modules/slewLimiter/slew-limiter-worklet-evaluator.js",
     "modules/sampleHold/sample-hold-worklet-evaluator.js",
+    "modules/expAdsr/exp-adsr-worklet-evaluator.js",
+    "modules/linearEnvelope/linear-envelope-worklet-evaluator.js",
+    "modules/pluckEnvelope/pluck-envelope-worklet-evaluator.js",
+    "modules/vactrolEnvelopeSeries/vactrol-envelope-series-worklet-evaluator.js",
+    "modules/impulseButton/impulse-button-worklet-evaluator.js",
+    "modules/flowerChildEnvelopeFollower/flower-child-envelope-follower-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
