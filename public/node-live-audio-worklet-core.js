@@ -4227,20 +4227,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return { brown: 0, gaussianSpare: null, pink: [0, 0, 0, 0, 0, 0, 0], seed: 0, seedKey: "" };
   }
 
-  createNoiseGeneratorState() {
-    return {
-      left: this.createNoiseGeneratorChannelState(), nativeHandle: 0, right: this.createNoiseGeneratorChannelState(),
-      blockCache: { cursor: 0, size: 0, left: null, right: null },
-    };
-  }
-
-  destroyNoiseGeneratorNativeState(state) {
-    if (state.nativeHandle && this.nativeNoiseGenerator?.soemdsp_noise_generator_destroy) {
-      this.nativeNoiseGenerator.soemdsp_noise_generator_destroy(state.nativeHandle);
-      state.nativeHandle = 0;
-    }
-  }
-
   destroyFbmNativeState(state) {
     if (state.nativeHandle && this.nativeFbm?.soemdsp_fbm_destroy) {
       this.nativeFbm.soemdsp_fbm_destroy(state.nativeHandle);
@@ -7601,94 +7587,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.nextSeededUnipolar(state) * 2 - 1;
   }
 
-  nextSeededGaussian(state) {
-    if (state.gaussianSpare !== null && state.gaussianSpare !== undefined) {
-      const spare = state.gaussianSpare;
-      state.gaussianSpare = null;
-      return spare;
-    }
-    const u1 = Math.max(1e-12, this.nextSeededUnipolar(state));
-    const u2 = this.nextSeededUnipolar(state);
-    const magnitude = Math.sqrt(-2 * Math.log(u1));
-    const angle = Math.PI * 2 * u2;
-    state.gaussianSpare = magnitude * Math.sin(angle);
-    return magnitude * Math.cos(angle);
-  }
-
-  noiseGeneratorChannelSample(chanState, mode, mean, deviation) {
-    const white = this.nextSeededBipolar(chanState);
-    if (mode === 1) {
-      return mean + this.nextSeededGaussian(chanState) * deviation;
-    }
-    if (mode === 2) {
-      chanState.brown = this.clampValue(chanState.brown + white * Math.max(0.001, deviation) * 0.05, -1, 1);
-      return mean + chanState.brown;
-    }
-    if (mode === 3) {
-      chanState.pink[0] = 0.99886 * chanState.pink[0] + white * 0.0555179;
-      chanState.pink[1] = 0.99332 * chanState.pink[1] + white * 0.0750759;
-      chanState.pink[2] = 0.969   * chanState.pink[2] + white * 0.153852;
-      chanState.pink[3] = 0.8665  * chanState.pink[3] + white * 0.3104856;
-      chanState.pink[4] = 0.55    * chanState.pink[4] + white * 0.5329522;
-      chanState.pink[5] = -0.7616 * chanState.pink[5] - white * 0.016898;
-      const out = mean + (chanState.pink[0] + chanState.pink[1] + chanState.pink[2] + chanState.pink[3] + chanState.pink[4] + chanState.pink[5] + chanState.pink[6] + white * 0.5362) * 0.11;
-      chanState.pink[6] = white * 0.115926;
-      return out;
-    }
-    if (mode === 4) {
-      return Math.abs(white) > 0.94 ? mean + Math.sign(white) * deviation : mean;
-    }
-    return mean + white * deviation;
-  }
-
-  noiseGeneratorSample(state, params, nodeId) {
-    const mode = Math.max(0, Math.min(4, Math.round(this.safeFilterNumber(params.mode, null))));
-    const mean = this.safeFilterNumber(params.mean, null);
-    const deviation = Math.max(0, this.safeFilterNumber(params.deviation, null));
-    const level = this.safeFilterNumber(params.level, null);
-    const seed = this.safeFilterNumber(params.seed, null);
-    if (this.nativeNoiseGeneratorReady) {
-      if (!state.nativeHandle) {
-        state.nativeHandle = this.nativeNoiseGenerator.soemdsp_noise_generator_create();
-        if (state.blockCache) {
-          state.blockCache.cursor = 0;
-          state.blockCache.size = 0;
-        }
-      }
-      if (state.nativeHandle) {
-        if (this.nativeNoiseGenerator.soemdsp_noise_generator_process_block) {
-          const cache = state.blockCache || (state.blockCache = { cursor: 0, size: 0, left: null, right: null });
-          if (cache.cursor >= cache.size) {
-            const blockSize = NodeLiveAudioProcessor.NOISE_NATIVE_BLOCK_SIZE;
-            this.nativeNoiseGenerator.soemdsp_noise_generator_process_block(state.nativeHandle, seed, mode, mean, deviation, level, blockSize, 1);
-            const memory = this.nativeNoiseGenerator.memory;
-            const leftPtr = this.nativeNoiseGenerator.soemdsp_noise_generator_block_output_left_ptr(state.nativeHandle);
-            const rightPtr = this.nativeNoiseGenerator.soemdsp_noise_generator_block_output_right_ptr(state.nativeHandle);
-            cache.left = new Float64Array(memory.buffer, leftPtr, blockSize);
-            cache.right = new Float64Array(memory.buffer, rightPtr, blockSize);
-            cache.size = blockSize;
-            cache.cursor = 0;
-          }
-          const index = cache.cursor;
-          cache.cursor += 1;
-          return {
-            "Left Out": this.safeFilterNumber(cache.left[index], null),
-            "Right Out": this.safeFilterNumber(cache.right[index], null),
-          };
-        }
-        this.nativeNoiseGenerator.soemdsp_noise_generator_sample(state.nativeHandle, seed, mode, mean, deviation, level);
-        return {
-          "Left Out": this.safeFilterNumber(this.nativeNoiseGenerator.soemdsp_noise_generator_left(state.nativeHandle), null),
-          "Right Out": this.safeFilterNumber(this.nativeNoiseGenerator.soemdsp_noise_generator_right(state.nativeHandle), null),
-        };
-      }
-    }
-    this.resetSeededState(state.left, `${nodeId}:left`, seed, "noiseGenerator");
-    this.resetSeededState(state.right, `${nodeId}:right`, seed, "noiseGenerator");
-    const left = this.safeFilterNumber(this.clampValue(this.noiseGeneratorChannelSample(state.left, mode, mean, deviation), -1, 1) * level, null);
-    const right = this.safeFilterNumber(this.clampValue(this.noiseGeneratorChannelSample(state.right, mode, mean, deviation), -1, 1) * level, null);
-    return { "Left Out": left, "Right Out": right };
-  }
 
   rationalCurve(value, skew) {
     const t = this.clampValue(Number(value) || 0, 0, 1);
