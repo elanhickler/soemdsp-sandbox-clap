@@ -10023,9 +10023,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
 
 
-  createChordSequencerState() {
-    return { clockWasHigh: false, resetWasHigh: false, stepIndex: 0, nativeHandle: 0 };
-  }
 
   destroyChordSequencerNativeState(state) {
     if (state?.nativeHandle && this.nativeChordSequencer?.soemdsp_chord_sequencer_destroy) {
@@ -10034,95 +10031,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  chordSequencerRotateLeft12(mask, amount) {
-    const n = ((amount % 12) + 12) % 12;
-    if (n === 0) return mask & 0xFFF;
-    return ((mask << n) | (mask >> (12 - n))) & 0xFFF;
-  }
 
-  chordSequencerSampleJs(state, options = {}) {
-    const progressions = [
-      [[0, 0], [7, 0], [9, 1], [5, 0]],
-      [[0, 0], [5, 0], [7, 0], [0, 0]],
-      [[2, 1], [7, 0], [0, 0], [0, 0]],
-      [[9, 1], [5, 0], [0, 0], [7, 0]],
-      [[0, 0], [9, 1], [5, 0], [7, 0]],
-      [[0, 0], [9, 1], [2, 1], [7, 0]],
-    ];
-    const majorTriadMask = 0x91;
-    const minorTriadMask = 0x89;
-    const clockHigh = Number(options.clock) > 0;
-    const resetHigh = Number(options.reset) > 0;
-    const progressionIndex = Math.max(0, Math.min(progressions.length - 1, Math.round(Number(options.progression) || 0)));
-    const level = Number(options.level) || 0;
 
-    if (resetHigh && !state.resetWasHigh) {
-      state.stepIndex = 0;
-    }
-    state.resetWasHigh = resetHigh;
 
-    if (clockHigh && !state.clockWasHigh) {
-      state.stepIndex = (state.stepIndex + 1) % progressions[progressionIndex].length;
-    }
-    state.clockWasHigh = clockHigh;
-
-    const [root, quality] = progressions[progressionIndex][state.stepIndex];
-    const baseMask = quality === 0 ? majorTriadMask : minorTriadMask;
-
-    return {
-      Scale: this.chordSequencerRotateLeft12(baseMask, root),
-      Root: (60 + root) / 120,
-      Gate: (clockHigh ? 1 : 0) * level,
-    };
-  }
-
-  chordSequencerSample(state, options = {}) {
-    if (
-      this.nativeChordSequencerReady &&
-      this.nativeChordSequencer?.soemdsp_chord_sequencer_create &&
-      this.nativeChordSequencer?.soemdsp_chord_sequencer_sample &&
-      this.nativeChordSequencer?.soemdsp_chord_sequencer_scale &&
-      this.nativeChordSequencer?.soemdsp_chord_sequencer_root
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeChordSequencer.soemdsp_chord_sequencer_create();
-        }
-        if (state.nativeHandle) {
-          const clockHigh = Number(options.clock) > 0 ? 1 : 0;
-          const resetHigh = Number(options.reset) > 0 ? 1 : 0;
-          const progression = Math.max(0, Math.min(5, Math.round(Number(options.progression) || 0)));
-          const level = Number(options.level) || 0;
-          this.nativeChordSequencer.soemdsp_chord_sequencer_sample(
-            state.nativeHandle,
-            clockHigh,
-            resetHigh,
-            progression,
-          );
-          const scale = this.nativeChordSequencer.soemdsp_chord_sequencer_scale(state.nativeHandle, progression);
-          const root = this.nativeChordSequencer.soemdsp_chord_sequencer_root(state.nativeHandle, progression);
-          return {
-            Scale: scale,
-            Root: root,
-            Gate: clockHigh * level,
-          };
-        }
-      } catch (error) {
-        this.nativeChordSequencerReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "chord_sequencer",
-          status: "disabled",
-          message: String(error?.message || error || "native Chord Sequencer failed"),
-        });
-      }
-    }
-    return this.chordSequencerSampleJs(state, options);
-  }
-
-  createLutCellState() {
-    return { clockWasHigh: false, registeredOut: 0, nativeHandle: 0, selfClockPhase: 0, selfClockValue: 0 };
-  }
 
   destroyLutCellNativeState(state) {
     if (state?.nativeHandle && this.nativeLutCell?.soemdsp_lut_cell_destroy) {
@@ -10137,106 +10048,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // freshly dropped cell audibly demonstrates itself. This lives entirely
   // in this JS orchestration layer -- the native module itself stays a
   // faithful, purely reactive LUT+FF with no self-driving of its own.
-  advanceLutCellSelfClock(state) {
-    const rate = Math.max(1, Number(this.engineSampleRate) || 44100);
-    const increment = (2 * 220) / rate;
-    state.selfClockPhase = (state.selfClockPhase || 0) + increment;
-    if (state.selfClockPhase >= 1) {
-      state.selfClockPhase -= Math.floor(state.selfClockPhase);
-      state.selfClockValue = state.selfClockValue ? 0 : 1;
-    }
-    return state.selfClockValue || 0;
-  }
 
-  lutCellSampleJs(state, options = {}) {
-    const b = Number(options.b) > 0 ? 1 : 0;
-    const c = Number(options.c) > 0 ? 1 : 0;
-    const d = Number(options.d) > 0 ? 1 : 0;
-    const a = Number(options.a) > 0 ? 1 : 0;
-    const clockHigh = Number(options.clock) > 0;
-    const table = Math.max(0, Math.min(0xFFFF, Math.round(Number(options.truthTable) || 0)));
 
-    const index = a | (b << 1) | (c << 2) | (d << 3);
-    const combinational = (table >> index) & 1;
 
-    if (clockHigh && !state.clockWasHigh) {
-      state.registeredOut = combinational;
-    }
-    state.clockWasHigh = clockHigh;
-
-    return {
-      Out: combinational,
-      Q: state.registeredOut,
-    };
-  }
-
-  lutCellSample(state, options = {}) {
-    const effectiveClockHigh = options.hasClockInput
-      ? Number(options.clock) > 0
-      : this.advanceLutCellSelfClock(state) > 0;
-    const effectiveA = options.hasAInput
-      ? Number(options.a) || 0
-      : (effectiveClockHigh ? 1 : 0);
-    const effectiveOptions = {
-      ...options,
-      a: effectiveA,
-      clock: effectiveClockHigh ? 1 : 0,
-    };
-    if (
-      this.nativeLutCellReady &&
-      this.nativeLutCell?.soemdsp_lut_cell_create &&
-      this.nativeLutCell?.soemdsp_lut_cell_sample &&
-      this.nativeLutCell?.soemdsp_lut_cell_q
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeLutCell.soemdsp_lut_cell_create();
-        }
-        if (state.nativeHandle) {
-          const b = Number(effectiveOptions.b) || 0;
-          const c = Number(effectiveOptions.c) || 0;
-          const d = Number(effectiveOptions.d) || 0;
-          const table = Math.max(0, Math.min(0xFFFF, Math.round(Number(effectiveOptions.truthTable) || 0)));
-          const combinational = this.nativeLutCell.soemdsp_lut_cell_sample(
-            state.nativeHandle,
-            effectiveOptions.a,
-            b,
-            c,
-            d,
-            effectiveOptions.clock,
-            table,
-          );
-          const q = this.nativeLutCell.soemdsp_lut_cell_q(state.nativeHandle);
-          return {
-            Out: combinational,
-            Q: q,
-          };
-        }
-      } catch (error) {
-        this.nativeLutCellReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "lut_cell",
-          status: "disabled",
-          message: String(error?.message || error || "native LUT Cell failed"),
-        });
-      }
-    }
-    return this.lutCellSampleJs(state, effectiveOptions);
-  }
-
-  createSurgeOscillatorState() {
-    return {
-      phase: 0,
-      prevSyncIn: 0,
-      hasPrevSyncIn: false,
-      syncedThisSample: false,
-      triangleIntegrator: 0,
-      masterPhase: 0,
-      internalSyncOut: 0,
-      nativeHandle: 0,
-    };
-  }
 
   destroySurgeOscillatorNativeState(state) {
     if (state?.nativeHandle && this.nativeSurgeOscillator?.soemdsp_surge_oscillator_destroy) {
@@ -10245,123 +10059,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  surgeOscillatorWaveformSampleJs(state, phaseCycle, phaseIncrement, waveform) {
-    switch (waveform) {
-      case 1:
-        return this.polyBlepSquare(phaseCycle, phaseIncrement);
-      case 2: {
-        const next = this.clampValue(
-          (state.triangleIntegrator + this.polyBlepSquare(phaseCycle, phaseIncrement) * phaseIncrement * 4) * 0.995,
-          -1,
-          1,
-        );
-        state.triangleIntegrator = next;
-        return next;
-      }
-      case 3:
-        return Math.sin(phaseCycle * Math.PI * 2);
-      default:
-        return -1 + phaseCycle * 2 - this.polyBlep(phaseCycle, phaseIncrement);
-    }
-  }
 
-  surgeOscillatorSampleJs(state, options = {}) {
-    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-    const increment = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
-    const level = Number(options.level) || 0;
 
-    state.phase = this.wrapValue(state.phase + increment, 0, 1);
-    state.syncedThisSample = false;
 
-    const masterIncrement = this.clampValue((Number(options.syncFrequencyHz) || 0) / sampleRate, -0.5, 0.5);
-    state.masterPhase = this.wrapValue(state.masterPhase + masterIncrement, 0, 1);
-    state.internalSyncOut = Math.sin(state.masterPhase * Math.PI * 2);
-
-    const effectiveSyncIn = options.hasExternalSync ? (Number(options.syncIn) || 0) : state.internalSyncOut;
-
-    if (state.hasPrevSyncIn && state.prevSyncIn <= 0 && effectiveSyncIn > 0) {
-      const denom = effectiveSyncIn - state.prevSyncIn;
-      const frac = denom > 1e-9 ? this.clampValue(-state.prevSyncIn / denom, 0, 1) : 0;
-      state.phase = this.wrapValue((1 - frac) * increment, 0, 1);
-      state.syncedThisSample = true;
-    }
-    state.prevSyncIn = effectiveSyncIn;
-    state.hasPrevSyncIn = true;
-
-    const phaseCycle = state.phase;
-    const saw = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 0) * level;
-    const square = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 1) * level;
-    const tri = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 2) * level;
-    const sine = this.surgeOscillatorWaveformSampleJs(state, phaseCycle, increment, 3) * level;
-
-    const waveform = Math.max(0, Math.min(3, Math.round(Number(options.waveform) || 0)));
-    const out = [saw, square, tri, sine][waveform];
-
-    return {
-      Out: out,
-      Saw: saw,
-      Square: square,
-      Tri: tri,
-      Sine: sine,
-      Synced: state.syncedThisSample ? 1 : 0,
-      "Internal Sync": state.internalSyncOut,
-    };
-  }
-
-  surgeOscillatorSample(state, options = {}) {
-    if (
-      this.nativeSurgeOscillatorReady &&
-      this.nativeSurgeOscillator?.soemdsp_surge_oscillator_create &&
-      this.nativeSurgeOscillator?.soemdsp_surge_oscillator_sample
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeSurgeOscillator.soemdsp_surge_oscillator_create();
-        }
-        if (state.nativeHandle) {
-          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-          const frequencyHz = Number(options.frequencyHz) || 0;
-          const syncIn = Number(options.syncIn) || 0;
-          const hasExternalSync = options.hasExternalSync ? 1 : 0;
-          const syncFrequencyHz = Number(options.syncFrequencyHz) || 0;
-          const waveform = Math.max(0, Math.min(3, Math.round(Number(options.waveform) || 0)));
-          const level = Number(options.level) || 0;
-          this.nativeSurgeOscillator.soemdsp_surge_oscillator_sample(
-            state.nativeHandle,
-            frequencyHz,
-            sampleRate,
-            syncIn,
-            hasExternalSync,
-            syncFrequencyHz,
-            waveform,
-            level,
-          );
-          return {
-            Out: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_out(state.nativeHandle)) || 0,
-            Saw: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_saw(state.nativeHandle)) || 0,
-            Square: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_square(state.nativeHandle)) || 0,
-            Tri: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_tri(state.nativeHandle)) || 0,
-            Sine: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_sine(state.nativeHandle)) || 0,
-            Synced: Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_synced(state.nativeHandle)) || 0,
-            "Internal Sync": Number(this.nativeSurgeOscillator.soemdsp_surge_oscillator_internal_sync(state.nativeHandle)) || 0,
-          };
-        }
-      } catch (error) {
-        this.nativeSurgeOscillatorReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "surge_oscillator",
-          status: "disabled",
-          message: String(error?.message || error || "native Surge Oscillator failed"),
-        });
-      }
-    }
-    return this.surgeOscillatorSampleJs(state, options);
-  }
-
-  createDsfOscillatorState() {
-    return { t: 0, sawAcc: 0, sqAcc: 0, blendSqAcc: 0, triAcc: 0, triPeak: 1, nativeHandle: 0 };
-  }
 
   destroyDsfOscillatorNativeState(state) {
     if (state?.nativeHandle && this.nativeDsfOscillator?.soemdsp_dsf_oscillator_destroy) {
@@ -10466,22 +10166,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // pureSawEng(t, n), transcribed and simplified directly from "Extended
   // DSF Oscillators.cxx": sin(PI*t*(2N+1)) / sin(PI*t) - 1. Guarded at the
   // removable singularity t=0 via its L'Hopital limit (2N+1).
-  dsfPureSawEng(t, n) {
-    const denom = Math.sin(Math.PI * t);
-    if (denom > -1e-9 && denom < 1e-9) return (2 * n + 1) - 1;
-    return Math.sin(Math.PI * t * (2 * n + 1)) / denom - 1;
-  }
 
   // Harmonics (0-1): crossfades the harmonic count from 1 (a single
   // harmonic, an exact sine) up to nMax (Nyquist/frequency).
-  dsfPureSawEngMorphed(t, nMax, morph) {
-    const m = this.clampValue(Number(morph) || 0, 0, 1);
-    const target = 1 + m * (nMax - 1);
-    const lowN = Math.max(1, Math.floor(target));
-    const highN = Math.min(lowN + 1, nMax);
-    const frac = target - lowN;
-    return this.dsfPureSawEng(t, lowN) * (1 - frac) + this.dsfPureSawEng(t, highN) * frac;
-  }
 
   // ~20 periods of memory, decayed to ~1%. Every accumulator's retention
   // scales with the oscillation period instead of a fixed per-sample
@@ -10490,9 +10177,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // asymmetric shapes (Trimorph sounding like a square wave; DC
   // asymmetry in Saw/Square/SquSaw). See dsf_oscillator.cpp for the full
   // story.
-  dsfAdaptiveRetention(dt) {
-    return Math.exp(-0.23026 * dt);
-  }
 
   // waveform: 0=Sine, 1=Saw, 2=Square (PWM), 3=Trimorph, 4=SquSaw.
   // Square: saw(t) - saw(t - pulseWidth) -- alias-free since it's a
@@ -10500,108 +10184,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // Trimorph: a second leaky integration on the (bounded) Square output,
   // with an adaptive peak-follower since that second stage doesn't stay
   // bounded on its own across the full frequency range.
-  dsfOscillatorSampleJs(state, options = {}) {
-    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-    const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
-    const dt = this.clampValue((Number(options.frequencyHz) || 0) / sampleRate, -0.5, 0.5);
-    const waveform = Math.round(Number(options.waveform) || 0);
-    const level = Number(options.level) || 0;
 
-    let sample;
-    if (waveform === 0) {
-      state.t = this.wrapValue(state.t + dt, 0, 1);
-      sample = Math.sin(state.t * Math.PI * 2);
-    } else {
-      const nyquist = sampleRate * 0.5;
-      const nMax = Math.max(1, Math.floor(nyquist / safeFrequency));
-      state.t = this.wrapValue(state.t + dt * 0.9999, 0, 1);
-
-      const retention = this.dsfAdaptiveRetention(dt);
-      const rawSaw = this.dsfPureSawEngMorphed(state.t, nMax, options.morph);
-      state.sawAcc = state.sawAcc * retention + rawSaw * dt;
-
-      if (waveform === 1) {
-        sample = state.sawAcc;
-      } else if (waveform === 4) {
-        // SquSaw: crossfades Saw with a plain, fixed 50%-duty Square,
-        // decoupled from the PWM slider on purpose -- reported live as
-        // sounding "triangle-like" when it inherited PWM's variable duty
-        // cycle; simplified back to always crossfading two cleanly-
-        // shaped waveforms instead.
-        const rawBlendSquare = rawSaw - this.dsfPureSawEngMorphed(this.wrapValue(state.t - 0.5, 0, 1), nMax, options.morph);
-        state.blendSqAcc = state.blendSqAcc * retention + rawBlendSquare * dt;
-        const blend = this.clampValue(Number(options.blend) ?? 0.5, 0, 1);
-        sample = state.sawAcc * (1 - blend) + state.blendSqAcc * blend;
-      } else {
-        const pw = this.clampValue(Number(options.pulseWidth) ?? 0.5, 0.01, 0.99);
-        const rawShiftedSaw = this.dsfPureSawEngMorphed(this.wrapValue(state.t - pw, 0, 1), nMax, options.morph);
-        const rawSquare = rawSaw - rawShiftedSaw;
-        state.sqAcc = state.sqAcc * retention + rawSquare * dt;
-
-        if (waveform === 2) {
-          sample = state.sqAcc;
-        } else {
-          state.triAcc = state.triAcc * retention + state.sqAcc * dt * 4;
-          // Compensate for the fundamental's own amplitude shrinking
-          // toward 0 as pulseWidth approaches 0 or 1 -- reported live as
-          // Trimorph going quiet toward silence at extreme PWM.
-          const compensation = 1 / this.clampValue(Math.abs(Math.sin(Math.PI * pw)), 0.05, 1);
-          const compensatedTri = state.triAcc * compensation;
-          state.triPeak = Math.max(1, state.triPeak * 0.999 + Math.abs(compensatedTri) * 0.001);
-          sample = compensatedTri / state.triPeak;
-        }
-      }
-    }
-
-    if (!Number.isFinite(sample)) sample = 0;
-    const out = this.clampValue(sample, -1.5, 1.5) * level;
-    return { Out: out };
-  }
-
-  dsfOscillatorSample(state, options = {}) {
-    if (
-      this.nativeDsfOscillatorReady &&
-      this.nativeDsfOscillator?.soemdsp_dsf_oscillator_create &&
-      this.nativeDsfOscillator?.soemdsp_dsf_oscillator_sample
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeDsfOscillator.soemdsp_dsf_oscillator_create();
-        }
-        if (state.nativeHandle) {
-          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-          const frequencyHz = Number(options.frequencyHz) || 0;
-          const waveform = Math.round(Number(options.waveform) || 0);
-          const morph = Number(options.morph) || 0;
-          const pulseWidth = Number(options.pulseWidth) ?? 0.5;
-          const blend = Number(options.blend) ?? 0.5;
-          const level = Number(options.level) || 0;
-          this.nativeDsfOscillator.soemdsp_dsf_oscillator_sample(
-            state.nativeHandle,
-            frequencyHz,
-            sampleRate,
-            waveform,
-            morph,
-            pulseWidth,
-            blend,
-            level,
-          );
-          return {
-            Out: Number(this.nativeDsfOscillator.soemdsp_dsf_oscillator_out(state.nativeHandle)) || 0,
-          };
-        }
-      } catch (error) {
-        this.nativeDsfOscillatorReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "dsf_oscillator",
-          status: "disabled",
-          message: String(error?.message || error || "native DSF Oscillator failed"),
-        });
-      }
-    }
-    return this.dsfOscillatorSampleJs(state, options);
-  }
 
   // RobinSupersaw -- see native_modules/robin_supersaw/robin_supersaw.cpp
   // for the full derivation (Robin Schmidt's pitch dithering,
@@ -10613,19 +10196,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // path wasn't active, producing total silence with no visible console
   // error -- the same pitfall DSF Oscillator's fallback already avoids by
   // inlining its own copy instead of sharing one.
-  createRobinSupersawDitherVoice() {
-    return { sampleCount: 0, lenNow: 100, lenMid: 100, probShort: 0, probMid: 1, phaseSlope: 1 / 99 };
-  }
 
-  createRobinSupersawState() {
-    const left = [];
-    const right = [];
-    for (let i = 0; i < 9; i++) {
-      left.push(this.createRobinSupersawDitherVoice());
-      right.push(this.createRobinSupersawDitherVoice());
-    }
-    return { left, right, nativeHandle: 0 };
-  }
 
   destroyRobinSupersawNativeState(state) {
     if (state?.nativeHandle && this.nativeRobinSupersaw?.soemdsp_robin_supersaw_destroy) {
@@ -10635,134 +10206,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   }
 
   // rsPitchDitherOsc<T>::calcCycleDistribution(), transcribed.
-  robinSupersawCalcCycleDistribution(c) {
-    const ci = Math.floor(c);
-    const cf = c - ci;
-    let c2 = ci;
-    if (cf >= 0.5) c2 += 1;
-    const c1 = c2 - 1;
-    const c3 = c2 + 1;
-    const e1 = c1 - c;
-    const e2 = c2 - c;
-    const e3 = c3 - c;
-    const v1 = e1 * e1;
-    const v2 = e2 * e2;
-    const v3 = e3 * e3;
-    const v = 0.25;
-    const d1 = v - v1;
-    const d2 = v - v2;
-    const d3 = v - v3;
-    const s = 1 / (e3 * (v1 - v2) - e2 * (v1 - v3) + e1 * (v2 - v3));
-    return { lenMid: c2, probShort: (d2 * e3 - d3 * e2) * s, probMid: (d3 * e1 - d1 * e3) * s };
-  }
 
   // rsPitchDitherOsc<T>::updateCycleLength(), transcribed.
-  robinSupersawUpdateCycleLength(voice) {
-    const r = Math.random();
-    if (r < voice.probShort) {
-      voice.lenNow = voice.lenMid - 1;
-    } else if (r < voice.probShort + voice.probMid) {
-      voice.lenNow = voice.lenMid;
-    } else {
-      voice.lenNow = voice.lenMid + 1;
-    }
-    voice.phaseSlope = 1 / Math.max(1, voice.lenNow - 1);  // phasorRangeClosed = true
-  }
 
   // rsPitchDitherOsc<T>::getSamplePhasor() + updateSampleCount(), transcribed.
-  robinSupersawGetSamplePhasor(voice) {
-    const p = voice.phaseSlope * voice.sampleCount;
-    voice.sampleCount += 1;
-    if (voice.sampleCount >= voice.lenNow) {
-      voice.sampleCount = 0;
-      this.robinSupersawUpdateCycleLength(voice);
-    }
-    return p;
-  }
 
-  robinSupersawSumVoiceBank(bank, numVoices, safeFrequency, sampleRate, spreadCents) {
-    let sum = 0;
-    for (let i = 0; i < numVoices; i++) {
-      let centsOffset = 0;
-      if (numVoices > 1) {
-        const t = i / (numVoices - 1);
-        centsOffset = (t - 0.5) * spreadCents;
-      }
-      const ratio = Math.pow(2, centsOffset / 1200);
-      const voiceFreq = safeFrequency * ratio;
-      const meanCycleLength = sampleRate / Math.max(1, voiceFreq);
-      const voice = bank[i];
-      const dist = this.robinSupersawCalcCycleDistribution(meanCycleLength);
-      voice.lenMid = dist.lenMid;
-      voice.probShort = dist.probShort;
-      voice.probMid = dist.probMid;
-      sum += 2 * this.robinSupersawGetSamplePhasor(voice) - 1;  // WF::saw(phasor)
-    }
-    return sum / numVoices;
-  }
 
-  robinSupersawSampleJs(state, options = {}) {
-    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-    const safeFrequency = Number(options.frequencyHz) > 1 ? Number(options.frequencyHz) : 1;
-    const numVoices = this.clampValue(Math.round(Number(options.voices) || 1), 1, 9);
-    const spreadCents = this.clampValue(Number(options.detuneCents) || 0, 0, 100);
-    const level = Number(options.level) || 0;
 
-    let left = this.robinSupersawSumVoiceBank(state.left, numVoices, safeFrequency, sampleRate, spreadCents);
-    let right = this.robinSupersawSumVoiceBank(state.right, numVoices, safeFrequency, sampleRate, spreadCents);
-    if (!Number.isFinite(left)) left = 0;
-    if (!Number.isFinite(right)) right = 0;
-
-    const outLeft = this.clampValue(left, -1.5, 1.5) * level;
-    const outRight = this.clampValue(right, -1.5, 1.5) * level;
-    // Arithmetic average, not a raw sum -- matches this sandbox's own
-    // Output module convention, so mono doesn't come out twice as loud.
-    const outMono = (outLeft + outRight) * 0.5;
-    return { Mono: outMono, Left: outLeft, Right: outRight };
-  }
-
-  robinSupersawSample(state, options = {}) {
-    if (
-      this.nativeRobinSupersawReady &&
-      this.nativeRobinSupersaw?.soemdsp_robin_supersaw_create &&
-      this.nativeRobinSupersaw?.soemdsp_robin_supersaw_sample
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeRobinSupersaw.soemdsp_robin_supersaw_create();
-        }
-        if (state.nativeHandle) {
-          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-          const frequencyHz = Number(options.frequencyHz) || 0;
-          const detuneCents = Number(options.detuneCents) || 0;
-          const voices = Math.round(Number(options.voices) || 1);
-          const level = Number(options.level) || 0;
-          this.nativeRobinSupersaw.soemdsp_robin_supersaw_sample(
-            state.nativeHandle,
-            frequencyHz,
-            sampleRate,
-            detuneCents,
-            voices,
-            level,
-          );
-          return {
-            Mono: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_mono(state.nativeHandle)) || 0,
-            Left: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_left(state.nativeHandle)) || 0,
-            Right: Number(this.nativeRobinSupersaw.soemdsp_robin_supersaw_right(state.nativeHandle)) || 0,
-          };
-        }
-      } catch (error) {
-        this.nativeRobinSupersawReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "robin_supersaw",
-          status: "disabled",
-          message: String(error?.message || error || "native RobinSupersaw failed"),
-        });
-      }
-    }
-    return this.robinSupersawSampleJs(state, options);
-  }
 
   // Hypersaw -- see native_modules/hypersaw/hypersaw.cpp for the full
   // derivation (a proof-of-concept port of soundemote's own
@@ -10772,35 +10222,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // public/node-graph-hypersaw.js globals, which this worklet's isolated
   // scope never loads.
 
-  hypersawPolyBlep(t, dt) {
-    if (dt <= 0) return 0;
-    if (t < dt) {
-      const x = t / dt;
-      return x + x - x * x - 1;
-    }
-    if (t > 1 - dt) {
-      const x = (t - 1) / dt;
-      return x * x + x + x + 1;
-    }
-    return 0;
-  }
 
-  hypersawWrap01(x) {
-    const w = x - Math.floor(x);
-    return w < 0 ? 0 : (w >= 1 ? 0 : w);
-  }
 
-  createHypersawVoice() {
-    return { phase: 0, randomOffset: Math.random() - 0.5, driftLp: 0 };
-  }
 
-  createHypersawState() {
-    const voices = [];
-    for (let i = 0; i < 32; i++) {
-      voices.push(this.createHypersawVoice());
-    }
-    return { voices, nativeHandle: 0 };
-  }
 
   destroyHypersawNativeState(state) {
     if (state?.nativeHandle && this.nativeHypersaw?.soemdsp_hypersaw_destroy) {
@@ -10817,150 +10241,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // state purely for the display, in parallel with native's own opaque
   // internal state) without duplicating -- and thereby double-stepping --
   // the phase math.
-  hypersawAdvanceVoices(state, options = {}) {
-    const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-    const safeFrequency = Number(options.frequencyHz) > 0 ? Number(options.frequencyHz) : 0;
-    const phaseOffset = this.hypersawWrap01(Number(options.phaseOffset) || 0);
-    const numVoices = this.clampValue(Math.round(Number(options.numVoices) || 1), 1, 32);
-    const spreadAmt = this.clampValue(Number(options.spread) || 0, 0, 1);
-    const randomAmt = this.clampValue(Number(options.randomAmount) || 0, 0, 1);
-    const driftAmt = this.clampValue(Number(options.driftAmount) || 0, 0, 1);
 
-    // Drift is a genuine reflecting random walk, NOT a lowpass filter over
-    // fresh-every-sample white noise (that was tried first and is a bug --
-    // filtering a brand-new random value each sample suppresses its
-    // variance to near-nothing at any audio-rate-appropriate coefficient).
-    // stepScale is normalized by 1/sqrt(sampleRate) so the walk's
-    // diffusive growth reaches a given wander range in the same wall-
-    // clock time regardless of sample rate; reflecting at +/-0.5 keeps it
-    // bounded while still continuously wandering.
-    const driftStepScale = 0.2 / Math.sqrt(sampleRate);
-    const phaseIncrement = safeFrequency / sampleRate;
 
-    const sawSamples = new Array(numVoices);
-    const voicePhases = new Array(numVoices);
-    const voicePans = new Array(numVoices);
-
-    for (let i = 0; i < numVoices; i++) {
-      const voice = state.voices[i];
-      const basePosition = i / numVoices;
-      voice.driftLp += (Math.random() * 2 - 1) * driftStepScale;
-      if (voice.driftLp > 0.5) voice.driftLp = 1 - voice.driftLp;
-      if (voice.driftLp < -0.5) voice.driftLp = -1 - voice.driftLp;
-
-      const dispersion = basePosition * spreadAmt + voice.randomOffset * randomAmt + voice.driftLp * driftAmt;
-      const renderPhase = this.hypersawWrap01(voice.phase + phaseOffset + dispersion);
-      sawSamples[i] = 2 * renderPhase - 1 - this.hypersawPolyBlep(renderPhase, phaseIncrement > 0 ? phaseIncrement : 1);
-      // Display position is dispersion only -- voice.phase runs at the
-      // fundamental frequency (the pitch itself), not something a "voice
-      // position" display should show.
-      voicePhases[i] = this.hypersawWrap01(dispersion);
-      voice.phase = this.hypersawWrap01(voice.phase + phaseIncrement);
-
-      const isCenter = i === 0 || (i === 1 && numVoices % 2 === 0);
-      voicePans[i] = isCenter ? 0 : (i % 2 === 0 ? -1 : 1);
-    }
-
-    state.lastVoicePhases = voicePhases;
-    state.lastVoiceAmplitudes = sawSamples;
-    state.lastVoicePans = voicePans;
-    return { sawSamples, numVoices, voicePans };
-  }
-
-  hypersawSampleJs(state, options = {}) {
-    const level = Number(options.level) || 0;
-    const { sawSamples, numVoices } = this.hypersawAdvanceVoices(state, options);
-
-    let leftSum = 0, rightSum = 0;
-    let leftCount = 0, rightCount = 0;
-
-    for (let i = 0; i < numVoices; i++) {
-      const sawSample = sawSamples[i];
-      const isCenter = i === 0 || (i === 1 && numVoices % 2 === 0);
-      if (isCenter) {
-        leftSum += sawSample;
-        rightSum += sawSample;
-        leftCount++;
-        rightCount++;
-      } else if (i % 2 === 0) {
-        leftSum += sawSample;
-        leftCount++;
-      } else {
-        rightSum += sawSample;
-        rightCount++;
-      }
-    }
-
-    let left = leftCount > 0 ? leftSum / leftCount : 0;
-    let right = rightCount > 0 ? rightSum / rightCount : 0;
-    if (!Number.isFinite(left)) left = 0;
-    if (!Number.isFinite(right)) right = 0;
-
-    return {
-      Left: this.clampValue(left, -1.5, 1.5) * level,
-      Right: this.clampValue(right, -1.5, 1.5) * level,
-      Phases: state.lastVoicePhases,
-      Amplitudes: state.lastVoiceAmplitudes,
-      Pans: state.lastVoicePans,
-    };
-  }
-
-  hypersawSample(state, options = {}) {
-    if (
-      this.nativeHypersawReady &&
-      this.nativeHypersaw?.soemdsp_hypersaw_create &&
-      this.nativeHypersaw?.soemdsp_hypersaw_sample
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeHypersaw.soemdsp_hypersaw_create();
-        }
-        if (state.nativeHandle) {
-          const sampleRate = Number(options.sampleRate) > 1 ? Number(options.sampleRate) : 48000;
-          const frequencyHz = Number(options.frequencyHz) || 0;
-          const phaseOffset = Number(options.phaseOffset) || 0;
-          const numVoices = Math.round(Number(options.numVoices) || 1);
-          const spread = Number(options.spread) || 0;
-          const randomAmount = Number(options.randomAmount) || 0;
-          const driftAmount = Number(options.driftAmount) || 0;
-          const level = Number(options.level) || 0;
-          this.nativeHypersaw.soemdsp_hypersaw_sample(
-            state.nativeHandle,
-            frequencyHz,
-            sampleRate,
-            phaseOffset,
-            numVoices,
-            spread,
-            randomAmount,
-            driftAmount,
-            level,
-          );
-          // Native owns the real audio-critical voice state opaquely (no
-          // access from JS). Advance this JS-side shadow bank purely so
-          // the phosphor-burn display has phase data to draw -- visually
-          // representative of the dispersion in effect, though not
-          // sample-exact with native's own internal RNG stream.
-          this.hypersawAdvanceVoices(state, options);
-          return {
-            Left: Number(this.nativeHypersaw.soemdsp_hypersaw_left(state.nativeHandle)) || 0,
-            Right: Number(this.nativeHypersaw.soemdsp_hypersaw_right(state.nativeHandle)) || 0,
-            Phases: state.lastVoicePhases,
-            Amplitudes: state.lastVoiceAmplitudes,
-            Pans: state.lastVoicePans,
-          };
-        }
-      } catch (error) {
-        this.nativeHypersawReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "hypersaw",
-          status: "disabled",
-          message: String(error?.message || error || "native Hypersaw failed"),
-        });
-      }
-    }
-    return this.hypersawSampleJs(state, options);
-  }
 
   spiralWrap01(value) {
     return value - Math.floor(value);

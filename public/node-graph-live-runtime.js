@@ -1791,6 +1791,12 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/torus/torus-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/keplerBouwkamp/kepler-bouwkamp-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/nyquistShannon/nyquist-shannon-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/surgeOscillator/surge-oscillator-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/dsfOscillator/dsf-oscillator-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/robinSupersaw/robin-supersaw-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/hypersaw/hypersaw-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/chordSequencer/chord-sequencer-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/lutCell/lut-cell-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

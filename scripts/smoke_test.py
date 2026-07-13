@@ -385,6 +385,12 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/torus/torus-worklet-evaluator.js",
     "modules/keplerBouwkamp/kepler-bouwkamp-worklet-evaluator.js",
     "modules/nyquistShannon/nyquist-shannon-worklet-evaluator.js",
+    "modules/surgeOscillator/surge-oscillator-worklet-evaluator.js",
+    "modules/dsfOscillator/dsf-oscillator-worklet-evaluator.js",
+    "modules/robinSupersaw/robin-supersaw-worklet-evaluator.js",
+    "modules/hypersaw/hypersaw-worklet-evaluator.js",
+    "modules/chordSequencer/chord-sequencer-worklet-evaluator.js",
+    "modules/lutCell/lut-cell-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
