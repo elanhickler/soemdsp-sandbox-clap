@@ -3925,34 +3925,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
 
 
-  createClockState() {
-    return {
-      hasStarted: false,
-      phase: 0,
-    };
-  }
 
-  createRandomClockState() {
-    return {
-      intervalSamples: 0,
-      lastReset: 0,
-      phaseSamples: 0,
-      randomState: 0,
-      remainingTriggerSamples: 0,
-      seedKey: "",
-    };
-  }
 
-  createDelayedTriggerState() {
-    return {
-      hasTriggered: true,
-      lastReset: 0,
-      lastTrigger: 0,
-      remainingSamples: 0,
-      running: false,
-      waitSamples: 0,
-    };
-  }
 
   createPatchCommandState() {
     return {
@@ -3975,33 +3949,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  createStepSequencerState() {
-    return {
-      gate: 0,
-      index: 0,
-      lastReset: 0,
-      lastTrigger: 0,
-      out: 0,
-    };
-  }
 
-  createTriggerCounterState() {
-    return {
-      count: 0,
-      lastReset: 0,
-      lastTrigger: 0,
-      remainingSamples: 0,
-    };
-  }
 
-  createTriggerDividerState() {
-    return {
-      count: 0,
-      lastReset: 0,
-      lastTrigger: 0,
-      remainingSamples: 0,
-    };
-  }
 
 
 
@@ -4989,40 +4938,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
 
 
-  clockAnalogWhipSample(phase, level) {
-    const p = this.clampValue(Number(phase) || 0, 0, 1);
-    const attack = 1 - Math.pow(1 - Math.min(1, p / 0.035), 4);
-    const release = Math.pow(Math.max(0, 1 - p), 1.85);
-    const snapEnvelope = attack * release;
-    const sweepTurns = (3.15 * (1 - Math.exp(-4.2 * p)) / (1 - Math.exp(-4.2))) + (0.18 * Math.sin(Math.PI * p));
-    const liquidBend = 0.075 * Math.sin(Math.PI * 2 * p) * Math.pow(Math.max(0, 1 - p), 1.2);
-    const body = Math.sin((sweepTurns + liquidBend) * Math.PI * 2);
-    const sheen = Math.sin((sweepTurns * 2.02 + 0.17) * Math.PI * 2) * 0.16 * Math.pow(Math.max(0, 1 - p), 2.8);
-    return (body + sheen) * snapEnvelope * level;
-  }
 
-  clockSample(state, reset, phaseOffset, rate, duty, level, rateHz = sampleRate) {
-    const safeReset = this.safeFilterNumber(reset, null);
-    const safePhaseOffset = this.wrapValue(this.safeFilterNumber(phaseOffset, null), 0, 1);
-    const safeRate = Math.max(0, this.safeFilterNumber(rate, null));
-    const safeDuty = this.clampValue(this.safeFilterNumber(duty, null), 0, 1);
-    const safeLevel = this.safeFilterNumber(level, null);
-    const resetActive = safeReset > 0;
-    const rawPhase = resetActive ? 0 : this.wrapValue(Number(state.phase) || 0, 0, 1);
-    const phase = this.wrapValue(rawPhase + safePhaseOffset, 0, 1);
-    const digital = phase < safeDuty ? safeLevel : 0;
-    const analog = this.clockAnalogWhipSample(phase, safeLevel);
-    const nextRawPhase = this.wrapValue(rawPhase + safeRate / Math.max(1, rateHz), 0, 1);
-    const pulse = safeRate > 0 && !resetActive && (!state.hasStarted || nextRawPhase < rawPhase) ? safeLevel : 0;
-    state.hasStarted = !resetActive;
-    state.phase = resetActive ? 0 : nextRawPhase;
-    return {
-      "Analog Out": analog,
-      "Digital Out": digital,
-      Out: digital,
-      Pulse: pulse,
-    };
-  }
 
   normalizePatchTiming(timing = {}) {
     const source = timing && typeof timing === "object" ? timing : {};
@@ -5033,122 +4949,11 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  transportDivisionFactor(divisions) {
-    const division = Math.round(Number(divisions) || 0);
-    if (division > 0) {
-      return division + 1;
-    }
-    if (division < 0) {
-      return 1 / (Math.abs(division) + 1);
-    }
-    return 1;
-  }
 
-  transportSample(params, frame, rateHz = sampleRate) {
-    const rate = Math.max(1, Number(rateHz) || sampleRate || 44100);
-    const tempoBpm = Math.max(1, Number(this.timing?.tempoBpm) || 120);
-    const frequency = (tempoBpm / 60) * this.transportDivisionFactor(params.divisions);
-    const amplitude = this.clampValue(this.safeFilterNumber(params.amplitude, null), 0, 1);
-    const phase = frequency > 0 ? this.wrapValue((Math.max(0, Number(frame) || 0) / rate) * frequency, 0, 1) : 0;
-    const high = phase < 0.5;
-    return {
-      "-1..1": high ? amplitude : -amplitude,
-      "0..1": high ? amplitude : 0,
-    };
-  }
 
-  randomClockNextUnit(state, nodeId, seed) {
-    const seedKey = `${nodeId}:${Math.round(Number(seed) || 0)}`;
-    if (state.seedKey !== seedKey) {
-      state.seedKey = seedKey;
-      state.randomState = this.stableSeed(seedKey);
-      state.intervalSamples = 0;
-      state.phaseSamples = 0;
-      state.remainingTriggerSamples = 0;
-    }
-    state.randomState = (Math.imul(state.randomState || 1, 1664525) + 1013904223) >>> 0;
-    return state.randomState / 4294967296;
-  }
 
-  randomClockChooseIntervalSamples(state, params, rateHz, nodeId) {
-    const rate = Math.max(1, rateHz || sampleRate || 44100);
-    const minSeconds = Math.max(0, this.safeFilterNumber(params.minSeconds, null));
-    const maxSeconds = Math.max(0, this.safeFilterNumber(params.maxSeconds, null));
-    const low = Math.min(minSeconds, maxSeconds);
-    const high = Math.max(minSeconds, maxSeconds);
-    const random = this.randomClockNextUnit(state, nodeId, params.seed);
-    return Math.max(1, Math.round((low + (high - low) * random) * rate));
-  }
 
-  randomClockSample(state, reset, params, rateHz = sampleRate, nodeId = "") {
-    const safeReset = this.safeFilterNumber(reset, null);
-    const threshold = this.safeFilterNumber(params.threshold, null);
-    const rate = Math.max(1, rateHz || sampleRate || 44100);
-    const duty = this.clampValue(this.safeFilterNumber(params.duty, null), 0, 1);
-    const triggerTime = Math.max(0, this.safeFilterNumber(params.triggerTime, null));
-    const level = this.safeFilterNumber(params.level, null);
-    const resetEdge = state.lastReset <= threshold && safeReset > threshold;
 
-    if (resetEdge || state.intervalSamples <= 0) {
-      state.intervalSamples = this.randomClockChooseIntervalSamples(state, params, rate, nodeId);
-      state.phaseSamples = 0;
-      state.remainingTriggerSamples = Math.max(1, Math.round(triggerTime * rate));
-    } else if (state.phaseSamples >= state.intervalSamples) {
-      state.intervalSamples = this.randomClockChooseIntervalSamples(state, params, rate, nodeId);
-      state.phaseSamples = 0;
-      state.remainingTriggerSamples = Math.max(1, Math.round(triggerTime * rate));
-    }
-
-    const gateSamples = Math.round(state.intervalSamples * duty);
-    const trigger = state.remainingTriggerSamples > 0 ? level : 0;
-    const gate = state.phaseSamples < gateSamples ? level : 0;
-    state.remainingTriggerSamples = Math.max(0, state.remainingTriggerSamples - 1);
-    state.phaseSamples += 1;
-    state.lastReset = safeReset;
-    return {
-      Gate: this.safeFilterNumber(gate, null),
-      Trigger: this.safeFilterNumber(trigger, null),
-    };
-  }
-
-  delayedTriggerSample(state, trigger, reset, params, rateHz = sampleRate) {
-    const safeTrigger = this.safeFilterNumber(trigger, null);
-    const safeReset = this.safeFilterNumber(reset, null);
-    const threshold = this.safeFilterNumber(params.threshold, null);
-    const delay = Math.max(0, this.safeFilterNumber(params.delay, null));
-    const pulseTime = Math.max(0, this.safeFilterNumber(params.pulseTime, null));
-    const level = this.safeFilterNumber(params.level, null);
-    const rate = Math.max(1, rateHz || sampleRate || 44100);
-
-    if (state.lastReset <= threshold && safeReset > threshold) {
-      state.hasTriggered = true;
-      state.remainingSamples = 0;
-      state.running = false;
-      state.waitSamples = 0;
-    }
-    if (state.lastTrigger <= threshold && safeTrigger > threshold) {
-      state.hasTriggered = false;
-      state.remainingSamples = 0;
-      state.running = true;
-      state.waitSamples = Math.max(0, Math.round(delay * rate));
-    }
-
-    if (state.running && !state.hasTriggered) {
-      if (state.waitSamples <= 0) {
-        state.hasTriggered = true;
-        state.running = false;
-        state.remainingSamples = Math.max(1, Math.round(pulseTime * rate));
-      } else {
-        state.waitSamples -= 1;
-      }
-    }
-
-    state.lastTrigger = safeTrigger;
-    state.lastReset = safeReset;
-    const output = state.remainingSamples > 0 ? level : 0;
-    state.remainingSamples = Math.max(0, state.remainingSamples - 1);
-    return this.safeFilterNumber(output, null);
-  }
 
   patchCommandTriggerSample(state, trigger, threshold, command, nodeId) {
     const safeTrigger = this.safeFilterNumber(trigger, null);
@@ -5209,85 +5014,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
 
 
-  stepSequencerSample(state, trigger, reset, params) {
-    const safeTrigger = this.safeFilterNumber(trigger, null);
-    const safeReset = this.safeFilterNumber(reset, null);
-    const threshold = this.safeFilterNumber(params.threshold, null);
-    const stepCount = Math.max(1, Math.min(8, Math.round(this.safeFilterNumber(params.steps, null))));
-    const level = this.safeFilterNumber(params.level, null);
-    const values = params.values.map((value) => this.safeFilterNumber(value, null));
-    if (state.index >= stepCount) {
-      state.index %= stepCount;
-    }
-    if (state.lastReset <= threshold && safeReset > threshold) {
-      state.index = 0;
-      state.out = values[0] || 0;
-    }
-    if (state.lastTrigger <= threshold && safeTrigger > threshold) {
-      state.out = values[state.index] || 0;
-      state.index = (state.index + 1) % stepCount;
-    }
-    state.gate = safeTrigger > threshold ? 1 : 0;
-    state.lastTrigger = safeTrigger;
-    state.lastReset = safeReset;
-    return {
-      Gate: state.gate,
-      Out: this.safeFilterNumber(state.out * level, null),
-    };
-  }
 
-  triggerCounterSample(state, trigger, reset, params, rate = sampleRate) {
-    const safeTrigger = this.safeFilterNumber(trigger, null);
-    const safeReset = this.safeFilterNumber(reset, null);
-    const threshold = this.safeFilterNumber(params.threshold, null);
-    const countMax = Math.max(1, this.safeFilterNumber(params.countMax, null));
-    const increment = Math.max(0, this.safeFilterNumber(params.increment, null));
-    const pulseTime = Math.max(0, this.safeFilterNumber(params.pulseTime, null));
-    const level = this.safeFilterNumber(params.level, null);
-    if (state.lastReset <= threshold && safeReset > threshold) {
-      state.count = 0;
-      state.remainingSamples = 0;
-    }
-    if (state.lastTrigger <= threshold && safeTrigger > threshold) {
-      state.count += increment;
-      if (state.count >= countMax) {
-        state.count = countMax > 0 ? state.count % countMax : 0;
-        state.remainingSamples = Math.max(1, Math.round(pulseTime * Math.max(1, rate)));
-      }
-    }
-    state.lastTrigger = safeTrigger;
-    state.lastReset = safeReset;
-    const pulse = state.remainingSamples > 0 ? level : 0;
-    state.remainingSamples = Math.max(0, state.remainingSamples - 1);
-    return {
-      Count: this.safeFilterNumber(this.clampValue(state.count / countMax, 0, 1) * level, null),
-      Pulse: this.safeFilterNumber(pulse, null),
-    };
-  }
 
-  triggerDividerSample(state, trigger, reset, params, rate = sampleRate) {
-    const safeTrigger = this.safeFilterNumber(trigger, null);
-    const safeReset = this.safeFilterNumber(reset, null);
-    const threshold = this.safeFilterNumber(params.threshold, null);
-    const division = Math.max(1, Math.min(64, Math.round(this.safeFilterNumber(params.division, null))));
-    const pulseTime = Math.max(0, this.safeFilterNumber(params.pulseTime, null));
-    const level = this.safeFilterNumber(params.level, null);
-    if (state.lastReset <= threshold && safeReset > threshold) {
-      state.count = 0;
-      state.remainingSamples = 0;
-    }
-    if (state.lastTrigger <= threshold && safeTrigger > threshold) {
-      state.count = (state.count + 1) % division;
-      if (state.count === 0) {
-        state.remainingSamples = Math.max(1, Math.round(pulseTime * Math.max(1, rate)));
-      }
-    }
-    state.lastTrigger = safeTrigger;
-    state.lastReset = safeReset;
-    const output = state.remainingSamples > 0 ? level : 0;
-    state.remainingSamples = Math.max(0, state.remainingSamples - 1);
-    return this.safeFilterNumber(output, null);
-  }
 
 
 

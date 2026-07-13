@@ -1828,6 +1828,13 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/fractalSpiral/fractal-spiral-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/logSpiral/log-spiral-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/lorenzAttractor/lorenz-attractor-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/clock/clock-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/transport/transport-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/randomClock/random-clock-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/triggerDivider/trigger-divider-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/delayedTrigger/delayed-trigger-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/triggerCounter/trigger-counter-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/stepSequencer/step-sequencer-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

@@ -422,6 +422,13 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/fractalSpiral/fractal-spiral-worklet-evaluator.js",
     "modules/logSpiral/log-spiral-worklet-evaluator.js",
     "modules/lorenzAttractor/lorenz-attractor-worklet-evaluator.js",
+    "modules/clock/clock-worklet-evaluator.js",
+    "modules/transport/transport-worklet-evaluator.js",
+    "modules/randomClock/random-clock-worklet-evaluator.js",
+    "modules/triggerDivider/trigger-divider-worklet-evaluator.js",
+    "modules/delayedTrigger/delayed-trigger-worklet-evaluator.js",
+    "modules/triggerCounter/trigger-counter-worklet-evaluator.js",
+    "modules/stepSequencer/step-sequencer-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
