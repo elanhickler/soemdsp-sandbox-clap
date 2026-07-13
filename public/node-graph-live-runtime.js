@@ -1773,6 +1773,7 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/additiveOsc/additive-osc-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/polyBlep/poly-blep-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/noiseGenerator/noise-generator-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/randomWalk/random-walk-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

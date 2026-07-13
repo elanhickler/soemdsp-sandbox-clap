@@ -367,6 +367,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/additiveOsc/additive-osc-worklet-evaluator.js",
     "modules/polyBlep/poly-blep-worklet-evaluator.js",
     "modules/noiseGenerator/noise-generator-worklet-evaluator.js",
+    "modules/randomWalk/random-walk-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
