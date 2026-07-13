@@ -3947,20 +3947,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  createSlewLimiterState() {
-    return {
-      initialized: false,
-      out: 0,
-    };
-  }
 
-  createStereoSlewLimiterState() {
-    return {
-      left: this.createSlewLimiterState(),
-      mono: this.createSlewLimiterState(),
-      right: this.createSlewLimiterState(),
-    };
-  }
 
   createClockState() {
     return {
@@ -3997,55 +3984,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  createDelayEffectState() {
-    return {
-      buffer: new Float32Array(1),
-      bufferSize: 1,
-      lfoPhase: 0,
-      lfoVariationState: 0,
-      position: 0,
-      wet: 0,
-      nativeHandle: 0,
-      nativeSeed: 0,
-      nativeSeedKey: "",
-    };
-  }
 
-  createStereoDelayEffectState() {
-    return {
-      left: this.createDelayEffectState(),
-      mono: this.createDelayEffectState(),
-      right: this.createDelayEffectState(),
-    };
-  }
 
-  createPingPongDelayState() {
-    return {
-      bufferL: new Float32Array(1),
-      bufferR: new Float32Array(1),
-      bufferSize: 1,
-      position: 0,
-      wetL: 0,
-      wetR: 0,
-    };
-  }
 
-  createSampleHoldState() {
-    return {
-      clockPhase: 0,
-      held: 0,
-      lastTrigger: 0,
-      noise: this.createNoiseGeneratorChannelState(),
-    };
-  }
 
-  createStereoSampleHoldState() {
-    return {
-      left: this.createSampleHoldState(),
-      mono: this.createSampleHoldState(),
-      right: this.createSampleHoldState(),
-    };
-  }
 
   createSamplePlaybackState() {
     return {
@@ -5123,25 +5065,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
 
 
-  slewLimiterSample(state, input, upTime, downTime, rate = sampleRate) {
-    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
-    const target = this.safeFilterNumber(input, state);
-    if (!state.initialized) {
-      state.initialized = true;
-      state.out = target;
-      return target;
-    }
-    const upSeconds = Math.max(0, this.safeFilterNumber(upTime, state));
-    const downSeconds = Math.max(0, this.safeFilterNumber(downTime, state));
-    const delta = target - state.out;
-    const maxRise = upSeconds <= 0 ? Infinity : 1 / Math.max(1, upSeconds * safeRate);
-    const maxFall = downSeconds <= 0 ? Infinity : 1 / Math.max(1, downSeconds * safeRate);
-    state.out = this.safeFilterNumber(
-      state.out + Math.max(-maxFall, Math.min(maxRise, delta)),
-      state,
-    );
-    return state.out;
-  }
 
   clockAnalogWhipSample(phase, level) {
     const p = this.clampValue(Number(phase) || 0, 0, 1);
@@ -5319,10 +5242,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return 0;
   }
 
-  delayParabolSample(phase) {
-    const wrapped = phase - Math.floor(phase);
-    return wrapped < 0.5 ? wrapped * 4 - 1 : 3 - wrapped * 4;
-  }
 
   delayInterpolateLinear(buffer, where) {
     const length = buffer.length;
@@ -5335,111 +5254,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return buffer[before] * (1 - mix) + buffer[after] * mix;
   }
 
-  delayEffectSample(state, input, params, rateHz = sampleRate, nodeId = "") {
-    if (
-      this.nativeDelayEffectReady &&
-      this.nativeDelayEffect?.soemdsp_delay_effect_create &&
-      this.nativeDelayEffect?.soemdsp_delay_effect_sample
-    ) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeDelayEffect.soemdsp_delay_effect_create();
-        }
-        if (state.nativeHandle) {
-          const seedKey = `${nodeId}:delayVariation`;
-          if (state.nativeSeedKey !== seedKey) {
-            state.nativeSeedKey = seedKey;
-            state.nativeSeed = this.stableSeed(seedKey);
-          }
-          const safeRateValue = Math.max(1, Number(rateHz) || 44100);
-          const modeValue = Math.round(this.safeFilterNumber(params.mode, null)) >= 1 ? 1 : 0;
-          this.nativeDelayEffect.soemdsp_delay_effect_sample(
-            state.nativeHandle,
-            Number(input) || 0,
-            this.clampValue(Number(params.time) || 0, 0.001, 4.25),
-            this.clampValue(Number(params.feedback) || 0, 0, 0.95),
-            this.clampValue(Number(params.mix) || 0, 0, 1),
-            this.clampValue(Number(params.level) || 0, 0, 2),
-            this.clampValue(Number(params.modAmount) || 0, 0, 0.5),
-            this.clampValue(Number(params.modRate) || 0, 0, 90),
-            this.clampValue(Number(params.modVariation) || 0, 0, 1),
-            modeValue,
-            state.nativeSeed >>> 0,
-            safeRateValue,
-          );
-          return {
-            Out: this.nativeDelayEffect.soemdsp_delay_effect_out(state.nativeHandle),
-            Wet: this.nativeDelayEffect.soemdsp_delay_effect_wet(state.nativeHandle),
-          };
-        }
-      } catch (error) {
-        this.nativeDelayEffectReady = false;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "delay_effect",
-          status: "disabled",
-          message: String(error?.message || error || "native Delay Effect failed"),
-        });
-      }
-    }
-    return this.delayEffectSampleJs(state, input, params, rateHz, nodeId);
-  }
 
-  delayEffectSampleJs(state, input, params, rateHz = sampleRate, nodeId = "") {
-    const safeRate = Math.max(1, Number(rateHz) || 44100);
-    const maxDelaySeconds = 4.25;
-    const requiredSize = Math.max(2, Math.ceil(safeRate * maxDelaySeconds) + 2);
-    if (!state.buffer || state.bufferSize !== requiredSize) {
-      state.buffer = new Float32Array(requiredSize);
-      state.bufferSize = requiredSize;
-      state.position = 0;
-      state.lfoPhase = 0;
-      state.lfoVariationState = 0;
-      state.wet = 0;
-    }
-    const dry = this.safeFilterNumber(input, null);
-    const time = this.clampValue(this.safeFilterNumber(params.time, null), 0.001, maxDelaySeconds);
-    const feedback = this.clampValue(this.safeFilterNumber(params.feedback, null), 0, 0.95);
-    const mix = this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1);
-    const level = this.clampValue(this.safeFilterNumber(params.level, null), 0, 2);
-    const modAmount = this.clampValue(this.safeFilterNumber(params.modAmount, null), 0, 0.5);
-    const modRate = this.clampValue(this.safeFilterNumber(params.modRate, null), 0, 90);
-    const modVariation = this.clampValue(this.safeFilterNumber(params.modVariation, null), 0, 1);
-    const mode = Math.round(this.safeFilterNumber(params.mode, null)) >= 1 ? 1 : 0;
 
-    const variationTarget = this.hashBipolar(
-      Math.floor(state.lfoPhase * 997) + state.position,
-      this.stableSeed(`${nodeId}:delayVariation`),
-    );
-    state.lfoVariationState += (variationTarget - state.lfoVariationState) * Math.min(1, modRate / safeRate);
-    const variedRate = Math.max(0, modRate * (1 + state.lfoVariationState * modVariation));
-    state.lfoPhase = (state.lfoPhase + variedRate / safeRate) % 1;
-    const lfo = (this.delayParabolSample(state.lfoPhase) + 1) * 0.5;
-
-    const delaySamples = this.clampValue(time * safeRate, 1, state.bufferSize - 2);
-    const bufferOffset = delaySamples - delaySamples * lfo * modAmount + 1;
-    state.position = (state.position + 1) % state.bufferSize;
-    const readPosition = (state.position + state.bufferSize - bufferOffset) % state.bufferSize;
-    const wet = this.delayInterpolateLinear(state.buffer, readPosition);
-    const write = mode ? ((0 - dry) - wet * feedback) : (dry + wet * feedback);
-    state.buffer[state.position] = this.clampValue(write, -8, 8);
-    state.wet = mode ? (dry * feedback - wet * (1 - feedback * feedback)) : wet;
-    return {
-      Out: (dry * (1 - mix) + state.wet * mix) * level,
-      Wet: state.wet * level,
-    };
-  }
-
-  pingPongTimingModeMultiplier(mode) {
-    const rounded = Math.round(Number(mode) || 0);
-    if (rounded === 1) {
-      return 1.5; // Dotted
-    }
-    if (rounded === 2) {
-      return 2 / 3; // Triplet: three fit in the space of two normal notes
-    }
-    return 1; // Normal
-  }
 
   // X/Y as a fraction of a whole note. Both are free metaparameters -- never
   // clamped or rejected here, only floored for this one computation:
@@ -5449,364 +5265,26 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // - A non-zero numerator over a 0 (or negative) denominator falls back to
   //   a denominator of 1, i.e. "X/0" reads as "X whole notes", rather than
   //   dividing by zero.
-  pingPongDelayFraction(numerator, denominator) {
-    const effectiveNumerator = Math.max(0, Number(numerator) || 0);
-    if (effectiveNumerator === 0) {
-      return 0;
-    }
-    const effectiveDenominator = Math.max(0, Number(denominator) || 0);
-    return effectiveNumerator / Math.max(1, effectiveDenominator);
-  }
 
-  pingPongDelaySeconds(params) {
-    const secondsPerWholeNote = 240 / Math.max(1, Number(this.timing?.tempoBpm) || 120);
-    const fraction = this.pingPongDelayFraction(params.timeNumerator, params.timeDenominator);
-    const syncedSeconds = secondsPerWholeNote * fraction * this.pingPongTimingModeMultiplier(params.timingMode);
-    const offsetSeconds = (Number(params.offsetMs) || 0) / 1000;
-    return syncedSeconds + offsetSeconds;
-  }
 
-  pingPongDelaySample(state, input, params, rateHz = sampleRate) {
-    const safeRate = Math.max(1, Number(rateHz) || 44100);
-    const maxDelaySeconds = 8;
-    const requiredSize = Math.max(2, Math.ceil(safeRate * maxDelaySeconds) + 2);
-    if (!state.bufferL || state.bufferSize !== requiredSize) {
-      state.bufferL = new Float32Array(requiredSize);
-      state.bufferR = new Float32Array(requiredSize);
-      state.bufferSize = requiredSize;
-      state.position = 0;
-      state.wetL = 0;
-      state.wetR = 0;
-    }
-    const dry = this.safeFilterNumber(input, null);
-    const feedback = this.clampValue(this.safeFilterNumber(params.feedback, null), 0, 0.95);
-    const mix = this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1);
-    const level = this.clampValue(this.safeFilterNumber(params.level, null), 0, 2);
 
-    // The computed time is what gets bounded to fit the (necessarily finite)
-    // delay buffer -- timeNumerator/timeDenominator/offsetMs themselves are
-    // read as-is above, in pingPongDelaySeconds, with no clamp.
-    const rawSeconds = this.pingPongDelaySeconds(params);
-    const safeSeconds = Number.isFinite(rawSeconds) ? Math.max(0, rawSeconds) : 0;
-    const delaySamples = this.clampValue(safeSeconds * safeRate, 1, state.bufferSize - 2);
 
-    state.position = (state.position + 1) % state.bufferSize;
-    const readPosition = (state.position + state.bufferSize - delaySamples) % state.bufferSize;
-    const readL = this.delayInterpolateLinear(state.bufferL, readPosition);
-    const readR = this.delayInterpolateLinear(state.bufferR, readPosition);
 
-    // Classic ping-pong topology: the input only ever enters the left line;
-    // the right line is driven purely by the left line's own feedback, so a
-    // single input bounces left -> right -> left -> right as it decays.
-    const writeL = dry + readR * feedback;
-    const writeR = readL * feedback;
-    state.bufferL[state.position] = this.clampValue(writeL, -8, 8);
-    state.bufferR[state.position] = this.clampValue(writeR, -8, 8);
-    state.wetL = readL;
-    state.wetR = readR;
 
-    return {
-      Left: (dry * (1 - mix) + state.wetL * mix) * level,
-      Right: (dry * (1 - mix) + state.wetR * mix) * level,
-    };
-  }
 
-  createSabrinaReverbState() {
-    return {
-      nativeHandle: 0,
-      nativeParamKey: "",
-      nativeSampleRate: 0,
-      idleCounter: 0,
-      isIdle: false,
-    };
-  }
 
-  createPllState() {
-    return { nativeHandle: 0, nativeParamKey: "", nativeSampleRate: 0 };
-  }
 
-  destroyPllState(state) {
-    if (!state?.nativeHandle || !this.nativePll?.soemdsp_pll_destroy) return;
-    this.nativePll.soemdsp_pll_destroy(state.nativeHandle);
-    state.nativeHandle = 0;
-  }
 
-  pllSample(state, signalIn, cvIn, cvConnected, params, rateHz = sampleRate) {
-    const native = this.nativePll;
-    if (!this.nativePllReady || !native?.soemdsp_pll_create || !native?.soemdsp_pll_process) {
-      return { "VCO Out": 0, "PC Out": 0, "LPF Out": 0, Locked: 0 };
-    }
-    try {
-      const safeRate = Math.max(1, Number(rateHz) || sampleRate || 44100);
-      if (!state.nativeHandle || state.nativeSampleRate !== safeRate) {
-        if (state.nativeHandle && native.soemdsp_pll_destroy) {
-          native.soemdsp_pll_destroy(state.nativeHandle);
-        }
-        state.nativeHandle = native.soemdsp_pll_create(safeRate) || 0;
-        state.nativeSampleRate = safeRate;
-        state.nativeParamKey = "";
-      }
-      if (!state.nativeHandle) {
-        return { "VCO Out": 0, "PC Out": 0, "LPF Out": 0, Locked: 0 };
-      }
-      const range  = Math.max(0, Math.min(2, Math.round(this.safeFilterNumber(params.range,  null) ?? 1)));
-      const offset = this.clampValue(this.safeFilterNumber(params.offset, null) ?? 5, 0, 10);
-      const type   = Math.max(0, Math.min(2, Math.round(this.safeFilterNumber(params.type,   null) ?? 1)));
-      const frequ  = Math.max(0.1, this.safeFilterNumber(params.frequ, null) ?? 10);
-      const paramKey = `${range}:${Math.round(offset * 1000)}:${type}:${Math.round(frequ * 1000)}`;
-      if (paramKey !== state.nativeParamKey && native.soemdsp_pll_set_params) {
-        state.nativeParamKey = paramKey;
-        native.soemdsp_pll_set_params(state.nativeHandle, safeRate, range, offset, type, frequ);
-      }
-      const safeSig = this.safeFilterNumber(signalIn, null) ?? 0;
-      const safeCv  = this.clampValue(this.safeFilterNumber(cvIn, null) ?? 0, 0, 1);
-      native.soemdsp_pll_process(state.nativeHandle, safeSig, safeCv, cvConnected);
-      return {
-        "VCO Out": this.safeFilterNumber(native.soemdsp_pll_vco_out?.(state.nativeHandle), null) ?? 0,
-        "PC Out":  this.safeFilterNumber(native.soemdsp_pll_pc_out?.(state.nativeHandle),  null) ?? 0,
-        "LPF Out": this.safeFilterNumber(native.soemdsp_pll_lpf_out?.(state.nativeHandle), null) ?? 0,
-        Locked:    this.safeFilterNumber(native.soemdsp_pll_locked?.(state.nativeHandle),   null) ?? 0,
-      };
-    } catch {
-      this.nativePllReady = false;
-      this.destroyPllState(state);
-      return { "VCO Out": 0, "PC Out": 0, "LPF Out": 0, Locked: 0 };
-    }
-  }
 
-  createHelmholtzState() {
-    return { nativeHandle: 0, nativeParamKey: "", nativeSampleRate: 0 };
-  }
-
-  helmholtzPitchView(frequencyHz) {
-    if (!(frequencyHz > 0)) return -1;
-    const minHz = 80;
-    const octaves = 4;
-    const clampedHz = Math.max(minHz, Math.min(minHz * Math.pow(2, octaves), frequencyHz));
-    const norm = Math.log2(clampedHz / minHz) / octaves;
-    return norm * 2 - 1;
-  }
-
-  destroyHelmholtzState(state) {
-    if (!state?.nativeHandle || !this.nativeHelmholtz?.soemdsp_helmholtz_destroy) return;
-    this.nativeHelmholtz.soemdsp_helmholtz_destroy(state.nativeHandle);
-    state.nativeHandle = 0;
-  }
-
-  reportHelmholtzStatus(status, message = "") {
-    const key = `${status}:${message}`;
-    if (this.nativeHelmholtzStatusKey === key) return;
-    this.nativeHelmholtzStatusKey = key;
-    this.port.postMessage({
-      type: "nativeModuleStatus",
-      name: "helmholtz",
-      status,
-      message,
-    });
-  }
-
-  helmholtzSample(state, input, params, inputConnected = true, rateHz = sampleRate) {
-    if (!inputConnected) {
-      this.destroyHelmholtzState(state);
-      state.nativeSampleRate = 0;
-      state.nativeParamKey = "";
-      return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
-    }
-    const native = this.nativeHelmholtz;
-    if (!this.nativeHelmholtzReady || !native?.soemdsp_helmholtz_create || !native?.soemdsp_helmholtz_process) {
-      if (native) {
-        this.reportHelmholtzStatus("disabled", "native Helmholtz exports missing; analyzer outputs zero");
-      }
-      return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
-    }
-    try {
-      const safeRate = Math.max(1, Number(rateHz) || sampleRate || 44100);
-      if (!state.nativeHandle || state.nativeSampleRate !== safeRate) {
-        if (state.nativeHandle && native.soemdsp_helmholtz_destroy) {
-          native.soemdsp_helmholtz_destroy(state.nativeHandle);
-        }
-        state.nativeHandle = native.soemdsp_helmholtz_create(safeRate) || 0;
-        state.nativeSampleRate = safeRate;
-        state.nativeParamKey = "";
-      }
-      if (!state.nativeHandle) {
-        this.reportHelmholtzStatus("disabled", "native Helmholtz handle creation failed; analyzer outputs zero");
-        return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
-      }
-      const windowSize = Math.max(128, Math.min(1024, Math.round(this.safeFilterNumber(params.windowSize, null) ?? 512)));
-      const threshold = this.clampValue(this.safeFilterNumber(params.threshold, null) ?? 0.93, 0.5, 0.999);
-      const paramKey = `${windowSize}:${Math.round(threshold * 1000)}`;
-      if (paramKey !== state.nativeParamKey && native.soemdsp_helmholtz_set_params) {
-        state.nativeParamKey = paramKey;
-        native.soemdsp_helmholtz_set_params(state.nativeHandle, safeRate, windowSize, threshold);
-      }
-      const safeIn = this.safeFilterNumber(input, null) ?? 0;
-      native.soemdsp_helmholtz_process(state.nativeHandle, safeIn);
-      const frequency = this.safeFilterNumber(native.soemdsp_helmholtz_frequency?.(state.nativeHandle), null) ?? 0;
-      return {
-        Frequency: frequency,
-        Fidelity: this.safeFilterNumber(native.soemdsp_helmholtz_fidelity?.(state.nativeHandle), null) ?? 0,
-        "Pitch View": this.helmholtzPitchView(frequency),
-      };
-    } catch (error) {
-      this.nativeHelmholtzReady = false;
-      this.destroyHelmholtzState(state);
-      this.reportHelmholtzStatus(
-        "disabled",
-        `native Helmholtz failed; analyzer outputs zero: ${String(error?.message || error || "unknown error")}`,
-      );
-      return { Frequency: 0, Fidelity: 0, "Pitch View": -1 };
-    }
-  }
 
   // DspBinding for Sabrina Reverb: resolves clamped native params, checks
   // whether they've actually changed since the last apply (paramKey dirty
   // check), and only then syncs them into native DSP memory via
   // soemdsp_sabrina_reverb_set_params. Pure extraction -- same clamps, same
   // key construction, same condition, same call args as before.
-  applySabrinaDspBindingIfDirty(native, state, params) {
-    const safeParams = {
-      delaySize: this.clampValue(this.safeFilterNumber(params.delaySize, null), 0, 1),
-      diffusionAmount: this.clampValue(this.safeFilterNumber(params.diffusionAmount, null), 0, 0.98),
-      diffusionSize: this.clampValue(this.safeFilterNumber(params.diffusionSize, null), 0, 1),
-      lfoAmplitude: this.clampValue(this.safeFilterNumber(params.lfoAmplitude, null), 0, 1),
-      lfoBaseSpeed: this.clampValue(this.safeFilterNumber(params.lfoBaseSpeed, null), 0, 1),
-      lfoVariation: this.clampValue(this.safeFilterNumber(params.lfoVariation, null), 0, 1),
-      mix: this.clampValue(this.safeFilterNumber(params.mix, null), 0, 1),
-      recycle: this.clampValue(this.safeFilterNumber(params.recycle, null), 0, 0.98),
-      seed: Math.max(0, Math.min(99999, Math.round(this.safeFilterNumber(params.seed, null) ?? 0))),
-    };
-    const paramKey = [
-      safeParams.mix,
-      safeParams.diffusionSize,
-      safeParams.diffusionAmount,
-      safeParams.delaySize,
-      safeParams.recycle,
-      safeParams.lfoAmplitude,
-      safeParams.lfoBaseSpeed,
-      safeParams.lfoVariation,
-    ].map((value) => Math.round(value * 1000000)).join(":") + `:${safeParams.seed}`;
-    if (paramKey === state.nativeParamKey || !native.soemdsp_sabrina_reverb_set_params) {
-      return;
-    }
-    state.nativeParamKey = paramKey;
-    native.soemdsp_sabrina_reverb_set_params(
-      state.nativeHandle,
-      safeParams.mix,
-      safeParams.diffusionSize,
-      safeParams.diffusionAmount,
-      safeParams.delaySize,
-      safeParams.recycle,
-      safeParams.lfoAmplitude,
-      safeParams.lfoBaseSpeed,
-      safeParams.lfoVariation,
-      safeParams.seed,
-    );
-  }
 
-  nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate, frame = 0) {
-    const native = this.nativeSabrinaReverb;
-    if (
-      !this.nativeSabrinaReverbReady ||
-      !native?.soemdsp_sabrina_reverb_create ||
-      !native?.soemdsp_sabrina_reverb_process
-    ) {
-      return null;
-    }
-    try {
-      const safeRate = Math.max(1, Number(rateHz) || sampleRate || 44100);
-      if (!state.nativeHandle || state.nativeSampleRate !== safeRate) {
-        if (state.nativeHandle && native.soemdsp_sabrina_reverb_destroy) {
-          native.soemdsp_sabrina_reverb_destroy(state.nativeHandle);
-        }
-        state.nativeHandle = native.soemdsp_sabrina_reverb_create(safeRate) || 0;
-        state.nativeSampleRate = safeRate;
-        state.nativeParamKey = "";
-        state.idleCounter = 0;
-        state.isIdle = false;
-      }
-      if (!state.nativeHandle) {
-        return null;
-      }
-      this.applySabrinaDspBindingIfDirty(native, state, params);
-      const dryLeft = this.safeFilterNumber(leftInput, null);
-      const dryRight = this.safeFilterNumber(rightInput, null);
-      const dryMono = (dryLeft + dryRight) * 0.5;
-      const inputActive = Math.abs(dryLeft) >= 0.000001 || Math.abs(dryRight) >= 0.000001;
-      if (inputActive) {
-        state.isIdle = false;
-        state.idleCounter = 0;
-      }
-      // Bypass mode: reverb is idle, pass dry signal straight through all outputs
-      if (state.isIdle) {
-        return { "Left Dry": dryLeft, "Mono Dry": dryMono, "Right Dry": dryRight, "Left Mix": dryLeft, "Mono Mix": dryMono, "Right Mix": dryRight };
-      }
-      native.soemdsp_sabrina_reverb_process(state.nativeHandle, dryLeft, dryRight);
-      const mixLeft = this.safeFilterNumber(native.soemdsp_sabrina_reverb_left?.(state.nativeHandle), null);
-      const mixRight = this.safeFilterNumber(native.soemdsp_sabrina_reverb_right?.(state.nativeHandle), null);
-      const outputPeak = Math.max(Math.abs(mixLeft), Math.abs(mixRight));
-      if (outputPeak < 0.000001) {
-        state.idleCounter += 1;
-        if (state.idleCounter >= safeRate) {
-          state.isIdle = true;
-        }
-      } else {
-        state.idleCounter = 0;
-      }
-      return { "Left Dry": dryLeft, "Mono Dry": dryMono, "Right Dry": dryRight, "Left Mix": mixLeft, "Mono Mix": (mixLeft + mixRight) * 0.5, "Right Mix": mixRight };
-    } catch (error) {
-      this.nativeSabrinaReverbReady = false;
-      if (state.nativeHandle && native.soemdsp_sabrina_reverb_destroy) {
-        native.soemdsp_sabrina_reverb_destroy(state.nativeHandle);
-      }
-      state.nativeHandle = 0;
-      state.nativeParamKey = "";
-      state.idleCounter = 0;
-      state.isIdle = false;
-      this.port.postMessage({
-        type: "nativeModuleStatus",
-        name: "sabrina_reverb",
-        status: "disabled",
-        message: String(error?.message || error || "native Sabrina failed"),
-      });
-      return null;
-    }
-  }
 
-  sabrinaReverbSample(state, leftInput, rightInput, params, rateHz = sampleRate, frame = 0) {
-    const dryLeft = this.safeFilterNumber(leftInput, null);
-    const dryRight = this.safeFilterNumber(rightInput, null);
-    const dryMono = (dryLeft + dryRight) * 0.5;
-    const nativeOutput = this.nativeSabrinaReverbSample(state, leftInput, rightInput, params, rateHz, frame);
-    if (nativeOutput) {
-      return nativeOutput;
-    }
-    return { "Left Dry": dryLeft, "Mono Dry": dryMono, "Right Dry": dryRight, "Left Mix": dryLeft, "Mono Mix": dryMono, "Right Mix": dryRight };
-  }
 
-  sampleHoldSample(state, input, trigger, threshold, sampleFrequency, sampleRate, hasInConnected, nodeId) {
-    this.resetSeededState(state.noise, nodeId, 0, "sampleHoldNoise");
-    const safeInput = hasInConnected
-      ? this.safeFilterNumber(input, null)
-      : this.nextSeededBipolar(state.noise);
-    const safeTrigger = this.safeFilterNumber(trigger, null);
-    const safeThreshold = this.safeFilterNumber(threshold, null);
-    const safeFreq = Math.max(0, Number(sampleFrequency) || 0);
-    const safeRate = Math.max(1, Number(sampleRate) || 44100);
-    let internalFire = false;
-    if (safeFreq > 0) {
-      state.clockPhase += safeFreq / safeRate;
-      if (state.clockPhase >= 1) {
-        state.clockPhase -= Math.floor(state.clockPhase);
-        internalFire = true;
-      }
-    }
-    if ((state.lastTrigger <= safeThreshold && safeTrigger > safeThreshold) || internalFire) {
-      state.held = safeInput;
-    }
-    state.lastTrigger = safeTrigger;
-    return this.safeFilterNumber(state.held, null);
-  }
 
   stepSequencerSample(state, trigger, reset, params) {
     const safeTrigger = this.safeFilterNumber(trigger, null);

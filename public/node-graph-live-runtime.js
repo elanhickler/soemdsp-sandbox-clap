@@ -1811,6 +1811,13 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/humanFilter/human-filter-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/pulseExplosion/pulse-explosion-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/tb303Filter/tb303-filter-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/delayEffect/delay-effect-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/pingPongDelay/ping-pong-delay-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/reverbEffect/reverb-effect-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/pll/pll-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/helmholtzPitch/helmholtz-pitch-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/slewLimiter/slew-limiter-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/sampleHold/sample-hold-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/node-live-audio-worklet-register.js?v=blob-loader-20260711",
 ];
 

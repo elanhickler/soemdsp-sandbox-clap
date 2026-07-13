@@ -405,6 +405,13 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/humanFilter/human-filter-worklet-evaluator.js",
     "modules/pulseExplosion/pulse-explosion-worklet-evaluator.js",
     "modules/tb303Filter/tb303-filter-worklet-evaluator.js",
+    "modules/delayEffect/delay-effect-worklet-evaluator.js",
+    "modules/pingPongDelay/ping-pong-delay-worklet-evaluator.js",
+    "modules/reverbEffect/reverb-effect-worklet-evaluator.js",
+    "modules/pll/pll-worklet-evaluator.js",
+    "modules/helmholtzPitch/helmholtz-pitch-worklet-evaluator.js",
+    "modules/slewLimiter/slew-limiter-worklet-evaluator.js",
+    "modules/sampleHold/sample-hold-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
