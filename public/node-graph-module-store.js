@@ -282,11 +282,11 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     description: "Divides incoming trigger pulses into slower clocks for envelopes, sequencers, and rhythmic patches.",
     notes: ["trigger division", "reset input", "pulse width"],
   },
-  edgeTrigger: {
+  comparator: {
     category: "Sequence",
-    description: "Watches a digital signal and fires on every rising and falling edge -- each direction gets its own 1-sample trigger and adjustable-length pulse, with independent level controls for both.",
-    label: "Up/Down Trigger",
-    notes: ["edge detect", "rising/falling", "native"],
+    description: "One threshold, six views of it: continuous Gate/Inverted Gate, a Hold output for steady (unchanging) signal, and Up/Down/Up-Dn trigger-plus-pulse outputs on every rising and falling edge.",
+    label: "Comparator",
+    notes: ["gate", "edge detect", "native"],
   },
   stepSequencer: {
     category: "Sequence",

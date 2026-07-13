@@ -126,8 +126,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativeHumanFilterReady = false;
     this.nativePulseExplosion = null;
     this.nativePulseExplosionReady = false;
-    this.nativeEdgeTrigger = null;
-    this.nativeEdgeTriggerReady = false;
+    this.nativeComparator = null;
+    this.nativeComparatorReady = false;
     this.nativeTb303Filter = null;
     this.nativeTb303FilterReady = false;
     this.nativePassiveFilter = null;
@@ -161,7 +161,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.resonatorFilterStates = new Map();
     this.humanFilterStates = new Map();
     this.pulseExplosionStates = new Map();
-    this.edgeTriggerStates = new Map();
+    this.comparatorStates = new Map();
     this.ladderFilterStates = new Map();
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
@@ -691,19 +691,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
-      if (name === "edge_trigger" || targetType === "edgeTrigger") {
-        for (const state of this.edgeTriggerStates.values()) {
-          this.destroyEdgeTriggerNativeState(state);
+      if (name === "comparator" || targetType === "comparator") {
+        for (const state of this.comparatorStates.values()) {
+          this.destroyComparatorNativeState(state);
         }
-        this.nativeEdgeTrigger = exports;
-        this.nativeEdgeTriggerReady = Boolean(
-          this.nativeEdgeTrigger?.soemdsp_edge_trigger_create &&
-          this.nativeEdgeTrigger?.soemdsp_edge_trigger_sample,
+        this.nativeComparator = exports;
+        this.nativeComparatorReady = Boolean(
+          this.nativeComparator?.soemdsp_comparator_create &&
+          this.nativeComparator?.soemdsp_comparator_sample,
         );
         this.port.postMessage({
           type: "nativeModuleStatus",
-          name: "edge_trigger",
-          status: this.nativeEdgeTriggerReady ? "ready" : "missing exports",
+          name: "comparator",
+          status: this.nativeComparatorReady ? "ready" : "missing exports",
         });
         return;
       }
@@ -1486,10 +1486,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.destroyPulseExplosionNativeState(state);
     }
     this.pulseExplosionStates = new Map();
-    for (const state of this.edgeTriggerStates.values()) {
-      this.destroyEdgeTriggerNativeState(state);
+    for (const state of this.comparatorStates.values()) {
+      this.destroyComparatorNativeState(state);
     }
-    this.edgeTriggerStates = new Map();
+    this.comparatorStates = new Map();
     for (const state of this.tb303FilterStates.values()) {
       this.destroyStereoFilterNativeState(state, (s) => this.destroyTb303FilterNativeState(s));
     }
@@ -1825,8 +1825,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (node?.type === "pulseExplosion" && !this.pulseExplosionStates.has(id)) {
         this.pulseExplosionStates.set(id, this.createPulseExplosionState());
       }
-      if (node?.type === "edgeTrigger" && !this.edgeTriggerStates.has(id)) {
-        this.edgeTriggerStates.set(id, this.createEdgeTriggerState());
+      if (node?.type === "comparator" && !this.comparatorStates.has(id)) {
+        this.comparatorStates.set(id, this.createComparatorState());
       }
       if (node?.type === "tb303Filter" && !this.tb303FilterStates.has(id)) {
         this.tb303FilterStates.set(id, this.createStereoFilterState(() => this.createTb303FilterState()));
@@ -2243,10 +2243,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         this.pulseExplosionStates.delete(id);
       }
     }
-    for (const id of [...this.edgeTriggerStates.keys()]) {
+    for (const id of [...this.comparatorStates.keys()]) {
       if (!ids.has(id)) {
-        this.destroyEdgeTriggerNativeState(this.edgeTriggerStates.get(id));
-        this.edgeTriggerStates.delete(id);
+        this.destroyComparatorNativeState(this.comparatorStates.get(id));
+        this.comparatorStates.delete(id);
       }
     }
     for (const id of [...this.tb303FilterStates.keys()]) {
@@ -4048,9 +4048,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  destroyEdgeTriggerNativeState(state) {
-    if (state.nativeHandle && this.nativeEdgeTrigger?.soemdsp_edge_trigger_destroy) {
-      this.nativeEdgeTrigger.soemdsp_edge_trigger_destroy(state.nativeHandle);
+  destroyComparatorNativeState(state) {
+    if (state.nativeHandle && this.nativeComparator?.soemdsp_comparator_destroy) {
+      this.nativeComparator.soemdsp_comparator_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }
@@ -5636,15 +5636,15 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           safeRate,
         );
       },
-      edgeTrigger: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
-        const state = this.edgeTriggerStates.get(nodeId) || this.createEdgeTriggerState();
-        this.edgeTriggerStates.set(nodeId, state);
-        return this.edgeTriggerSample(
+      comparator: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.comparatorStates.get(nodeId) || this.createComparatorState();
+        this.comparatorStates.set(nodeId, state);
+        return this.comparatorSample(
           state,
-          mixInput(nodeId, "Digital In"),
+          mixInput(nodeId, "Signal In"),
           {
             pulseTime: this.readEffectiveParameter(node, "pulseTime", 0.01, frame, frames, frameValues),
-            triggerLevel: this.readEffectiveParameter(node, "triggerLevel", 1, frame, frames, frameValues),
+            triggerLevel: this.readEffectiveParameter(node, "triggerLevel", 0.5, frame, frames, frameValues),
             pulseLevel: this.readEffectiveParameter(node, "pulseLevel", 1, frame, frames, frameValues),
           },
           safeRate,

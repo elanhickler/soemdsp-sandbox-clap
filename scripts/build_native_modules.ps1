@@ -14,16 +14,18 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
-  "-Wl,--export=soemdsp_edge_trigger_create" `
-  "-Wl,--export=soemdsp_edge_trigger_destroy" `
-  "-Wl,--export=soemdsp_edge_trigger_sample" `
-  "-Wl,--export=soemdsp_edge_trigger_up_pulse" `
-  "-Wl,--export=soemdsp_edge_trigger_down_trigger" `
-  "-Wl,--export=soemdsp_edge_trigger_down_pulse" `
-  "-Wl,--export=soemdsp_edge_trigger_version" `
+  "-Wl,--export=soemdsp_comparator_create" `
+  "-Wl,--export=soemdsp_comparator_destroy" `
+  "-Wl,--export=soemdsp_comparator_sample" `
+  "-Wl,--export=soemdsp_comparator_inv_gate" `
+  "-Wl,--export=soemdsp_comparator_hold" `
+  "-Wl,--export=soemdsp_comparator_up" `
+  "-Wl,--export=soemdsp_comparator_down" `
+  "-Wl,--export=soemdsp_comparator_up_dn" `
+  "-Wl,--export=soemdsp_comparator_version" `
   "-Wl,--export-memory" `
-  -o "$root\native_modules\edge_trigger\edge_trigger.wasm" `
-  "$root\native_modules\edge_trigger\edge_trigger.cpp"
+  -o "$root\native_modules\comparator\comparator.wasm" `
+  "$root\native_modules\comparator\comparator.cpp"
 
 & $clang `
   --target=wasm32 `

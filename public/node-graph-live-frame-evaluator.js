@@ -219,47 +219,61 @@ function createNodeGraphDelayedTriggerState() {
   };
 }
 
-function createNodeGraphEdgeTriggerState() {
+function createNodeGraphComparatorState() {
   return {
     wasHigh: false,
+    hasPrev: false,
+    prevRaw: 0,
     upPulseSamples: 0,
     downPulseSamples: 0,
   };
 }
 
-function nodeGraphEdgeTriggerSample(state, digitalIn, params, sampleRate, runtime = null, nodeId = "") {
-  const safeDigital = nodeGraphSafeFilterNumber(digitalIn, runtime, nodeId, null, "edge trigger digital in");
-  const pulseTime = Math.max(0, nodeGraphSafeFilterNumber(params.pulseTime, runtime, nodeId, null, "edge trigger pulse time"));
-  const triggerLevel = nodeGraphSafeFilterNumber(params.triggerLevel, runtime, nodeId, null, "edge trigger trigger level");
-  const pulseLevel = nodeGraphSafeFilterNumber(params.pulseLevel, runtime, nodeId, null, "edge trigger pulse level");
+function nodeGraphComparatorSample(state, signalIn, params, sampleRate, runtime = null, nodeId = "") {
+  const raw = nodeGraphSafeFilterNumber(signalIn, runtime, nodeId, null, "comparator signal in");
+  const pulseTime = Math.max(0, nodeGraphSafeFilterNumber(params.pulseTime, runtime, nodeId, null, "comparator pulse time"));
+  const triggerLevel = nodeGraphSafeFilterNumber(params.triggerLevel, runtime, nodeId, null, "comparator trigger level");
+  const pulseLevel = nodeGraphSafeFilterNumber(params.pulseLevel, runtime, nodeId, null, "comparator pulse level");
   const rate = Math.max(1, sampleRate || nodeGraphMvp.sampleRate || 44100);
 
-  const high = safeDigital > 0.5;
+  const high = raw > 0.5;
   const risingEdge = high && !state.wasHigh;
   const fallingEdge = !high && state.wasHigh;
   state.wasHigh = high;
 
-  let upTrigger = 0;
+  const unchanged = state.hasPrev && raw === state.prevRaw;
+  state.prevRaw = raw;
+  state.hasPrev = true;
+
+  let upSpike = 0;
   if (risingEdge) {
-    upTrigger = triggerLevel;
+    upSpike = triggerLevel;
     state.upPulseSamples = Math.max(1, Math.round(pulseTime * rate));
   }
-  let downTrigger = 0;
+  let downSpike = 0;
   if (fallingEdge) {
-    downTrigger = triggerLevel;
+    downSpike = triggerLevel;
     state.downPulseSamples = Math.max(1, Math.round(pulseTime * rate));
   }
 
-  const upPulse = state.upPulseSamples > 0 ? pulseLevel : 0;
-  const downPulse = state.downPulseSamples > 0 ? pulseLevel : 0;
+  const upPlateau = state.upPulseSamples > 0 ? pulseLevel : 0;
+  const downPlateau = state.downPulseSamples > 0 ? pulseLevel : 0;
   state.upPulseSamples = Math.max(0, state.upPulseSamples - 1);
   state.downPulseSamples = Math.max(0, state.downPulseSamples - 1);
 
+  const gate = high ? triggerLevel : 0;
+  const invGate = high ? 0 : triggerLevel;
+  const hold = unchanged ? triggerLevel : 0;
+  const up = upSpike + upPlateau;
+  const down = downSpike + downPlateau;
+
   return {
-    "Up Trigger": nodeGraphSafeFilterNumber(upTrigger, runtime, nodeId, null, "edge trigger up trigger"),
-    "Up Pulse": nodeGraphSafeFilterNumber(upPulse, runtime, nodeId, null, "edge trigger up pulse"),
-    "Down Trigger": nodeGraphSafeFilterNumber(downTrigger, runtime, nodeId, null, "edge trigger down trigger"),
-    "Down Pulse": nodeGraphSafeFilterNumber(downPulse, runtime, nodeId, null, "edge trigger down pulse"),
+    Gate: nodeGraphSafeFilterNumber(gate, runtime, nodeId, null, "comparator gate"),
+    "Inv Gate": nodeGraphSafeFilterNumber(invGate, runtime, nodeId, null, "comparator inv gate"),
+    Hold: nodeGraphSafeFilterNumber(hold, runtime, nodeId, null, "comparator hold"),
+    Up: nodeGraphSafeFilterNumber(up, runtime, nodeId, null, "comparator up"),
+    Down: nodeGraphSafeFilterNumber(down, runtime, nodeId, null, "comparator down"),
+    "Up/Dn": nodeGraphSafeFilterNumber(up + down, runtime, nodeId, null, "comparator up/dn"),
   };
 }
 

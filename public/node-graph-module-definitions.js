@@ -1846,12 +1846,12 @@ const nodeGraphModuleDefinitions = Object.freeze({
       { defaultValue: "1", key: "level", label: "Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
-  edgeTrigger: {
-    inputs: ["Digital In"],
-    outputs: ["Up Trigger", "Up Pulse", "Down Trigger", "Down Pulse"],
+  comparator: {
+    inputs: ["Signal In"],
+    outputs: ["Gate", "Inv Gate", "Hold", "Up", "Down", "Up/Dn"],
     parameters: [
       { defaultValue: "0.01", key: "pulseTime", kind: "time", label: "Pulse Time", max: "2", maxDigits: 5, mid: "0.05", min: "0", step: "any", unit: "s" },
-      { defaultValue: "1", key: "triggerLevel", label: "Trigger Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "0.5", key: "triggerLevel", label: "Trigger Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
       { defaultValue: "1", key: "pulseLevel", label: "Pulse Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },

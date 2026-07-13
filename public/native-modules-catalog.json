@@ -110,6 +110,18 @@
       "wasmAvailable": true
     },
     {
+      "name": "comparator",
+      "label": "Comparator",
+      "targetType": "comparator",
+      "kind": "utility",
+      "source": "native_modules/comparator/comparator.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/comparator/comparator.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/comparator/comparator.wasm",
+      "wasmUrl": "native_modules/comparator/comparator.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "delay_effect",
       "label": "Delay Effect",
       "targetType": "delayEffect",
@@ -131,18 +143,6 @@
       "libUrl": "",
       "wasm": "native_modules/dsf_oscillator/dsf_oscillator.wasm",
       "wasmUrl": "native_modules/dsf_oscillator/dsf_oscillator.wasm",
-      "wasmAvailable": true
-    },
-    {
-      "name": "edge_trigger",
-      "label": "Up/Down Trigger",
-      "targetType": "edgeTrigger",
-      "kind": "utility",
-      "source": "native_modules/edge_trigger/edge_trigger.cpp",
-      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/edge_trigger/edge_trigger.cpp",
-      "libUrl": "",
-      "wasm": "native_modules/edge_trigger/edge_trigger.wasm",
-      "wasmUrl": "native_modules/edge_trigger/edge_trigger.wasm",
       "wasmAvailable": true
     },
     {
