@@ -3904,19 +3904,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     };
   }
 
-  createCookbookFilterState() {
-    return {
-      lastStages: 2,
-      x1: [0, 0, 0, 0, 0],
-      x2: [0, 0, 0, 0, 0],
-      y1: [0, 0, 0, 0, 0],
-      y2: [0, 0, 0, 0, 0],
-    };
-  }
 
-  createLadderFilterState() {
-    return { y: [0, 0, 0, 0, 0], nativeHandle: 0 };
-  }
 
   // Bundles three independent per-channel filter states (mono/left/right) under
   // one map entry, so a stereo signal gets three genuinely independent native
@@ -3937,60 +3925,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  createFlowerChildFilterState() {
-    return {
-      phase: 0, phaseOffset: 0, stage1: 0, stage2: 0, selfMod: 0,
-      rev3Feedback: 0, rev3Lpf1Y1: 0, rev3Lpf2Y1: 0, dsPhase: 0, dsHeld: 0,
-      nativeHandle: 0,
-    };
-  }
 
-  createRsmetFilterState() {
-    return { y: [0, 0, 0, 0, 0], nativeHandle: 0 };
-  }
 
-  createYellowjacketFilterState() {
-    return { phase: 0, filterY1: 0, oscSelfMod: 0, lastOutValue: 0, nativeHandle: 0 };
-  }
 
-  createSuperloveFilterState() {
-    return { feedbackSignal: 0, filterY: [0,0,0,0,0], dcY: [0,0,0,0,0], nativeHandle: 0 };
-  }
 
-  createChaoticPhaseLockingFilterState() {
-    return { feedbackSignal: 0, filterY: [0,0,0,0,0], dcY: [0,0,0,0,0], nativeHandle: 0 };
-  }
 
-  createResonatorFilterState() {
-    return {
-      phase1: 0, phase2: 0, filterY: [0,0,0,0,0], dcY: [0,0,0,0,0],
-      osc1Value: 0, osc2Value: 0, osc1SelfMod: 0, osc2SelfMod: 0, sawFeedback: 0,
-      nativeHandle: 0,
-    };
-  }
 
-  createHumanFilterState() {
-    return {
-      phase1: 0, phase2: 0, osc1Value: 0, osc2Value: 0, lastOutValue: 0,
-      osc1ModSelf: 0, osc2ModSelf: 0, fbZ1: 0, fbZ2: 0, dcY: [0,0,0,0,0],
-      nativeHandle: 0,
-    };
-  }
 
-  createPulseExplosionState() {
-    return {
-      wasHigh: false, exploding: false, elapsed: 0,
-      pulses: [], nextPulseIndex: 0, nativeHandle: 0,
-    };
-  }
 
-  resetCookbookFilterState(state) {
-    for (const key of ["x1", "x2", "y1", "y2"]) {
-      if (Array.isArray(state?.[key])) {
-        state[key].fill(0);
-      }
-    }
-  }
 
   createOscResetState() {
     return {
@@ -4304,9 +4246,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  createTb303FilterState() {
-    return { nativeHandle: 0 };
-  }
 
   destroyPassiveFilterNativeState(state) {
     if (state?.nativeHandle && this.nativePassiveFilter?.soemdsp_passive_filter_destroy) {
@@ -4315,91 +4254,14 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  createPassiveFilterState() {
-    return { nativeHandle: 0 };
-  }
 
-  passiveFilterSample(state, input, mode, lowFrequency, highFrequency, rate) {
-    if (!this.nativePassiveFilterReady) {
-      throw new Error("native Passive Filter not ready");
-    }
-    if (!state.nativeHandle) {
-      state.nativeHandle = this.nativePassiveFilter.soemdsp_passive_filter_create();
-    }
-    if (!state.nativeHandle) {
-      throw new Error("native Passive Filter failed to create instance");
-    }
-    return this.safeFilterNumber(
-      this.nativePassiveFilter.soemdsp_passive_filter_sample(
-        state.nativeHandle,
-        this.safeFilterNumber(input, state),
-        Math.round(Number(mode)) || 0,
-        Number(lowFrequency) || 0,
-        Number(highFrequency) || 0,
-        Math.max(1, Number(rate) || sampleRate || 44100),
-      ),
-      state,
-    );
-  }
 
   // Papoulis (Optimum-L) order-3 lowpass. Normalized (cutoff = 1 rad/s) prototype:
   //   D(s) = (s + 0.6203) * (s^2 + 0.6904s + 0.9308)
   // Each factor is unity-DC-gain individually, frequency-scaled to cutoff, and
   // bilinear-transformed to digital per stage (1-pole cascaded with a biquad).
-  createPapoulisFilterState() {
-    return {
-      poleX1: 0,
-      poleY1: 0,
-      biquadX1: 0,
-      biquadX2: 0,
-      biquadY1: 0,
-      biquadY2: 0,
-      coeffs: null,
-      cutoffHz: NaN,
-      sampleRate: NaN,
-    };
-  }
 
-  papoulisFilterDesign(cutoffHz, rate) {
-    const wc = 2 * Math.PI * Math.max(0, cutoffHz);
-    const k = 2 * rate;
-    const p = 0.6203 * wc;
-    const poleA0 = k + p;
-    const a1s = 0.6904 * wc;
-    const a0s = 0.9308 * wc * wc;
-    const biquadA0 = k * k + a1s * k + a0s;
-    return {
-      pole: { b0: p / poleA0, b1: p / poleA0, a1: (p - k) / poleA0 },
-      biquad: {
-        b0: a0s / biquadA0,
-        b1: (2 * a0s) / biquadA0,
-        b2: a0s / biquadA0,
-        a1: (2 * a0s - 2 * k * k) / biquadA0,
-        a2: (k * k - a1s * k + a0s) / biquadA0,
-      },
-    };
-  }
 
-  papoulisFilterSample(state, input, cutoffHz, rate) {
-    const safeCutoff = Math.max(0.01, Math.min(rate * 0.49, Number(cutoffHz) || 0));
-    if (state.cutoffHz !== safeCutoff || state.sampleRate !== rate) {
-      state.coeffs = this.papoulisFilterDesign(safeCutoff, rate);
-      state.cutoffHz = safeCutoff;
-      state.sampleRate = rate;
-    }
-    const x = Number(input) || 0;
-    const { pole, biquad } = state.coeffs;
-    const poleOut = pole.b0 * x + pole.b1 * state.poleX1 - pole.a1 * state.poleY1;
-    state.poleX1 = x;
-    state.poleY1 = poleOut;
-    const biquadOut = biquad.b0 * poleOut + biquad.b1 * state.biquadX1 + biquad.b2 * state.biquadX2
-      - biquad.a1 * state.biquadY1 - biquad.a2 * state.biquadY2;
-    state.biquadX2 = state.biquadX1;
-    state.biquadX1 = poleOut;
-    state.biquadY2 = state.biquadY1;
-    state.biquadY1 = biquadOut;
-    return biquadOut;
-  }
 
   // Phosphillator playback: decodes the drawn closed loop (packed as
   // Phosphor Draw Sample doubles — see node-graph-phosphor-draw-sample.js
@@ -4407,74 +4269,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   // same 0.1V/Oct convention as osc. Duplicated here rather than shared
   // with the main-thread files because the worklet runs in an isolated
   // global scope with no access to them.
-  unpackPhosphorDrawSampleXY(sample) {
-    if (!this.phosphorDrawSampleView) {
-      const buffer = new ArrayBuffer(8);
-      this.phosphorDrawSampleView = {
-        f64: new Float64Array(buffer),
-        f32: new Float32Array(buffer),
-      };
-    }
-    const view = this.phosphorDrawSampleView;
-    view.f64[0] = sample;
-    return { x: view.f32[0], y: view.f32[1] };
-  }
 
-  createPhosphillatorPlaybackState() {
-    return { lastReset: false, phase: 0 };
-  }
 
-  phosphillatorDecodedPath(nodeId, node) {
-    const points = node?.drawnPath?.points;
-    if (!Array.isArray(points) || points.length < 2) {
-      this.phosphillatorDecodedPathCache.delete(nodeId);
-      return null;
-    }
-    const cached = this.phosphillatorDecodedPathCache.get(nodeId);
-    if (cached && cached.pointsRef === points) {
-      return cached;
-    }
-    const decodedX = new Float32Array(points.length);
-    const decodedY = new Float32Array(points.length);
-    for (let i = 0; i < points.length; i += 1) {
-      const unpacked = this.unpackPhosphorDrawSampleXY(points[i]);
-      decodedX[i] = unpacked.x;
-      decodedY[i] = unpacked.y;
-    }
-    const decoded = { count: points.length, decodedX, decodedY, pointsRef: points };
-    this.phosphillatorDecodedPathCache.set(nodeId, decoded);
-    return decoded;
-  }
 
-  phosphillatorLoopSample(decoded, phase) {
-    const n = decoded.count;
-    const index = (((phase % 1) + 1) % 1) * n;
-    const i0 = Math.floor(index) % n;
-    const i1 = (i0 + 1) % n;
-    const t = index - Math.floor(index);
-    return {
-      x: decoded.decodedX[i0] + (decoded.decodedX[i1] - decoded.decodedX[i0]) * t,
-      y: decoded.decodedY[i0] + (decoded.decodedY[i1] - decoded.decodedY[i0]) * t,
-    };
-  }
 
-  phosphillatorPlaybackSample(state, node, nodeId, cvInput, frequency, phaseOffset, reset, rate) {
-    const resetActive = Number(reset) > 0.5;
-    if (resetActive && !state.lastReset) {
-      state.phase = 0;
-    }
-    state.lastReset = resetActive;
-    const pitchedFrequency = Math.max(0, Number(frequency) * (2 ** ((Number(cvInput) || 0) / 0.1)));
-    const safeRate = Math.max(1, Number(rate) || 1);
-    state.phase = (((state.phase + pitchedFrequency / safeRate) % 1) + 1) % 1;
-    const decoded = this.phosphillatorDecodedPath(nodeId, node);
-    if (!decoded) {
-      return { X: 0, Y: 0 };
-    }
-    const effectivePhase = (((state.phase + (Number(phaseOffset) || 0)) % 1) + 1) % 1;
-    const point = this.phosphillatorLoopSample(decoded, effectivePhase);
-    return { X: point.x, Y: point.y };
-  }
 
 
   safeFilterNumber(value, state) {
@@ -4834,511 +4632,29 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return state.outputBuffer;
   }
 
-  cookbookFilterStageCount(stages) {
-    const value = Math.round(Number(stages));
-    return Number.isFinite(value) ? this.clampValue(value, 0, 5) : 2;
-  }
 
-  cookbookFilterCoefficients(mode, frequency, q, gainDb, rate = sampleRate) {
-    const safeMode = Math.round(this.clampValue(Number(mode) || 0, 0, 9));
-    if (safeMode === 0) {
-      return { a1: 0, a2: 0, b0: 1, b1: 0, b2: 0 };
-    }
-    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
-    const freq = this.clampValue(Number(frequency) || 1000, 20, Math.min(20000, safeRate * 0.49));
-    const safeQ = Math.max(0.0001, Number(q) || 1);
-    const omega = 2 * Math.PI * freq / safeRate;
-    const sine = Math.sin(omega);
-    const cosine = Math.cos(omega);
-    const alpha = sine / (2 * safeQ);
-    const amplitude = 10 ** (0.025 * (Number(gainDb) || 0));
-    const beta = Math.sqrt(amplitude) / safeQ;
-    let a0 = 1 + alpha;
-    let a1 = -2 * cosine;
-    let a2 = 1 - alpha;
-    let b0 = 1;
-    let b1 = 0;
-    let b2 = 0;
-    if (safeMode === 1) {
-      b1 = 1 - cosine;
-      b0 = b1 * 0.5;
-      b2 = b0;
-    } else if (safeMode === 2) {
-      b1 = -(1 + cosine);
-      b0 = -b1 * 0.5;
-      b2 = b0;
-    } else if (safeMode === 3) {
-      b0 = safeQ * alpha;
-      b2 = -b0;
-    } else if (safeMode === 4) {
-      b0 = alpha;
-      b2 = -alpha;
-    } else if (safeMode === 5) {
-      b0 = 1;
-      b1 = -2 * cosine;
-      b2 = 1;
-    } else if (safeMode === 6) {
-      b0 = 1 - alpha;
-      b1 = -2 * cosine;
-      b2 = 1 + alpha;
-    } else if (safeMode === 7) {
-      a0 = 1 + alpha / amplitude;
-      a2 = 1 - alpha / amplitude;
-      b0 = 1 + alpha * amplitude;
-      b1 = -2 * cosine;
-      b2 = 1 - alpha * amplitude;
-    } else if (safeMode === 8) {
-      a0 = (amplitude + 1) + (amplitude - 1) * cosine + beta * sine;
-      a1 = -2 * ((amplitude - 1) + (amplitude + 1) * cosine);
-      a2 = (amplitude + 1) + (amplitude - 1) * cosine - beta * sine;
-      b0 = amplitude * ((amplitude + 1) - (amplitude - 1) * cosine + beta * sine);
-      b1 = 2 * amplitude * ((amplitude - 1) - (amplitude + 1) * cosine);
-      b2 = amplitude * ((amplitude + 1) - (amplitude - 1) * cosine - beta * sine);
-    } else if (safeMode === 9) {
-      a0 = (amplitude + 1) - (amplitude - 1) * cosine + beta * sine;
-      a1 = 2 * ((amplitude - 1) - (amplitude + 1) * cosine);
-      a2 = (amplitude + 1) - (amplitude - 1) * cosine - beta * sine;
-      b0 = amplitude * ((amplitude + 1) + (amplitude - 1) * cosine + beta * sine);
-      b1 = -2 * amplitude * ((amplitude - 1) + (amplitude + 1) * cosine);
-      b2 = amplitude * ((amplitude + 1) + (amplitude - 1) * cosine - beta * sine);
-    }
-    const scale = a0 !== 0 ? 1 / a0 : 1;
-    return {
-      a1: a1 * scale,
-      a2: a2 * scale,
-      b0: b0 * scale,
-      b1: b1 * scale,
-      b2: b2 * scale,
-    };
-  }
 
-  cookbookFilterSample(state, input, mode, frequency, q, gainDb, stages, rate = sampleRate) {
-    const stageCount = this.cookbookFilterStageCount(stages);
-    if (!state || stageCount <= 0 || Math.round(Number(mode) || 0) === 0) {
-      return Number(input) || 0;
-    }
-    if (state.lastStages !== stageCount) {
-      this.resetCookbookFilterState(state);
-      state.lastStages = stageCount;
-    }
-    const coeff = this.cookbookFilterCoefficients(mode, frequency, q, gainDb, rate);
-    let value = this.safeFilterNumber(input, state);
-    for (let index = 0; index < stageCount; index += 1) {
-      const previousInput = value;
-      value = coeff.b0 * value + coeff.b1 * state.x1[index] + coeff.b2 * state.x2[index]
-        - coeff.a1 * state.y1[index] - coeff.a2 * state.y2[index];
-      state.x2[index] = state.x1[index];
-      state.x1[index] = previousInput;
-      state.y2[index] = state.y1[index];
-      state.y1[index] = value;
-    }
-    return this.safeFilterNumber(value, state);
-  }
 
-  ladderFilterStageCount(stages) {
-    const value = Math.round(Number(stages));
-    return Number.isFinite(value) ? this.clampValue(value, 1, 4) : 4;
-  }
 
-  ladderFilterMix(mode, stages) {
-    const safeMode = Math.round(this.clampValue(Number(mode) || 0, 0, 3));
-    const stageCount = this.ladderFilterStageCount(stages);
-    const c = [0, 0, 0, 0, 0];
-    let s = 1;
-    if (safeMode === 0) {
-      c[0] = 1;
-      s = 0.125;
-    } else if (safeMode === 1) {
-      c[stageCount] = 1;
-      s = stageCount * 0.25;
-    } else if (safeMode === 2) {
-      const coefficients = [
-        [1, -1],
-        [1, -2, 1],
-        [1, -3, 3, -1],
-        [1, -4, 6, -4, 1],
-      ][stageCount - 1];
-      for (let index = 0; index < coefficients.length; index += 1) {
-        c[index] = coefficients[index];
-      }
-      s = stageCount * 0.25;
-    } else {
-      const coefficients = stageCount <= 2
-        ? [0, 2, -2, 0, 0]
-        : stageCount === 3
-          ? [0, 0, 3, -3, 0]
-          : [0, 0, 4, -8, 4];
-      for (let index = 0; index < coefficients.length; index += 1) {
-        c[index] = coefficients[index];
-      }
-      s = 0.125;
-    }
-    return { c, mode: safeMode, s, stageCount };
-  }
 
-  ladderFilterFeedbackFactor(feedback, cosWc, a) {
-    const b = 1 + a;
-    const denominator = Math.max(1e-12, 1 + a * a + 2 * a * cosWc);
-    const g2 = (b * b) / denominator;
-    return feedback / Math.max(1e-12, g2 * g2);
-  }
 
-  ladderFilterCoefficients(frequency, resonance, mode, stages, rate = sampleRate, state = null) {
-    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
-    const frequencyValue = Math.max(0, this.safeFilterNumber(frequency, state));
-    const safeFrequency = this.clampValue(frequencyValue, 0.000001, Math.min(20000, safeRate * 0.49));
-    const feedback = this.clampValue(this.safeFilterNumber(resonance, state), 0, 0.999);
-    const wc = this.clampValue((2 * Math.PI * safeFrequency) / safeRate, 1e-9, Math.PI * 0.98);
-    const sine = Math.sin(wc);
-    const cosine = Math.cos(wc);
-    const tangent = Math.tan(0.25 * (wc - Math.PI));
-    let a = tangent / Math.max(1e-12, sine - cosine * tangent);
-    if (!Number.isFinite(a)) {
-      a = -1;
-    }
-    const mix = this.ladderFilterMix(mode, stages);
-    const k = this.ladderFilterFeedbackFactor(feedback, cosine, a);
-    const g = 1 + mix.s * k;
-    return { ...mix, a, g, k };
-  }
 
-  ladderFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeLadderFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeLadderFilter.soemdsp_ladder_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeLadderFilter.soemdsp_ladder_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              Math.max(0, this.safeFilterNumber(params.frequency, state)),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 0.999),
-              Math.max(0, Math.min(3, Math.round(Number(params.mode) || 0))),
-              Math.max(1, Math.min(4, Math.round(Number(params.stages) || 4))),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeLadderFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "ladder_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native Ladder Filter failed"),
-        });
-      }
-    }
-    const safeInput = this.safeFilterNumber(input, state);
-    const coeff = this.ladderFilterCoefficients(
-      params.frequency,
-      params.resonance,
-      params.mode,
-      params.stages,
-      rate,
-      state,
-    );
-    const y = Array.isArray(state.y) && state.y.length >= 5 ? state.y : [0, 0, 0, 0, 0];
-    state.y = y;
-    y[0] = coeff.g * safeInput - coeff.k * y[4];
-    y[0] = y[0] / (1 + y[0] * y[0]);
-    y[1] = y[0] + coeff.a * (y[0] - y[1]);
-    y[2] = y[1] + coeff.a * (y[1] - y[2]);
-    y[3] = y[2] + coeff.a * (y[2] - y[3]);
-    y[4] = y[3] + coeff.a * (y[3] - y[4]);
-    for (let index = 0; index < y.length; index += 1) {
-      y[index] = this.safeFilterNumber(y[index], state);
-    }
-    const output = coeff.c[0] * y[0] + coeff.c[1] * y[1] + coeff.c[2] * y[2] + coeff.c[3] * y[3] + coeff.c[4] * y[4];
-    return this.safeFilterNumber(output, state);
-  }
 
-  flowerChildFilterCurveShape(v, tension) {
-    const denom = 2 * tension * v - tension - 1;
-    if (denom === 0) return v;
-    return (tension * v - v) / denom;
-  }
 
   // Exact soemdsp::curve::Rational::get(p), p already normalized to [0,1].
-  flowerChildFilterRationalCurve(p, skew) {
-    return ((1 + skew) * p) / (1 - skew + 2 * skew * p);
-  }
 
   // Exact soemdsp::utility::Graph::getValue for the 3-node shape this
   // filter uses -- see native_modules/flower_child_filter/
   // flower_child_filter.cpp's header comment for the full derivation.
-  flowerChildFilterEvalResonanceGraph(x, n0y, breakpoint, n2y, skew) {
-    if (x < 0) return n0y;
-    if (x >= 1) return n2y;
-    if (x < breakpoint) return n0y;
-    const p = (x - breakpoint) / (1 - breakpoint);
-    return n0y + (n2y - n0y) * this.flowerChildFilterRationalCurve(p, skew);
-  }
 
-  flowerChildFilterOnePoleCoefficient(cutoffHz, sampleRateValue) {
-    const rawWc = (2 * Math.PI * cutoffHz) / sampleRateValue;
-    const wc = this.clampValue(rawWc, 1e-9, Math.PI * 0.98);
-    const s = Math.sin(wc);
-    const c = Math.cos(wc);
-    const t = Math.tan(0.25 * (wc - Math.PI));
-    let denom = s - c * t;
-    if (denom > -1e-12 && denom < 1e-12) denom = denom >= 0 ? 1e-12 : -1e-12;
-    return t / denom;
-  }
 
-  flowerChildFilterOnePoleStep(prevY1, input, a) {
-    let y0 = input;
-    y0 = y0 / (1 + y0 * y0);
-    return y0 + a * (y0 - prevY1);
-  }
 
-  flowerChildFilterEllipse(phase, ellipseC) {
-    const sinX = Math.sin(phase * 2 * Math.PI);
-    const cosX = Math.cos(phase * 2 * Math.PI);
-    let sqrtVal = Math.sqrt(cosX * cosX + (ellipseC * sinX) * (ellipseC * sinX));
-    if (sqrtVal < 1e-12) sqrtVal = 1e-12;
-    return cosX / sqrtVal;
-  }
 
-  flowerChildFilterEvalGraph(nodes, x) {
-    if (nodes.length === 0) return 0;
-    if (x < nodes[0].x) return nodes[0].y;
-    let i = -1;
-    for (let k = 0; k < nodes.length; k++) {
-      if (nodes[k].x > x) { i = k; break; }
-    }
-    if (i < 0) return nodes[nodes.length - 1].y;
-    if (i === 0) return nodes[0].y;
-    const n1 = nodes[i - 1];
-    const n2 = nodes[i];
-    if (n2.x - n1.x < 1e-9) return 0.5 * (n1.y + n2.y);
-    const p = (x - n1.x) / (n2.x - n1.x);
-    if (n2.shape === 1) return n1.y + (n2.y - n1.y) * this.flowerChildFilterRationalCurve(p, n2.skew);
-    if (n2.shape === 2) {
-      const c = 0.5 * (n2.skew + 1);
-      const a = 2 * Math.log((1 - c) / c);
-      return n1.y + (n2.y - n1.y) * (1 - Math.exp(p * a)) / (1 - Math.exp(a));
-    }
-    return n1.y + (n2.y - n1.y) * p;
-  }
 
-  flowerChildFilterOnePoleIitCoefficient(cutoffHz, sampleRateValue) {
-    const w = Math.max(1e-9, Math.min(Math.PI * 0.98, 2 * Math.PI * cutoffHz / sampleRateValue));
-    return Math.exp(-w);
-  }
 
-  flowerChildFilterOnePoleIitStep(prevY1, input, a1) {
-    const b0 = 1 - a1;
-    return b0 * input + a1 * prevY1;
-  }
 
-  flowerChildFilterSampleAndHold(state, incoming, samplingFreq, sampleRateValue) {
-    state.dsPhase += samplingFreq / sampleRateValue;
-    if (state.dsPhase >= 1) {
-      state.dsPhase -= Math.floor(state.dsPhase);
-      state.dsHeld = incoming;
-    }
-    return state.dsHeld;
-  }
 
-  flowerChildFilterSampleJs(state, input, params, rate) {
-    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
-    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
-    const reso = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
-    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
-    const modeNum = Math.round(Number(params.mode) || 0);
 
-    if (modeNum === 2) {
-      const masterPitch = -120 + (105 - -120) * freqNorm;
-      const masterFrequency = 440 * Math.pow(2, (masterPitch - 69) / 12);
-      const fmAmount = 440 * Math.pow(2, (-48.377 - 69) / 12);
-      const lpf1Cutoff = 440 * Math.pow(2, ((90 + (180 - 90) * (masterPitch - -120) / (120 - -120)) - 69) / 12);
-      const lpf2Cutoff = 440 * Math.pow(2, ((80 + (130 - 80) * (masterPitch - -120) / (120 - -120)) - 69) / 12);
-      const lpf1A = this.flowerChildFilterOnePoleIitCoefficient(lpf1Cutoff, safeRate);
-      const lpf2A = this.flowerChildFilterOnePoleIitCoefficient(lpf2Cutoff, safeRate);
-
-      const phaseModGraph = [{x:0,y:0.0,skew:0,shape:0},{x:0.5,y:-0.017446,skew:0.9,shape:1},{x:0.6,y:-0.017575,skew:0.0,shape:1},{x:1.0,y:-0.0147,skew:0.6,shape:1}];
-      const sineAmpGraph = [{x:0,y:4.44777,skew:0,shape:0},{x:0.5,y:8.6687,skew:0.9,shape:1},{x:0.6,y:8.6687,skew:0.0,shape:1},{x:1.0,y:2.0,skew:0.6,shape:1}];
-      const sineToSquareGraph = [{x:0,y:0.6792,skew:0,shape:0},{x:0.5,y:0.9552,skew:0.9,shape:1},{x:0.6,y:0.9552,skew:0.0,shape:1},{x:1.0,y:0.001,skew:0.6,shape:1}];
-      const clipLevelGraph = [{x:0.0,y:7.0,skew:0,shape:0},{x:0.7,y:7.0,skew:0.0,shape:1},{x:1.0,y:2.0,skew:0.6,shape:1}];
-      const noiseGraph = [{x:0.0,y:0.0,skew:0,shape:0},{x:0.8,y:0.1,skew:0,shape:0},{x:1.0,y:1.0,skew:0.0,shape:1}];
-
-      const pmAmount = this.flowerChildFilterEvalGraph(phaseModGraph, reso);
-      const sineAmp = this.flowerChildFilterEvalGraph(sineAmpGraph, reso);
-      const sineToSquare = this.flowerChildFilterEvalGraph(sineToSquareGraph, reso);
-      const clipLevelRaw = this.flowerChildFilterEvalGraph(clipLevelGraph, reso);
-      const clipLevel = Math.min(sineAmp, clipLevelRaw);
-      const noiseReduction = this.flowerChildFilterEvalGraph(noiseGraph, reso);
-      const chaosAmount4x = chaos * 4;
-
-      const safeInput = this.safeFilterNumber(input, state);
-      const inSig = state.rev3Feedback + this.clampValue(-1 * safeInput, -clipLevel, clipLevel);
-      const f = masterFrequency * inSig * fmAmount;
-      const noiseTerm = masterFrequency * (Math.random() * 2 - 1) * chaosAmount4x * noiseReduction;
-
-      state.phase = state.phase + (f + noiseTerm) / safeRate;
-      state.phase = state.phase - Math.floor(state.phase);
-      const bipolarPhasor = 2 * state.phase - 1;
-      const phasorOut = bipolarPhasor + pmAmount * state.rev3Feedback;
-
-      const ellipseOut = sineAmp * this.flowerChildFilterEllipse(phasorOut, sineToSquare);
-
-      let feedback = this.flowerChildFilterOnePoleIitStep(state.rev3Lpf1Y1, ellipseOut, lpf1A);
-      state.rev3Lpf1Y1 = feedback;
-      feedback = this.flowerChildFilterOnePoleIitStep(state.rev3Lpf2Y1, feedback, lpf2A);
-      state.rev3Lpf2Y1 = feedback;
-      state.rev3Feedback = feedback;
-
-      return this.safeFilterNumber(feedback * 0.15, state);
-    }
-
-    if (modeNum === 3) {
-      const maxNormFreq3 = safeRate <= 44100 ? 0.928 : 1;
-      const normalizedFreqInUse3 = Math.min(freqNorm, maxNormFreq3) * (161 - 3) + 3;
-      const frequencyHz3 = 440 * Math.pow(2, (normalizedFreqInUse3 - 69) / 12);
-
-      const cutoff1 = frequencyHz3 * 0.4;
-      const a1 = this.flowerChildFilterOnePoleCoefficient(cutoff1, safeRate);
-
-      let breakpoint, cap;
-      if (safeRate <= 44100) { breakpoint = 0.732441; cap = 0.649123; }
-      else if (safeRate <= 88200) { breakpoint = 0.816054; cap = 0.818713; }
-      else { breakpoint = 0.879599; cap = 0.807018; }
-      const cappedTarget = Math.min(reso, cap);
-      const graphValue = this.flowerChildFilterEvalResonanceGraph(reso, reso, breakpoint, cappedTarget, -0.38);
-      const selfModAmp = 0.0368 + (0.6333 - 0.0368) * this.flowerChildFilterCurveShape(graphValue, 0.4);
-
-      const safeInput = this.safeFilterNumber(input, state);
-      let inputSignal = this.clampValue(-safeInput, -1, 1) * 0.036;
-      inputSignal += state.selfMod;
-
-      const mod = 1.4 * inputSignal;
-      const fm = mod;
-
-      state.phase = state.phase + (frequencyHz3 * fm * 6.0) / safeRate;
-      state.phase = state.phase - Math.floor(state.phase);
-
-      const dsf = [{x:0,y:0,skew:0,shape:0},{x:1,y:0.025*safeRate,skew:-0.09,shape:2}];
-      const samplingFreq = frequencyHz3 * 2.0 + this.flowerChildFilterEvalGraph(dsf, 10.0 * Math.abs(mod));
-
-      const downsampledPhase = this.flowerChildFilterSampleAndHold(state, state.phase, samplingFreq, safeRate);
-      const current_osc_value = Math.sin(downsampledPhase * 2 * Math.PI) * 1.3;
-
-      const filtered = this.flowerChildFilterOnePoleStep(state.stage1, current_osc_value, a1);
-      state.stage1 = filtered;
-      state.selfMod = filtered * selfModAmp;
-
-      return this.safeFilterNumber(filtered * 1.4, state);
-    }
-
-    const dirty = modeNum !== 0;
-
-    const maxNormFreq = safeRate <= 44100 ? 0.928 : 1;
-    const normalizedFreqInUse = Math.min(freqNorm, maxNormFreq) * (161 - 3) + 3;
-    const frequencyHz = 440 * Math.pow(2, (normalizedFreqInUse - 69) / 12);
-
-    // FM/PM crossfade is provably always 0 (see the .cpp header comment) --
-    // collapses to pure FM feedback: fm = mod, pm = 0.
-
-    const cutoff1 = frequencyHz * 0.164312;
-    const cutoff2 = frequencyHz * 0.366131;
-    const a1 = this.flowerChildFilterOnePoleCoefficient(cutoff1, safeRate);
-    const a2 = this.flowerChildFilterOnePoleCoefficient(cutoff2, safeRate);
-
-    let breakpoint, cap;
-    if (dirty) {
-      if (safeRate <= 44100) { breakpoint = 0.816054; cap = 0.602339; }
-      else if (safeRate <= 88200) { breakpoint = 0.902657; cap = 0.654971; }
-      else { breakpoint = 0.977649; cap = 0.760234; }
-    } else {
-      if (safeRate <= 44100) { breakpoint = 0.732441; cap = 0.649123; }
-      else if (safeRate <= 88200) { breakpoint = 0.816054; cap = 0.818713; }
-      else { breakpoint = 0.879599; cap = 0.807018; }
-    }
-    const cappedTarget = Math.min(reso, cap);
-
-    let selfModAmp = 1;
-    let ellipseC = -1;
-    if (!dirty) {
-      const graphValue = this.flowerChildFilterEvalResonanceGraph(reso, reso, breakpoint, cappedTarget, -0.38);
-      selfModAmp = 0.0368 + (0.6333 - 0.0368) * this.flowerChildFilterCurveShape(graphValue, 0.4);
-    } else {
-      const graphValue = this.flowerChildFilterEvalResonanceGraph(freqNorm, reso, breakpoint, cappedTarget, -0.38);
-      ellipseC = -1 + (0.00001 - -1) * this.flowerChildFilterCurveShape(graphValue, -0.6);
-    }
-
-    const clampLimit = dirty ? 1.198 : 1;
-    const safeInput = this.safeFilterNumber(input, state);
-    let inputSignal = this.clampValue(-safeInput, -clampLimit, clampLimit);
-
-    if (chaos > 0) {
-      inputSignal += (Math.random() * 2 - 1) * chaos;
-    }
-
-    inputSignal = state.selfMod + 0.035848699999999845 * inputSignal;
-
-    const mod = 1.4 * inputSignal;
-    const fm = mod;
-
-    state.phaseOffset = 0;
-    const incAmt = (frequencyHz * fm) / safeRate;
-    state.phase = state.phase + incAmt;
-    state.phase = state.phase - Math.floor(state.phase);
-    let unipolarPhase = state.phase + state.phaseOffset;
-    unipolarPhase = unipolarPhase - Math.floor(unipolarPhase);
-
-    const oscValue = dirty
-      ? this.flowerChildFilterEllipse(unipolarPhase, ellipseC) * 0.1
-      : Math.sin(unipolarPhase * 2 * Math.PI) * 1.3;
-
-    let out = this.flowerChildFilterOnePoleStep(state.stage1, oscValue, a1);
-    state.stage1 = out;
-    out = this.flowerChildFilterOnePoleStep(state.stage2, out, a2);
-    state.stage2 = out;
-
-    state.selfMod = dirty ? out * 0.465 : out * selfModAmp;
-
-    const output = dirty ? out * 5.22 : out * 1.31;
-    return this.safeFilterNumber(output, state);
-  }
-
-  flowerChildFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeFlowerChildFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeFlowerChildFilter.soemdsp_flower_child_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeFlowerChildFilter.soemdsp_flower_child_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(0, Math.min(3, Math.round(Number(params.mode) || 0))),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeFlowerChildFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "flower_child_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native Flower Child Filter failed"),
-        });
-      }
-    }
-    return this.flowerChildFilterSampleJs(state, input, params, rate);
-  }
 
   // Shared helpers for the RSMET/Yellowjacket/SuperLove/ChaoticPhaseLocking/
   // Resonator/Human filter family below.
@@ -5436,99 +4752,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
 
   // --- RSMET Filter ---
 
-  rsmetFilterModeToLadder(rsmetMode) {
-    const table = [[1,1],[1,2],[1,3],[1,4],[2,1],[2,2],[2,3],[2,4],[3,1],[3,4]];
-    const idx = Math.max(0, Math.min(9, Math.round(rsmetMode)));
-    return table[idx];
-  }
 
-  rsmetFilterSampleJs(state, input, params, rate) {
-    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
-    const freqNorm = this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1);
-    const resoNorm = this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1);
-    const chaos = this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1);
 
-    const freqGraph = [{x:0,y:3.0,skew:0,shape:0},{x:1,y:20000,skew:-0.95,shape:2}];
-    const resoGraph = [{x:0,y:0.0,skew:0,shape:0},{x:1,y:1.0,skew:0.5,shape:2}];
-    const cutoffHz = Math.max(0.000001, Math.min(safeRate * 0.49, this.analogEvalGraph(freqGraph, freqNorm)));
-    const feedback = Math.max(0, Math.min(0.999, this.analogEvalGraph(resoGraph, resoNorm)));
-
-    const [ladderMode, stages] = this.rsmetFilterModeToLadder(Number(params.mode) || 0);
-
-    const wc = Math.max(1e-9, Math.min(Math.PI * 0.98, 2 * Math.PI * cutoffHz / safeRate));
-    const sine = Math.sin(wc), cosine = Math.cos(wc), tangent = Math.tan(0.25 * (wc - Math.PI));
-    let a = sine - cosine * tangent;
-    a = (a > -1e-12 && a < 1e-12) ? (a >= 0 ? 1e-12 : -1e-12) : a;
-    a = tangent / a;
-
-    let mixS;
-    const c = [0, 0, 0, 0, 0];
-    if (ladderMode === 1) { c[stages] = 1; mixS = stages * 0.25; }
-    else if (ladderMode === 2) {
-      const hp = [[1,-1,0,0,0],[1,-2,1,0,0],[1,-3,3,-1,0],[1,-4,6,-4,1]];
-      for (let i = 0; i <= stages; i++) c[i] = hp[stages-1][i];
-      mixS = stages * 0.25;
-    } else {
-      const bp = [[0,2,-2,0,0],[0,2,-2,0,0],[0,0,3,-3,0],[0,0,4,-8,4]];
-      for (let i = 0; i < 5; i++) c[i] = bp[stages-1][i];
-      mixS = 0.125;
-    }
-
-    const b = 1 + a;
-    const denom = Math.max(1e-12, 1 + a * a + 2 * a * cosine);
-    const g2 = (b * b) / denom;
-    const k = feedback / Math.max(1e-12, g2 * g2);
-    const g = 1 + mixS * k;
-
-    const safeInput = this.safeFilterNumber(input, state);
-    let inputSignal = Math.tanh(safeInput * 2);
-    if (chaos > 0) inputSignal += (Math.random() * 2 - 1) * chaos;
-
-    const y = state.y;
-    y[0] = (g * inputSignal - k * y[4]);
-    y[0] = y[0] / (1 + y[0] * y[0]);
-    y[1] = y[0] + a * (y[0] - y[1]);
-    y[2] = y[1] + a * (y[1] - y[2]);
-    y[3] = y[2] + a * (y[2] - y[3]);
-    y[4] = y[3] + a * (y[3] - y[4]);
-
-    const out = c[0]*y[0] + c[1]*y[1] + c[2]*y[2] + c[3]*y[3] + c[4]*y[4];
-    return this.safeFilterNumber(out * 0.41, state);
-  }
-
-  rsmetFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeRsmetFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeRsmetFilter.soemdsp_rsmet_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeRsmetFilter.soemdsp_rsmet_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(0, Math.min(9, Math.round(Number(params.mode) || 0))),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeRsmetFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "rsmet_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native RSMET Filter failed"),
-        });
-      }
-    }
-    return this.rsmetFilterSampleJs(state, input, params, rate);
-  }
 
   // --- Yellowjacket Filter ---
 
@@ -5583,38 +4808,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.safeFilterNumber(out, state);
   }
 
-  yellowjacketFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeYellowjacketFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeYellowjacketFilter.soemdsp_yellowjacket_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeYellowjacketFilter.soemdsp_yellowjacket_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeYellowjacketFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "yellowjacket_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native Yellowjacket Filter failed"),
-        });
-      }
-    }
-    return this.yellowjacketFilterSampleJs(state, input, params, rate);
-  }
 
   // --- SuperLove Filter ---
 
@@ -5684,39 +4877,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  superloveFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeSuperloveFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeSuperloveFilter.soemdsp_superlove_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeSuperloveFilter.soemdsp_superlove_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(0, Math.min(3, Math.round(Number(params.mode) || 0))),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeSuperloveFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "superlove_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native SuperLove Filter failed"),
-        });
-      }
-    }
-    return this.superloveFilterSampleJs(state, input, params, rate);
-  }
 
   // --- Chaotic Phase Locking Filter ---
 
@@ -5744,38 +4904,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.safeFilterNumber(-dcOut, state);
   }
 
-  chaoticPhaseLockingFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeChaoticPhaseLockingFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeChaoticPhaseLockingFilter.soemdsp_chaotic_phase_locking_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeChaoticPhaseLockingFilter.soemdsp_chaotic_phase_locking_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeChaoticPhaseLockingFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "chaotic_phase_locking_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native Chaotic Phase Locking Filter failed"),
-        });
-      }
-    }
-    return this.chaoticPhaseLockingFilterSampleJs(state, input, params, rate);
-  }
 
   // --- Resonator Filter ---
 
@@ -5900,39 +5028,6 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  resonatorFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeResonatorFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeResonatorFilter.soemdsp_resonator_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeResonatorFilter.soemdsp_resonator_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(0, Math.min(2, Math.round(Number(params.mode) || 0))),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeResonatorFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "resonator_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native Resonator Filter failed"),
-        });
-      }
-    }
-    return this.resonatorFilterSampleJs(state, input, params, rate);
-  }
 
   // --- Human Filter ---
 
@@ -6014,222 +5109,19 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     return this.safeFilterNumber(out, state);
   }
 
-  humanFilterSample(state, input, params, rate = sampleRate) {
-    if (this.nativeHumanFilterReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativeHumanFilter.soemdsp_human_filter_create();
-        }
-        if (state.nativeHandle) {
-          return this.safeFilterNumber(
-            this.nativeHumanFilter.soemdsp_human_filter_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(input, state),
-              this.clampValue(this.safeFilterNumber(params.frequency, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.resonance, state), 0, 1),
-              this.clampValue(this.safeFilterNumber(params.chaos, state), 0, 1),
-              Math.max(0, Math.min(2, Math.round(Number(params.mode) || 0))),
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-        }
-      } catch (error) {
-        this.nativeHumanFilterReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "human_filter",
-          status: "disabled",
-          message: String(error?.message || error || "native Human Filter failed"),
-        });
-      }
-    }
-    return this.humanFilterSampleJs(state, input, params, rate);
-  }
 
   // --- Pulse Explosion ---
 
-  pulseExplosionRationalCurve(p, skew) {
-    let denom = 1 - skew + 2 * skew * p;
-    if (denom > -1e-12 && denom < 1e-12) denom = denom >= 0 ? 1e-12 : -1e-12;
-    return ((1 + skew) * p) / denom;
-  }
 
-  pulseExplosionRaisedCosineEase(x, x1, x2) {
-    const span = x2 - x1;
-    if (span > -1e-12 && span < 1e-12) return 0.5;
-    let p = (x - x1) / span;
-    p = Math.max(0, Math.min(1, p));
-    return 1 - (0.5 + 0.5 * Math.sin((p - 0.5) * Math.PI));
-  }
 
-  pulseExplosionDensity(t, startTime, centerTime, endTime, skew) {
-    if (t <= startTime || t >= endTime) return 0;
-    const ease = t < centerTime
-      ? this.pulseExplosionRaisedCosineEase(t, centerTime, startTime)
-      : this.pulseExplosionRaisedCosineEase(t, centerTime, endTime);
-    return Math.max(0, Math.min(1, this.pulseExplosionRationalCurve(ease, skew)));
-  }
 
   // Deterministic 32-bit mulberry32 PRNG so a non-zero seed reproduces the
   // same pulse schedule every time (seed 0 keeps the free-running behavior).
-  pulseExplosionMulberry32(seed) {
-    let a = seed >>> 0;
-    return function pulseExplosionNext() {
-      a |= 0;
-      a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
 
-  pulseExplosionSeedHash(seed) {
-    const buffer = new ArrayBuffer(8);
-    new Float64Array(buffer)[0] = Number(seed) || 0;
-    const words = new Uint32Array(buffer);
-    let x = (words[0] ^ words[1]) >>> 0;
-    x ^= x >>> 16;
-    x = Math.imul(x, 0x7feb352d) >>> 0;
-    x ^= x >>> 15;
-    x = Math.imul(x, 0x846ca68b) >>> 0;
-    x ^= x >>> 16;
-    return (x >>> 0) || 0x9e3779b9;
-  }
 
-  pulseExplosionRandomFn(seed) {
-    const seedNumber = Number(seed) || 0;
-    if (seedNumber === 0) {
-      return Math.random;
-    }
-    return this.pulseExplosionMulberry32(this.pulseExplosionSeedHash(seedNumber));
-  }
 
-  pulseExplosionSampleJs(state, trigger, params, rate) {
-    const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
-    const safeStart = Math.max(0, this.safeFilterNumber(params.startTime, state));
-    let safeEnd = this.safeFilterNumber(params.endTime, state);
-    if (safeEnd <= safeStart) safeEnd = safeStart + 0.001;
-    let safeCenter = this.clampValue(this.safeFilterNumber(params.centerTime, state), safeStart, safeEnd);
-    if (safeCenter <= safeStart) safeCenter = safeStart + 1e-6;
-    if (safeCenter >= safeEnd) safeCenter = safeEnd - 1e-6;
-    const skew = -0.99 + 1.98 * this.clampValue(this.safeFilterNumber(params.timeSpread, state), 0, 1);
-    const safeCount = Math.max(1, Math.min(128, Math.round(Number(params.numberOfPulses) || 1)));
-    const lo = Math.min(Number(params.lowAmplitude) || 0, Number(params.highAmplitude) || 0);
-    const hi = Math.max(Number(params.lowAmplitude) || 0, Number(params.highAmplitude) || 0);
 
-    const high = this.safeFilterNumber(trigger, state) > 0.5;
-    if (high && !state.wasHigh) {
-      state.nextPulseIndex = 0;
-      state.elapsed = 0;
-      state.exploding = true;
 
-      const random = this.pulseExplosionRandomFn(params.seed);
-      const pulses = [];
-      for (let i = 0; i < safeCount; i++) {
-        let chosenTime = safeCenter;
-        for (let attempt = 0; attempt < 200; attempt++) {
-          const candidate = safeStart + (safeEnd - safeStart) * random();
-          const roll = random();
-          const density = this.pulseExplosionDensity(candidate, safeStart, safeCenter, safeEnd, skew);
-          if (roll < density) {
-            chosenTime = candidate;
-            break;
-          }
-        }
-        pulses.push({ time: chosenTime, amplitude: lo + (hi - lo) * random() });
-      }
-      pulses.sort((a, b) => a.time - b.time);
-      state.pulses = pulses;
-    }
-    state.wasHigh = high;
-
-    let output = 0;
-    if (state.exploding) {
-      if (state.nextPulseIndex < state.pulses.length && state.elapsed >= state.pulses[state.nextPulseIndex].time) {
-        output = state.pulses[state.nextPulseIndex].amplitude;
-        state.nextPulseIndex++;
-      }
-      state.elapsed += 1 / safeRate;
-      if (state.nextPulseIndex >= state.pulses.length && state.elapsed > safeEnd) {
-        state.exploding = false;
-      }
-    }
-
-    const curve = this.pulseExplosionDensity(state.elapsed, safeStart, safeCenter, safeEnd, skew);
-    return {
-      Out: this.safeFilterNumber(output, state),
-      Curve: this.safeFilterNumber(curve, state),
-    };
-  }
-
-  pulseExplosionSample(state, trigger, params, rate = sampleRate) {
-    if (this.nativePulseExplosionReady) {
-      try {
-        if (!state.nativeHandle) {
-          state.nativeHandle = this.nativePulseExplosion.soemdsp_pulse_explosion_create();
-        }
-        if (state.nativeHandle) {
-          const output = this.safeFilterNumber(
-            this.nativePulseExplosion.soemdsp_pulse_explosion_sample(
-              state.nativeHandle,
-              this.safeFilterNumber(trigger, state),
-              Math.max(0, this.safeFilterNumber(params.startTime, state)),
-              this.safeFilterNumber(params.centerTime, state),
-              this.safeFilterNumber(params.endTime, state),
-              this.clampValue(this.safeFilterNumber(params.timeSpread, state), 0, 1),
-              Math.max(1, Math.min(128, Math.round(Number(params.numberOfPulses) || 1))),
-              this.safeFilterNumber(params.lowAmplitude, state),
-              this.safeFilterNumber(params.highAmplitude, state),
-              Number(params.seed) || 0,
-              Math.max(1, Number(rate) || sampleRate || 44100),
-            ),
-            state,
-          );
-          const curve = this.safeFilterNumber(
-            this.nativePulseExplosion.soemdsp_pulse_explosion_curve?.(state.nativeHandle) || 0,
-            state,
-          );
-          return { Out: output, Curve: curve };
-        }
-      } catch (error) {
-        this.nativePulseExplosionReady = false;
-        state.nativeHandle = 0;
-        this.port.postMessage({
-          type: "nativeModuleStatus",
-          name: "pulse_explosion",
-          status: "disabled",
-          message: String(error?.message || error || "native Pulse Explosion failed"),
-        });
-      }
-    }
-    return this.pulseExplosionSampleJs(state, trigger, params, rate);
-  }
-
-  tb303FilterSample(state, input, params, rate = sampleRate) {
-    if (!this.nativeTb303FilterReady) {
-      throw new Error("native TB-303 Filter not ready");
-    }
-    if (!state.nativeHandle) {
-      state.nativeHandle = this.nativeTb303Filter.soemdsp_tb303_filter_create();
-    }
-    if (!state.nativeHandle) {
-      throw new Error("native TB-303 Filter failed to create instance");
-    }
-    return this.safeFilterNumber(
-      this.nativeTb303Filter.soemdsp_tb303_filter_sample(
-        state.nativeHandle,
-        this.safeFilterNumber(input, state),
-        Math.max(200, this.safeFilterNumber(params.cutoff, state)),
-        Math.max(0, Math.min(100, this.safeFilterNumber(params.resonance, state))),
-        Math.max(0, Math.min(14, Math.round(Number(params.mode) || 4))),
-        Number(params.drive) || 0,
-        Math.max(1, Number(rate) || sampleRate || 44100),
-      ),
-      state,
-    );
-  }
 
   slewLimiterSample(state, input, upTime, downTime, rate = sampleRate) {
     const safeRate = Math.max(1, Number(rate) || sampleRate || 44100);
