@@ -228,6 +228,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Osc",
     notes: ["multi-waveform", "cv input"],
   },
+  aliasSine: {
+    category: "Oscillator",
+    description: "Bare sine generator with a 0..1.5 normalized-frequency input (fraction of sample rate) that wraps naturally past Nyquist -- aliasing as an explicit, unhidden design choice rather than something to correct for.",
+    label: "Alias Sine",
+    notes: ["sine", "aliasing", "native"],
+  },
   additiveOsc: {
     category: "Oscillator",
     description: "Additive-synthesis oscillator building a waveform from summed harmonics. Native C++/WASM.",

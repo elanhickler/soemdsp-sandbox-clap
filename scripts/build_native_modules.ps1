@@ -34,6 +34,23 @@ if (!(Test-Path -LiteralPath $clang)) {
   -fno-exceptions `
   -fno-rtti `
   "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_alias_sine_create" `
+  "-Wl,--export=soemdsp_alias_sine_destroy" `
+  "-Wl,--export=soemdsp_alias_sine_sample" `
+  "-Wl,--export=soemdsp_alias_sine_version" `
+  "-Wl,--export=soemdsp_alias_sine_metadata_json" `
+  "-Wl,--export=soemdsp_alias_sine_metadata_json_size" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\alias_sine\alias_sine.wasm" `
+  "$root\native_modules\alias_sine\alias_sine.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
   "-Wl,--export=soemdsp_ellipsoid_sample" `
   "-Wl,--export=soemdsp_ellipsoid_vector_sample" `
   "-Wl,--export=soemdsp_ellipsoid_mono" `

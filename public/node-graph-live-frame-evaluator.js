@@ -219,6 +219,21 @@ function createNodeGraphDelayedTriggerState() {
   };
 }
 
+function createNodeGraphAliasSineState() {
+  return { phase: 0 };
+}
+
+function nodeGraphAliasSineSample(state, normFreq, level, runtime = null, nodeId = "") {
+  const safeNormFreq = nodeGraphSafeFilterNumber(normFreq, runtime, nodeId, null, "alias sine norm freq");
+  const safeLevel = nodeGraphSafeFilterNumber(level, runtime, nodeId, null, "alias sine level");
+
+  state.phase += safeNormFreq;
+  state.phase -= Math.floor(state.phase);
+
+  const out = Math.sin(state.phase * Math.PI * 2) * safeLevel;
+  return nodeGraphSafeFilterNumber(Math.max(-1, Math.min(1, out)), runtime, nodeId, null, "alias sine output");
+}
+
 function createNodeGraphComparatorState() {
   return {
     wasHigh: false,

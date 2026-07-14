@@ -1811,6 +1811,7 @@ const nodeGraphLiveWorkletSourceFiles = [
   "./public/modules/humanFilter/human-filter-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/pulseExplosion/pulse-explosion-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/comparator/comparator-worklet-evaluator.js?v=worklet-dedup-20260712",
+  "./public/modules/aliasSine/alias-sine-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/tb303Filter/tb303-filter-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/delayEffect/delay-effect-worklet-evaluator.js?v=worklet-dedup-20260712",
   "./public/modules/pingPongDelay/ping-pong-delay-worklet-evaluator.js?v=worklet-dedup-20260712",

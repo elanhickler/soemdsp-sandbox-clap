@@ -14,6 +14,18 @@
       "wasmAvailable": true
     },
     {
+      "name": "alias_sine",
+      "label": "Alias Sine Generator",
+      "targetType": "aliasSine",
+      "kind": "oscillator",
+      "source": "native_modules/alias_sine/alias_sine.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/alias_sine/alias_sine.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/alias_sine/alias_sine.wasm",
+      "wasmUrl": "native_modules/alias_sine/alias_sine.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "antisaw",
       "label": "Antisaw",
       "targetType": "antisaw",

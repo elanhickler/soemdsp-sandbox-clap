@@ -15,6 +15,7 @@ const nodeGraphNodeLabels = Object.freeze({
   blit: "BLIT",
   archimedes: "Archimedes",
   sineWavetable: "SinCos",
+  aliasSine: "Alias Sine",
   additiveOsc: "Additive Osc",
   gpuAdditiveOsc: "GPU Additive",
   ellipsoid: "Ellipsoid",
@@ -568,6 +569,14 @@ const nodeGraphModuleDefinitions = Object.freeze({
         nonlinearSlider: false,
         step: "any",
       },
+    ],
+  },
+  aliasSine: {
+    inputs: [],
+    outputs: ["Out"],
+    parameters: [
+      { defaultValue: "0.1", key: "normFreq", label: "Norm Freq", max: "1.5", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
+      { defaultValue: "1", key: "level", label: "Level", max: "1", mid: "0.5", min: "0", nonlinearSlider: false, step: "any" },
     ],
   },
   additiveOsc: {

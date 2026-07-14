@@ -128,6 +128,8 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.nativePulseExplosionReady = false;
     this.nativeComparator = null;
     this.nativeComparatorReady = false;
+    this.nativeAliasSine = null;
+    this.nativeAliasSineReady = false;
     this.nativeTb303Filter = null;
     this.nativeTb303FilterReady = false;
     this.nativePassiveFilter = null;
@@ -162,6 +164,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.humanFilterStates = new Map();
     this.pulseExplosionStates = new Map();
     this.comparatorStates = new Map();
+    this.aliasSineStates = new Map();
     this.ladderFilterStates = new Map();
     this.tb303FilterStates = new Map();
     this.linearEnvelopeStates = new Map();
@@ -705,6 +708,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
           type: "nativeModuleStatus",
           name: "comparator",
           status: this.nativeComparatorReady ? "ready" : "missing exports",
+        });
+        return;
+      }
+      if (name === "alias_sine" || targetType === "aliasSine") {
+        for (const state of this.aliasSineStates.values()) {
+          this.destroyAliasSineNativeState(state);
+        }
+        this.nativeAliasSine = exports;
+        this.nativeAliasSineReady = Boolean(
+          this.nativeAliasSine?.soemdsp_alias_sine_create &&
+          this.nativeAliasSine?.soemdsp_alias_sine_sample,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "alias_sine",
+          status: this.nativeAliasSineReady ? "ready" : "missing exports",
         });
         return;
       }
@@ -1507,6 +1526,10 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       this.destroyComparatorNativeState(state);
     }
     this.comparatorStates = new Map();
+    for (const state of this.aliasSineStates.values()) {
+      this.destroyAliasSineNativeState(state);
+    }
+    this.aliasSineStates = new Map();
     for (const state of this.tb303FilterStates.values()) {
       this.destroyStereoFilterNativeState(state, (s) => this.destroyTb303FilterNativeState(s));
     }
@@ -1848,6 +1871,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "comparator" && !this.comparatorStates.has(id)) {
         this.comparatorStates.set(id, this.createComparatorState());
+      }
+      if (node?.type === "aliasSine" && !this.aliasSineStates.has(id)) {
+        this.aliasSineStates.set(id, this.createAliasSineState());
       }
       if (node?.type === "tb303Filter" && !this.tb303FilterStates.has(id)) {
         this.tb303FilterStates.set(id, this.createStereoFilterState(() => this.createTb303FilterState()));
@@ -2274,6 +2300,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyComparatorNativeState(this.comparatorStates.get(id));
         this.comparatorStates.delete(id);
+      }
+    }
+    for (const id of [...this.aliasSineStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyAliasSineNativeState(this.aliasSineStates.get(id));
+        this.aliasSineStates.delete(id);
       }
     }
     for (const id of [...this.tb303FilterStates.keys()]) {
@@ -4085,6 +4117,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     }
   }
 
+  destroyAliasSineNativeState(state) {
+    if (state.nativeHandle && this.nativeAliasSine?.soemdsp_alias_sine_destroy) {
+      this.nativeAliasSine.soemdsp_alias_sine_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
   destroyTb303FilterNativeState(state) {
     if (state.nativeHandle && this.nativeTb303Filter?.soemdsp_tb303_filter_destroy) {
       this.nativeTb303Filter.soemdsp_tb303_filter_destroy(state.nativeHandle);
@@ -5678,6 +5717,16 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
             triggerLevel: this.readEffectiveParameter(node, "triggerLevel", 0.5, frame, frames, frameValues),
             pulseLevel: this.readEffectiveParameter(node, "pulseLevel", 1, frame, frames, frameValues),
           },
+          safeRate,
+        );
+      },
+      aliasSine: (node, nodeId, frame, frames, frameValues, mixInput, safeRate) => {
+        const state = this.aliasSineStates.get(nodeId) || this.createAliasSineState();
+        this.aliasSineStates.set(nodeId, state);
+        return this.aliasSineSample(
+          state,
+          this.readEffectiveParameter(node, "normFreq", 0.1, frame, frames, frameValues),
+          this.readEffectiveParameter(node, "level", 1, frame, frames, frameValues),
           safeRate,
         );
       },
