@@ -2715,7 +2715,7 @@ function nodeGraphTraceDisplaySettingsEditingTraceDefaults() {
   return nodeGraphModuleDisplaySettingsSchemaForNode(node) === "trace";
 }
 
-const nodeGraphDisplayModeRenderers = Object.freeze(["trace", "clock", "dot", "value", "lineBurn", "hypersawBurn", "oscilloscopeBankBurn", "scope2d", "scope2dTrace", "numberReadout", "spectrum"]);
+const nodeGraphDisplayModeRenderers = Object.freeze(["trace", "clock", "dot", "value", "lineBurn", "hypersawBurn", "oscilloscopeBankBurn", "videoscopeBurn", "scope2d", "scope2dTrace", "numberReadout", "spectrum"]);
 const nodeGraphDisplayModeSignalKinds = Object.freeze(["scalar", "xy", "buffer"]);
 
 function nodeGraphDisplayModeSettingsSchemaForRenderer(renderer) {
@@ -10666,6 +10666,8 @@ const nodeGraphModuleScopeCustomRenderers = {
   numberReadout: drawNodeGraphNumberReadoutItem,
   // oscilloscopeBankBurn self-registers from
   // public/modules/oscilloscopeBank/oscilloscope-bank-display.js
+  // videoscopeBurn self-registers from
+  // public/modules/videoscope/videoscope-display.js
 };
 
 function drawNodeGraphModuleScopeTypedItem(renderer, item, pixelRatio) {

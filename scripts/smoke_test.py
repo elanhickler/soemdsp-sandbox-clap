@@ -249,6 +249,7 @@ PUBLIC_SCRIPT_PATHS = (
     "./native_modules/logistic_map/logistic_map-live-evaluator.js",
     "./public/modules/turingMachine/turing-machine-live-evaluator.js",
     "./public/modules/oscilloscopeBank/oscilloscope-bank-display.js",
+    "./public/modules/videoscope/videoscope-display.js",
     "./public/modules/henonMap/henon-map-live-evaluator.js",
     "./public/modules/chuaAttractor/chua-attractor-live-evaluator.js",
     "./public/modules/chordMemory/chord-memory-live-evaluator.js",
@@ -440,6 +441,7 @@ WORKLET_BLOB_SOURCE_FILES = (
     "modules/badvalMonitor/badval-monitor-worklet-evaluator.js",
     "modules/radar/radar-worklet-evaluator.js",
     "modules/audioPlayer/audio-player-worklet-evaluator.js",
+    "modules/videoscope/videoscope-worklet-evaluator.js",
     "node-live-audio-worklet-register.js",
 )
 
@@ -17544,6 +17546,7 @@ def require_native_module_contract(base_url: str) -> None:
             "soemdsp_robin_supersaw_sample",
         ],
         "hypersaw": ["soemdsp_hypersaw_create", "soemdsp_hypersaw_destroy", "soemdsp_hypersaw_sample", "soemdsp_hypersaw_left", "soemdsp_hypersaw_right"],
+        "videoscope": ["soemdsp_videoscope_create", "soemdsp_videoscope_destroy", "soemdsp_videoscope_push", "soemdsp_videoscope_window_size", "soemdsp_videoscope_column_min", "soemdsp_videoscope_column_max", "soemdsp_videoscope_xy_a", "soemdsp_videoscope_xy_b", "soemdsp_videoscope_version"],
         "pll": ["soemdsp_pll_create", "soemdsp_pll_destroy", "soemdsp_pll_process"],
         "polyblep": [
             "soemdsp_polyblep_create",

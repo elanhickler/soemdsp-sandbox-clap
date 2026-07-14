@@ -187,6 +187,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.dsfOscillatorStates = new Map();
     this.robinSupersawStates = new Map();
     this.hypersawStates = new Map();
+    this.videoscopeStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -1077,6 +1078,22 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
         });
         return;
       }
+      if (name === "videoscope" || targetType === "videoscope") {
+        for (const state of this.videoscopeStates.values()) {
+          this.destroyVideoscopeNativeState(state);
+        }
+        this.nativeVideoscope = exports;
+        this.nativeVideoscopeReady = Boolean(
+          this.nativeVideoscope?.soemdsp_videoscope_create &&
+          this.nativeVideoscope?.soemdsp_videoscope_push,
+        );
+        this.port.postMessage({
+          type: "nativeModuleStatus",
+          name: "videoscope",
+          status: this.nativeVideoscopeReady ? "ready" : "missing exports",
+        });
+        return;
+      }
       if (name === "linear_envelope" || targetType === "linearEnvelope") {
         for (const state of this.linearEnvelopeStates.values()) {
           this.destroyLinearEnvelopeNativeState(state);
@@ -1517,6 +1534,7 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
     this.dsfOscillatorStates = new Map();
     this.robinSupersawStates = new Map();
     this.hypersawStates = new Map();
+    this.videoscopeStates = new Map();
     this.noiseGeneratorStates = new Map();
     this.oscResetStates = new Map();
     this.graphLfoStates = new Map();
@@ -1785,6 +1803,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       }
       if (node?.type === "hypersaw" && !this.hypersawStates.has(id)) {
         this.hypersawStates.set(id, this.createHypersawState());
+      }
+      if (node?.type === "videoscope" && !this.videoscopeStates.has(id)) {
+        this.videoscopeStates.set(id, this.createVideoscopeState());
       }
       if (node?.type === "passiveFilter" && !this.passiveFilterStates.has(id)) {
         this.passiveFilterStates.set(id, this.createStereoFilterState(() => this.createPassiveFilterState()));
@@ -2143,6 +2164,12 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (!ids.has(id)) {
         this.destroyHypersawNativeState(this.hypersawStates.get(id));
         this.hypersawStates.delete(id);
+      }
+    }
+    for (const id of [...this.videoscopeStates.keys()]) {
+      if (!ids.has(id)) {
+        this.destroyVideoscopeNativeState(this.videoscopeStates.get(id));
+        this.videoscopeStates.delete(id);
       }
     }
     for (const id of [...this.passiveFilterStates.keys()]) {
@@ -3412,6 +3439,9 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
       if (Array.isArray(state?.lastVoicePans) && state.lastVoicePans.length) {
         dataPorts.push([nodeId, "Pans", state.lastVoicePans]);
       }
+    }
+    for (const [nodeId, state] of this.videoscopeStates) {
+      this.videoscopeCollectDisplayData(nodeId, state, dataPorts);
     }
     if (!values.length && !dataPorts.length) {
       return;
@@ -6986,6 +7016,13 @@ class NodeLiveAudioProcessor extends AudioWorkletProcessor {
   destroyHypersawNativeState(state) {
     if (state?.nativeHandle && this.nativeHypersaw?.soemdsp_hypersaw_destroy) {
       this.nativeHypersaw.soemdsp_hypersaw_destroy(state.nativeHandle);
+      state.nativeHandle = 0;
+    }
+  }
+
+  destroyVideoscopeNativeState(state) {
+    if (state?.nativeHandle && this.nativeVideoscope?.soemdsp_videoscope_destroy) {
+      this.nativeVideoscope.soemdsp_videoscope_destroy(state.nativeHandle);
       state.nativeHandle = 0;
     }
   }

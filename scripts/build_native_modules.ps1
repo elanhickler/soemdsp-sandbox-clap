@@ -1106,3 +1106,23 @@ if (!(Test-Path -LiteralPath $clang)) {
   "-Wl,--export-memory" `
   -o "$root\native_modules\antisaw\antisaw.wasm" `
   "$root\native_modules\antisaw\antisaw.cpp"
+
+& $clang `
+  --target=wasm32 `
+  -O3 `
+  -nostdlib `
+  -fno-exceptions `
+  -fno-rtti `
+  "-Wl,--no-entry" `
+  "-Wl,--export=soemdsp_videoscope_create" `
+  "-Wl,--export=soemdsp_videoscope_destroy" `
+  "-Wl,--export=soemdsp_videoscope_push" `
+  "-Wl,--export=soemdsp_videoscope_window_size" `
+  "-Wl,--export=soemdsp_videoscope_column_min" `
+  "-Wl,--export=soemdsp_videoscope_column_max" `
+  "-Wl,--export=soemdsp_videoscope_xy_a" `
+  "-Wl,--export=soemdsp_videoscope_xy_b" `
+  "-Wl,--export=soemdsp_videoscope_version" `
+  "-Wl,--export-memory" `
+  -o "$root\native_modules\videoscope\videoscope.wasm" `
+  "$root\native_modules\videoscope\videoscope.cpp"

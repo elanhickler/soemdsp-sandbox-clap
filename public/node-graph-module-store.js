@@ -882,6 +882,12 @@ const nodeGraphModuleStoreCatalog = Object.freeze({
     label: "Oscilloscope Bank",
     notes: ["voice bank scope", "phase vs amplitude", "pan color", "additive blend", "phosphor burn"],
   },
+  videoscope: {
+    category: "Oscilloscope",
+    description: "A triggered oscilloscope for two audio-rate signals (A/B). Ring-buffers both channels, triggers on a configurable level crossing (source A or B, rising or falling), and captures a window around the trigger point. Dot and Line modes draw per-pixel-column min/max stems so brief spikes survive zoomed-out windows; XY mode plots A against B directly. Freeze holds the last captured window. Native C++/WASM.",
+    label: "Videoscope",
+    notes: ["oscilloscope", "trigger", "dot", "line", "xy", "native", "phosphor display"],
+  },
   valueOscilloscope: {
     category: "Oscilloscope",
     description: "Single-value oscilloscope that draws the latest input as one horizontal line across the display.",

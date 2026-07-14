@@ -698,6 +698,18 @@
       "wasmAvailable": true
     },
     {
+      "name": "videoscope",
+      "label": "Videoscope",
+      "targetType": "videoscope",
+      "kind": "display",
+      "source": "native_modules/videoscope/videoscope.cpp",
+      "sourceUrl": "https://github.com/soundemote/soemdsp-sandbox/blob/master/native_modules/videoscope/videoscope.cpp",
+      "libUrl": "",
+      "wasm": "native_modules/videoscope/videoscope.wasm",
+      "wasmUrl": "native_modules/videoscope/videoscope.wasm",
+      "wasmAvailable": true
+    },
+    {
       "name": "yellowjacket_filter",
       "label": "Yellowjacket Filter",
       "targetType": "yellowjacketFilter",
