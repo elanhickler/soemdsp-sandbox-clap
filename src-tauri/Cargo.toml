@@ -1,0 +1,19 @@
+[package]
+name = "soemdsp-sandbox-native"
+version = "0.1.0"
+description = "Native desktop shell for the Soundemote soemdsp sandbox -- spawns the sandbox's own local server as a sidecar process and opens a native window pointed at it."
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[bin]]
+name = "soemdsp-sandbox-native"
+path = "src/main.rs"
